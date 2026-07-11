@@ -1,3 +1,5 @@
+import 'dart:ui' show PlatformDispatcher;
+
 import 'package:flutter_overlay_window/flutter_overlay_window.dart';
 
 import '../domain/overlay_action.dart';
@@ -33,13 +35,23 @@ class OverlayService {
       .where((a) => a != null)
       .cast<OverlayAction>();
 
-  /// Overlay window dimensions. A COMPACT box (not full-screen) is what makes it
-  /// draggable to BOTH edges: a `matchParent`/`fullCover` window has no room to
-  /// move horizontally, so `positionGravity` could only ever pin it right. Sized
-  /// to hold the widest pill; the bubble sits centered inside. Logical px — bump
-  /// these if the pill clips on very high-density screens (tunable knob).
-  static const int _overlayWidth = 320;
-  static const int _overlayHeight = 96;
+  /// Overlay window size in **logical px (dp)**. A COMPACT box (not full-screen)
+  /// is what makes it draggable to BOTH edges: a `matchParent`/`fullCover` window
+  /// has no room to move horizontally, so `positionGravity` could only ever pin
+  /// it right. Sized to hold the widest pill; the bubble sits centered inside.
+  static const double _overlayWidthDp = 300;
+  static const double _overlayHeightDp = 120;
+
+  /// The plugin's INITIAL `showOverlay` size is raw PHYSICAL pixels (its native
+  /// code skips dp→px conversion on first show — only resize/move convert). So a
+  /// dp value passed straight through comes out ~3× too small on a 3× screen and
+  /// clips the pill/bubble to nothing. Convert dp→px ourselves using the screen
+  /// density. No BuildContext here, so read it off the platform view directly.
+  static int _dpToPx(double dp) {
+    final views = PlatformDispatcher.instance.views;
+    final dpr = views.isNotEmpty ? views.first.devicePixelRatio : 3.0;
+    return (dp * dpr).round();
+  }
 
   /// Bring the overlay up in its resting state (bubble). Called when FoxyCo
   /// starts watching. A small draggable box: [OverlayFlag.defaultFlag] lets
@@ -48,8 +60,8 @@ class OverlayService {
   Future<void> startWatching({bool paused = false}) async {
     if (!await FlutterOverlayWindow.isActive()) {
       await FlutterOverlayWindow.showOverlay(
-        height: _overlayHeight,
-        width: _overlayWidth,
+        height: _dpToPx(_overlayHeightDp),
+        width: _dpToPx(_overlayWidthDp),
         alignment: OverlayAlignment.topRight,
         flag: OverlayFlag.defaultFlag, // pass-through except on our widgets
         enableDrag: true,
