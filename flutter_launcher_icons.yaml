@@ -1,0 +1,10 @@
+flutter_launcher_icons:
+  android: true
+  ios: false
+  # Clean, text-free fox-head badge (cropped from foxyco_icon_car_a).
+  image_path: "assets/branding/foxyco_launcher.png"
+  # Adaptive layers: fox badge on a navy field that matches the bg -> no square
+  # seam under the system circle/squircle mask.
+  adaptive_icon_background: "assets/branding/foxyco_adaptive_bg.png"
+  adaptive_icon_foreground: "assets/branding/foxyco_adaptive_fg.png"
+  min_sdk_android: 26

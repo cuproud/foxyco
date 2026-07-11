@@ -1,0 +1,493 @@
+# GigPilot – Free AI Assistant for Gig Drivers (Project Master Plan)
+
+## Vision
+
+GigPilot is a completely free, Android-native application designed to become the ultimate companion for gig economy drivers. Unlike existing apps that require monthly subscriptions or have limited regional support, GigPilot aims to provide powerful automation, analytics, profit optimization, and business management tools at no cost while prioritizing user privacy.
+
+The app is inspired by the best features from Maxymo, Mystro, GigU, DriverPal, and Gridwise, but it is designed from the ground up with a modern architecture, offline-first capabilities, and modular development.
+
+---
+
+# Objectives
+
+The application should help drivers:
+
+* Earn more money
+* Drive fewer unnecessary kilometers
+* Reduce idle time
+* Make smarter order decisions
+* Track every dollar earned
+* Track every business expense
+* Automatically calculate profit
+* Prepare taxes more easily
+* Improve long-term earnings through analytics
+* Maintain complete ownership of their data
+
+---
+
+# Core Principles
+
+* 100% Free
+* Android Native
+* Built using Kotlin and Jetpack Compose
+* Material Design 3
+* Offline-first architecture
+* Privacy-first
+* No mandatory account
+* No subscription
+* Local data storage
+* Modular architecture
+* Scalable codebase
+* Canadian-first with global support
+
+---
+
+# Inspiration Sources
+
+This project combines the strongest features from:
+
+* Maxymo
+* Mystro
+* GigU
+* DriverPal
+* Gridwise
+
+The goal is not to clone these applications but to create a superior, unified platform.
+
+---
+
+# Major Modules
+
+## Dashboard
+
+Central overview displaying:
+
+* Today's earnings
+* Weekly earnings
+* Monthly earnings
+* Total online time
+* Active delivery time
+* Idle time
+* Trips completed
+* Gross income
+* Estimated profit
+* Fuel expenses
+* Vehicle expenses
+* Tax estimate
+* Earnings goal progress
+* Average earnings per hour
+* Average earnings per kilometer
+* Acceptance rate
+* Cancellation rate
+
+---
+
+## Driver Profile
+
+Vehicle information used throughout the application.
+
+Includes:
+
+* Vehicle
+* Fuel type
+* Fuel economy
+* Insurance cost
+* Maintenance cost
+* Province
+* Tax rate
+* Oil change interval
+* Tire rotation interval
+* Brake maintenance
+* Depreciation estimate
+
+---
+
+## Smart Offer Engine
+
+One of the primary features.
+
+Capabilities include:
+
+* Detect incoming offers
+* Read order information
+* Analyze profitability
+* Calculate estimated net earnings
+* Calculate dollars per kilometer
+* Calculate dollars per hour
+* Estimate fuel cost
+* Estimate vehicle wear
+* Estimate taxes
+* Score every order
+* Recommend Accept or Decline
+
+---
+
+## Custom Offer Filters
+
+Users should be able to configure rules such as:
+
+* Minimum payout
+* Minimum dollars per kilometer
+* Minimum hourly rate
+* Maximum delivery distance
+* Maximum pickup distance
+* Maximum delivery duration
+* Store blacklist
+* Store whitelist
+* Area blacklist
+* Area whitelist
+* Apartment avoidance
+* Downtown avoidance
+* Construction avoidance
+* Hospital avoidance
+* School avoidance
+
+---
+
+## Automation Engine
+
+Inspired by Maxymo.
+
+Potential features:
+
+* Accessibility Service integration
+* Automatic accept
+* Automatic decline
+* Voice announcements
+* Floating overlay
+* Notification monitoring
+* Automatic app switching
+* Resume detection
+* Pause detection
+* Clipboard monitoring
+* Screenshot automation
+
+Automation should always remain optional and modular.
+
+---
+
+## Earnings Manager
+
+Track:
+
+* Daily income
+* Weekly income
+* Monthly income
+* Yearly income
+
+Separate earnings by platform.
+
+Support:
+
+* Uber
+* Uber Eats
+* DoorDash
+* Skip
+* Instacart
+* Amazon Flex
+* Spark
+* Manual entries
+
+---
+
+## Profit Calculator
+
+Instead of showing only gross income, calculate:
+
+* Gross earnings
+* Fuel cost
+* Maintenance cost
+* Tire wear
+* Depreciation
+* Taxes
+* Net earnings
+* Profit per hour
+* Profit per kilometer
+
+---
+
+## Mileage Tracker
+
+Automatic GPS logging.
+
+Support:
+
+* Business trips
+* Personal trips
+* Export
+* CSV
+* Excel
+* PDF
+* CRA-compatible reports
+* IRS-compatible reports
+
+---
+
+## Expense Manager
+
+Track:
+
+* Fuel
+* Car wash
+* Maintenance
+* Repairs
+* Insurance
+* Parking
+* Tolls
+* Phone bill
+* Accessories
+* Loan payments
+* Lease payments
+* Miscellaneous expenses
+
+Support receipt scanning using OCR.
+
+---
+
+## Analytics
+
+Provide insights such as:
+
+* Best earning days
+* Best earning hours
+* Best neighborhoods
+* Best restaurants
+* Highest paying platforms
+* Lowest paying platforms
+* Average wait time
+* Idle time
+* Acceptance trends
+* Cancellation trends
+* Profit trends
+* Heat maps
+* Historical performance
+
+---
+
+## AI Insights
+
+Generate intelligent recommendations.
+
+Examples:
+
+"You earn 28% more on Fridays."
+
+"Downtown deliveries reduce your hourly earnings."
+
+"Restaurant X has long wait times."
+
+"You declined several profitable offers."
+
+"You drive unnecessary empty kilometers."
+
+"You can increase profits by changing your working hours."
+
+---
+
+## Maps
+
+Interactive maps displaying:
+
+* Busy zones
+* Favorite zones
+* Custom zones
+* High-profit areas
+* Low-profit areas
+* Traffic
+* Construction
+* Fuel stations
+* EV charging stations
+* Parking
+* Washrooms
+
+---
+
+## Goals
+
+Users can create:
+
+* Daily earning goals
+* Weekly goals
+* Monthly goals
+* Savings goals
+* Vacation goals
+* Debt payoff goals
+
+Display visual progress throughout the application.
+
+---
+
+## Forecasting
+
+Estimate future earnings based on:
+
+* Historical data
+* Weather
+* Day of week
+* Holidays
+* Events
+* Traffic
+* Surge pricing
+* User behavior
+
+Recommend:
+
+* Best platform
+* Best working hours
+* Best working areas
+
+---
+
+## Notifications
+
+Configurable notifications for:
+
+* High-value orders
+* Low-value orders
+* Daily goals
+* Break reminders
+* Fuel reminders
+* Maintenance reminders
+* Earnings milestones
+
+Support:
+
+* Voice
+* Vibration
+* Sound
+* Overlay notifications
+
+---
+
+## Multi-Platform Support
+
+Designed to support multiple gig platforms.
+
+Initial targets:
+
+* Uber
+* Uber Eats
+* DoorDash
+* Skip
+* Instacart
+* Amazon Flex
+* Spark
+
+Support manual entry if automatic integration is unavailable.
+
+---
+
+## Backup
+
+Support:
+
+* Local backup
+* Google Drive backup
+* Encrypted backup
+* Restore
+* Export
+* Import
+
+---
+
+## Privacy
+
+The application should prioritize user privacy.
+
+Goals include:
+
+* No mandatory account
+* Local database
+* No unnecessary cloud storage
+* User owns all data
+* Easy export
+* Encrypted backups
+* Transparent permissions
+
+---
+
+# Technical Stack
+
+Language:
+
+* Kotlin
+
+UI:
+
+* Jetpack Compose
+* Material Design 3
+
+Architecture:
+
+* MVVM
+* Repository Pattern
+* Clean Architecture
+* Modular architecture
+
+Database:
+
+* Room
+
+Dependency Injection:
+
+* Hilt
+
+Background Processing:
+
+* WorkManager
+
+Concurrency:
+
+* Coroutines
+* Kotlin Flow
+
+Navigation:
+
+* Navigation Compose
+
+Storage:
+
+* DataStore
+* Proto DataStore
+
+Maps:
+
+* Google Maps SDK
+* Maps Compose
+
+OCR:
+
+* Google ML Kit
+
+Camera:
+
+* CameraX
+
+Image Loading:
+
+* Coil
+
+Optional Services:
+
+* Firebase Crashlytics
+* Firebase Analytics
+
+---
+
+# Development Philosophy
+
+The project should be developed in clearly defined phases.
+
+Each module should:
+
+* Be independently testable
+* Follow Clean Architecture
+* Be reusable
+* Have comprehensive documentation
+* Support future expansion
+* Minimize technical debt
+* Remain highly maintainable
+
+Every feature should prioritize performance, battery efficiency, accessibility, privacy, and a polished user experience.
+
+GigPilot is intended to become a long-term open, extensible platform that empowers gig drivers with professional-grade tools without requiring paid subscriptions.

@@ -1,0 +1,560 @@
+# GigPilot MVP — Project Specification & Development Prompt
+
+You are a senior Android engineer, software architect, UI/UX designer, and product manager.
+
+Your goal is to help me build a production-quality Android application from scratch.
+
+Do NOT rush into writing code.
+
+Think like a senior software engineer designing an application that will continue growing for years.
+
+---
+
+# Project Name
+
+GigPilot (working title)
+
+---
+
+# Project Goal
+
+GigPilot is a completely free Android application for gig economy drivers.
+
+The MVP has ONE purpose only:
+
+**Instantly analyze an incoming delivery or ride offer and tell the driver whether it is a GOOD, AVERAGE, or BAD offer.**
+
+The app must work completely locally.
+
+No cloud.
+
+No backend.
+
+No subscriptions.
+
+No login.
+
+No analytics.
+
+No AI chat.
+
+No unnecessary features.
+
+Only solve one problem extremely well.
+
+---
+
+# Product Philosophy
+
+I do NOT want to build another feature-heavy application.
+
+I want to build the best offer analyzer possible.
+
+Every design and engineering decision should prioritize:
+
+* simplicity
+* speed
+* reliability
+* maintainability
+* modularity
+* clean architecture
+* future scalability
+
+The app should feel polished and professional despite having very few features.
+
+---
+
+# MVP Scope
+
+The application should only do the following:
+
+1. Detect an incoming offer.
+2. Read the offer information.
+3. Calculate profitability.
+4. Classify the offer.
+5. Display the result instantly.
+
+Nothing more.
+
+---
+
+# Platforms
+
+Target:
+
+Android only
+
+Minimum SDK:
+(API level to be decided)
+
+Language:
+
+Kotlin
+
+UI:
+
+Jetpack Compose
+
+Material Design 3
+
+MVVM
+
+Clean Architecture
+
+Repository Pattern
+
+Dependency Injection using Hilt
+
+Room Database
+
+Coroutines
+
+Flow
+
+Navigation Compose
+
+DataStore
+
+Accessibility Service
+
+Foreground Service (only if required)
+
+---
+
+# Performance Requirements
+
+The application should feel instant.
+
+Target:
+
+Offer detected
+
+↓
+
+Information parsed
+
+↓
+
+Calculation completed
+
+↓
+
+Recommendation displayed
+
+within approximately 300 milliseconds whenever feasible.
+
+Battery consumption should be minimal.
+
+Memory usage should remain low.
+
+No unnecessary background work.
+
+---
+
+# Core Workflow
+
+Incoming Offer
+
+↓
+
+Accessibility Service detects the screen or notification.
+
+↓
+
+Offer Parser extracts:
+
+* payout
+* pickup distance
+* delivery distance
+* total distance
+* estimated duration (if available)
+
+↓
+
+Profit Calculator computes:
+
+* fuel cost
+* vehicle wear
+* estimated profit
+* dollars per kilometer
+* dollars per hour (when time is available)
+
+↓
+
+Decision Engine determines:
+
+GOOD
+
+AVERAGE
+
+BAD
+
+↓
+
+Overlay immediately displays recommendation.
+
+---
+
+# Initial Supported Platforms
+
+Design the architecture so support for multiple delivery platforms can be added later.
+
+For the MVP, the parser should be modular and independent of platform-specific UI so new parsers can be introduced without changing the business logic.
+
+---
+
+# Driver Settings
+
+The app should allow the user to configure:
+
+Vehicle:
+
+* fuel economy
+* fuel type
+
+Operating Costs:
+
+* fuel price
+* maintenance cost per kilometer
+* depreciation cost per kilometer (optional)
+
+Offer Filters:
+
+* minimum payout
+* minimum dollars per kilometer
+* minimum hourly earnings
+* maximum delivery distance
+
+Keep settings minimal and easy to understand.
+
+---
+
+# Offer Evaluation
+
+Instead of only displaying numbers, classify every offer.
+
+Possible ratings:
+
+Excellent
+
+Good
+
+Average
+
+Poor
+
+Decline
+
+The decision should be based on configurable rules rather than hardcoded values.
+
+---
+
+# Overlay Design
+
+The overlay should appear immediately after an offer is detected.
+
+It should be:
+
+minimal
+
+clean
+
+easy to read while driving
+
+large typography
+
+high contrast
+
+rounded Material Design cards
+
+Example layout:
+
+---
+
+🟢 GOOD OFFER
+
+Estimated Profit
+
+$11.82
+
+$2.14/km
+
+Fuel Cost
+
+$0.71
+
+Vehicle Cost
+
+$0.46
+
+Recommendation
+
+ACCEPT
+
+---
+
+The overlay should disappear automatically after a configurable timeout.
+
+---
+
+# Home Screen
+
+Keep it extremely simple.
+
+Cards:
+
+App Status
+
+Accessibility Status
+
+Waiting for Offers
+
+Today's Summary
+
+Good Offers
+
+Average Offers
+
+Bad Offers
+
+Settings
+
+No graphs.
+
+No analytics.
+
+No dashboards.
+
+No clutter.
+
+---
+
+# UI Style
+
+I want a modern Android application.
+
+Use inspiration from:
+
+Google Pixel
+
+Material Design 3
+
+Google Wallet
+
+Tesla App
+
+Google Fit
+
+Avoid:
+
+old Android design
+
+skeuomorphic design
+
+busy layouts
+
+tiny buttons
+
+heavy gradients
+
+Visual goals:
+
+clean
+
+premium
+
+minimal
+
+smooth animations
+
+excellent spacing
+
+large touch targets
+
+beautiful typography
+
+---
+
+# Animations
+
+Animations should be subtle.
+
+Examples:
+
+fade in
+
+fade out
+
+card elevation
+
+number counting
+
+progress animation
+
+Do NOT overuse animations.
+
+Performance is more important.
+
+---
+
+# Architecture Requirements
+
+Use Clean Architecture.
+
+Suggested modules:
+
+core
+
+ui
+
+domain
+
+data
+
+parser
+
+calculator
+
+decision
+
+overlay
+
+settings
+
+database
+
+Each module should have one responsibility.
+
+Business logic must never depend on UI.
+
+The calculation engine should be reusable and independently testable.
+
+---
+
+# Code Quality
+
+Write production-quality code.
+
+Requirements:
+
+SOLID principles
+
+Clean Code
+
+Kotlin best practices
+
+Meaningful naming
+
+No duplicated logic
+
+Proper documentation
+
+Dependency injection
+
+Unit-testable architecture
+
+Avoid shortcuts.
+
+Avoid hacks.
+
+Avoid tightly coupled code.
+
+---
+
+# Development Workflow
+
+Do NOT generate the entire application at once.
+
+Instead:
+
+Break the project into small milestones.
+
+For every milestone:
+
+1. Explain the architecture.
+2. Explain the reasoning.
+3. List files to create.
+4. Wait for approval.
+5. Then generate production-quality code.
+
+Never skip planning.
+
+---
+
+# Documentation
+
+Throughout development maintain documentation for:
+
+Project structure
+
+Architecture decisions
+
+Module responsibilities
+
+Coding standards
+
+Naming conventions
+
+Future roadmap
+
+Known limitations
+
+Technical debt
+
+---
+
+# Future Expansion
+
+Even though the MVP is intentionally small, the architecture should allow future additions without major refactoring.
+
+Potential future modules include:
+
+Analytics
+
+Mileage tracking
+
+Expense tracking
+
+Heat maps
+
+Goals
+
+AI recommendations
+
+Cloud backup
+
+Multi-platform support
+
+Maps
+
+Vehicle maintenance
+
+These features should NOT be implemented now.
+
+Only ensure the architecture can support them later.
+
+---
+
+# Development Rules
+
+Always prioritize:
+
+Correctness over speed.
+
+Maintainability over cleverness.
+
+Readability over complexity.
+
+Native Android best practices.
+
+Battery efficiency.
+
+Responsiveness.
+
+Offline-first design.
+
+Privacy-first design.
+
+Professional UI.
+
+If there are multiple implementation approaches, explain the trade-offs and recommend the most maintainable solution before writing code.
