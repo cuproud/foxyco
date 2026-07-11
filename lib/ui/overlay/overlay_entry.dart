@@ -102,47 +102,34 @@ class _OverlayRootState extends State<_OverlayRoot> {
   @override
   Widget build(BuildContext context) {
     final payload = _payload;
-    return SafeArea(
-      child: Stack(
-        children: [
-          // Verdict pill — drops in at top-center on an offer.
-          Align(
-            alignment: Alignment.topCenter,
-            child: AnimatedSwitcher(
-              duration: Motion.base,
-              switchInCurve: Motion.curve,
-              transitionBuilder: (child, anim) => FadeTransition(
-                opacity: anim,
-                child: ScaleTransition(
-                  scale: Tween(begin: 0.92, end: 1.0).animate(anim),
-                  child: child,
-                ),
-              ),
-              child: payload == null
-                  ? const SizedBox.shrink()
-                  : Padding(
-                      key: ValueKey(payload.hashCode),
-                      padding: const EdgeInsets.only(top: Gap.sm),
-                      child: VerdictPill(payload: payload),
-                    ),
-            ),
+    // The overlay window is a compact draggable box (see OverlayService). It
+    // shows ONE thing at a time, centered: the verdict pill while an offer is
+    // live, otherwise the resting bubble. The pill self-clears to the bubble on
+    // the 12s timer — no more "stuck pill". Drag the box to either edge.
+    return Center(
+      child: AnimatedSwitcher(
+        duration: Motion.base,
+        switchInCurve: Motion.curve,
+        transitionBuilder: (child, anim) => FadeTransition(
+          opacity: anim,
+          child: ScaleTransition(
+            scale: Tween(begin: 0.92, end: 1.0).animate(anim),
+            child: child,
           ),
-
-          // Resting bubble — always present, pinned bottom-right by default.
-          // (The plugin's window drag repositions the whole overlay; snap is
-          // handled by positionGravity in OverlayService.)
-          Align(
-            alignment: Alignment.bottomRight,
-            child: Padding(
-              padding: const EdgeInsets.all(Gap.md),
-              child: FoxBubble(
+        ),
+        child: payload == null
+            ? FoxBubble(
+                key: const ValueKey('bubble'),
                 paused: _paused,
                 onTap: _onBubbleTap,
                 onLongPress: _onBubbleLongPress,
+              )
+            : GestureDetector(
+                // Tap the pill to dismiss it early (back to the bubble).
+                key: ValueKey('pill-${payload.hashCode}'),
+                onTap: _clearPill,
+                child: VerdictPill(payload: payload),
               ),
-            ),
-          ),
-        ],
       ),
     );
   }

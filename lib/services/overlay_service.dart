@@ -33,19 +33,27 @@ class OverlayService {
       .where((a) => a != null)
       .cast<OverlayAction>();
 
-  /// Bring the overlay up in its resting state (bubble only, no pill). Called
-  /// when FoxyCo starts watching. Full-cover so the bubble can pin to a screen
-  /// edge and a pill can later drop in at the top; [OverlayFlag.defaultFlag]
-  /// lets touches through everywhere except our actual widgets.
+  /// Overlay window dimensions. A COMPACT box (not full-screen) is what makes it
+  /// draggable to BOTH edges: a `matchParent`/`fullCover` window has no room to
+  /// move horizontally, so `positionGravity` could only ever pin it right. Sized
+  /// to hold the widest pill; the bubble sits centered inside. Logical px — bump
+  /// these if the pill clips on very high-density screens (tunable knob).
+  static const int _overlayWidth = 320;
+  static const int _overlayHeight = 96;
+
+  /// Bring the overlay up in its resting state (bubble). Called when FoxyCo
+  /// starts watching. A small draggable box: [OverlayFlag.defaultFlag] lets
+  /// touches through the transparent area, `enableDrag` + `positionGravity.auto`
+  /// let the user fling it to either side of the screen.
   Future<void> startWatching({bool paused = false}) async {
     if (!await FlutterOverlayWindow.isActive()) {
       await FlutterOverlayWindow.showOverlay(
-        height: WindowSize.fullCover,
-        width: WindowSize.matchParent,
-        alignment: OverlayAlignment.center,
+        height: _overlayHeight,
+        width: _overlayWidth,
+        alignment: OverlayAlignment.topRight,
         flag: OverlayFlag.defaultFlag, // pass-through except on our widgets
         enableDrag: true,
-        positionGravity: PositionGravity.auto, // snap to an edge after a drag
+        positionGravity: PositionGravity.auto, // snap to nearest edge, either side
         overlayTitle: 'FoxyCo',
         overlayContent: 'Watching for offers',
       );
