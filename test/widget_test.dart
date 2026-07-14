@@ -5,34 +5,46 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:foxyco/ui/home/home_screen.dart';
 
 void main() {
+  // The dashboard is a tall scroll; give the test a tall viewport so the
+  // lazy ListView builds every section (hero + ticket) at once.
+  void tall(WidgetTester tester) {
+    tester.view.physicalSize = const Size(1080, 2600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+  }
+
   testWidgets('Home dashboard renders its core sections', (tester) async {
+    tall(tester);
     await tester.pumpWidget(
       const ProviderScope(
         child: MaterialApp(home: HomeScreen()),
       ),
     );
 
-    // App title + the hero status card + section headers.
+    // Brand bar + the hero status + today's tally + the last-offer ticket.
     expect(find.text('FoxyCo'), findsOneWidget);
-    expect(find.text('Watching for offers'), findsOneWidget);
-    expect(find.text('TODAY'), findsOneWidget);
+    expect(find.text('On the prowl'), findsOneWidget);
+    expect(find.text('offers seen today'), findsOneWidget);
     expect(find.text('LAST OFFER'), findsOneWidget);
 
-    // Tally labels present.
-    expect(find.text('GOOD'), findsWidgets);
+    // The mock last offer is a GOOD one — its ticket badge reads "Good".
+    expect(find.text('Good'), findsWidgets);
   });
 
-  testWidgets('Pause button toggles the status', (tester) async {
+  testWidgets('Stop / Go Live toggles the status', (tester) async {
+    tall(tester);
     await tester.pumpWidget(
       const ProviderScope(
         child: MaterialApp(home: HomeScreen()),
       ),
     );
 
-    expect(find.text('Watching for offers'), findsOneWidget);
-    await tester.tap(find.text('Pause'));
+    expect(find.text('On the prowl'), findsOneWidget);
+    await tester.tap(find.text('Stop'));
     await tester.pump();
-    expect(find.text('Paused'), findsOneWidget);
-    expect(find.text('Resume'), findsOneWidget);
+    expect(find.text('Off duty'), findsOneWidget); // hero status
+    expect(find.text('Go Live'), findsOneWidget); // button flipped
+    expect(find.text('Off'), findsOneWidget); // brand-bar live pill
   });
 }

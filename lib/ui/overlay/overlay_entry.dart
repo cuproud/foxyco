@@ -10,6 +10,11 @@ import '../theme/tokens.dart';
 import 'fox_bubble.dart';
 import 'verdict_pill.dart';
 
+/// TEMP diagnostic. When true the overlay paints a translucent tint across the
+/// whole window so its presence is unmistakable on device. OFF now — visibility
+/// is confirmed; with the compact window this would only tint the small box.
+const bool _kOverlayDebug = false;
+
 /// The overlay ISOLATE's UI (docs/OVERLAY §separate isolate).
 ///
 /// `flutter_overlay_window` boots this via a second `runApp` in its own isolate
@@ -29,10 +34,7 @@ class FoxOverlayApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       // Transparent so only our widgets paint; the app underneath shows through.
       color: Colors.transparent,
-      home: Scaffold(
-        backgroundColor: Colors.transparent,
-        body: _OverlayRoot(),
-      ),
+      home: Scaffold(backgroundColor: Colors.transparent, body: _OverlayRoot()),
     );
   }
 }
@@ -45,9 +47,27 @@ class _OverlayRoot extends StatefulWidget {
 }
 
 class _OverlayRootState extends State<_OverlayRoot> {
-  /// How long a pill lingers before it fades out on its own. The overlay window
-  /// stays alive (bubble-ready); only the pill content clears.
-  static const _dismissAfter = Duration(seconds: 12);
+  /// Safety fallback only. The pill's real lifecycle is now driven by the main
+  /// isolate: it shows on an `offer` message and clears on a `clearPill` control
+  /// message the instant the offer leaves the screen (HANDOFF reqs 6–7). This
+  /// timer just guards against a missed clear (app killed mid-offer, dropped
+  /// message) so a pill can't linger forever — deliberately long so it never
+  /// pre-empts a still-present offer the way the old 12 s timer did.
+  static const _dismissAfter = Duration(seconds: 45);
+
+  /// Window sizes in **dp** (resizeOverlay converts to px). The window is grown
+  /// to fit the pill while an offer shows, then shrunk back to the bubble so it
+  /// hugs an edge and drags freely. Keep these in sync with the widgets: pill
+  /// width must hold the widest verdict line, bubble = FoxBubble.size + margin.
+  //
+  // The pill window MUST stay narrower than the screen, or it can't be dragged:
+  // the native X-clamp is `maxX = screenWidth - windowWidth`, so a 360dp window
+  // on the S24's 360dp-wide screen pins maxX to 0 and the (centered) pill is
+  // stuck mid-screen — exactly the "lands in centre, won't go to an edge" bug.
+  // 300dp holds the compact `small` pill (verdict WORD + "$7 · $1.21/km · $73/hr")
+  // and leaves real horizontal travel so it can snap to either edge.
+  static const _pillBox = (w: 300, h: 72);
+  static const _bubbleBox = (w: 72, h: 72);
 
   OverlayPayload? _payload;
   bool _paused = false;
@@ -57,12 +77,19 @@ class _OverlayRootState extends State<_OverlayRoot> {
   @override
   void initState() {
     super.initState();
+    debugPrint('FoxyCo[overlay] _OverlayRoot.initState — attaching listener');
     _sub = FlutterOverlayWindow.overlayListener.listen(_onData);
   }
+
+  /// Grow/shrink the overlay window to match the current content. Called from
+  /// the overlay isolate (where resizeOverlay's method channel is registered).
+  void _resize(({int w, int h}) box) =>
+      FlutterOverlayWindow.resizeOverlay(box.w, box.h, true);
 
   /// Route an inbound `shareData` map by its `kind` tag. Anything unrecognized
   /// is ignored (fail safe) so a stray message never crashes the overlay.
   void _onData(dynamic data) {
+    debugPrint('FoxyCo[overlay] _onData: $data');
     if (data is! Map) return;
 
     if (OverlayControl.isControl(data)) {
@@ -73,6 +100,7 @@ class _OverlayRootState extends State<_OverlayRoot> {
 
     if (data['kind'] == 'offer') {
       setState(() => _payload = OverlayPayload.fromMap(data));
+      _resize(_pillBox); // widen the window to fit the pill
       _dismissTimer?.cancel();
       _dismissTimer = Timer(_dismissAfter, _clearPill);
     }
@@ -80,10 +108,18 @@ class _OverlayRootState extends State<_OverlayRoot> {
 
   void _clearPill() {
     if (mounted) setState(() => _payload = null);
+    _resize(_bubbleBox); // shrink back so the bubble hugs the edge / drags
   }
 
   // Bubble gestures → actions sent back to the main isolate.
-  void _onBubbleTap() => FlutterOverlayWindow.shareData(OverlayAction.openApp.toMap());
+  // Tap foregrounds FoxyCo. We call bringHostToFront() DIRECTLY on the overlay
+  // method channel (reliable — same path as resizeOverlay) rather than routing
+  // an openApp action through the messenger, which looped back here and never
+  // reached native. Still emit the action too, for the main isolate's hooks.
+  void _onBubbleTap() {
+    FlutterOverlayWindow.bringHostToFront();
+    FlutterOverlayWindow.shareData(OverlayAction.openApp.toMap());
+  }
 
   void _onBubbleLongPress() {
     // Optimistically flip locally so it feels instant; main echoes the truth
@@ -102,11 +138,16 @@ class _OverlayRootState extends State<_OverlayRoot> {
   @override
   Widget build(BuildContext context) {
     final payload = _payload;
-    // The overlay window is a compact draggable box (see OverlayService). It
-    // shows ONE thing at a time, centered: the verdict pill while an offer is
-    // live, otherwise the resting bubble. The pill self-clears to the bubble on
-    // the 12s timer — no more "stuck pill". Drag the box to either edge.
-    return Center(
+    debugPrint(
+      'FoxyCo[overlay] build — payload=${payload?.verdict}, paused=$_paused',
+    );
+    // The overlay window is a COMPACT box resting on the right edge (see
+    // OverlayService) — small on purpose so it only captures touches over
+    // itself, never the whole screen. Center our single widget in it: the
+    // verdict pill while an offer is live, otherwise the resting bubble. The
+    // main isolate drives the pill's life — it clears the instant the offer
+    // card leaves the screen; the 45s timer here is only a dropped-message net.
+    final content = Center(
       child: AnimatedSwitcher(
         duration: Motion.base,
         switchInCurve: Motion.curve,
@@ -125,12 +166,27 @@ class _OverlayRootState extends State<_OverlayRoot> {
                 onLongPress: _onBubbleLongPress,
               )
             : GestureDetector(
-                // Tap the pill to dismiss it early (back to the bubble).
+                // Absorb taps on the pill so a stray touch can't dismiss it —
+                // the driver needs it to STAY put while they read the offer.
+                // The pill's life is driven entirely by the main isolate: it
+                // clears the instant the offer card leaves the screen (accept /
+                // decline / dismiss), never on a tap. onTap is a no-op that just
+                // swallows the gesture (opaque hit-test below).
                 key: ValueKey('pill-${payload.hashCode}'),
-                onTap: _clearPill,
-                child: VerdictPill(payload: payload),
+                behavior: HitTestBehavior.opaque,
+                onTap: () {},
+                child: VerdictPill(payload: payload, size: PillSize.small),
               ),
       ),
+    );
+
+    if (!_kOverlayDebug) return content;
+    // Diagnostic: translucent full-screen tint proves the window rendered.
+    return Stack(
+      children: [
+        const Positioned.fill(child: ColoredBox(color: Color(0x33FF00FF))),
+        content,
+      ],
     );
   }
 }

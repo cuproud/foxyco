@@ -9,13 +9,32 @@ void main() {
         verdict: Verdict.good,
         totalKm: 8.4,
         payout: 12,
+        totalMinutes: 24,
         size: PillSize.large,
       );
       final back = OverlayPayload.fromMap(p.toMap());
       expect(back.verdict, Verdict.good);
       expect(back.totalKm, 8.4);
       expect(back.payout, 12);
+      expect(back.totalMinutes, 24);
       expect(back.size, PillSize.large);
+    });
+
+    test('carries \$/hr; drops it when time is unknown', () {
+      const withTime = OverlayPayload(
+        verdict: Verdict.good,
+        totalKm: 8.4,
+        payout: 12,
+        totalMinutes: 24,
+      );
+      expect(withTime.pricePerHour, closeTo(30, 1e-9)); // $12 / 24min * 60
+
+      const noTime = OverlayPayload(
+        verdict: Verdict.good,
+        totalKm: 8.4,
+        payout: 12,
+      );
+      expect(noTime.pricePerHour, 0); // hidden rather than ∞
     });
 
     test('enums cross as stable name strings, not indexes', () {

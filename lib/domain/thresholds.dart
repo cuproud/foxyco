@@ -16,9 +16,9 @@ class Thresholds {
   bool get isValid => goodAtOrAbove >= badBelow;
 
   Thresholds copyWith({double? goodAtOrAbove, double? badBelow}) => Thresholds(
-        goodAtOrAbove: goodAtOrAbove ?? this.goodAtOrAbove,
-        badBelow: badBelow ?? this.badBelow,
-      );
+    goodAtOrAbove: goodAtOrAbove ?? this.goodAtOrAbove,
+    badBelow: badBelow ?? this.badBelow,
+  );
 
   @override
   bool operator ==(Object other) =>

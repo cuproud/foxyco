@@ -35,25 +35,27 @@ class FoxBubble extends StatelessWidget {
           child: Container(
             width: size,
             height: size,
-            // Only a soft drop shadow so the fox lifts off other apps. The
-            // shape comes entirely from clipping the art to a circle — no
-            // background fill, no border ring (that was the box-in-a-box).
+            // Soft, TIGHT drop shadow so the fox lifts off other apps without
+            // spilling past the compact overlay window — a wider blur got
+            // clipped by the window rect and read as a dark square halo. A
+            // negative spread keeps it hugging the circle.
             decoration: const BoxDecoration(
               shape: BoxShape.circle,
               boxShadow: [
                 BoxShadow(
-                  color: Color(0x73000000),
-                  blurRadius: 10,
-                  offset: Offset(0, 3),
+                  color: Color(0x33000000),
+                  blurRadius: 5,
+                  spreadRadius: -1,
+                  offset: Offset(0, 2),
                 ),
               ],
             ),
             child: ClipOval(
               child: Image.asset(
-                'assets/branding/foxyco_launcher.png',
+                'assets/branding/foxyco_bubble.png',
                 width: size,
                 height: size,
-                fit: BoxFit.cover, // fill edge-to-edge: just the fox, no gap
+                fit: BoxFit.cover, // pre-cropped circular fox badge
               ),
             ),
           ),

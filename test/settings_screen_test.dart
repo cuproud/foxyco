@@ -6,15 +6,22 @@ import 'package:foxyco/ui/settings/settings_controller.dart';
 import 'package:foxyco/ui/settings/settings_screen.dart';
 import 'package:foxyco/ui/theme/app_theme.dart';
 
+// SettingsScreen lives inside RootShell's Scaffold (which supplies the Material
+// ancestor its Sliders need); mirror that here.
 Widget _host() => ProviderScope(
       child: MaterialApp(
-        theme: AppTheme.dark,
-        home: const SettingsScreen(),
+        theme: AppTheme.light,
+        home: const Scaffold(body: SettingsScreen()),
       ),
     );
 
 void main() {
   testWidgets('renders thresholds and live preview', (tester) async {
+    // Tall viewport so the lazy ListView builds the bottom preview card.
+    tester.view.physicalSize = const Size(1080, 2600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
     await tester.pumpWidget(_host());
 
     expect(find.text('Settings'), findsOneWidget);
@@ -32,14 +39,16 @@ void main() {
     await tester.pumpWidget(
       UncontrolledProviderScope(
         container: container,
-        child: MaterialApp(theme: AppTheme.dark, home: const SettingsScreen()),
+        child: MaterialApp(
+            theme: AppTheme.light,
+            home: const Scaffold(body: SettingsScreen())),
       ),
     );
 
     await tester.tap(find.text('Reset'));
     await tester.pump();
 
-    expect(container.read(settingsProvider), Thresholds.defaults);
+    expect(container.read(settingsProvider).thresholds, Thresholds.defaults);
   });
 
   test('controller clamps GOOD above BAD (band stays coherent)', () {
@@ -49,8 +58,8 @@ void main() {
 
     // Try to drag GOOD below BAD — it should pin at BAD, never invert.
     c.setGood(0.6);
-    expect(container.read(settingsProvider).isValid, isTrue);
-    expect(container.read(settingsProvider).goodAtOrAbove,
-        container.read(settingsProvider).badBelow);
+    final t = container.read(settingsProvider).thresholds;
+    expect(t.isValid, isTrue);
+    expect(t.goodAtOrAbove, t.badBelow);
   });
 }

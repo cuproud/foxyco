@@ -14,42 +14,71 @@ class OverlayPayload {
   final Verdict verdict;
   final double totalKm;
   final double payout; // dollars
+  final double totalMinutes; // pickup + trip; 0 when unknown
   final PillSize size;
+
+  /// Dead mileage to the rider; 0 when the parser couldn't split it out.
+  final double pickupKm;
+
+  /// The driver's "near pickup" cutoff (Settings). At/under → the pill paints
+  /// the km stat green; over → red. 0 disables the coloring.
+  final double pickupNearKm;
 
   const OverlayPayload({
     required this.verdict,
     required this.totalKm,
     required this.payout,
+    this.totalMinutes = 0,
     this.size = PillSize.medium,
+    this.pickupKm = 0,
+    this.pickupNearKm = 0,
   });
 
   double get pricePerKm => totalKm > 0 ? payout / totalKm : 0;
+
+  /// Dollars per hour — the Maxymo-style headline. Zero when no time was parsed,
+  /// so the pill hides it rather than dividing by zero.
+  double get pricePerHour =>
+      totalMinutes > 0 ? payout / totalMinutes * 60 : 0;
+
+  /// Whether the km stat should be verdict-colored, and which way. Null means
+  /// "no signal" (unknown pickup or feature disabled) → default cream.
+  bool? get pickupIsNear {
+    if (pickupKm <= 0 || pickupNearKm <= 0) return null;
+    return pickupKm <= pickupNearKm;
+  }
 
   /// Serialize to a primitive map for `shareData`. Enums go across as their
   /// stable `name` string — never the index, which can shift if we reorder.
   /// Tagged `kind: 'offer'` so the overlay can tell offers apart from control
   /// and action messages sharing the same channel.
   Map<String, dynamic> toMap() => {
-        'kind': 'offer',
-        'verdict': verdict.name,
-        'totalKm': totalKm,
-        'payout': payout,
-        'size': size.name,
-      };
+    'kind': 'offer',
+    'verdict': verdict.name,
+    'totalKm': totalKm,
+    'payout': payout,
+    'totalMinutes': totalMinutes,
+    'size': size.name,
+    'pickupKm': pickupKm,
+    'pickupNearKm': pickupNearKm,
+  };
 
   /// Rebuild from a `shareData` map on the overlay side. Fails safe: unknown or
   /// missing fields degrade to [Verdict.unknown] / medium rather than throwing,
   /// so a bad payload never crashes the overlay isolate.
   factory OverlayPayload.fromMap(Map<dynamic, dynamic> map) => OverlayPayload(
-        verdict: Verdict.values.firstWhere(
-          (v) => v.name == map['verdict'],
-          orElse: () => Verdict.unknown,
-        ),
-        totalKm: (map['totalKm'] as num?)?.toDouble() ?? 0,
-        payout: (map['payout'] as num?)?.toDouble() ?? 0,
-        size: PillSize.values.firstWhere(
-          (s) => s.name == map['size'],
-          orElse: () => PillSize.medium,
-        ),
-      );
+    verdict: Verdict.values.firstWhere(
+      (v) => v.name == map['verdict'],
+      orElse: () => Verdict.unknown,
+    ),
+    totalKm: (map['totalKm'] as num?)?.toDouble() ?? 0,
+    payout: (map['payout'] as num?)?.toDouble() ?? 0,
+    totalMinutes: (map['totalMinutes'] as num?)?.toDouble() ?? 0,
+    size: PillSize.values.firstWhere(
+      (s) => s.name == map['size'],
+      orElse: () => PillSize.medium,
+    ),
+    pickupKm: (map['pickupKm'] as num?)?.toDouble() ?? 0,
+    pickupNearKm: (map['pickupNearKm'] as num?)?.toDouble() ?? 0,
+  );
 }

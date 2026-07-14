@@ -1,0 +1,92 @@
+import 'overlay_payload.dart' show PillSize;
+import 'platform.dart';
+import 'thresholds.dart';
+
+/// Everything the driver can tune, in one persisted object.
+///
+/// Pure Dart (no Flutter/plugins). [toJson]/[fromJson] are the whole storage
+/// format — a single SharedPreferences string. Adding a field: give it a
+/// default in [defaults] and a null-safe read in [fromJson] so old saved blobs
+/// still load.
+class FoxSettings {
+  /// $/km cut points → GOOD/OK/BAD.
+  final Thresholds thresholds;
+
+  /// Pickup distance at or under this (km) is "near" — the pill paints the trip
+  /// km green; over it, red. The driver's dead-mileage guard.
+  final double pickupNearKm;
+
+  /// Which gig apps FoxyCo reads offers from.
+  final Set<GigPlatform> watchedApps;
+
+  /// Keep logged offers this many days; [keepForever] disables purging.
+  final int retentionDays;
+
+  /// Floating pill size.
+  final PillSize pillSize;
+
+  const FoxSettings({
+    required this.thresholds,
+    required this.pickupNearKm,
+    required this.watchedApps,
+    required this.retentionDays,
+    required this.pillSize,
+  });
+
+  static const keepForever = 9999;
+
+  static final defaults = FoxSettings(
+    thresholds: Thresholds.defaults,
+    pickupNearKm: 2.0,
+    watchedApps: {GigPlatform.uber, GigPlatform.hopp, GigPlatform.lyft},
+    retentionDays: 30,
+    pillSize: PillSize.small,
+  );
+
+  bool watches(GigPlatform p) => watchedApps.contains(p);
+
+  FoxSettings copyWith({
+    Thresholds? thresholds,
+    double? pickupNearKm,
+    Set<GigPlatform>? watchedApps,
+    int? retentionDays,
+    PillSize? pillSize,
+  }) => FoxSettings(
+    thresholds: thresholds ?? this.thresholds,
+    pickupNearKm: pickupNearKm ?? this.pickupNearKm,
+    watchedApps: watchedApps ?? this.watchedApps,
+    retentionDays: retentionDays ?? this.retentionDays,
+    pillSize: pillSize ?? this.pillSize,
+  );
+
+  Map<String, dynamic> toJson() => {
+    'good': thresholds.goodAtOrAbove,
+    'bad': thresholds.badBelow,
+    'pickupNearKm': pickupNearKm,
+    'watchedApps': watchedApps.map((p) => p.name).toList(),
+    'retentionDays': retentionDays,
+    'pillSize': pillSize.name,
+  };
+
+  factory FoxSettings.fromJson(Map<String, dynamic> j) {
+    final d = defaults;
+    final apps = (j['watchedApps'] as List?)
+        ?.map((n) => GigPlatform.values.where((p) => p.name == n))
+        .expand((e) => e)
+        .toSet();
+    return FoxSettings(
+      thresholds: Thresholds(
+        goodAtOrAbove: (j['good'] as num?)?.toDouble() ??
+            d.thresholds.goodAtOrAbove,
+        badBelow: (j['bad'] as num?)?.toDouble() ?? d.thresholds.badBelow,
+      ),
+      pickupNearKm: (j['pickupNearKm'] as num?)?.toDouble() ?? d.pickupNearKm,
+      watchedApps: (apps == null || apps.isEmpty) ? d.watchedApps : apps,
+      retentionDays: (j['retentionDays'] as num?)?.toInt() ?? d.retentionDays,
+      pillSize: PillSize.values
+          .where((s) => s.name == j['pillSize'])
+          .firstOrNull ??
+          d.pillSize,
+    );
+  }
+}

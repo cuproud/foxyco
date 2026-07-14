@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+      Shown on the system Accessibility enable screen. Must state the real,
+      non-accessibility purpose with a user-facing rationale (Play policy,
+      docs/AUDIT #1). Keep it honest and specific: read-only, on-device, advisory.
+    -->
+    <string name="accessibility_service_description">FoxyCo reads the offer details (pay, distance, time) shown on screen in your Uber, Hopp, and Lyft driver apps, and instantly rates each offer as GOOD, OK, or BAD against the thresholds you set. It only reads these apps, works entirely on your device with no internet, and never taps or changes anything in them — you always accept or decline yourself.</string>
+</resources>

@@ -10,7 +10,14 @@ enum OverlayAction {
   togglePause,
 
   /// Tap the bubble → bring FoxyCo to the foreground.
-  openApp;
+  openApp,
+
+  /// Drag the bubble to the bottom drop zone → stop watching entirely. The
+  /// native side tears the overlay window down; this message tells the main
+  /// isolate to flip the dashboard to "not watching" so the two never desync
+  /// (HANDOFF req 10 — before, the window closed but the app still showed
+  /// "active"). Distinct from [togglePause]: this is a full stop, not a pause.
+  stopWatching;
 
   /// Wrap as a primitive map tagged so the main isolate can tell an action
   /// message apart from other `shareData` traffic. Enum crosses as its stable

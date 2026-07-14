@@ -1,3 +1,4 @@
+import 'offer.dart';
 import 'thresholds.dart';
 import 'verdict.dart';
 
@@ -15,4 +16,11 @@ class DecisionEngine {
     if (pricePerKm < t.badBelow) return Verdict.bad;
     return Verdict.ok;
   }
+
+  /// Score a parsed [Offer] end-to-end. Convenience over [evaluate] for the M3
+  /// pipeline (parser → engine → overlay); the $/km math lives on the model so
+  /// this stays a thin delegate. A zero-km offer yields `pricePerKm == 0`, which
+  /// falls into BAD — an offer with no distance is not one to take.
+  Verdict evaluateOffer(Offer offer, Thresholds t) =>
+      evaluate(offer.pricePerKm, t);
 }

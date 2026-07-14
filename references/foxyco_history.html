@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>FoxyCo — History</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#F6F3EA; --surface:#FFFEFB; --border:#E9E2D2; --border-soft:#EFE9DC;
+    --ink:#161F19; --ink-soft:#26332B; --cream:#F4EFE1;
+    --muted:#87877A; --muted-2:#BBB6A5;
+    --accent:#FF5A36; --accent-deep:#B93A1E;
+    --good:#2C6B47; --good-bg:#E6F1EA;
+    --ok:#D89A2E; --ok-bg:#FBF0D9;
+    --bad:#D2483F; --bad-bg:#FAE6E3;
+    --uber:#111111; --lyft:#FF37A6; --hopp:#2F80C4;
+    --shadow-1:0 1px 1px rgba(22,31,25,0.04);
+    --shadow-2:0 4px 10px rgba(22,31,25,0.05), 0 1px 2px rgba(22,31,25,0.04);
+    --shadow-3:0 16px 32px rgba(22,31,25,0.08), 0 4px 10px rgba(22,31,25,0.05);
+    --shadow-hero:0 26px 50px -12px rgba(22,31,25,0.32), 0 10px 20px -8px rgba(22,31,25,0.2);
+  }
+  *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body{ margin:0; padding:0; }
+  body{
+    font-family:'Inter',sans-serif;
+    background:radial-gradient(900px 500px at 100% -10%, rgba(255,90,54,0.05), transparent 55%), var(--bg);
+    color:var(--ink);
+    display:flex; justify-content:center;
+    padding:44px 16px 28px;
+    min-height:100vh;
+  }
+  .device{ width:100%; max-width:410px; position:relative; padding-bottom:92px; }
+  .grain{
+    position:fixed; inset:0; pointer-events:none; opacity:0.035; mix-blend-mode:multiply; z-index:999;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  .topbar{ display:flex; align-items:baseline; justify-content:space-between; padding:2px 3px 18px; }
+  .page-title{ font-family:'Fraunces',serif; font-weight:600; font-size:26px; letter-spacing:-0.02em; }
+  .page-count{ font-size:12.5px; color:var(--muted-2); font-weight:600; }
+
+  /* Time segmented control */
+  .seg-control{
+    position:relative; display:flex; background:var(--surface); border:1px solid var(--border-soft);
+    border-radius:100px; padding:4px; margin-bottom:12px; box-shadow:var(--shadow-1);
+  }
+  .seg-indicator{
+    position:absolute; top:4px; left:4px; height:calc(100% - 8px);
+    width:calc((100% - 8px) / 4); background:var(--ink); border-radius:100px;
+    transition:transform .4s cubic-bezier(.34,1.3,.4,1); z-index:0;
+  }
+  .seg-opt{
+    flex:1; text-align:center; padding:8px 0; font-size:12.5px; font-weight:700;
+    color:var(--muted); cursor:pointer; position:relative; z-index:1; transition:color .3s ease;
+  }
+  .seg-opt.active{ color:var(--cream); }
+
+  /* App chips */
+  .chip-row{ display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap; }
+  .chip{
+    display:flex; align-items:center; gap:6px;
+    padding:8px 13px; border-radius:100px; font-size:12.5px; font-weight:700;
+    background:var(--surface); border:1px solid var(--border-soft); color:var(--muted);
+    cursor:pointer; transition:all .2s ease; box-shadow:var(--shadow-1);
+  }
+  .chip .dot{ width:7px; height:7px; border-radius:50%; }
+  .chip.active{ background:var(--ink); color:var(--cream); border-color:var(--ink); }
+  .chip:active{ transform:scale(0.95); }
+
+  /* Top offers control card */
+  .top-card{
+    position:relative; background:linear-gradient(165deg, #1B2620 0%, var(--ink) 60%, #0F1712 100%);
+    border-radius:22px; padding:19px 20px 20px; color:var(--cream);
+    box-shadow:var(--shadow-hero); margin-bottom:20px; overflow:hidden;
+  }
+  .top-card::after{
+    content:""; position:absolute; inset:0; opacity:0.05; mix-blend-mode:overlay; pointer-events:none;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+  .top-row{ display:flex; align-items:center; justify-content:space-between; position:relative; z-index:2; }
+  .top-label-group{ display:flex; align-items:center; gap:10px; }
+  .flame{ width:20px; height:20px; flex-shrink:0; }
+  .top-title{ font-weight:700; font-size:15px; letter-spacing:-0.005em; }
+  .top-sub{ font-size:12px; color:rgba(244,239,225,0.55); margin-top:2px; font-weight:500; }
+
+  .switch{
+    width:44px; height:26px; border-radius:100px; background:rgba(244,239,225,0.15);
+    position:relative; cursor:pointer; flex-shrink:0; transition:background .25s ease;
+  }
+  .switch .knob{
+    position:absolute; top:3px; left:3px; width:20px; height:20px; border-radius:50%;
+    background:var(--cream); transition:transform .3s cubic-bezier(.34,1.56,.64,1);
+    box-shadow:0 2px 4px rgba(0,0,0,0.25);
+  }
+  .switch.on{ background:var(--accent); }
+  .switch.on .knob{ transform:translateX(18px); background:#fff; }
+
+  .fare-row{
+    display:flex; align-items:center; justify-content:space-between;
+    margin-top:16px; padding-top:16px; border-top:1px solid rgba(244,239,225,0.1);
+    position:relative; z-index:2;
+    max-height:0; opacity:0; overflow:hidden;
+    transition:max-height .35s ease, opacity .3s ease, margin-top .35s ease, padding-top .35s ease;
+  }
+  .fare-row.show{ max-height:60px; opacity:1; }
+  .fare-label{ font-size:12.5px; color:rgba(244,239,225,0.65); font-weight:600; }
+  .fare-stepper{ display:flex; align-items:center; gap:12px; }
+  .fare-stepper button{
+    width:26px; height:26px; border-radius:50%; border:1px solid rgba(244,239,225,0.2);
+    background:rgba(244,239,225,0.08); color:var(--cream); font-size:15px; font-weight:700;
+    cursor:pointer; display:flex; align-items:center; justify-content:center; line-height:1;
+  }
+  .fare-stepper button:active{ transform:scale(0.9); }
+  .fare-value{ font-family:'Fraunces',serif; font-weight:600; font-size:16px; min-width:44px; text-align:center; font-variant-numeric:tabular-nums; }
+
+  .match-count{ font-size:11.5px; color:rgba(244,239,225,0.5); margin-top:12px; font-weight:600; position:relative; z-index:2; }
+  .match-count b{ color:var(--cream); }
+
+  /* Date group + list */
+  .date-header{
+    font-size:11px; font-weight:700; letter-spacing:0.1em; color:var(--muted-2);
+    text-transform:uppercase; margin:18px 4px 9px; display:flex; align-items:center; gap:8px;
+  }
+  .date-header::after{ content:""; flex:1; height:1px; background:var(--border); }
+  .date-header:first-of-type{ margin-top:0; }
+
+  .offer-row{
+    display:flex; align-items:center; gap:12px;
+    background:var(--surface); border:1px solid var(--border-soft); border-radius:16px;
+    padding:13px 14px; margin-bottom:8px; box-shadow:var(--shadow-1);
+    transition:transform .2s ease, box-shadow .2s ease;
+    animation:row-in .35s ease both;
+  }
+  @keyframes row-in{ from{ opacity:0; transform:translateY(6px); } to{ opacity:1; transform:translateY(0); } }
+  .offer-row:hover{ box-shadow:var(--shadow-2); transform:translateY(-1px); }
+  .offer-status{ width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+  .offer-status.good{ background:var(--good); }
+  .offer-status.ok{ background:var(--ok); }
+  .offer-status.bad{ background:var(--bad); }
+  .offer-app-dot{ width:6px; height:6px; border-radius:50%; flex-shrink:0; }
+
+  .offer-main{ flex:1; min-width:0; }
+  .offer-top-line{ display:flex; align-items:center; gap:7px; margin-bottom:3px; }
+  .offer-app-name{ font-weight:700; font-size:13px; }
+  .offer-flame{ width:12px; height:12px; }
+  .offer-metrics{ font-size:12px; color:var(--muted); font-weight:500; font-variant-numeric:tabular-nums; }
+  .offer-metrics b{ color:var(--ink); font-weight:700; }
+
+  .offer-right{ text-align:right; flex-shrink:0; }
+  .offer-fare{ font-family:'Fraunces',serif; font-weight:600; font-size:16.5px; font-variant-numeric:tabular-nums; }
+  .offer-time{ font-size:11px; color:var(--muted-2); font-weight:600; margin-top:2px; }
+
+  .empty-state{
+    text-align:center; padding:40px 20px; color:var(--muted-2);
+  }
+  .empty-state svg{ width:36px; height:36px; margin-bottom:10px; opacity:0.6; }
+  .empty-state p{ font-size:13px; font-weight:500; margin:0; }
+
+  /* Storage/purge strip */
+  .storage-card{
+    background:var(--surface); border:1px solid var(--border-soft); border-radius:16px;
+    padding:14px 16px; margin-top:20px; box-shadow:var(--shadow-1);
+  }
+  .storage-top{ display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+  .storage-text{ font-size:12.5px; color:var(--muted); font-weight:600; }
+  .storage-text b{ color:var(--ink); }
+  .retention-select{
+    font-size:12px; font-weight:700; color:var(--ink); background:var(--cream);
+    border:none; border-radius:100px; padding:5px 10px; cursor:pointer;
+  }
+  .purge-btn{
+    width:100%; padding:10px; border-radius:12px; border:1px dashed var(--muted-2);
+    background:none; color:var(--muted); font-size:12.5px; font-weight:700; cursor:pointer;
+    transition:all .2s ease;
+  }
+  .purge-btn:hover{ border-color:var(--bad); color:var(--bad); background:var(--bad-bg); }
+  .toast{
+    text-align:center; font-size:12px; color:var(--good); font-weight:700; margin-top:8px;
+    opacity:0; transition:opacity .3s ease;
+  }
+  .toast.show{ opacity:1; }
+
+  /* Bottom nav (same as home) */
+  .bottom-nav{
+    position:fixed; bottom:24px; left:50%; transform:translateX(-50%);
+    width:calc(100% - 32px); max-width:378px; background:var(--surface); border-radius:100px;
+    box-shadow:var(--shadow-hero); display:flex; padding:7px; border:1px solid var(--border-soft);
+  }
+  .nav-indicator{
+    position:absolute; top:7px; left:7px; height:calc(100% - 14px); width:calc((100% - 14px) / 3);
+    background:var(--cream); border-radius:100px; transition:transform .45s cubic-bezier(.34,1.3,.4,1); z-index:0;
+  }
+  .nav-item{
+    flex:1; display:flex; flex-direction:column; align-items:center; gap:4px; padding:9px 0 8px;
+    border-radius:100px; cursor:pointer; color:var(--muted-2); transition:color .25s ease; position:relative; z-index:1;
+  }
+  .nav-item svg{ width:19px; height:19px; stroke:currentColor; fill:none; stroke-width:1.8; transition:transform .25s cubic-bezier(.34,1.56,.64,1); }
+  .nav-item span{ font-size:10px; font-weight:700; letter-spacing:0.01em; }
+  .nav-item.active{ color:var(--ink); }
+  .nav-item.active svg{ stroke:var(--accent); transform:translateY(-1px); }
+</style>
+</head>
+<body>
+<div class="grain"></div>
+
+<div class="device">
+  <div class="topbar">
+    <div class="page-title">History</div>
+    <div class="page-count" id="pageCount">23 offers</div>
+  </div>
+
+  <div class="seg-control" id="segControl">
+    <div class="seg-indicator" id="segIndicator"></div>
+    <div class="seg-opt active" data-range="today">Today</div>
+    <div class="seg-opt" data-range="7">7 Days</div>
+    <div class="seg-opt" data-range="30">30 Days</div>
+    <div class="seg-opt" data-range="all">All</div>
+  </div>
+
+  <div class="chip-row" id="chipRow">
+    <div class="chip active" data-app="all">All</div>
+    <div class="chip" data-app="uber"><span class="dot" style="background:var(--uber)"></span>Uber</div>
+    <div class="chip" data-app="lyft"><span class="dot" style="background:var(--lyft)"></span>Lyft</div>
+    <div class="chip" data-app="hopp"><span class="dot" style="background:var(--hopp)"></span>Hopp</div>
+  </div>
+
+  <div class="top-card">
+    <div class="top-row">
+      <div class="top-label-group">
+        <svg class="flame" viewBox="0 0 24 24" fill="none" stroke="#FFB25C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 2c1 3-3 4-3 8a3 3 0 0 0 6 0c0-1-1-2-1-2s2 1 2 4a5 5 0 0 1-10 0c0-5 6-6 6-10Z"/>
+        </svg>
+        <div>
+          <div class="top-title">Top offers only</div>
+          <div class="top-sub" id="topSub">Best $/km, all fares</div>
+        </div>
+      </div>
+      <div class="switch" id="topSwitch"><div class="knob"></div></div>
+    </div>
+    <div class="fare-row" id="fareRow">
+      <div class="fare-label">Minimum fare</div>
+      <div class="fare-stepper">
+        <button id="fareDown">–</button>
+        <div class="fare-value" id="fareValue">$20</div>
+        <button id="fareUp">+</button>
+      </div>
+    </div>
+    <div class="match-count" id="matchCount"><b>23</b> offers match these filters</div>
+  </div>
+
+  <div id="listContainer"></div>
+
+  <div class="storage-card">
+    <div class="storage-top">
+      <div class="storage-text"><b id="storageCount">341</b> offers stored</div>
+      <select class="retention-select" id="retentionSelect">
+        <option value="30">Keep 30 days</option>
+        <option value="14">Keep 14 days</option>
+        <option value="7">Keep 7 days</option>
+        <option value="9999">Keep forever</option>
+      </select>
+    </div>
+    <button class="purge-btn" id="purgeBtn">Clear entries older than 30 days</button>
+    <div class="toast" id="purgeToast">Cleared 14 offers older than 30 days</div>
+  </div>
+</div>
+
+<div class="bottom-nav">
+  <div class="nav-indicator" style="transform:translateX(100%)"></div>
+  <div class="nav-item" data-index="0">
+    <svg viewBox="0 0 24 24"><path d="M3 11.5 12 4l9 7.5"/><path d="M5 10v9a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1v-9"/></svg>
+    <span>Home</span>
+  </div>
+  <div class="nav-item active" data-index="1">
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+    <span>History</span>
+  </div>
+  <div class="nav-item" data-index="2">
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+    <span>Settings</span>
+  </div>
+</div>
+
+<script>
+  // ---- sample dataset ----
+  const APP_NAMES = { uber:'Uber', lyft:'Lyft', hopp:'Hopp' };
+  const APP_COLORS = { uber:'var(--uber)', lyft:'var(--lyft)', hopp:'var(--hopp)' };
+
+  let offers = [
+    {app:'uber', status:'good', fare:12.00, dist:8.4, time:'14:28', daysAgo:0, dateLabel:'Today'},
+    {app:'lyft', status:'ok',   fare:9.00,  dist:5.1, time:'13:02', daysAgo:0, dateLabel:'Today'},
+    {app:'uber', status:'bad',  fare:6.50,  dist:6.0, time:'11:47', daysAgo:0, dateLabel:'Today'},
+    {app:'hopp', status:'good', fare:24.00, dist:9.8, time:'10:15', daysAgo:0, dateLabel:'Today'},
+    {app:'lyft', status:'good', fare:31.50, dist:11.2,time:'09:40', daysAgo:0, dateLabel:'Today'},
+    {app:'uber', status:'good', fare:22.00, dist:7.3, time:'19:52', daysAgo:1, dateLabel:'Yesterday'},
+    {app:'lyft', status:'ok',   fare:14.00, dist:6.8, time:'17:10', daysAgo:1, dateLabel:'Yesterday'},
+    {app:'hopp', status:'bad',  fare:5.00,  dist:4.2, time:'15:33', daysAgo:1, dateLabel:'Yesterday'},
+    {app:'uber', status:'good', fare:28.00, dist:10.5,time:'12:05', daysAgo:1, dateLabel:'Yesterday'},
+    {app:'lyft', status:'good', fare:20.00, dist:8.9, time:'08:22', daysAgo:1, dateLabel:'Yesterday'},
+    {app:'uber', status:'ok',   fare:11.00, dist:5.5, time:'21:14', daysAgo:3, dateLabel:'Jul 11'},
+    {app:'hopp', status:'good', fare:26.50, dist:9.1, time:'18:40', daysAgo:3, dateLabel:'Jul 11'},
+    {app:'lyft', status:'bad',  fare:7.00,  dist:5.0, time:'14:02', daysAgo:3, dateLabel:'Jul 11'},
+    {app:'uber', status:'good', fare:19.00, dist:7.0, time:'09:50', daysAgo:5, dateLabel:'Jul 9'},
+    {app:'hopp', status:'ok',   fare:13.50, dist:6.1, time:'20:18', daysAgo:5, dateLabel:'Jul 9'},
+    {app:'lyft', status:'good', fare:33.00, dist:12.4,time:'16:47', daysAgo:5, dateLabel:'Jul 9'},
+    {app:'uber', status:'good', fare:21.50, dist:8.2, time:'11:30', daysAgo:8, dateLabel:'Jul 6'},
+    {app:'lyft', status:'ok',   fare:10.00, dist:5.3, time:'08:05', daysAgo:8, dateLabel:'Jul 6'},
+    {app:'hopp', status:'good', fare:29.00, dist:10.0,time:'22:12', daysAgo:12,dateLabel:'Jul 2'},
+    {app:'uber', status:'bad',  fare:4.50,  dist:3.8, time:'17:29', daysAgo:12,dateLabel:'Jul 2'},
+    {app:'lyft', status:'good', fare:25.00, dist:9.4, time:'13:15', daysAgo:20,dateLabel:'Jun 24'},
+    {app:'hopp', status:'ok',   fare:12.50, dist:6.4, time:'10:40', daysAgo:20,dateLabel:'Jun 24'},
+    {app:'uber', status:'good', fare:18.50, dist:7.8, time:'19:01', daysAgo:20,dateLabel:'Jun 24'},
+  ];
+
+  let state = { range:'today', apps:new Set(['all']), topOnly:false, minFare:20 };
+
+  function pricePerKm(o){ return o.fare / o.dist; }
+
+  function passesFilters(o){
+    if(state.range === 'today' && o.daysAgo !== 0) return false;
+    if(state.range === '7' && o.daysAgo > 7) return false;
+    if(state.range === '30' && o.daysAgo > 30) return false;
+    if(!state.apps.has('all') && !state.apps.has(o.app)) return false;
+    if(state.topOnly && !(o.status === 'good' && o.fare >= state.minFare)) return false;
+    return true;
+  }
+
+  function render(){
+    const filtered = offers.filter(passesFilters);
+    const sorted = state.topOnly
+      ? [...filtered].sort((a,b)=> pricePerKm(b) - pricePerKm(a))
+      : filtered;
+
+    document.getElementById('matchCount').innerHTML = `<b>${filtered.length}</b> offers match these filters`;
+    document.getElementById('pageCount').textContent = `${offers.length} offers`;
+
+    const container = document.getElementById('listContainer');
+    container.innerHTML = '';
+
+    if(sorted.length === 0){
+      container.innerHTML = `
+        <div class="empty-state">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+          <p>No offers match these filters yet</p>
+        </div>`;
+      return;
+    }
+
+    if(state.topOnly){
+      // flat ranked list, no date grouping — order carries meaning (best first)
+      sorted.forEach(o => container.appendChild(offerRow(o, true)));
+    } else {
+      let lastLabel = null;
+      sorted.forEach(o=>{
+        if(o.dateLabel !== lastLabel){
+          const h = document.createElement('div');
+          h.className = 'date-header';
+          h.textContent = o.dateLabel;
+          container.appendChild(h);
+          lastLabel = o.dateLabel;
+        }
+        container.appendChild(offerRow(o, false));
+      });
+    }
+  }
+
+  function offerRow(o, showFlame){
+    const row = document.createElement('div');
+    row.className = 'offer-row';
+    row.innerHTML = `
+      <span class="offer-status ${o.status}"></span>
+      <div class="offer-main">
+        <div class="offer-top-line">
+          <span class="offer-app-dot" style="background:${APP_COLORS[o.app]}"></span>
+          <span class="offer-app-name">${APP_NAMES[o.app]}</span>
+          ${showFlame ? `<svg class="offer-flame" viewBox="0 0 24 24" fill="none" stroke="#E08A2E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2c1 3-3 4-3 8a3 3 0 0 0 6 0c0-1-1-2-1-2s2 1 2 4a5 5 0 0 1-10 0c0-5 6-6 6-10Z"/></svg>` : ''}
+        </div>
+        <div class="offer-metrics">${o.dist.toFixed(1)} km · <b>$${pricePerKm(o).toFixed(2)}/km</b></div>
+      </div>
+      <div class="offer-right">
+        <div class="offer-fare">$${o.fare.toFixed(2)}</div>
+        <div class="offer-time">${o.time}</div>
+      </div>`;
+    return row;
+  }
+
+  // Time segmented control
+  const segOpts = document.querySelectorAll('.seg-opt');
+  const segIndicator = document.getElementById('segIndicator');
+  const ranges = ['today','7','30','all'];
+  segOpts.forEach((opt,i)=>{
+    opt.addEventListener('click', ()=>{
+      segOpts.forEach(o=>o.classList.remove('active'));
+      opt.classList.add('active');
+      segIndicator.style.transform = `translateX(${i*100}%)`;
+      state.range = ranges[i];
+      render();
+    });
+  });
+
+  // App chips (multi-select, "All" clears others)
+  const chips = document.querySelectorAll('.chip');
+  chips.forEach(chip=>{
+    chip.addEventListener('click', ()=>{
+      const app = chip.dataset.app;
+      if(app === 'all'){
+        chips.forEach(c=>c.classList.remove('active'));
+        chip.classList.add('active');
+        state.apps = new Set(['all']);
+      } else {
+        document.querySelector('.chip[data-app="all"]').classList.remove('active');
+        state.apps.delete('all');
+        chip.classList.toggle('active');
+        if(chip.classList.contains('active')) state.apps.add(app); else state.apps.delete(app);
+        if(state.apps.size === 0){
+          document.querySelector('.chip[data-app="all"]').classList.add('active');
+          state.apps = new Set(['all']);
+        }
+      }
+      render();
+    });
+  });
+
+  // Top offers toggle
+  const topSwitch = document.getElementById('topSwitch');
+  const fareRow = document.getElementById('fareRow');
+  const topSub = document.getElementById('topSub');
+  topSwitch.addEventListener('click', ()=>{
+    state.topOnly = !state.topOnly;
+    topSwitch.classList.toggle('on', state.topOnly);
+    fareRow.classList.toggle('show', state.topOnly);
+    topSub.textContent = state.topOnly ? `≥ $${state.minFare} · GOOD only · ranked by $/km` : 'Best $/km, all fares';
+    render();
+  });
+
+  // Fare stepper
+  const fareValue = document.getElementById('fareValue');
+  document.getElementById('fareUp').addEventListener('click', ()=>{
+    state.minFare = Math.min(100, state.minFare + 5);
+    fareValue.textContent = `$${state.minFare}`;
+    topSub.textContent = `≥ $${state.minFare} · GOOD only · ranked by $/km`;
+    render();
+  });
+  document.getElementById('fareDown').addEventListener('click', ()=>{
+    state.minFare = Math.max(0, state.minFare - 5);
+    fareValue.textContent = `$${state.minFare}`;
+    topSub.textContent = `≥ $${state.minFare} · GOOD only · ranked by $/km`;
+    render();
+  });
+
+  // Purge mechanism
+  const retentionSelect = document.getElementById('retentionSelect');
+  const purgeBtn = document.getElementById('purgeBtn');
+  const purgeToast = document.getElementById('purgeToast');
+  const storageCount = document.getElementById('storageCount');
+  retentionSelect.addEventListener('change', ()=>{
+    purgeBtn.textContent = retentionSelect.value === '9999'
+      ? 'Auto-purge disabled'
+      : `Clear entries older than ${retentionSelect.value} days`;
+  });
+  purgeBtn.addEventListener('click', ()=>{
+    const days = parseInt(retentionSelect.value, 10);
+    const before = offers.length;
+    offers = offers.filter(o => o.daysAgo <= days);
+    const removed = before - offers.length;
+    storageCount.textContent = Math.max(0, 341 - removed);
+    purgeToast.textContent = `Cleared ${removed} offers older than ${days === 9999 ? '—' : days} days`;
+    purgeToast.classList.add('show');
+    setTimeout(()=> purgeToast.classList.remove('show'), 2500);
+    render();
+  });
+
+  render();
+</script>
+
+</body>
+</html>

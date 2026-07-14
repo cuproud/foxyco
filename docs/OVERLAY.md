@@ -68,8 +68,14 @@ Rules that fall out:
   last position (SharedPreferences). Clamped so it can't sit over the known X/Accept zones.
 - **Size:** S / M / L (driver picks; L for glanceability, S to stay out of the way).
 - **Tap:** expands to a fuller (still compact) breakdown card. Tap again / timeout collapses.
-- **Lifecycle:** appears on offer detect, auto-dismiss after configurable timeout (default ~12 s,
-  roughly the platform's own decision window).
+- **Lifecycle:** appears on offer detect and **stays for as long as the offer card is on screen** —
+  it does *not* auto-dismiss on a timer. The main isolate drives this: the pill is shown once per
+  card and cleared the moment the card leaves the screen. "Card still up" is gated on the card's
+  **Accept/Match affordance**, not on a full parse — live cards (map / countdown) fire mostly
+  partial frames where the full parse fails but Accept/Match is still present, so the pill must ride
+  those out. When the driver accepts / declines / dismisses, the affordance disappears and the pill
+  clears within a short grace (~1 s). A long (45 s) timer in the overlay isolate is a
+  dropped-message safety net only. See `offer_watcher.dart` (`clearGrace`, `hasAcceptAction`).
 
 ### Bubble (the control)
 - Always-on draggable dot (Maxymo / Messenger style), snaps to screen edge.

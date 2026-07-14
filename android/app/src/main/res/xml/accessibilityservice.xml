@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  FoxyCo accessibility service config (docs/AUDIT #1, #4).
+
+  Scoped to ONLY the gig apps we read (`android:packageNames`) so the service is
+  never woken by system-wide events — this is the primary battery guard
+  (AUDIT #4) and the "don't over-request" mitigation for Play review (AUDIT #1).
+
+  Keep `packageNames` in sync with ParserRegistry.watchedPackages. Hopp's
+  package (`ee.hopp.driver`) was confirmed on device 2026-07-12.
+
+  `android:description` states the real, non-accessibility purpose shown on the
+  system enable screen — required by Play's accessibility policy (AUDIT #1).
+  We only need to READ content (canRetrieveWindowContent=true); FoxyCo never
+  clicks the gig apps' UI (canPerformGestures omitted — AUDIT #2 ToS).
+-->
+<accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
+    android:description="@string/accessibility_service_description"
+    android:packageNames="com.ubercab.driver,ee.hopp.driver,com.lyft.android.driver"
+    android:accessibilityEventTypes="typeWindowStateChanged|typeWindowContentChanged"
+    android:accessibilityFeedbackType="feedbackGeneric"
+    android:notificationTimeout="300"
+    android:accessibilityFlags="flagDefault|flagReportViewIds|flagRetrieveInteractiveWindows"
+    android:canRetrieveWindowContent="true" />

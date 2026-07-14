@@ -21,6 +21,15 @@ version: 1.0.0+2
 environment:
   sdk: ^3.12.2
 
+# App launcher icon (fox badge, docs/references/logo). Regenerate with:
+#   dart run flutter_launcher_icons
+flutter_launcher_icons:
+  android: true
+  ios: false
+  image_path: "assets/branding/foxyco_launcher.png"
+  adaptive_icon_background: "#0D1321"
+  adaptive_icon_foreground: "assets/branding/foxyco_adaptive_fg.png"
+
 # Dependencies specify other packages that your package needs in order to work.
 # To automatically upgrade your package dependencies to the latest versions
 # consider running `flutter pub upgrade --major-versions`. Alternatively,
@@ -38,10 +47,32 @@ dependencies:
   go_router: ^17.3.0
   flutter_overlay_window: ^0.5.0
   permission_handler: ^12.0.3
+  # Reads on-screen offer text from Uber/Hopp (M3). Scoped to those packages in
+  # res/xml/accessibility_service_config.xml — see AUDIT #1 (Play disclosure) and
+  # #4 (debounce for battery). Version pinned per AUDIT #9 (community plugin).
+  flutter_accessibility_service: ^1.2.0
+  # Persists settings + the offer log (JSON) so data survives restarts.
+  shared_preferences: ^2.3.2
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
+
+# Vendored fork of flutter_overlay_window with a "drop-to-dismiss" patch: the
+# upstream plugin drags its window natively with no vertical bound, so the
+# bubble could get stuck under the nav bar. Our copy closes the overlay when
+# dropped in the bottom nav-bar zone (see third_party/.../OverlayService.java).
+dependency_overrides:
+  flutter_overlay_window:
+    path: third_party/flutter_overlay_window
+
+  # Vendored fork of flutter_accessibility_service. Upstream only traverses the
+  # node subtree of the event SOURCE, so an offer card in its own window (Uber
+  # draws its card over the map) never reaches the parser, and a valid pill
+  # flickers out the instant a map-window event yields no card. Our copy also
+  # walks every same-package window (see third_party/.../AccessibilityListener.java).
+  flutter_accessibility_service:
+    path: third_party/flutter_accessibility_service
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is
@@ -65,6 +96,16 @@ flutter:
 
   assets:
     - assets/branding/
+
+  # Fraunces (serif display — big money numbers) + Inter (UI). Variable TTFs:
+  # Flutter maps FontWeight to the wght axis, so one asset per family covers all.
+  fonts:
+    - family: Fraunces
+      fonts:
+        - asset: fonts/Fraunces.ttf
+    - family: Inter
+      fonts:
+        - asset: fonts/Inter.ttf
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

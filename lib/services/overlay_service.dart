@@ -35,18 +35,23 @@ class OverlayService {
       .where((a) => a != null)
       .cast<OverlayAction>();
 
-  /// Overlay window size in **logical px (dp)**. A COMPACT box (not full-screen)
-  /// is what makes it draggable to BOTH edges: a `matchParent`/`fullCover` window
-  /// has no room to move horizontally, so `positionGravity` could only ever pin
-  /// it right. Sized to hold the widest pill; the bubble sits centered inside.
-  static const double _overlayWidthDp = 300;
-  static const double _overlayHeightDp = 120;
+  /// Resting window size in **logical dp** (converted to physical px below).
+  /// The window starts BUBBLE-sized — small enough to hug a screen edge and be
+  /// dragged/snapped freely. The overlay isolate grows it to fit the pill while
+  /// an offer is live and shrinks it back on clear (see overlay_entry.dart's
+  /// resizeOverlay calls). A fixed wide window can't do this: it would centre
+  /// the bubble mid-screen and be too wide to drag to an edge.
+  ///
+  /// A COMPACT window is also essential for touch: a full-cover overlay with a
+  /// focusable flag traps EVERY touch on the screen, locking the user out.
+  static const double _restWidthDp = 72;
+  static const double _restHeightDp = 72;
 
   /// The plugin's INITIAL `showOverlay` size is raw PHYSICAL pixels (its native
   /// code skips dp→px conversion on first show — only resize/move convert). So a
-  /// dp value passed straight through comes out ~3× too small on a 3× screen and
-  /// clips the pill/bubble to nothing. Convert dp→px ourselves using the screen
-  /// density. No BuildContext here, so read it off the platform view directly.
+  /// dp value passed straight through comes out ~3× too small on a 3× screen.
+  /// Convert dp→px ourselves from the screen density (no BuildContext here).
+  /// NOTE: `resizeOverlay` (used later for the pill) DOES convert, so it takes dp.
   static int _dpToPx(double dp) {
     final views = PlatformDispatcher.instance.views;
     final dpr = views.isNotEmpty ? views.first.devicePixelRatio : 3.0;
@@ -54,18 +59,21 @@ class OverlayService {
   }
 
   /// Bring the overlay up in its resting state (bubble). Called when FoxyCo
-  /// starts watching. A small draggable box: [OverlayFlag.defaultFlag] lets
-  /// touches through the transparent area, `enableDrag` + `positionGravity.auto`
-  /// let the user fling it to either side of the screen.
+  /// starts watching.
+  ///
+  /// Compact, draggable window resting on the RIGHT edge, vertically centered
+  /// (`centerRight`) — safely on-screen, clear of the status bar / camera cutout
+  /// that made a top-anchored window clip off the top. `enableDrag` +
+  /// `positionGravity.auto` let the user fling it to either edge.
   Future<void> startWatching({bool paused = false}) async {
     if (!await FlutterOverlayWindow.isActive()) {
       await FlutterOverlayWindow.showOverlay(
-        height: _dpToPx(_overlayHeightDp),
-        width: _dpToPx(_overlayWidthDp),
-        alignment: OverlayAlignment.topRight,
-        flag: OverlayFlag.defaultFlag, // pass-through except on our widgets
+        height: _dpToPx(_restHeightDp),
+        width: _dpToPx(_restWidthDp),
+        alignment: OverlayAlignment.centerRight,
+        flag: OverlayFlag.defaultFlag, // touch only over our small window
         enableDrag: true,
-        positionGravity: PositionGravity.auto, // snap to nearest edge, either side
+        positionGravity: PositionGravity.auto, // snap to nearest edge
         overlayTitle: 'FoxyCo',
         overlayContent: 'Watching for offers',
       );
@@ -75,8 +83,20 @@ class OverlayService {
 
   /// Show an offer: ensure the window is up, then push the pill payload into the
   /// overlay isolate. `shareData` reaches the overlay's `overlayListener`.
+  ///
+  /// The overlay runs in a fresh isolate whose listener only attaches after its
+  /// first frame — a `shareData` sent the instant `showOverlay` returns can land
+  /// before anyone is listening and get dropped (bubble still shows; pill never
+  /// does). So when we just brought the window up, settle briefly then send, and
+  /// send once more as a belt-and-braces against the race.
+  /// ponytail: a fixed delay, not a handshake — the plugin exposes no readiness
+  /// signal. Replace with a real ack if the pill ever flakes.
   Future<void> showOffer(OverlayPayload payload) async {
+    final wasActive = await FlutterOverlayWindow.isActive();
     await startWatching();
+    if (!wasActive) {
+      await Future<void>.delayed(const Duration(milliseconds: 350));
+    }
     await FlutterOverlayWindow.shareData(payload.toMap());
   }
 

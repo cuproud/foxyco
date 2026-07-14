@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>FoxyCo — Home</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#F6F3EA;
+    --surface:#FFFEFB;
+    --border:#E9E2D2;
+    --border-soft:#EFE9DC;
+    --ink:#161F19;
+    --ink-soft:#26332B;
+    --ink-2:#3A473E;
+    --cream:#F4EFE1;
+    --cream-dim:rgba(244,239,225,0.62);
+    --muted:#87877A;
+    --muted-2:#BBB6A5;
+    --accent:#FF5A36;
+    --accent-deep:#B93A1E;
+    --accent-soft:#FFE4D9;
+    --good:#2C6B47;
+    --good-bg:#E6F1EA;
+    --ok:#D89A2E;
+    --ok-bg:#FBF0D9;
+    --bad:#D2483F;
+    --bad-bg:#FAE6E3;
+    --shadow-1:0 1px 1px rgba(22,31,25,0.04);
+    --shadow-2:0 4px 10px rgba(22,31,25,0.05), 0 1px 2px rgba(22,31,25,0.04);
+    --shadow-3:0 16px 32px rgba(22,31,25,0.08), 0 4px 10px rgba(22,31,25,0.05);
+    --shadow-hero:0 30px 60px -12px rgba(22,31,25,0.35), 0 12px 24px -8px rgba(22,31,25,0.22);
+  }
+  *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body{ margin:0; padding:0; }
+  body{
+    font-family:'Inter',sans-serif;
+    background:
+      radial-gradient(900px 500px at 100% -10%, rgba(255,90,54,0.05), transparent 55%),
+      var(--bg);
+    color:var(--ink);
+    display:flex; justify-content:center;
+    padding:44px 16px 28px;
+    min-height:100vh;
+  }
+  .device{ width:100%; max-width:410px; position:relative; padding-bottom:92px; }
+
+  .grain{
+    position:fixed; inset:0; pointer-events:none; opacity:0.035; mix-blend-mode:multiply; z-index:999;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  /* Top bar */
+  .topbar{ display:flex; align-items:center; justify-content:space-between; padding:2px 3px 24px; }
+  .brand{ display:flex; align-items:center; gap:10px; }
+  .brand-mark{ width:32px; height:32px; filter:drop-shadow(0 2px 4px rgba(255,90,54,0.25)); }
+  .brand-name{ font-family:'Fraunces',serif; font-weight:600; font-size:21px; letter-spacing:-0.015em; }
+  .live-pill{
+    display:flex; align-items:center; gap:6px;
+    font-size:12px; font-weight:700; letter-spacing:0.02em; color:var(--good);
+    background:var(--good-bg); padding:6.5px 13px 6.5px 10px; border-radius:100px;
+    box-shadow:var(--shadow-1);
+    transition:all .3s ease;
+  }
+  .live-pill .d{ width:6px; height:6px; border-radius:50%; background:var(--good); box-shadow:0 0 0 3px rgba(44,107,71,0.15); }
+  body.paused .live-pill{ color:var(--muted); background:var(--cream); }
+  body.paused .live-pill .d{ background:var(--muted-2); box-shadow:none; }
+
+  /* HERO */
+  .hero{
+    position:relative;
+    background:
+      radial-gradient(420px 260px at 92% -20%, rgba(255,90,54,0.20), transparent 60%),
+      linear-gradient(165deg, #1B2620 0%, var(--ink) 60%, #0F1712 100%);
+    border-radius:28px;
+    padding:28px 25px 26px;
+    color:var(--cream);
+    box-shadow:var(--shadow-hero);
+    overflow:hidden;
+    margin-bottom:20px;
+    isolation:isolate;
+  }
+  .hero::after{
+    content:""; position:absolute; inset:0; opacity:0.05; mix-blend-mode:overlay; pointer-events:none;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+  .scanline{
+    position:absolute; left:-15%; right:-15%; height:140px;
+    background:linear-gradient(180deg, rgba(255,120,80,0) 0%, rgba(255,120,80,0.10) 50%, rgba(255,120,80,0) 100%);
+    top:-160px; animation:scan 6s linear infinite; pointer-events:none; z-index:0;
+  }
+  @keyframes scan{ 0%{ top:-160px; } 100%{ top:115%; } }
+  body.paused .scanline{ animation-play-state:paused; opacity:0.2; }
+
+  .hero-top{ display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; position:relative; z-index:2; }
+  .hero-status{ display:flex; align-items:center; gap:8px; font-size:13.5px; font-weight:600; color:rgba(244,239,225,0.82); letter-spacing:0.01em; }
+  .hero-status .d{ width:7px; height:7px; border-radius:50%; background:var(--accent); box-shadow:0 0 0 4px rgba(255,90,54,0.18); transition:all .3s ease; }
+  body.paused .hero-status .d{ background:var(--muted-2); box-shadow:none; }
+  .apps-tags{ display:flex; gap:6px; }
+  .apps-tags span{
+    font-size:11px; font-weight:600; padding:4px 9px; border-radius:100px;
+    background:rgba(244,239,225,0.08); color:rgba(244,239,225,0.68);
+    border:1px solid rgba(244,239,225,0.08);
+  }
+
+  .hero-number-row{ position:relative; z-index:2; display:flex; align-items:flex-end; justify-content:space-between; margin-bottom:18px; }
+  .hero-number{
+    font-family:'Fraunces',serif; font-weight:600; font-size:60px; line-height:0.86;
+    letter-spacing:-0.03em; font-variant-numeric:tabular-nums;
+  }
+  .hero-number-label{ font-size:12.5px; color:rgba(244,239,225,0.5); margin-top:8px; font-weight:500; letter-spacing:0.01em; }
+
+  .pause-btn{
+    font-family:'Inter',sans-serif; font-weight:700; font-size:13.5px;
+    color:var(--ink); background:var(--cream);
+    border:none; padding:11px 20px; border-radius:100px; cursor:pointer;
+    box-shadow:0 4px 12px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.5);
+    transition:transform .25s cubic-bezier(.34,1.56,.64,1), background .25s ease, box-shadow .2s ease;
+    display:flex; align-items:center; gap:6px;
+  }
+  .pause-btn svg{ width:12px; height:12px; }
+  .pause-btn:hover{ transform:translateY(-1.5px) scale(1.02); }
+  .pause-btn:active{ transform:scale(0.94); }
+  body.paused .pause-btn{ background:var(--accent); color:#fff; box-shadow:0 4px 14px rgba(255,90,54,0.4), inset 0 1px 0 rgba(255,255,255,0.2); }
+
+  .seg-bar{
+    position:relative; z-index:2; height:7px; border-radius:100px; overflow:hidden;
+    background:rgba(244,239,225,0.1); display:flex; margin-bottom:12px;
+    box-shadow:inset 0 1px 2px rgba(0,0,0,0.2);
+  }
+  .seg{ height:100%; width:0; position:relative; }
+  .seg::after{ content:""; position:absolute; inset:0; background:linear-gradient(180deg, rgba(255,255,255,0.25), transparent 60%); }
+  .seg.good{ background:#4FBB7C; animation:grow-good 1s cubic-bezier(.16,.8,.24,1) forwards 0.25s; }
+  .seg.ok{ background:#EFB94F; animation:grow-ok 1s cubic-bezier(.16,.8,.24,1) forwards 0.4s; }
+  .seg.bad{ background:#EA6D62; animation:grow-bad 1s cubic-bezier(.16,.8,.24,1) forwards 0.55s; }
+  @keyframes grow-good{ to{ width:52.17%; } }
+  @keyframes grow-ok{ to{ width:30.43%; } }
+  @keyframes grow-bad{ to{ width:17.4%; } }
+  .seg-legend{ position:relative; z-index:2; display:flex; gap:18px; font-size:12.5px; font-weight:600; color:rgba(244,239,225,0.55); }
+  .seg-legend b{ color:var(--cream); font-weight:700; font-variant-numeric:tabular-nums; }
+  .seg-legend .lg{ display:flex; align-items:center; gap:6px; }
+  .lg .dot{ width:6px; height:6px; border-radius:2px; }
+  .lg.good .dot{ background:#4FBB7C; }
+  .lg.ok .dot{ background:#EFB94F; }
+  .lg.bad .dot{ background:#EA6D62; }
+
+  .section-label{
+    font-size:11px; font-weight:700; letter-spacing:0.1em; color:var(--muted-2);
+    text-transform:uppercase; margin:0 4px 11px; display:flex; align-items:center; gap:8px;
+  }
+  .section-label::after{ content:""; flex:1; height:1px; background:var(--border); }
+
+  /* Ticket */
+  .ticket{
+    background:var(--surface); border-radius:20px;
+    box-shadow:var(--shadow-3);
+    margin-bottom:18px; position:relative;
+    border:1px solid var(--border-soft);
+  }
+  .ticket::before{
+    content:""; position:absolute; left:0; top:14px; bottom:14px; width:3px; border-radius:0 3px 3px 0;
+    background:linear-gradient(180deg, var(--good), #4FBB7C);
+  }
+  .ticket-top{ padding:19px 21px 16px 24px; display:flex; align-items:center; justify-content:space-between; }
+  .ticket-tag-row{ display:flex; align-items:center; gap:10px; }
+  .ticket-badge{
+    font-family:'Fraunces',serif; font-weight:600; font-size:14.5px;
+    color:var(--good); background:var(--good-bg);
+    padding:4.5px 12px; border-radius:8px; letter-spacing:-0.01em;
+  }
+  .ticket-app{ font-weight:700; font-size:13.5px; color:var(--muted); }
+  .ticket-time{ font-size:12px; color:var(--muted-2); font-weight:600; font-variant-numeric:tabular-nums; }
+
+  .perforation{ position:relative; height:0; margin:0 21px 0 24px; border-top:2px dashed var(--border); }
+  .perforation::before, .perforation::after{
+    content:""; position:absolute; top:-10px; width:20px; height:20px; background:var(--bg); border-radius:50%;
+    box-shadow:inset 0 1px 2px rgba(22,31,25,0.06);
+  }
+  .perforation::before{ left:-31px; }
+  .perforation::after{ right:-31px; }
+
+  .ticket-bottom{ padding:17px 21px 19px 24px; display:flex; justify-content:space-between; }
+  .metric .v{ font-family:'Fraunces',serif; font-weight:600; font-size:18.5px; letter-spacing:-0.01em; font-variant-numeric:tabular-nums; }
+  .metric .k{ font-size:10.5px; color:var(--muted-2); font-weight:700; text-transform:uppercase; letter-spacing:0.07em; margin-top:3px; }
+
+  /* Alert */
+  .alert{
+    display:none; align-items:center; gap:11px;
+    background:var(--bad-bg); border:1px solid #F0C2BC;
+    border-radius:15px; padding:14px 15px; margin-bottom:18px;
+    box-shadow:var(--shadow-2);
+  }
+  .alert.show{ display:flex; animation:alert-in .35s cubic-bezier(.2,.8,.3,1); }
+  @keyframes alert-in{ from{ opacity:0; transform:translateY(-6px); } to{ opacity:1; transform:translateY(0); } }
+  .alert svg{ width:18px; height:18px; stroke:var(--bad); flex-shrink:0; }
+  .alert-text{ font-size:13px; font-weight:500; color:#8B3128; flex:1; line-height:1.4; }
+  .alert-text b{ font-weight:700; }
+  .alert-fix{ font-size:12.5px; font-weight:700; color:var(--bad); background:#fff; border:none; cursor:pointer; padding:6px 12px; border-radius:100px; box-shadow:var(--shadow-1); }
+
+  .demo-toggle{ text-align:center; margin-top:8px; }
+  .demo-toggle button{ font-size:11.5px; color:var(--muted-2); background:none; border:none; text-decoration:underline; cursor:pointer; font-family:'Inter',sans-serif; }
+
+  /* Bottom nav */
+  .bottom-nav{
+    position:fixed; bottom:24px; left:50%; transform:translateX(-50%);
+    width:calc(100% - 32px); max-width:378px;
+    background:var(--surface); border-radius:100px;
+    box-shadow:var(--shadow-hero);
+    display:flex; padding:7px; position:fixed;
+    border:1px solid var(--border-soft);
+  }
+  .nav-indicator{
+    position:absolute; top:7px; left:7px; height:calc(100% - 14px);
+    width:calc((100% - 14px) / 3);
+    background:var(--cream); border-radius:100px;
+    transition:transform .45s cubic-bezier(.34,1.3,.4,1);
+    z-index:0;
+  }
+  .nav-item{
+    flex:1; display:flex; flex-direction:column; align-items:center; gap:4px;
+    padding:9px 0 8px; border-radius:100px; cursor:pointer;
+    color:var(--muted-2); transition:color .25s ease; position:relative; z-index:1;
+  }
+  .nav-item svg{ width:19px; height:19px; stroke:currentColor; fill:none; stroke-width:1.8; transition:transform .25s cubic-bezier(.34,1.56,.64,1); }
+  .nav-item span{ font-size:10px; font-weight:700; letter-spacing:0.01em; }
+  .nav-item.active{ color:var(--ink); }
+  .nav-item.active svg{ stroke:var(--accent); transform:translateY(-1px); }
+  .nav-item:nth-child(2).active ~ .nav-indicator{}
+</style>
+</head>
+<body>
+<div class="grain"></div>
+
+<div class="device">
+  <div class="topbar">
+    <div class="brand">
+      <svg class="brand-mark" viewBox="0 0 40 40" fill="none">
+        <defs>
+          <linearGradient id="foxGrad" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="#FF7A52"/>
+            <stop offset="1" stop-color="#E8471F"/>
+          </linearGradient>
+        </defs>
+        <path d="M20 5 L31 13 L27 26 L20 33 L13 26 L9 13 Z" fill="url(#foxGrad)"/>
+        <path d="M20 12 L25.5 17 L23.5 25 L20 29 L16.5 25 L14.5 17 Z" fill="var(--bg)"/>
+        <circle cx="17" cy="18" r="1.4" fill="var(--accent-deep)"/>
+        <circle cx="23" cy="18" r="1.4" fill="var(--accent-deep)"/>
+      </svg>
+      <span class="brand-name">FoxyCo</span>
+    </div>
+    <div class="live-pill"><span class="d"></span><span id="livePillText">Live</span></div>
+  </div>
+
+  <div class="hero">
+    <div class="scanline"></div>
+    <div class="hero-top">
+      <div class="hero-status"><span class="d"></span><span id="heroStatusText">Watching for offers</span></div>
+      <div class="apps-tags"><span>Uber</span><span>Hopp</span></div>
+    </div>
+    <div class="hero-number-row">
+      <div>
+        <div class="hero-number">23</div>
+        <div class="hero-number-label">offers seen today</div>
+      </div>
+      <button class="pause-btn" id="pauseBtn">
+        <svg viewBox="0 0 24 24" fill="currentColor" id="pauseIcon"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>
+        <span id="pauseLabel">Pause</span>
+      </button>
+    </div>
+    <div class="seg-bar">
+      <div class="seg good"></div>
+      <div class="seg ok"></div>
+      <div class="seg bad"></div>
+    </div>
+    <div class="seg-legend">
+      <div class="lg good"><span class="dot"></span><b>12</b>&nbsp;good</div>
+      <div class="lg ok"><span class="dot"></span><b>7</b>&nbsp;ok</div>
+      <div class="lg bad"><span class="dot"></span><b>4</b>&nbsp;bad</div>
+    </div>
+  </div>
+
+  <div class="alert" id="alertBanner">
+    <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" fill="none">
+      <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+      <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+    </svg>
+    <div class="alert-text"><b>Accessibility access</b> was turned off, so offers won't be read.</div>
+    <button class="alert-fix">Fix</button>
+  </div>
+
+  <p class="section-label">Last offer</p>
+  <div class="ticket">
+    <div class="ticket-top">
+      <div class="ticket-tag-row">
+        <div class="ticket-badge">Good</div>
+        <div class="ticket-app">Uber</div>
+      </div>
+      <div class="ticket-time">14:28</div>
+    </div>
+    <div class="perforation"></div>
+    <div class="ticket-bottom">
+      <div class="metric"><div class="v">8.4 km</div><div class="k">Distance</div></div>
+      <div class="metric"><div class="v">$12.00</div><div class="k">Fare</div></div>
+      <div class="metric"><div class="v">$1.43</div><div class="k">Per km</div></div>
+    </div>
+  </div>
+
+  <div class="demo-toggle"><button id="alertToggle">toggle permission alert (demo only)</button></div>
+</div>
+
+<div class="bottom-nav" id="bottomNav">
+  <div class="nav-indicator" id="navIndicator"></div>
+  <div class="nav-item active" data-index="0">
+    <svg viewBox="0 0 24 24"><path d="M3 11.5 12 4l9 7.5"/><path d="M5 10v9a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1v-9"/></svg>
+    <span>Home</span>
+  </div>
+  <div class="nav-item" data-index="1">
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+    <span>History</span>
+  </div>
+  <div class="nav-item" data-index="2">
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+    <span>Settings</span>
+  </div>
+</div>
+
+<script>
+  const pauseBtn = document.getElementById('pauseBtn');
+  const pauseLabel = document.getElementById('pauseLabel');
+  const pauseIcon = document.getElementById('pauseIcon');
+  const heroStatusText = document.getElementById('heroStatusText');
+  const livePillText = document.getElementById('livePillText');
+
+  pauseBtn.addEventListener('click', ()=>{
+    document.body.classList.toggle('paused');
+    const paused = document.body.classList.contains('paused');
+    pauseLabel.textContent = paused ? 'Resume' : 'Pause';
+    pauseIcon.innerHTML = paused
+      ? '<path d="M6 4 20 12 6 20Z"/>'
+      : '<rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/>';
+    heroStatusText.textContent = paused ? 'Paused' : 'Watching for offers';
+    livePillText.textContent = paused ? 'Paused' : 'Live';
+  });
+
+  const alertBanner = document.getElementById('alertBanner');
+  document.getElementById('alertToggle').addEventListener('click', ()=>{
+    alertBanner.classList.toggle('show');
+  });
+
+  const navItems = document.querySelectorAll('.nav-item');
+  const navIndicator = document.getElementById('navIndicator');
+  function moveIndicator(i){
+    navIndicator.style.transform = `translateX(${i * 100}%)`;
+  }
+  navItems.forEach(item=>{
+    item.addEventListener('click', ()=>{
+      navItems.forEach(n=>n.classList.remove('active'));
+      item.classList.add('active');
+      moveIndicator(parseInt(item.dataset.index,10));
+    });
+  });
+</script>
+
+</body>
+</html>

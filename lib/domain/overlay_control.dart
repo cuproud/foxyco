@@ -9,12 +9,16 @@ class OverlayControl {
   const OverlayControl._();
 
   /// Tell the overlay whether FoxyCo is watching — the bubble dims when paused.
-  static Map<String, dynamic> paused(bool value) =>
-      {'kind': 'control', 'paused': value};
+  static Map<String, dynamic> paused(bool value) => {
+    'kind': 'control',
+    'paused': value,
+  };
 
   /// Tell the overlay to drop the current pill (e.g. offer dismissed on main).
-  static Map<String, dynamic> clearPill() =>
-      {'kind': 'control', 'clearPill': true};
+  static Map<String, dynamic> clearPill() => {
+    'kind': 'control',
+    'clearPill': true,
+  };
 
   static bool isControl(Map<dynamic, dynamic> map) => map['kind'] == 'control';
 }

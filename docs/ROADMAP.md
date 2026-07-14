@@ -63,26 +63,34 @@ bubble drags around and sticks. *(All wiring + widgets + unit/widget tests done;
 
 ---
 
-## M3 — Uber + Hopp parser (2–3 days)  🎯🧱  ← the hard part
+## M3 — Uber + Hopp parser (2–3 days)  🎯🧱  ← the hard part  ✅ CODE-COMPLETE (device verify pending)
 
 Goal: real offers get read and analyzed automatically.
 
-- [ ] Add `flutter_accessibility_service`. Configure the accessibility service (declare in
-      `AndroidManifest.xml` + `accessibilityservice` config resource) for `com.ubercab.driver` and
-      the Hopp package. `canRetrieveWindowContent=true`
-- [ ] Request accessibility permission via the plugin; onboarding explains why
-- [ ] Stream window events; grab the node list (text + bounds) per event
-- [ ] `parser/`: `OfferParser` interface + `UberParser` + `HoppParser` (regex on node text, see
-      REFERENCE_ANALYSIS.md for the exact anchors)
-- [ ] Map parsed text → `Offer` (with `payIsNet` for Hopp), hand to `DecisionEngine`, push verdict to overlay
-- [ ] Handle: no upfront data (Uber acceptance-rate gate), weird formats, offer disappears mid-parse
-- [ ] Debounce content events + dedupe identical offers (battery — see AUDIT #4)
-- [ ] **Fixture tests**: capture real node dumps, assert parsed `Offer`. One per format change
+- [x] Add `flutter_accessibility_service` (^1.2.0, pinned per AUDIT #9). Service declared in
+      `AndroidManifest.xml` + `res/xml/accessibilityservice.xml`, scoped to `com.ubercab.driver` +
+      the Hopp package, `canRetrieveWindowContent=true`, read-only (no `canPerformGestures` — AUDIT #2)
+- [x] Request accessibility permission via the plugin (`AccessibilityWatcher.requestPermission`);
+      Home "Fix permissions" wires it, lifecycle-resume re-checks. (Standalone onboarding = M4)
+- [x] Stream window events → flattened node-text list per event (`AccessibilityWatcher.reads()`)
+- [x] `parser/`: `OfferParser` interface + `UberParser` + `HoppParser` (regex anchors from
+      REFERENCE_ANALYSIS.md) + `ParserRegistry` (dispatch by foreground package)
+- [x] Map parsed text → `Offer` (with `payIsNet` for Hopp, +pickup/dropoff **minutes** for $/hr),
+      hand to `DecisionEngine.evaluateOffer`, push verdict to overlay (`OfferWatcher` pipeline)
+- [x] Handle: no upfront data (Uber gate) / one-leg / missing pay / garbage → `null` (fail safe)
+- [x] Debounce content events (250 ms) + dedupe identical reads (battery — AUDIT #4)
+- [x] **Fixture tests**: node dumps from the reference layouts → assert parsed `Offer` (both parsers,
+      incl. boundaries + null cases) + an `OfferWatcher` pipeline test (parse→score→pill, pause gating)
+- [ ] ⏳ **Device verification** — plugin only runs on a real device. Build, grant accessibility,
+      open Uber/Hopp, confirm a live offer draws the pill. See MANUAL_TESTS M3 rows.
+- [ ] ⏳ **Confirm the Hopp package name** — `com.hopp.driver` is a PLACEHOLDER in `ParserRegistry`
+      + `res/xml`. Dump the foreground package on device and correct BOTH if wrong.
 
 **Done when:** a real Uber or Hopp offer pops → pill shows correct verdict in <300 ms, no manual tap.
+*(All Dart + native wiring + tests done; `flutter test` green, debug APK builds. Needs a device run.)*
 
-> ⚠️ Selectors WILL break when Uber/Hopp update their apps. Keep each parser isolated + version-tagged.
-> See AUDIT.md "parser fragility."
+> ⚠️ Selectors WILL break when Uber/Hopp update their apps. Keep each parser isolated + version-tagged
+> (`OfferParser.tunedAgainst`). See AUDIT.md "parser fragility."
 
 ---
 

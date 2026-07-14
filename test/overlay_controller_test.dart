@@ -125,7 +125,7 @@ void main() {
     expect(fake.hidden, isTrue);
   });
 
-  test('bubble long-press action pauses the dashboard + echoes to overlay',
+  test('bubble long-press takes the dashboard offline + closes the overlay',
       () async {
     final fake = _FakeOverlayService();
     final c = _containerWith(fake);
@@ -137,6 +137,49 @@ void main() {
     await Future<void>.delayed(Duration.zero); // let the stream deliver
 
     expect(c.read(dashboardProvider).status, WatchStatus.paused);
-    expect(fake.pausedCalls.last, isTrue); // overlay told it's paused now
+    expect(fake.hidden, isTrue); // offline tears the bubble down, not dims it
+  });
+
+  test('brings the overlay up immediately when status is watching (req 11)',
+      () async {
+    final fake = _FakeOverlayService();
+    final c = _containerWith(fake);
+
+    // Merely instantiating the controller — no Simulate button — must raise the
+    // bubble, because the default dashboard status is `watching`.
+    c.read(overlayControllerProvider);
+    await Future<void>.delayed(Duration.zero);
+
+    expect(fake.watchingStarted, isTrue);
+    expect(fake.pausedCalls, contains(false)); // came up un-paused
+  });
+
+  test('going offline closes the overlay; going online re-raises it', () async {
+    final fake = _FakeOverlayService();
+    final c = _containerWith(fake);
+    c.read(overlayControllerProvider);
+    await Future<void>.delayed(Duration.zero);
+
+    c.read(dashboardProvider.notifier).togglePause(); // → offline
+    await Future<void>.delayed(Duration.zero);
+    expect(fake.hidden, isTrue); // overlay torn down, not dimmed
+
+    c.read(dashboardProvider.notifier).togglePause(); // → online
+    await Future<void>.delayed(Duration.zero);
+    expect(fake.watchingStarted, isTrue); // bubble re-raised
+    expect(fake.pausedCalls.last, isFalse); // ...un-paused
+  });
+
+  test('dropping the bubble (stopWatching action) pauses the dashboard',
+      () async {
+    final fake = _FakeOverlayService();
+    final c = _containerWith(fake);
+    c.read(overlayControllerProvider);
+    expect(c.read(dashboardProvider).status, WatchStatus.watching);
+
+    fake.emitAction(OverlayAction.stopWatching);
+    await Future<void>.delayed(Duration.zero);
+
+    expect(c.read(dashboardProvider).status, WatchStatus.paused);
   });
 }
