@@ -98,14 +98,18 @@ Goal: real offers get read and analyzed automatically.
 
 Goal: a real app around the engine. Simple, clean.
 
-- [ ] Home: status cards (service on/off, overlay permission, accessibility permission, "watching
+- [x] Home: status cards (service on/off, overlay permission, accessibility permission, "watching
       for offers"), today's tally (good/ok/bad counts — count only, no graphs)
-- [ ] Onboarding: walk the driver through the 2 permissions (overlay + accessibility) clearly
-- [ ] Drift DB: log each seen offer (platform, payout, km, verdict, timestamp) for the tally + future analytics 🧱
-- [ ] First-run empty states, permission-denied states
-- [ ] Wire everything through Riverpod providers
+- [x] Onboarding: walk the driver through the 2 permissions (overlay + accessibility) clearly
+      (`ui/onboarding/` — 3 pages, plain-language read-only disclosure, skip allowed, first-run gate)
+- [x] Offer log: log each seen offer (platform, payout, km, verdict, timestamp) for the tally +
+      future analytics — SharedPreferences JSON (`services/offer_log.dart`), not Drift; capped +
+      retention-purged, plenty for MVP 🧱
+- [x] First-run empty states, permission-denied states
+- [x] Wire everything through Riverpod providers
 
 **Done when:** fresh install → onboarding → grant permissions → drive → home shows today's counts.
+*(Code-complete 2026-07-16; needs device run — MANUAL_TESTS O-rows.)*
 
 ---
 
@@ -137,7 +141,9 @@ touching DecisionEngine/overlay.
 
 ## Later (💤 — NOT now, architecture only)
 
-Profit engine (fuel/wear/tax) · auto-accept/decline (⚠️ ToS risk, see AUDIT) · voice announce ·
+Profit engine (fuel/wear/tax) · ~~auto-accept/decline~~ (**NEVER — product rule 2026-07-16:
+FoxyCo is strictly manual/read-only; it never acts inside another app. ToS risk, see AUDIT**) ·
+voice announce ·
 mileage GPS tracking · expense manager + OCR · analytics/heatmaps · AI insights · goals ·
 cloud backup · more platforms (Lyft, Skip, Instacart, Flex, Spark). Full list in the
 original `project.txt`. Each is a new layer hanging off the same clean core.

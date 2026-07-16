@@ -4,12 +4,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'router.dart';
 import 'services/accessibility/offer_watcher.dart';
 import 'ui/home/dashboard_controller.dart';
+import 'ui/onboarding/onboarding_gate.dart';
 import 'ui/overlay/overlay_controller.dart';
 import 'ui/overlay/overlay_entry.dart';
 import 'ui/theme/app_theme.dart';
 
-void main() {
-  runApp(const ProviderScope(child: FoxyCoApp()));
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  // Read the first-run flag BEFORE runApp so the app boots straight into the
+  // right screen — no flash of Home before onboarding takes over.
+  final onboarded = await OnboardingGate.isDone();
+  runApp(ProviderScope(child: FoxyCoApp(showOnboarding: !onboarded)));
 }
 
 /// Entry point for the overlay ISOLATE. `flutter_overlay_window` looks this up
@@ -25,7 +30,10 @@ void overlayMain() {
 }
 
 class FoxyCoApp extends ConsumerStatefulWidget {
-  const FoxyCoApp({super.key});
+  const FoxyCoApp({super.key, this.showOnboarding = false});
+
+  /// First run → boot into `/onboarding` instead of Home.
+  final bool showOnboarding;
 
   @override
   ConsumerState<FoxyCoApp> createState() => _FoxyCoAppState();
@@ -33,6 +41,8 @@ class FoxyCoApp extends ConsumerStatefulWidget {
 
 class _FoxyCoAppState extends ConsumerState<FoxyCoApp>
     with WidgetsBindingObserver {
+  late final _router = createRouter(showOnboarding: widget.showOnboarding);
+
   @override
   void initState() {
     super.initState();
@@ -70,7 +80,7 @@ class _FoxyCoAppState extends ConsumerState<FoxyCoApp>
       title: 'FoxyCo',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
-      routerConfig: appRouter,
+      routerConfig: _router,
     );
   }
 }

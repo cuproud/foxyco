@@ -144,6 +144,22 @@ Demo data removed — tally/ticket/history are live from logged offers only.
 | H.6 | Kill + reopen app | Tally, ticket, and History survive restart | [ ] |
 | H.7 | Tap **Pause** | Status flips watching ↔ paused | [ ] |
 
+## M4 — Onboarding (first run, 2026-07-16)
+
+3 swipeable pages: intro → overlay grant → accessibility grant (with the
+plain-language, read-only disclosure). "Skip for now" always exits to Home.
+
+| # | How | PASS bar | Status |
+|---|-----|----------|--------|
+| O.1 | Fresh install (or clear app data), open app | Boots into onboarding "Meet FoxyCo", NOT Home — no Home flash first | [ ] |
+| O.2 | Page 3 text | States plainly: reads ONLY pay+distance, sends nothing anywhere, **never taps buttons / accepts rides** | [ ] |
+| O.3 | Page 2 "Grant Display over other apps" | System overlay settings opens; grant; return → button becomes **✅ Granted** | [ ] |
+| O.4 | Page 3 "Grant Accessibility Access" | Accessibility settings opens; enable FoxyCo; return → **✅ Granted** | [ ] |
+| O.5 | Both granted → "Start driving smarter" | Lands on Home, status **watching**, bubble up | [ ] |
+| O.6 | Kill + reopen app | Boots straight to Home — onboarding never shows again | [ ] |
+| O.7 | Fresh install, tap "Skip for now" | Lands on Home, status **blocked**, "Fix permissions" visible | [ ] |
+| O.8 | After O.7, kill + reopen | Still boots to Home (skip also marks onboarding done) | [ ] |
+
 ---
 
-_Last updated: 2026-07-16 (real offer log: mock dashboard/history data removed; settings expanded — pickup guard, watched apps, pill size, retention, clear history)._
+_Last updated: 2026-07-16 (onboarding O-rows added; real offer log: mock dashboard/history data removed; settings expanded — pickup guard, watched apps, pill size, retention, clear history)._
