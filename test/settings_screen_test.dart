@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:foxyco/domain/fox_settings.dart';
+import 'package:foxyco/domain/rate_mode.dart';
 import 'package:foxyco/domain/thresholds.dart';
 import 'package:foxyco/ui/settings/settings_controller.dart';
 import 'package:foxyco/ui/settings/settings_screen.dart';
@@ -61,5 +63,58 @@ void main() {
     final t = container.read(settingsProvider).thresholds;
     expect(t.isValid, isTrue);
     expect(t.goodAtOrAbove, t.badBelow);
+  });
+
+  test(r'rate-mode switch keeps per-mode cut points independent', () {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+    final c = container.read(settingsProvider.notifier);
+
+    // In $/hr mode the sliders edit the HOUR cuts…
+    c.setRateMode(RateMode.perHour);
+    c.setGood(45);
+    c.setBad(25);
+    var s = container.read(settingsProvider);
+    expect(s.hourThresholds, const Thresholds(goodAtOrAbove: 45, badBelow: 25));
+    // …and the km cuts are untouched.
+    expect(s.thresholds, Thresholds.defaults);
+    expect(s.activeThresholds, s.hourThresholds);
+
+    // Switching back re-activates the km cuts unchanged.
+    c.setRateMode(RateMode.perKm);
+    s = container.read(settingsProvider);
+    expect(s.activeThresholds, Thresholds.defaults);
+    expect(s.hourThresholds, const Thresholds(goodAtOrAbove: 45, badBelow: 25));
+  });
+
+  test(r'$/hr band stays coherent under the same clamps', () {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+    final c = container.read(settingsProvider.notifier);
+
+    c.setRateMode(RateMode.perHour);
+    c.setGood(15); // below the default BAD cut (20) — must pin, not invert
+    final t = container.read(settingsProvider).hourThresholds;
+    expect(t.isValid, isTrue);
+    expect(t.goodAtOrAbove, t.badBelow);
+  });
+
+  test('rate mode + hour cuts survive a JSON round-trip', () {
+    final s = FoxSettings.defaults.copyWith(
+      rateMode: RateMode.perHour,
+      hourThresholds: const Thresholds(goodAtOrAbove: 42, badBelow: 21),
+    );
+    final back = FoxSettings.fromJson(s.toJson());
+    expect(back.rateMode, RateMode.perHour);
+    expect(back.hourThresholds, s.hourThresholds);
+    expect(back.thresholds, s.thresholds);
+  });
+
+  test(r'old saved blobs (no rateMode keys) load with $/km defaults', () {
+    // A pre-rate-mode settings blob: only km cuts present.
+    final back = FoxSettings.fromJson({'good': 1.8, 'bad': 0.9});
+    expect(back.rateMode, RateMode.perKm);
+    expect(back.thresholds, const Thresholds(goodAtOrAbove: 1.8, badBelow: 0.9));
+    expect(back.hourThresholds, FoxSettings.defaultHourThresholds);
   });
 }

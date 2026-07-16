@@ -183,6 +183,20 @@ follows the range/app/top chips). Hidden when no offers match.
 | SS.3 | Range with zero offers | Card gone, empty state shows | [ ] |
 | SS.4 | Only BAD offers in range | GOOD AVG shows **—** (not $0.00) | [ ] |
 
+## Settings — $/km vs $/hr rate mode (2026-07-16)
+
+Segmented toggle above the threshold sliders. Each mode keeps its own cut
+points ($/km: 1.50/1.00 · $/hr: 30/20). Offers with no parsed minutes fall
+back to $/km scoring even in $/hr mode.
+
+| # | How | PASS bar | Status |
+|---|-----|----------|--------|
+| RM.1 | Settings → tap **$/hr** | Sliders re-range 10–60, defaults **30.00 / 20.00**, preview + band re-label /hr | [ ] |
+| RM.2 | Change $/hr cuts, flip to $/km and back | $/km cuts untouched; $/hr cuts kept | [ ] |
+| RM.3 | Real offer in $/hr mode (Hopp/Lyft carry minutes) | Verdict matches payout ÷ minutes × 60 vs the $/hr cuts | [ ] |
+| RM.4 | Offer with no time data in $/hr mode | Still gets a verdict — scored by $/km (never blank, never all-BAD) | [ ] |
+| RM.5 | Kill + reopen | Mode + both cut pairs persist | [ ] |
+
 ---
 
-_Last updated: 2026-07-16 (onboarding O-rows added; real offer log: mock dashboard/history data removed; settings expanded — pickup guard, watched apps, pill size, retention, clear history)._
+_Last updated: 2026-07-16 (rate-mode RM-rows, shift-summary SS-rows, resilience R-rows, onboarding O-rows added; real offer log; settings expanded)._

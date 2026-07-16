@@ -173,9 +173,11 @@ class OfferWatcher extends Notifier<Offer?> {
     // Driver turned this app off in Settings → ignore its offers entirely.
     if (!settings.watches(offer.platform)) return;
 
-    final verdict = ref.read(decisionEngineProvider).evaluateOffer(
+    // Score by the driver's chosen rate mode ($/km or $/hr; falls back to
+    // $/km when an offer carries no minutes).
+    final verdict = ref.read(decisionEngineProvider).scoreOffer(
       offer,
-      settings.thresholds,
+      settings,
     );
     if (verdict == Verdict.unknown) return;
 

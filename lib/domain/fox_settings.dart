@@ -1,5 +1,6 @@
 import 'overlay_payload.dart' show PillSize;
 import 'platform.dart';
+import 'rate_mode.dart';
 import 'thresholds.dart';
 
 /// Everything the driver can tune, in one persisted object.
@@ -11,6 +12,14 @@ import 'thresholds.dart';
 class FoxSettings {
   /// $/km cut points → GOOD/OK/BAD.
   final Thresholds thresholds;
+
+  /// $/hr cut points, used when [rateMode] is [RateMode.perHour]. Kept
+  /// separate from [thresholds] — the scales differ by ~20×, so sharing one
+  /// pair would mangle the band on every mode switch.
+  final Thresholds hourThresholds;
+
+  /// Which rate the verdict engine scores by ($/km or $/hr).
+  final RateMode rateMode;
 
   /// Pickup distance at or under this (km) is "near" — the pill paints the trip
   /// km green; over it, red. The driver's dead-mileage guard.
@@ -27,6 +36,8 @@ class FoxSettings {
 
   const FoxSettings({
     required this.thresholds,
+    required this.hourThresholds,
+    required this.rateMode,
     required this.pickupNearKm,
     required this.watchedApps,
     required this.retentionDays,
@@ -35,8 +46,17 @@ class FoxSettings {
 
   static const keepForever = 9999;
 
+  /// $/hr seeds: GOOD ≥ $30/hr, BAD < $20/hr — roughly where full-time
+  /// rideshare "worth it / not worth it" talk lands; driver-tunable anyway.
+  static const defaultHourThresholds = Thresholds(
+    goodAtOrAbove: 30,
+    badBelow: 20,
+  );
+
   static final defaults = FoxSettings(
     thresholds: Thresholds.defaults,
+    hourThresholds: defaultHourThresholds,
+    rateMode: RateMode.perKm,
     pickupNearKm: 2.0,
     watchedApps: {GigPlatform.uber, GigPlatform.hopp, GigPlatform.lyft},
     retentionDays: 30,
@@ -45,14 +65,24 @@ class FoxSettings {
 
   bool watches(GigPlatform p) => watchedApps.contains(p);
 
+  /// The cut points for the ACTIVE [rateMode] — what the engine scores with.
+  Thresholds get activeThresholds => switch (rateMode) {
+    RateMode.perKm => thresholds,
+    RateMode.perHour => hourThresholds,
+  };
+
   FoxSettings copyWith({
     Thresholds? thresholds,
+    Thresholds? hourThresholds,
+    RateMode? rateMode,
     double? pickupNearKm,
     Set<GigPlatform>? watchedApps,
     int? retentionDays,
     PillSize? pillSize,
   }) => FoxSettings(
     thresholds: thresholds ?? this.thresholds,
+    hourThresholds: hourThresholds ?? this.hourThresholds,
+    rateMode: rateMode ?? this.rateMode,
     pickupNearKm: pickupNearKm ?? this.pickupNearKm,
     watchedApps: watchedApps ?? this.watchedApps,
     retentionDays: retentionDays ?? this.retentionDays,
@@ -62,6 +92,9 @@ class FoxSettings {
   Map<String, dynamic> toJson() => {
     'good': thresholds.goodAtOrAbove,
     'bad': thresholds.badBelow,
+    'hourGood': hourThresholds.goodAtOrAbove,
+    'hourBad': hourThresholds.badBelow,
+    'rateMode': rateMode.name,
     'pickupNearKm': pickupNearKm,
     'watchedApps': watchedApps.map((p) => p.name).toList(),
     'retentionDays': retentionDays,
@@ -80,6 +113,16 @@ class FoxSettings {
             d.thresholds.goodAtOrAbove,
         badBelow: (j['bad'] as num?)?.toDouble() ?? d.thresholds.badBelow,
       ),
+      hourThresholds: Thresholds(
+        goodAtOrAbove: (j['hourGood'] as num?)?.toDouble() ??
+            d.hourThresholds.goodAtOrAbove,
+        badBelow: (j['hourBad'] as num?)?.toDouble() ??
+            d.hourThresholds.badBelow,
+      ),
+      rateMode: RateMode.values
+          .where((m) => m.name == j['rateMode'])
+          .firstOrNull ??
+          d.rateMode,
       pickupNearKm: (j['pickupNearKm'] as num?)?.toDouble() ?? d.pickupNearKm,
       watchedApps: (apps == null || apps.isEmpty) ? d.watchedApps : apps,
       retentionDays: (j['retentionDays'] as num?)?.toInt() ?? d.retentionDays,

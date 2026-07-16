@@ -5,6 +5,7 @@ import '../../domain/decision_engine.dart';
 import '../../domain/fox_settings.dart';
 import '../../domain/overlay_payload.dart' show PillSize;
 import '../../domain/platform.dart';
+import '../../domain/rate_mode.dart';
 import '../../domain/thresholds.dart';
 import '../../domain/verdict.dart';
 import '../../services/offer_log.dart';
@@ -23,16 +24,27 @@ class SettingsScreen extends ConsumerStatefulWidget {
 }
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
-  static const _min = 0.5;
-  static const _max = 3.0;
+  // Slider ranges per rate mode ($/km vs $/hr scales differ ~20×).
+  static const _minKm = 0.5;
+  static const _maxKm = 3.0;
+  static const _minHr = 10.0;
+  static const _maxHr = 60.0;
   static const _engine = DecisionEngine();
 
+  /// Live-preview sample rate, one per mode so flipping modes lands on a
+  /// sensible sample instead of an out-of-range one.
   double _samplePpk = 1.25;
+  double _samplePph = 25.0;
 
   @override
   Widget build(BuildContext context) {
     final settings = ref.watch(settingsProvider);
-    final t = settings.thresholds;
+    final perHour = settings.rateMode == RateMode.perHour;
+    final t = settings.activeThresholds;
+    final min = perHour ? _minHr : _minKm;
+    final max = perHour ? _maxHr : _maxKm;
+    final unit = perHour ? '/hr' : '/km';
+    final sample = perHour ? _samplePph : _samplePpk;
     final controller = ref.read(settingsProvider.notifier);
     final text = Theme.of(context).textTheme;
 
@@ -55,22 +67,42 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         const _SectionLabel('Verdict thresholds'),
         const SizedBox(height: Gap.sm),
         Text(
-          'FoxyCo scores every offer by dollars per kilometre. '
-          'Set where GOOD and BAD begin.',
+          perHour
+              ? 'FoxyCo scores every offer by dollars per hour. '
+                  'Set where GOOD and BAD begin.'
+              : 'FoxyCo scores every offer by dollars per kilometre. '
+                  'Set where GOOD and BAD begin.',
           style: text.bodyMedium?.copyWith(color: FoxColors.textSecondary),
         ),
-        const SizedBox(height: Gap.lg),
+        const SizedBox(height: Gap.md),
+        // Rate mode — each mode keeps its own cut points. Offers with no
+        // parsed time fall back to $/km scoring (engine fail-safe).
+        Center(
+          child: SegmentedButton<RateMode>(
+            segments: [
+              for (final m in RateMode.values)
+                ButtonSegment(value: m, label: Text(m.label)),
+            ],
+            selected: {settings.rateMode},
+            onSelectionChanged: (s) => controller.setRateMode(s.first),
+            style: SegmentedButton.styleFrom(
+              selectedBackgroundColor: FoxColors.brandFoxSoft,
+              selectedForegroundColor: FoxColors.brandFoxDeep,
+            ),
+          ),
+        ),
+        const SizedBox(height: Gap.md),
         _Card(
           child: Column(
             children: [
-              _ThresholdBand(thresholds: t, min: _min, max: _max),
+              _ThresholdBand(thresholds: t, min: min, max: max),
               const SizedBox(height: Gap.lg),
               _ThresholdSlider(
                 label: 'GOOD at or above',
                 color: VerdictColors.good,
                 value: t.goodAtOrAbove,
-                min: _min,
-                max: _max,
+                min: min,
+                max: max,
                 onChanged: controller.setGood,
               ),
               const SizedBox(height: Gap.md),
@@ -78,8 +110,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 label: 'BAD below',
                 color: VerdictColors.bad,
                 value: t.badBelow,
-                min: _min,
-                max: _max,
+                min: min,
+                max: max,
                 onChanged: controller.setBad,
               ),
             ],
@@ -89,11 +121,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         const _SectionLabel('Live preview'),
         const SizedBox(height: Gap.sm + Gap.xs),
         _PreviewCard(
-          samplePpk: _samplePpk,
-          verdict: _engine.evaluate(_samplePpk, t),
-          min: _min,
-          max: _max,
-          onChanged: (v) => setState(() => _samplePpk = v),
+          sample: sample,
+          unit: unit,
+          verdict: _engine.evaluate(sample, t),
+          min: min,
+          max: max,
+          onChanged: (v) => setState(() {
+            if (perHour) {
+              _samplePph = v;
+            } else {
+              _samplePpk = v;
+            }
+          }),
         ),
         const SizedBox(height: Gap.xl),
         const _SectionLabel('Pickup guard'),
@@ -431,14 +470,16 @@ class _ThresholdSlider extends StatelessWidget {
 /// Drag a sample offer's $/km and watch the verdict flip in real time.
 class _PreviewCard extends StatelessWidget {
   const _PreviewCard({
-    required this.samplePpk,
+    required this.sample,
+    required this.unit,
     required this.verdict,
     required this.min,
     required this.max,
     required this.onChanged,
   });
 
-  final double samplePpk;
+  final double sample;
+  final String unit; // '/km' or '/hr'
   final Verdict verdict;
   final double min;
   final double max;
@@ -475,7 +516,7 @@ class _PreviewCard extends StatelessWidget {
               ),
               const Spacer(),
               Text(
-                '\$${samplePpk.toStringAsFixed(2)}/km',
+                '\$${sample.toStringAsFixed(2)}$unit',
                 style: text.titleMedium?.copyWith(
                   fontFeatures: const [FontFeature.tabularFigures()],
                 ),
@@ -495,7 +536,7 @@ class _PreviewCard extends StatelessWidget {
               inactiveTrackColor: FoxColors.border,
             ),
             child: Slider(
-              value: samplePpk,
+              value: sample,
               min: min,
               max: max,
               divisions: ((max - min) / 0.05).round(),

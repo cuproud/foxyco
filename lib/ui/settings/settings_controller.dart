@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../domain/fox_settings.dart';
 import '../../domain/overlay_payload.dart' show PillSize;
 import '../../domain/platform.dart';
+import '../../domain/rate_mode.dart';
 import '../../domain/thresholds.dart';
 
 /// Holds every driver-tunable knob ([FoxSettings]) and persists it as one
@@ -49,20 +50,31 @@ class SettingsController extends Notifier<FoxSettings> {
     _save();
   }
 
-  /// GOOD cut. Clamped so it can never dip below the BAD cut (keeps the band
-  /// coherent — see [Thresholds.isValid]); the slider also enforces this.
+  /// GOOD cut for the ACTIVE rate mode. Clamped so it can never dip below the
+  /// BAD cut (keeps the band coherent — see [Thresholds.isValid]); the slider
+  /// also enforces this.
   void setGood(double value) {
-    final t = state.thresholds;
+    final t = state.activeThresholds;
     final clamped = value < t.badBelow ? t.badBelow : value;
-    _set(state.copyWith(thresholds: t.copyWith(goodAtOrAbove: clamped)));
+    _setActive(t.copyWith(goodAtOrAbove: clamped));
   }
 
-  /// BAD cut. Clamped so it can never rise above the GOOD cut.
+  /// BAD cut for the ACTIVE rate mode. Clamped so it can never rise above the
+  /// GOOD cut.
   void setBad(double value) {
-    final t = state.thresholds;
+    final t = state.activeThresholds;
     final clamped = value > t.goodAtOrAbove ? t.goodAtOrAbove : value;
-    _set(state.copyWith(thresholds: t.copyWith(badBelow: clamped)));
+    _setActive(t.copyWith(badBelow: clamped));
   }
+
+  /// Write [next] into whichever thresholds pair the active mode uses.
+  void _setActive(Thresholds next) => _set(switch (state.rateMode) {
+    RateMode.perKm => state.copyWith(thresholds: next),
+    RateMode.perHour => state.copyWith(hourThresholds: next),
+  });
+
+  /// Score by $/km or $/hr. Each mode keeps its own cut points.
+  void setRateMode(RateMode mode) => _set(state.copyWith(rateMode: mode));
 
   /// Pickup-near cutoff (km) — at/under paints the pill's km green, over red.
   void setPickupNearKm(double km) =>
