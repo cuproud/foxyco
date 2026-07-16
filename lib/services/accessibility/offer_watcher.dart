@@ -14,6 +14,7 @@ import '../../ui/home/dashboard_state.dart';
 import '../../ui/overlay/overlay_controller.dart';
 import '../../ui/settings/settings_controller.dart';
 import '../offer_log.dart';
+import '../parse_health.dart';
 import 'accessibility_watcher.dart';
 
 /// DI seams so tests can swap fakes for the real plugin wrapper / engine.
@@ -133,6 +134,15 @@ class OfferWatcher extends Notifier<Offer?> {
       // frame — a lone button, payout-only, a half-rendered tree — is treated as
       // "still on the card" so the pill holds.
       if (_shownKey == null) {
+        // Nothing showing. Usually browse/home noise — but a frame carrying the
+        // takeable-offer affordance was very likely a REAL offer card we failed
+        // to read. Count it: misses with zero successes = stale selectors
+        // (surfaced as "Parser health" in Settings).
+        if (ParserPatterns.hasAcceptAction(read.texts)) {
+          ref
+              .read(parseHealthProvider.notifier)
+              .recordCardMiss(parser.platform);
+        }
         if (kDebugMode) debugPrint('FoxyCo[watch] drop: parse null (low conf)');
         return; // nothing showing — browse/home noise, not a lost card
       }
@@ -184,6 +194,9 @@ class OfferWatcher extends Notifier<Offer?> {
     _shownKey = key;
     _shownAt = DateTime.now();
     state = offer; // expose the latest parsed offer (debug / future tally)
+    // A successful parse also proves this platform's selectors still fit —
+    // clears any card-miss streak (Settings "Parser health").
+    ref.read(parseHealthProvider.notifier).recordParse(offer.platform);
     if (kDebugMode) {
       debugPrint(
         'FoxyCo[watch] ${offer.platform.label} \$${offer.payout} '

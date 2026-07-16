@@ -197,6 +197,20 @@ back to $/km scoring even in $/hr mode.
 | RM.4 | Offer with no time data in $/hr mode | Still gets a verdict — scored by $/km (never blank, never all-BAD) | [ ] |
 | RM.5 | Kill + reopen | Mode + both cut pairs persist | [ ] |
 
+## Settings — parser health (2026-07-16)
+
+Session-only per-app counters: successful parses vs card-like frames
+(Accept/Match affordance present) that failed the full parse while nothing was
+showing. Misses with zero successes ⇒ "Needs update".
+
+| # | How | PASS bar | Status |
+|---|-----|----------|--------|
+| PH.1 | Fresh session, Settings | Every watched app shows **No offers yet**; unwatched shows dimmed **Off** | [ ] |
+| PH.2 | Real offer parses (pill drew) | That app flips to **OK · n read** | [ ] |
+| PH.3 | Simulate breakage: 10+ offer cards arrive, none parse (only testable when a parser actually breaks) | App shows **Needs update** | [ ] |
+| PH.4 | After PH.3, one successful parse | Flag clears back to **OK** | [ ] |
+| PH.5 | Restart app | Counters reset (session-only by design) | [ ] |
+
 ---
 
 _Last updated: 2026-07-16 (rate-mode RM-rows, shift-summary SS-rows, resilience R-rows, onboarding O-rows added; real offer log; settings expanded)._

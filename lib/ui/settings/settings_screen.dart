@@ -9,6 +9,7 @@ import '../../domain/rate_mode.dart';
 import '../../domain/thresholds.dart';
 import '../../domain/verdict.dart';
 import '../../services/offer_log.dart';
+import '../../services/parse_health.dart';
 import '../theme/tokens.dart';
 import '../theme/verdict_style.dart';
 import 'settings_controller.dart';
@@ -193,6 +194,31 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
         ),
         const SizedBox(height: Gap.xl),
+        const _SectionLabel('Parser health'),
+        const SizedBox(height: Gap.sm + Gap.xs),
+        _Card(
+          child: Column(
+            children: [
+              for (final app in GigPlatform.values) ...[
+                _HealthRow(
+                  app: app,
+                  watched: settings.watches(app),
+                  health: ref.watch(parseHealthProvider)[app] ??
+                      const PlatformHealth(),
+                ),
+                if (app != GigPlatform.values.last)
+                  const Divider(color: FoxColors.border, height: Gap.lg),
+              ],
+            ],
+          ),
+        ),
+        const SizedBox(height: Gap.sm),
+        Text(
+          'This session. "Needs update" means offer cards are arriving but '
+          'FoxyCo can\'t read them — the app\'s layout likely changed.',
+          style: text.bodyMedium?.copyWith(color: FoxColors.textSecondary),
+        ),
+        const SizedBox(height: Gap.xl),
         const _SectionLabel('History'),
         const SizedBox(height: Gap.sm + Gap.xs),
         _Card(
@@ -305,6 +331,60 @@ class _ChoiceRow<T> extends StatelessWidget {
           if (v != values.last) const SizedBox(width: Gap.sm),
         ],
       ],
+    );
+  }
+}
+
+/// One platform's session parse health: OK / quiet / needs-update. Row stays
+/// dimmed for apps the driver isn't watching (their health is moot).
+class _HealthRow extends StatelessWidget {
+  const _HealthRow({
+    required this.app,
+    required this.watched,
+    required this.health,
+  });
+
+  final GigPlatform app;
+  final bool watched;
+  final PlatformHealth health;
+
+  @override
+  Widget build(BuildContext context) {
+    final text = Theme.of(context).textTheme;
+    final (label, color, bg) = !watched
+        ? ('Off', FoxColors.textDisabled, FoxColors.bgBase)
+        : health.likelyBroken
+            ? ('Needs update', VerdictColors.bad, VerdictColors.badBg)
+            : health.parsed > 0
+                ? ('OK · ${health.parsed} read', VerdictColors.good,
+                    VerdictColors.goodBg)
+                : ('No offers yet', FoxColors.textSecondary, FoxColors.bgBase);
+
+    return Opacity(
+      opacity: watched ? 1 : 0.55,
+      child: Row(
+        children: [
+          Expanded(child: Text(app.label, style: text.titleMedium)),
+          Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: Gap.sm + Gap.xs,
+              vertical: Gap.xs,
+            ),
+            decoration: BoxDecoration(
+              color: bg,
+              borderRadius: BorderRadius.circular(Radii.pill),
+            ),
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: color,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
