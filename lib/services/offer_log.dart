@@ -4,9 +4,11 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../domain/fox_settings.dart';
 import '../domain/offer_summary.dart';
 import '../domain/verdict.dart';
 import '../ui/home/dashboard_state.dart' show Tally;
+import '../ui/settings/settings_controller.dart';
 
 /// The persisted offer log — every scored offer FoxyCo has seen.
 ///
@@ -60,9 +62,17 @@ class OfferLog extends Notifier<List<OfferSummary>> {
     }
   }
 
-  /// Append a freshly scored offer (newest first) and persist.
+  /// Append a freshly scored offer (newest first) and persist. Retention is
+  /// enforced here too — cheap, and it means old entries age out as new ones
+  /// arrive without a startup purge racing the async settings load.
   void record(OfferSummary offer) {
-    state = [offer, ...state.take(maxEntries - 1)];
+    var next = [offer, ...state.take(maxEntries - 1)];
+    final days = ref.read(settingsProvider).retentionDays;
+    if (days != FoxSettings.keepForever) {
+      final cutoff = DateTime.now().subtract(Duration(days: days));
+      next = next.where((o) => o.seenAt.isAfter(cutoff)).toList();
+    }
+    state = next;
     _save();
   }
 

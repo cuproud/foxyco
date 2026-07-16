@@ -1,7 +1,3 @@
-import '../../domain/offer_summary.dart';
-import '../../domain/platform.dart';
-import '../../domain/verdict.dart';
-
 /// Whether FoxyCo is actively watching, paused, or blocked on a permission.
 enum WatchStatus {
   /// Live and reading offers.
@@ -35,29 +31,17 @@ class Tally {
 
   const Tally({this.good = 0, this.ok = 0, this.bad = 0});
 
-  int countFor(Verdict v) => switch (v) {
-    Verdict.good => good,
-    Verdict.ok => ok,
-    Verdict.bad => bad,
-    Verdict.unknown => 0,
-  };
-
   bool get isEmpty => good == 0 && ok == 0 && bad == 0;
 }
 
-/// Everything the Home dashboard renders.
+/// Watch/permission state the Home dashboard renders. Tally, last offer and
+/// watched platforms come straight from [offerLogProvider]/[settingsProvider].
 class DashboardState {
   final WatchStatus status;
   final PermissionStatus permissions;
-  final List<GigPlatform> activePlatforms;
-  final Tally today;
-  final OfferSummary? lastOffer;
 
   const DashboardState({
     required this.status,
     required this.permissions,
-    required this.activePlatforms,
-    required this.today,
-    required this.lastOffer,
   });
 }

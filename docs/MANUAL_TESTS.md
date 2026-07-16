@@ -122,15 +122,28 @@ Boundaries: GOOD inclusive, BAD exclusive. So `1.5` = GOOD, `1.0` = OK, `0.9` = 
 | S.1 | Open Settings | GOOD slider = **1.50**, BAD slider = **1.00** | [ ] |
 | S.2 | Drag GOOD below BAD | GOOD clamps, never drops under BAD | [ ] |
 | S.3 | Move a slider | Live preview verdict updates immediately | [ ] |
+| S.4 | Pickup guard slider | Default **2.0 km**, range 0.5–10 | [ ] |
+| S.5 | Toggle off Uber + Hopp, try Lyft | Last app refuses to switch off | [ ] |
+| S.6 | Pill size → Large, trigger pill | Pill draws large; survives app restart | [ ] |
+| S.7 | Retention → 7 days | Offers older than 7 days vanish from History | [ ] |
+| S.8 | Clear offer history | Confirm dialog → log empties, Home tally 0/0/0 | [ ] |
+| S.9 | Kill + reopen app | All settings above persist | [ ] |
 
-## Home dashboard (mock data, M1)
+## Home dashboard + History (real offer log, 2026-07-16)
+
+Demo data removed — tally/ticket/history are live from logged offers only.
+"Show a demo pill" draws a pill but must NOT log anything.
 
 | # | How | PASS bar | Status |
 |---|-----|----------|--------|
-| H.1 | Open Home | Today tally: **GOOD 12 · OK 7 · BAD 4** | [ ] |
-| H.2 | Last offer card | 🟢 GOOD · Uber · `$12` · `8.4 km` | [ ] |
-| H.3 | Tap **Pause** | Status flips watching ↔ paused | [ ] |
+| H.1 | Fresh install, open Home | Tally **0 · 0 · 0**, ticket = "No offers yet" | [ ] |
+| H.2 | Tap "Show a demo pill" | Pill draws; tally stays **0 · 0 · 0**, History count unchanged | [ ] |
+| H.3 | Real offer appears (Uber/Hopp/Lyft) | Tally increments for its verdict; Last-offer ticket matches pill numbers | [ ] |
+| H.4 | Open History | Same offer listed under **Today** with exact fare/km | [ ] |
+| H.5 | History filters | Range/app/top-offers chips narrow the live list (no mock rows anywhere) | [ ] |
+| H.6 | Kill + reopen app | Tally, ticket, and History survive restart | [ ] |
+| H.7 | Tap **Pause** | Status flips watching ↔ paused | [ ] |
 
 ---
 
-_Last updated: 2026-07-13 (M3 pill-lifetime: affordance-gated life; tap-to-front verified)._
+_Last updated: 2026-07-16 (real offer log: mock dashboard/history data removed; settings expanded — pickup guard, watched apps, pill size, retention, clear history)._

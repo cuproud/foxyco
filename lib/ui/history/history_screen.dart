@@ -1,34 +1,31 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/offer_summary.dart';
 import '../../domain/platform.dart';
 import '../../domain/verdict.dart';
+import '../../services/offer_log.dart';
 import '../theme/tokens.dart';
 import '../theme/verdict_style.dart';
 
 /// History (references/foxyco_history.html).
 ///
-/// Time range + per-app chips + a "top offers only" filter over the offer log.
-/// The offer repository (Drift) lands with M3 — until then this runs on a mock
-/// list so the screen is buildable and reviewable.
-// ponytail: mock data + client-side filters; swap [_mockOffers] for the repo
-// stream when M3 lands, the filter/group logic stays.
-class HistoryScreen extends StatefulWidget {
+/// Time range + per-app chips + a "top offers only" filter over the live
+/// offer log ([offerLogProvider]) — every scored offer FoxyCo has seen.
+class HistoryScreen extends ConsumerStatefulWidget {
   const HistoryScreen({super.key});
 
   @override
-  State<HistoryScreen> createState() => _HistoryScreenState();
+  ConsumerState<HistoryScreen> createState() => _HistoryScreenState();
 }
 
 enum _Range { today, week, month, all }
 
-class _HistoryScreenState extends State<HistoryScreen> {
+class _HistoryScreenState extends ConsumerState<HistoryScreen> {
   _Range _range = _Range.today;
   final Set<GigPlatform?> _apps = {null}; // null == "All"
   bool _topOnly = false;
   int _minFare = 20;
-
-  late final List<OfferSummary> _all = _mockOffers();
 
   int _daysAgo(DateTime t) =>
       DateTime.now().difference(DateTime(t.year, t.month, t.day)).inDays;
@@ -54,7 +51,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final filtered = _all.where(_passes).toList()
+    final all = ref.watch(offerLogProvider);
+    final filtered = all.where(_passes).toList()
       ..sort((a, b) => _topOnly
           ? b.pricePerKm.compareTo(a.pricePerKm)
           : b.seenAt.compareTo(a.seenAt));
@@ -69,7 +67,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
             Text('History', style: Theme.of(context).textTheme.headlineMedium),
             const Spacer(),
             Text(
-              '${_all.length} offers',
+              '${all.length} offers',
               style: const TextStyle(
                 fontSize: 12.5,
                 fontWeight: FontWeight.w600,
@@ -641,37 +639,4 @@ class _Empty extends StatelessWidget {
       ),
     );
   }
-}
-
-/// Mock log mirroring the reference sample — relative to today so the range
-/// filter has something in each bucket. Replaced by the Drift stream in M3.
-List<OfferSummary> _mockOffers() {
-  final now = DateTime.now();
-  DateTime at(int daysAgo, int h, int m) =>
-      DateTime(now.year, now.month, now.day, h, m).subtract(Duration(days: daysAgo));
-  OfferSummary o(GigPlatform p, Verdict v, double fare, double km, DateTime t) =>
-      OfferSummary(platform: p, verdict: v, payout: fare, totalKm: km, seenAt: t);
-  return [
-    o(GigPlatform.uber, Verdict.good, 12.00, 8.4, at(0, 14, 28)),
-    o(GigPlatform.lyft, Verdict.ok, 9.00, 5.1, at(0, 13, 2)),
-    o(GigPlatform.hopp, Verdict.bad, 6.50, 6.0, at(0, 11, 47)),
-    o(GigPlatform.uber, Verdict.good, 24.00, 9.8, at(0, 10, 15)),
-    o(GigPlatform.hopp, Verdict.good, 31.50, 11.2, at(0, 9, 40)),
-    o(GigPlatform.uber, Verdict.good, 22.00, 7.3, at(1, 19, 52)),
-    o(GigPlatform.lyft, Verdict.ok, 14.00, 6.8, at(1, 17, 10)),
-    o(GigPlatform.hopp, Verdict.bad, 5.00, 4.2, at(1, 15, 33)),
-    o(GigPlatform.uber, Verdict.good, 28.00, 10.5, at(1, 12, 5)),
-    o(GigPlatform.lyft, Verdict.good, 20.00, 8.9, at(1, 8, 22)),
-    o(GigPlatform.uber, Verdict.ok, 11.00, 5.5, at(3, 21, 14)),
-    o(GigPlatform.hopp, Verdict.good, 26.50, 9.1, at(3, 18, 40)),
-    o(GigPlatform.lyft, Verdict.bad, 7.00, 5.0, at(3, 14, 2)),
-    o(GigPlatform.uber, Verdict.ok, 19.00, 7.0, at(5, 9, 50)),
-    o(GigPlatform.hopp, Verdict.good, 33.00, 12.4, at(5, 16, 47)),
-    o(GigPlatform.uber, Verdict.good, 21.50, 8.2, at(8, 11, 30)),
-    o(GigPlatform.lyft, Verdict.ok, 10.00, 5.3, at(8, 8, 5)),
-    o(GigPlatform.hopp, Verdict.good, 29.00, 10.0, at(12, 22, 12)),
-    o(GigPlatform.uber, Verdict.bad, 4.50, 3.8, at(12, 17, 29)),
-    o(GigPlatform.lyft, Verdict.good, 25.00, 9.4, at(20, 13, 15)),
-    o(GigPlatform.hopp, Verdict.ok, 12.50, 6.4, at(20, 10, 40)),
-  ];
 }

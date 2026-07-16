@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/offer_summary.dart';
+import '../../services/offer_log.dart';
 import '../overlay/overlay_controller.dart';
+import '../settings/settings_controller.dart';
 import '../theme/tokens.dart';
 import '../theme/verdict_style.dart';
 import 'dashboard_controller.dart';
@@ -31,8 +33,12 @@ class HomeScreen extends ConsumerWidget {
         const SizedBox(height: Gap.md),
         _Hero(
           status: state.status,
-          tally: state.today,
-          platforms: state.activePlatforms.map((p) => p.label).toList(),
+          tally: ref.watch(todayTallyProvider),
+          platforms: ref
+              .watch(settingsProvider)
+              .watchedApps
+              .map((p) => p.label)
+              .toList(),
           onToggleActive: controller.togglePause,
           onFix: controller.requestMissingPermissions,
         ),
@@ -43,7 +49,7 @@ class HomeScreen extends ConsumerWidget {
         ],
         const _SectionLabel('Last offer'),
         const SizedBox(height: Gap.sm + Gap.xs),
-        _Ticket(offer: state.lastOffer),
+        _Ticket(offer: ref.watch(lastOfferProvider)),
         const SizedBox(height: Gap.md),
         Center(
           child: TextButton(

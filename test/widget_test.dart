@@ -28,8 +28,8 @@ void main() {
     expect(find.text('offers seen today'), findsOneWidget);
     expect(find.text('LAST OFFER'), findsOneWidget);
 
-    // The mock last offer is a GOOD one — its ticket badge reads "Good".
-    expect(find.text('Good'), findsWidgets);
+    // Off-device the offer log is empty — the ticket shows its empty state.
+    expect(find.text('No offers yet'), findsOneWidget);
   });
 
   testWidgets('Stop / Go Live toggles the status', (tester) async {

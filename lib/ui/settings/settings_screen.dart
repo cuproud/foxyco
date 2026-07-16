@@ -2,15 +2,19 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/decision_engine.dart';
+import '../../domain/fox_settings.dart';
+import '../../domain/overlay_payload.dart' show PillSize;
+import '../../domain/platform.dart';
 import '../../domain/thresholds.dart';
 import '../../domain/verdict.dart';
+import '../../services/offer_log.dart';
 import '../theme/tokens.dart';
 import '../theme/verdict_style.dart';
 import 'settings_controller.dart';
 
-/// Settings — the driver's one tunable surface: the two $/km cut points that
-/// decide GOOD/OK/BAD. A live preview shows exactly how a sample offer scores as
-/// they drag. Styled to the cream/paper direction (references/*.html).
+/// Settings — every driver-tunable knob in [FoxSettings]: verdict thresholds
+/// (with live preview), pickup-distance guard, watched apps, pill size, and
+/// history retention / clear. Styled to the cream/paper direction.
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
 
@@ -91,6 +95,176 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           max: _max,
           onChanged: (v) => setState(() => _samplePpk = v),
         ),
+        const SizedBox(height: Gap.xl),
+        const _SectionLabel('Pickup guard'),
+        const SizedBox(height: Gap.sm + Gap.xs),
+        _Card(
+          child: _ThresholdSlider(
+            label: 'Near pickup at or under',
+            color: FoxColors.brandFox,
+            value: settings.pickupNearKm,
+            min: 0.5,
+            max: 10.0,
+            unit: 'km',
+            onChanged: controller.setPickupNearKm,
+          ),
+        ),
+        const SizedBox(height: Gap.sm),
+        Text(
+          'Pickups under this distance show green on the pill; '
+          'longer dead runs show red.',
+          style: text.bodyMedium?.copyWith(color: FoxColors.textSecondary),
+        ),
+        const SizedBox(height: Gap.xl),
+        const _SectionLabel('Watched apps'),
+        const SizedBox(height: Gap.sm + Gap.xs),
+        _Card(
+          child: Material(
+            type: MaterialType.transparency,
+            child: Column(
+              children: [
+                for (final app in GigPlatform.values) ...[
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(app.label, style: text.titleMedium),
+                    value: settings.watches(app),
+                    activeTrackColor: FoxColors.brandFox,
+                    onChanged: (_) => controller.toggleApp(app),
+                  ),
+                  if (app != GigPlatform.values.last)
+                    const Divider(color: FoxColors.border, height: 1),
+                ],
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: Gap.xl),
+        const _SectionLabel('Pill size'),
+        const SizedBox(height: Gap.sm + Gap.xs),
+        _Card(
+          child: _ChoiceRow<PillSize>(
+            values: PillSize.values,
+            selected: settings.pillSize,
+            labelOf: (s) => switch (s) {
+              PillSize.small => 'Small',
+              PillSize.medium => 'Medium',
+              PillSize.large => 'Large',
+            },
+            onChanged: controller.setPillSize,
+          ),
+        ),
+        const SizedBox(height: Gap.xl),
+        const _SectionLabel('History'),
+        const SizedBox(height: Gap.sm + Gap.xs),
+        _Card(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Keep offers for', style: text.titleMedium),
+              const SizedBox(height: Gap.sm),
+              _ChoiceRow<int>(
+                values: const [7, 30, 90, FoxSettings.keepForever],
+                selected: settings.retentionDays,
+                labelOf: (d) =>
+                    d == FoxSettings.keepForever ? 'Forever' : '$d days',
+                onChanged: (d) {
+                  controller.setRetentionDays(d);
+                  if (d != FoxSettings.keepForever) {
+                    ref.read(offerLogProvider.notifier).purgeOlderThan(d);
+                  }
+                },
+              ),
+              const Divider(color: FoxColors.border, height: Gap.xl),
+              Center(
+                child: TextButton(
+                  onPressed: () => _confirmClear(context),
+                  style: TextButton.styleFrom(
+                      foregroundColor: VerdictColors.bad),
+                  child: const Text('Clear offer history',
+                      style: TextStyle(fontWeight: FontWeight.w700)),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _confirmClear(BuildContext context) async {
+    final yes = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Clear offer history?'),
+        content: const Text(
+            'Every logged offer is deleted. This cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: VerdictColors.bad),
+            child: const Text('Clear'),
+          ),
+        ],
+      ),
+    );
+    if (yes == true) ref.read(offerLogProvider.notifier).clearAll();
+  }
+}
+
+/// Pill-shaped single-select row (pill size, retention).
+class _ChoiceRow<T> extends StatelessWidget {
+  const _ChoiceRow({
+    required this.values,
+    required this.selected,
+    required this.labelOf,
+    required this.onChanged,
+  });
+
+  final List<T> values;
+  final T selected;
+  final String Function(T) labelOf;
+  final ValueChanged<T> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        for (final v in values) ...[
+          Expanded(
+            child: GestureDetector(
+              onTap: () => onChanged(v),
+              child: AnimatedContainer(
+                duration: Motion.base,
+                padding: const EdgeInsets.symmetric(vertical: 9),
+                decoration: BoxDecoration(
+                  color: v == selected ? FoxColors.ink : FoxColors.bgSurface,
+                  borderRadius: BorderRadius.circular(Radii.pill),
+                  border: Border.all(
+                    color:
+                        v == selected ? FoxColors.ink : FoxColors.borderSoft,
+                  ),
+                ),
+                child: Center(
+                  child: Text(
+                    labelOf(v),
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w700,
+                      color: v == selected
+                          ? FoxColors.cream
+                          : FoxColors.textSecondary,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          if (v != values.last) const SizedBox(width: Gap.sm),
+        ],
       ],
     );
   }
@@ -199,6 +373,7 @@ class _ThresholdSlider extends StatelessWidget {
     required this.min,
     required this.max,
     required this.onChanged,
+    this.unit = '',
   });
 
   final String label;
@@ -207,6 +382,9 @@ class _ThresholdSlider extends StatelessWidget {
   final double min;
   final double max;
   final ValueChanged<double> onChanged;
+
+  /// Empty = dollars ('$1.50'); otherwise suffixed ('2.0 km').
+  final String unit;
 
   @override
   Widget build(BuildContext context) {
@@ -220,7 +398,9 @@ class _ThresholdSlider extends StatelessWidget {
             const SizedBox(width: Gap.sm),
             Expanded(child: Text(label, style: text.titleMedium)),
             Text(
-              '\$${value.toStringAsFixed(2)}',
+              unit.isEmpty
+                  ? '\$${value.toStringAsFixed(2)}'
+                  : '${value.toStringAsFixed(1)} $unit',
               style: text.titleMedium?.copyWith(
                 color: color,
                 fontFeatures: const [FontFeature.tabularFigures()],
