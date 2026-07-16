@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../domain/offer_stats.dart';
 import '../../domain/offer_summary.dart';
 import '../../domain/platform.dart';
 import '../../domain/verdict.dart';
@@ -98,8 +99,11 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
         const SizedBox(height: Gap.lg),
         if (filtered.isEmpty)
           const _Empty()
-        else
+        else ...[
+          _StatsCard(stats: OfferStats.from(filtered)),
+          const SizedBox(height: Gap.lg),
           ..._grouped(filtered),
+        ],
       ],
     );
   }
@@ -637,6 +641,115 @@ class _Empty extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Shift-summary rollup over the CURRENTLY FILTERED offers, so the numbers
+/// always mean "for the range/apps you picked". Count-only + two derived
+/// figures — no graphs (MVP).
+class _StatsCard extends StatelessWidget {
+  const _StatsCard({required this.stats});
+
+  final OfferStats stats;
+
+  /// `17` → "5 PM" (hour-of-day label for the busiest-hour stat).
+  static String _hourLabel(int h) {
+    final ampm = h < 12 ? 'AM' : 'PM';
+    final display = h % 12 == 0 ? 12 : h % 12;
+    return '$display $ampm';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final s = stats;
+    return Container(
+      padding: const EdgeInsets.all(Gap.md + Gap.xs),
+      decoration: BoxDecoration(
+        color: FoxColors.bgSurface,
+        borderRadius: BorderRadius.circular(Radii.card),
+        border: Border.all(color: FoxColors.borderSoft),
+        boxShadow: Shadows.card,
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: _Stat(
+              label: 'OFFERS',
+              value: '${s.total}',
+              sub: '${s.good}·${s.ok}·${s.bad}',
+            ),
+          ),
+          Expanded(
+            child: _Stat(
+              label: 'GOOD AVG',
+              value: s.goodAvgPerKm > 0
+                  ? '\$${s.goodAvgPerKm.toStringAsFixed(2)}'
+                  : '—',
+              sub: '/km',
+            ),
+          ),
+          Expanded(
+            child: _Stat(
+              label: 'BEST',
+              value: s.best != null && s.best!.pricePerKm > 0
+                  ? '\$${s.best!.pricePerKm.toStringAsFixed(2)}'
+                  : '—',
+              sub: s.best != null ? s.best!.platform.label : '',
+            ),
+          ),
+          Expanded(
+            child: _Stat(
+              label: 'BUSIEST',
+              value: s.busiestHour != null ? _hourLabel(s.busiestHour!) : '—',
+              sub: 'hour',
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _Stat extends StatelessWidget {
+  const _Stat({required this.label, required this.value, required this.sub});
+
+  final String label;
+  final String value;
+  final String sub;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 10,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.8,
+            color: FoxColors.textDisabled,
+          ),
+        ),
+        const SizedBox(height: Gap.xs),
+        Text(
+          value,
+          style: const TextStyle(
+            fontFamily: FoxFonts.display,
+            fontSize: 17,
+            fontWeight: FontWeight.w600,
+            color: FoxColors.textPrimary,
+            fontFeatures: [FontFeature.tabularFigures()],
+          ),
+        ),
+        Text(
+          sub,
+          style: const TextStyle(
+            fontSize: 10.5,
+            color: FoxColors.textSecondary,
+          ),
+        ),
+      ],
     );
   }
 }

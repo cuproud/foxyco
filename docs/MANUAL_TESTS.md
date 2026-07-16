@@ -171,6 +171,18 @@ waiting for an app resume.
 | R.2 | Re-enable the service in settings | Dashboard back to **watching**, bubble returns | [ ] |
 | R.3 | While explicitly Paused, R.2's re-enable | Stays **Paused** (never un-pauses by itself) | [ ] |
 
+## History — shift summary card (2026-07-16)
+
+Rollup card above the offer list, computed over the FILTERED offers (so it
+follows the range/app/top chips). Hidden when no offers match.
+
+| # | How | PASS bar | Status |
+|---|-----|----------|--------|
+| SS.1 | History with logged offers | Card shows OFFERS n (g·o·b), GOOD AVG $/km, BEST $/km + app, BUSIEST hour | [ ] |
+| SS.2 | Narrow to one app chip | All four figures recompute for that app only | [ ] |
+| SS.3 | Range with zero offers | Card gone, empty state shows | [ ] |
+| SS.4 | Only BAD offers in range | GOOD AVG shows **—** (not $0.00) | [ ] |
+
 ---
 
 _Last updated: 2026-07-16 (onboarding O-rows added; real offer log: mock dashboard/history data removed; settings expanded — pickup guard, watched apps, pill size, retention, clear history)._
