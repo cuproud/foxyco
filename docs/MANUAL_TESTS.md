@@ -160,6 +160,17 @@ plain-language, read-only disclosure). "Skip for now" always exits to Home.
 | O.7 | Fresh install, tap "Skip for now" | Lands on Home, status **blocked**, "Fix permissions" visible | [ ] |
 | O.8 | After O.7, kill + reopen | Still boots to Home (skip also marks onboarding done) | [ ] |
 
+## Resilience — live permission revoke (2026-07-16)
+
+The OS pushes accessibility on/off changes; the dashboard must react without
+waiting for an app resume.
+
+| # | How | PASS bar | Status |
+|---|-----|----------|--------|
+| R.1 | While watching, revoke FoxyCo in system Accessibility settings | Dashboard flips **blocked** + overlay tears down as soon as you return (no restart) | [ ] |
+| R.2 | Re-enable the service in settings | Dashboard back to **watching**, bubble returns | [ ] |
+| R.3 | While explicitly Paused, R.2's re-enable | Stays **Paused** (never un-pauses by itself) | [ ] |
+
 ---
 
 _Last updated: 2026-07-16 (onboarding O-rows added; real offer log: mock dashboard/history data removed; settings expanded — pickup guard, watched apps, pill size, retention, clear history)._

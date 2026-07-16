@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -8,8 +10,32 @@ import 'dashboard_state.dart';
 /// Watch/permission state holder. Tally, last offer and watched platforms are
 /// derived live from the offer log and settings — no mock data here.
 class DashboardController extends Notifier<DashboardState> {
+  StreamSubscription<bool>? _statusSub;
+
   @override
   DashboardState build() {
+    // Resilience: the OS pushes accessibility on/off changes (user revoked it
+    // in system settings mid-shift, or Android killed the service). Without
+    // this the dashboard only notices on the next app resume — the bubble sat
+    // there "watching" while FoxyCo was actually deaf. Off-device the plugin
+    // channel is missing; the error lands in onError and we stay silent.
+    try {
+      _statusSub = ref
+          .read(accessibilityWatcherProvider)
+          .statusChanges
+          .listen((enabled) {
+        if (kDebugMode) {
+          debugPrint('FoxyCo accessibility service ${enabled ? 'ON' : 'OFF'}');
+        }
+        refreshPermissions();
+      }, onError: (Object e) {
+        if (kDebugMode) debugPrint('FoxyCo statusChanges unavailable: $e');
+      });
+    } catch (e) {
+      if (kDebugMode) debugPrint('FoxyCo statusChanges skipped: $e');
+    }
+    ref.onDispose(() => _statusSub?.cancel());
+
     return const DashboardState(
       status: WatchStatus.watching,
       permissions: PermissionStatus(
