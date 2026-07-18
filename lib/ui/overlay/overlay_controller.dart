@@ -6,6 +6,7 @@ import '../../domain/offer.dart';
 import '../../domain/overlay_action.dart';
 import '../../domain/overlay_payload.dart';
 import '../../domain/verdict.dart';
+import '../../services/fox_log.dart';
 import '../../services/overlay_service.dart';
 import '../home/dashboard_controller.dart';
 import '../home/dashboard_state.dart';
@@ -93,6 +94,9 @@ class OverlayController extends Notifier<void> {
   /// and the driver's chosen pill size.
   Future<void> showFromOffer(Offer offer, Verdict verdict) {
     final settings = ref.read(settingsProvider);
+    ref
+        .read(foxLogProvider)
+        .log('overlay', 'show ${offer.platform.label} \$${offer.payout} $verdict');
     return _service.showOffer(
       OverlayPayload(
         verdict: verdict,

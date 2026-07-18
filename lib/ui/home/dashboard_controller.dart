@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../services/accessibility/accessibility_watcher.dart';
+import '../../services/fox_log.dart';
 import '../overlay/overlay_controller.dart';
 import 'dashboard_state.dart';
 
@@ -53,6 +54,7 @@ class DashboardController extends Notifier<DashboardState> {
         ? WatchStatus.watching
         : WatchStatus.paused;
     state = _with(status: next);
+    ref.read(foxLogProvider).log('status', 'watch → ${next.name}');
     if (kDebugMode) debugPrint('FoxyCo watch status → ${next.name}');
   }
 
@@ -61,6 +63,7 @@ class DashboardController extends Notifier<DashboardState> {
   void stopWatching() {
     if (state.status != WatchStatus.watching) return;
     state = _with(status: WatchStatus.paused);
+    ref.read(foxLogProvider).log('status', 'watch → paused (bubble dropped)');
     if (kDebugMode) debugPrint('FoxyCo watch status → paused (bubble dropped)');
   }
 
@@ -95,6 +98,7 @@ class DashboardController extends Notifier<DashboardState> {
         status = WatchStatus.watching;
       }
       state = _with(status: status, permissions: permissions);
+      ref.read(foxLogProvider).log('status', 'watch → ${status.name}');
     } catch (e) {
       if (kDebugMode) debugPrint('FoxyCo refreshPermissions skipped: $e');
     }

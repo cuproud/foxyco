@@ -13,6 +13,7 @@ import '../../ui/home/dashboard_controller.dart';
 import '../../ui/home/dashboard_state.dart';
 import '../../ui/overlay/overlay_controller.dart';
 import '../../ui/settings/settings_controller.dart';
+import '../fox_log.dart';
 import '../offer_log.dart';
 import '../parse_health.dart';
 import 'accessibility_watcher.dart';
@@ -80,6 +81,7 @@ class OfferWatcher extends Notifier<Offer?> {
   Offer? build() {
     _sub = _watcher.reads().listen(_onRead, onError: (Object e) {
       if (kDebugMode) debugPrint('FoxyCo[watch] read error: $e');
+      ref.read(foxLogProvider).log('error', 'read stream: $e');
     });
     ref.onDispose(() {
       _sub?.cancel();
@@ -104,6 +106,9 @@ class OfferWatcher extends Notifier<Offer?> {
         'nodes=${read.texts.length} :: ${read.texts.join(" | ")}',
       );
     }
+    ref
+        .read(foxLogProvider)
+        .log('watch', 'read pkg=${read.packageName} nodes=${read.texts.length}');
 
     // Respect pause/blocked — don't score while the driver has it off.
     if (ref.read(dashboardProvider).status != WatchStatus.watching) {
@@ -142,6 +147,9 @@ class OfferWatcher extends Notifier<Offer?> {
           ref
               .read(parseHealthProvider.notifier)
               .recordCardMiss(parser.platform);
+          ref
+              .read(foxLogProvider)
+              .log('parse', 'MISS card-like frame ${parser.platform.label}');
         }
         if (kDebugMode) debugPrint('FoxyCo[watch] drop: parse null (low conf)');
         return; // nothing showing — browse/home noise, not a lost card
@@ -197,6 +205,8 @@ class OfferWatcher extends Notifier<Offer?> {
     // A successful parse also proves this platform's selectors still fit —
     // clears any card-miss streak (Settings "Parser health").
     ref.read(parseHealthProvider.notifier).recordParse(offer.platform);
+    ref.read(foxLogProvider).log(
+        'parse', '${offer.platform.label} \$${offer.payout} ${offer.totalKm}km → $verdict');
     if (kDebugMode) {
       debugPrint(
         'FoxyCo[watch] ${offer.platform.label} \$${offer.payout} '
@@ -231,6 +241,7 @@ class OfferWatcher extends Notifier<Offer?> {
     _shownAt = null;
     state = null;
     ref.read(overlayControllerProvider.notifier).clearOffer();
+    ref.read(foxLogProvider).log('overlay', 'pill cleared — offer left screen');
     if (kDebugMode) debugPrint('FoxyCo[watch] clear: offer left screen');
   }
 }
