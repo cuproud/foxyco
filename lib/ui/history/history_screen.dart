@@ -195,7 +195,7 @@ class _RangeControl extends StatelessWidget {
               width: slot,
               child: Container(
                 decoration: BoxDecoration(
-                  color: FoxColors.ink,
+                  color: FoxColors.bgSurface2,
                   borderRadius: BorderRadius.circular(Radii.pill),
                 ),
               ),
@@ -265,10 +265,10 @@ class _AppChips extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
-          color: active ? FoxColors.ink : FoxColors.bgSurface,
+          color: active ? FoxColors.bgSurface2 : FoxColors.bgSurface,
           borderRadius: BorderRadius.circular(Radii.pill),
           border: Border.all(
-              color: active ? FoxColors.ink : FoxColors.borderSoft),
+              color: active ? FoxColors.border : FoxColors.borderSoft),
           boxShadow: active ? null : Shadows.soft,
         ),
         child: Row(
@@ -564,7 +564,7 @@ class _OfferRow extends StatelessWidget {
                       style: const TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w700,
-                        color: FoxColors.ink,
+                        color: FoxColors.textPrimary,
                       ),
                     ),
                   ],
@@ -577,7 +577,7 @@ class _OfferRow extends StatelessWidget {
                       TextSpan(
                         text: '\$${offer.pricePerKm.toStringAsFixed(2)}/km',
                         style: const TextStyle(
-                          color: FoxColors.ink,
+                          color: FoxColors.textPrimary,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
@@ -603,7 +603,7 @@ class _OfferRow extends StatelessWidget {
                   fontFamily: FoxFonts.display,
                   fontSize: 16.5,
                   fontWeight: FontWeight.w600,
-                  color: FoxColors.ink,
+                  color: FoxColors.textPrimary,
                   fontFeatures: [FontFeature.tabularFigures()],
                 ),
               ),

@@ -1,19 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'tokens.dart';
 
-/// FoxyCo Material 3 theme — warm cream "paper" direction (references/*.html).
+/// FoxyCo Material 3 theme — dark "showroom" direction (spec M6 §1).
 ///
-/// Light, low-glare surfaces with soft layered shadows instead of hard
-/// outlines. Inter is the base UI face; Fraunces is used per-widget for the big
-/// money numbers. Verdict/hero cards supply their own near-black surfaces.
+/// Deep green-black surfaces with black depth shadows and an orange glow on
+/// live elements. Inter is the base UI face; Fraunces is used per-widget for
+/// the big money numbers. Cream is the primary text color throughout.
 class AppTheme {
   const AppTheme._();
 
-  static ThemeData get light {
-    const scheme = ColorScheme.light(
+  static ThemeData get dark {
+    const scheme = ColorScheme.dark(
       surface: FoxColors.bgBase,
-      onSurface: FoxColors.ink,
+      onSurface: FoxColors.textPrimary,
       surfaceContainerHighest: FoxColors.bgSurface,
       primary: FoxColors.brandFox,
       onPrimary: Colors.white,
@@ -23,11 +24,11 @@ class AppTheme {
 
     final base = ThemeData(
       useMaterial3: true,
-      brightness: Brightness.light,
+      brightness: Brightness.dark,
       colorScheme: scheme,
       fontFamily: FoxFonts.sans,
       scaffoldBackgroundColor: FoxColors.bgBase,
-      splashColor: FoxColors.brandFoxSoft.withValues(alpha: 0.4),
+      splashColor: FoxColors.brandFoxSoft,
       highlightColor: Colors.transparent,
     );
 
@@ -44,9 +45,32 @@ class AppTheme {
       ),
       appBarTheme: const AppBarTheme(
         backgroundColor: FoxColors.bgBase,
-        foregroundColor: FoxColors.ink,
+        foregroundColor: FoxColors.textPrimary,
         elevation: 0,
         centerTitle: false,
+        systemOverlayStyle: SystemUiOverlayStyle(
+          statusBarColor: Colors.transparent,
+          statusBarIconBrightness: Brightness.light,
+          systemNavigationBarColor: FoxColors.bgBase,
+          systemNavigationBarIconBrightness: Brightness.light,
+        ),
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: FoxColors.bgSurface2,
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(Radii.field),
+          borderSide: const BorderSide(color: FoxColors.border),
+        ),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(Radii.field),
+          borderSide: const BorderSide(color: FoxColors.border),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(Radii.field),
+          borderSide: const BorderSide(color: FoxColors.brandFox, width: 1.5),
+        ),
+        hintStyle: const TextStyle(color: FoxColors.textSecondary),
       ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
@@ -72,7 +96,7 @@ class AppTheme {
         fontSize: 60,
         fontWeight: FontWeight.w600,
         letterSpacing: -1.5,
-        color: FoxColors.ink,
+        color: FoxColors.textPrimary,
         fontFeatures: tabular,
       ),
       headlineMedium: t.headlineMedium?.copyWith(
@@ -80,23 +104,23 @@ class AppTheme {
         fontSize: 26,
         fontWeight: FontWeight.w600,
         letterSpacing: -0.5,
-        color: FoxColors.ink,
+        color: FoxColors.textPrimary,
         fontFeatures: tabular,
       ),
       titleLarge: t.titleLarge?.copyWith(
         fontFamily: FoxFonts.display,
         fontSize: 21,
         fontWeight: FontWeight.w600,
-        color: FoxColors.ink,
+        color: FoxColors.textPrimary,
       ),
       titleMedium: t.titleMedium?.copyWith(
         fontSize: 15,
         fontWeight: FontWeight.w700,
-        color: FoxColors.ink,
+        color: FoxColors.textPrimary,
       ),
       bodyMedium: t.bodyMedium?.copyWith(
         fontSize: 13.5,
-        color: FoxColors.ink,
+        color: FoxColors.textPrimary,
       ),
       labelSmall: t.labelSmall?.copyWith(
         fontSize: 11,

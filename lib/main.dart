@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'router.dart';
@@ -11,6 +12,12 @@ import 'ui/theme/app_theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+    statusBarColor: Colors.transparent,
+    statusBarIconBrightness: Brightness.light,
+    systemNavigationBarColor: Color(0xFF0C1210), // FoxColors.bgBase
+    systemNavigationBarIconBrightness: Brightness.light,
+  ));
   // Read the first-run flag BEFORE runApp so the app boots straight into the
   // right screen — no flash of Home before onboarding takes over.
   final onboarded = await OnboardingGate.isDone();
@@ -79,7 +86,7 @@ class _FoxyCoAppState extends ConsumerState<FoxyCoApp>
     return MaterialApp.router(
       title: 'FoxyCo',
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.light,
+      theme: AppTheme.dark,
       routerConfig: _router,
     );
   }

@@ -454,7 +454,7 @@ class _AccessAlert extends StatelessWidget {
       decoration: BoxDecoration(
         color: VerdictColors.badBg,
         borderRadius: BorderRadius.circular(Radii.cardSm),
-        border: Border.all(color: const Color(0xFFF0C2BC)),
+        border: Border.all(color: VerdictColors.bad.withValues(alpha: 0.35)),
         boxShadow: Shadows.card,
       ),
       child: Row(
@@ -472,7 +472,8 @@ class _AccessAlert extends StatelessWidget {
                   ),
                   TextSpan(text: "FoxyCo can't read offers until it's on."),
                 ],
-                style: TextStyle(fontSize: 13, height: 1.4),
+                style: TextStyle(
+                    fontSize: 13, height: 1.4, color: FoxColors.textPrimary),
               ),
             ),
           ),
@@ -639,7 +640,7 @@ class _TicketStat extends StatelessWidget {
             fontFamily: FoxFonts.display,
             fontSize: 18.5,
             fontWeight: FontWeight.w600,
-            color: FoxColors.ink,
+            color: FoxColors.textPrimary,
             fontFeatures: [FontFeature.tabularFigures()],
           ),
         ),

@@ -14,7 +14,7 @@ import 'package:foxyco/ui/theme/app_theme.dart';
 // ancestor its Sliders need); mirror that here.
 Widget _host() => ProviderScope(
       child: MaterialApp(
-        theme: AppTheme.light,
+        theme: AppTheme.dark,
         home: const Scaffold(body: SettingsScreen()),
       ),
     );
@@ -44,7 +44,7 @@ void main() {
       UncontrolledProviderScope(
         container: container,
         child: MaterialApp(
-            theme: AppTheme.light,
+            theme: AppTheme.dark,
             home: const Scaffold(body: SettingsScreen())),
       ),
     );

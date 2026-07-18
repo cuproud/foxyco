@@ -359,11 +359,11 @@ class _ChoiceRow<T> extends StatelessWidget {
                 duration: Motion.base,
                 padding: const EdgeInsets.symmetric(vertical: 9),
                 decoration: BoxDecoration(
-                  color: v == selected ? FoxColors.ink : FoxColors.bgSurface,
+                  color: v == selected ? FoxColors.bgSurface2 : FoxColors.bgSurface,
                   borderRadius: BorderRadius.circular(Radii.pill),
                   border: Border.all(
                     color:
-                        v == selected ? FoxColors.ink : FoxColors.borderSoft,
+                        v == selected ? FoxColors.border : FoxColors.borderSoft,
                   ),
                 ),
                 child: Center(
