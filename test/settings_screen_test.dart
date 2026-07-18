@@ -6,6 +6,7 @@ import 'package:foxyco/domain/rate_mode.dart';
 import 'package:foxyco/domain/thresholds.dart';
 import 'package:foxyco/ui/settings/settings_controller.dart';
 import 'package:foxyco/ui/overlay/verdict_pill.dart';
+import 'package:foxyco/ui/settings/profile_controller.dart';
 import 'package:foxyco/ui/settings/settings_screen.dart';
 import 'package:foxyco/ui/theme/app_theme.dart';
 
@@ -73,6 +74,24 @@ void main() {
     await tester.pumpAndSettle();
     final largeSize = tester.getSize(find.byType(VerdictPill));
     expect(largeSize.height, greaterThan(smallSize.height));
+  });
+
+  testWidgets('profile form saves name live', (tester) async {
+    tester.view.physicalSize = const Size(1080, 3600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(_host());
+    await tester.pumpAndSettle();
+
+    final nameField = find.widgetWithText(TextField, 'Name');
+    expect(nameField, findsOneWidget);
+    await tester.enterText(nameField, 'Vamsi');
+    await tester.pumpAndSettle();
+
+    final ctx = tester.element(find.byType(SettingsScreen));
+    final container = ProviderScope.containerOf(ctx);
+    expect(container.read(profileProvider).name, 'Vamsi');
   });
 
   test('controller clamps GOOD above BAD (band stays coherent)', () {

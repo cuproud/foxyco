@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/decision_engine.dart';
+import '../../domain/driver_profile.dart';
 import '../../domain/fox_settings.dart';
 import '../../domain/overlay_payload.dart' show OverlayPayload, PillSize;
 import '../../domain/platform.dart';
@@ -14,6 +15,7 @@ import '../overlay/verdict_pill.dart';
 import '../theme/tokens.dart';
 import '../theme/verdict_style.dart';
 import 'logs_screen.dart';
+import 'profile_controller.dart';
 import 'settings_controller.dart';
 
 /// Settings — every driver-tunable knob in [FoxSettings]: verdict thresholds
@@ -67,6 +69,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ],
         ),
         const SizedBox(height: Gap.md),
+        const _SectionLabel('Driver profile'),
+        const SizedBox(height: Gap.sm),
+        const _Card(child: _ProfileForm()),
+        const SizedBox(height: Gap.lg),
         const _SectionLabel('Verdict thresholds'),
         const SizedBox(height: Gap.sm),
         Text(
@@ -673,6 +679,128 @@ class _PreviewCard extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Live-apply profile form (spec M5 §3): text fields save on edit, swatch row
+/// picks the vehicle color, choice chips pick the body style. No save button —
+/// matches the rest of the settings screen.
+class _ProfileForm extends ConsumerStatefulWidget {
+  const _ProfileForm();
+
+  @override
+  ConsumerState<_ProfileForm> createState() => _ProfileFormState();
+}
+
+class _ProfileFormState extends ConsumerState<_ProfileForm> {
+  late final _name = TextEditingController();
+  late final _make = TextEditingController();
+  late final _model = TextEditingController();
+  late final _year = TextEditingController();
+  late final _plate = TextEditingController();
+  bool _seeded = false;
+
+  @override
+  void dispose() {
+    for (final c in [_name, _make, _model, _year, _plate]) {
+      c.dispose();
+    }
+    super.dispose();
+  }
+
+  /// Seed controllers once from the async-loaded profile — after that the
+  /// text fields own their text and only push INTO the provider.
+  void _seed(DriverProfile p) {
+    if (_seeded) return;
+    if (p == DriverProfile.empty) return; // still loading or truly empty
+    _name.text = p.name;
+    _make.text = p.vehicleMake;
+    _model.text = p.vehicleModel;
+    _year.text = p.vehicleYear;
+    _plate.text = p.licensePlate;
+    _seeded = true;
+  }
+
+  TextField _field(
+    TextEditingController c,
+    String label,
+    void Function(String) onChanged, {
+    TextInputType? keyboard,
+  }) =>
+      TextField(
+        controller: c,
+        onChanged: onChanged,
+        keyboardType: keyboard,
+        decoration: InputDecoration(labelText: label, isDense: true),
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    final profile = ref.watch(profileProvider);
+    final controller = ref.read(profileProvider.notifier);
+    _seed(profile);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _field(_name, 'Name', controller.setName),
+        const SizedBox(height: Gap.sm),
+        Row(children: [
+          Expanded(child: _field(_make, 'Make', controller.setMake)),
+          const SizedBox(width: Gap.sm),
+          Expanded(child: _field(_model, 'Model', controller.setModel)),
+        ]),
+        const SizedBox(height: Gap.sm),
+        Row(children: [
+          Expanded(
+            child: _field(_year, 'Year', controller.setYear,
+                keyboard: TextInputType.number),
+          ),
+          const SizedBox(width: Gap.sm),
+          Expanded(child: _field(_plate, 'Plate', controller.setPlate)),
+        ]),
+        const SizedBox(height: Gap.md),
+        // Color swatches — fixed palette, no custom picker.
+        Wrap(
+          spacing: Gap.sm,
+          runSpacing: Gap.sm,
+          children: [
+            for (final entry in DriverProfile.palette.entries)
+              GestureDetector(
+                onTap: () => controller.setColor(entry.key),
+                child: Container(
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    color: Color(entry.key),
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      width: profile.vehicleColor == entry.key ? 3 : 1,
+                      color: profile.vehicleColor == entry.key
+                          ? FoxColors.brandFox
+                          : FoxColors.textDisabled,
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(height: Gap.md),
+        // Body style chips.
+        Wrap(
+          spacing: Gap.sm,
+          runSpacing: Gap.xs,
+          children: [
+            for (final t in VehicleType.values)
+              ChoiceChip(
+                label: Text(t.name),
+                selected: profile.vehicleType == t,
+                onSelected: (_) => controller.setType(t),
+              ),
+          ],
+        ),
+      ],
     );
   }
 }
