@@ -6,6 +6,7 @@ import '../../domain/offer_summary.dart';
 import '../../domain/platform.dart';
 import '../../domain/verdict.dart';
 import '../../services/offer_log.dart';
+import '../theme/platform_badge.dart';
 import '../theme/tokens.dart';
 import '../theme/verdict_style.dart';
 
@@ -16,14 +17,25 @@ import '../theme/verdict_style.dart';
 class HistoryScreen extends ConsumerStatefulWidget {
   const HistoryScreen({super.key});
 
+  /// Header count label — FILTERED count, range named (spec M6 §5.1: the old
+  /// header showed all.length while the list showed Today; post-midnight
+  /// that read "22 offers" over an empty list).
+  static String headerLabel(int filteredCount, HistoryRange range) =>
+      switch (range) {
+        HistoryRange.today => '$filteredCount today',
+        HistoryRange.week => '$filteredCount in 7 days',
+        HistoryRange.month => '$filteredCount in 30 days',
+        HistoryRange.all => '$filteredCount all time',
+      };
+
   @override
   ConsumerState<HistoryScreen> createState() => _HistoryScreenState();
 }
 
-enum _Range { today, week, month, all }
+enum HistoryRange { today, week, month, all }
 
 class _HistoryScreenState extends ConsumerState<HistoryScreen> {
-  _Range _range = _Range.today;
+  HistoryRange _range = HistoryRange.today;
   final Set<GigPlatform?> _apps = {null}; // null == "All"
   bool _topOnly = false;
   int _minFare = 20;
@@ -34,13 +46,13 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
   bool _passes(OfferSummary o) {
     final d = _daysAgo(o.seenAt);
     switch (_range) {
-      case _Range.today:
+      case HistoryRange.today:
         if (d != 0) return false;
-      case _Range.week:
+      case HistoryRange.week:
         if (d > 7) return false;
-      case _Range.month:
+      case HistoryRange.month:
         if (d > 30) return false;
-      case _Range.all:
+      case HistoryRange.all:
         break;
     }
     if (!_apps.contains(null) && !_apps.contains(o.platform)) return false;
@@ -68,11 +80,12 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
             Text('History', style: Theme.of(context).textTheme.headlineMedium),
             const Spacer(),
             Text(
-              '${all.length} offers',
+              HistoryScreen.headerLabel(filtered.length, _range),
               style: const TextStyle(
                 fontSize: 12.5,
                 fontWeight: FontWeight.w600,
                 color: FoxColors.textDisabled,
+                fontFeatures: [FontFeature.tabularFigures()],
               ),
             ),
           ],
@@ -98,7 +111,18 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
         ),
         const SizedBox(height: Gap.lg),
         if (filtered.isEmpty)
-          const _Empty()
+          _Empty(
+            hiddenCount: all.length,
+            onShowAll: all.isEmpty
+                ? null
+                : () => setState(() {
+                      _range = HistoryRange.all;
+                      _apps
+                        ..clear()
+                        ..add(null);
+                      _topOnly = false;
+                    }),
+          )
         else ...[
           _StatsCard(stats: OfferStats.from(filtered)),
           const SizedBox(height: Gap.lg),
@@ -126,10 +150,12 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
   /// the list is a flat best-first ranking).
   List<Widget> _grouped(List<OfferSummary> offers) {
     if (_topOnly) {
-      return offers.map((o) => _OfferRow(offer: o)).toList();
+      var i = 0;
+      return offers.map((o) => _row(o, i++)).toList();
     }
     final out = <Widget>[];
     String? lastLabel;
+    var i = 0;
     for (final o in offers) {
       final label = _dateLabel(o.seenAt);
       if (label != lastLabel) {
@@ -139,9 +165,27 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
         ));
         lastLabel = label;
       }
-      out.add(_OfferRow(offer: o));
+      out.add(_row(o, i++));
     }
     return out;
+  }
+
+  /// Staggered entrance for the first dozen rows (spec §5.2); beyond that, or
+  /// when the OS asks for reduced motion, rows appear instantly.
+  Widget _row(OfferSummary o, int index) {
+    final reduced = MediaQuery.of(context).disableAnimations;
+    if (reduced || index >= 12) return _OfferRow(offer: o);
+    return TweenAnimationBuilder<double>(
+      key: ValueKey('${o.seenAt.millisecondsSinceEpoch}-$_range-$_topOnly'),
+      tween: Tween(begin: 0, end: 1),
+      duration: Motion.base + Motion.stagger * index,
+      curve: Motion.curve,
+      builder: (context, t, c) => Opacity(
+        opacity: t,
+        child: Transform.translate(offset: Offset(0, 10 * (1 - t)), child: c),
+      ),
+      child: _OfferRow(offer: o),
+    );
   }
 
   String _dateLabel(DateTime t) {
@@ -159,19 +203,19 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
 /// Sliding-indicator time segmented control.
 class _RangeControl extends StatelessWidget {
   const _RangeControl({required this.value, required this.onChanged});
-  final _Range value;
-  final ValueChanged<_Range> onChanged;
+  final HistoryRange value;
+  final ValueChanged<HistoryRange> onChanged;
 
   static const _labels = {
-    _Range.today: 'Today',
-    _Range.week: '7 Days',
-    _Range.month: '30 Days',
-    _Range.all: 'All',
+    HistoryRange.today: 'Today',
+    HistoryRange.week: '7 Days',
+    HistoryRange.month: '30 Days',
+    HistoryRange.all: 'All',
   };
 
   @override
   Widget build(BuildContext context) {
-    final items = _Range.values;
+    final items = HistoryRange.values;
     final index = items.indexOf(value);
     return Container(
       height: 40,
@@ -235,30 +279,24 @@ class _AppChips extends StatelessWidget {
   final Set<GigPlatform?> selected;
   final ValueChanged<GigPlatform?> onToggle;
 
-  static const _appColor = {
-    GigPlatform.uber: FoxColors.uber,
-    GigPlatform.lyft: FoxColors.lyft,
-    GigPlatform.hopp: FoxColors.hopp,
-  };
-
   @override
   Widget build(BuildContext context) {
     return Wrap(
       spacing: Gap.sm,
       runSpacing: Gap.sm,
       children: [
-        _chip(null, 'All', null),
+        _chip(null, 'All'),
         for (final p in const [
           GigPlatform.uber,
           GigPlatform.lyft,
           GigPlatform.hopp,
         ])
-          _chip(p, p.label, _appColor[p]),
+          _chip(p, p.label),
       ],
     );
   }
 
-  Widget _chip(GigPlatform? app, String label, Color? dot) {
+  Widget _chip(GigPlatform? app, String label) {
     final active = selected.contains(app);
     return GestureDetector(
       onTap: () => onToggle(app),
@@ -274,12 +312,8 @@ class _AppChips extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (dot != null) ...[
-              Container(
-                width: 8,
-                height: 8,
-                decoration: BoxDecoration(color: dot, shape: BoxShape.circle),
-              ),
+            if (app != null) ...[
+              PlatformBadge(platform: app, size: 16, active: active),
               const SizedBox(width: 6),
             ],
             Text(
@@ -516,12 +550,6 @@ class _OfferRow extends StatelessWidget {
   const _OfferRow({required this.offer});
   final OfferSummary offer;
 
-  static const _appColor = {
-    GigPlatform.uber: FoxColors.uber,
-    GigPlatform.lyft: FoxColors.lyft,
-    GigPlatform.hopp: FoxColors.hopp,
-  };
-
   @override
   Widget build(BuildContext context) {
     final style = VerdictStyle.of(offer.verdict);
@@ -539,9 +567,16 @@ class _OfferRow extends StatelessWidget {
       child: Row(
         children: [
           Container(
-            width: 10,
-            height: 10,
-            decoration: BoxDecoration(color: style.color, shape: BoxShape.circle),
+            width: 4,
+            height: 40,
+            decoration: BoxDecoration(
+              color: style.color,
+              borderRadius: BorderRadius.circular(2),
+              boxShadow: [
+                BoxShadow(
+                    color: style.color.withValues(alpha: 0.5), blurRadius: 8),
+              ],
+            ),
           ),
           const SizedBox(width: Gap.md),
           Expanded(
@@ -550,14 +585,7 @@ class _OfferRow extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    Container(
-                      width: 7,
-                      height: 7,
-                      decoration: BoxDecoration(
-                        color: _appColor[offer.platform] ?? FoxColors.textDisabled,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
+                    PlatformBadge(platform: offer.platform, size: 18),
                     const SizedBox(width: 6),
                     Text(
                       offer.platform.label,
@@ -624,21 +652,45 @@ class _OfferRow extends StatelessWidget {
   }
 }
 
+/// Empty state. When offers exist but filters hide them, say so and offer a
+/// one-tap reset (spec M6 §5.1) — "0 results" with 22 offers on disk reads
+/// as data loss otherwise.
 class _Empty extends StatelessWidget {
-  const _Empty();
+  const _Empty({required this.hiddenCount, this.onShowAll});
+
+  final int hiddenCount;
+  final VoidCallback? onShowAll;
 
   @override
   Widget build(BuildContext context) {
-    return const Padding(
-      padding: EdgeInsets.symmetric(vertical: 40),
+    final filtered = hiddenCount > 0 && onShowAll != null;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 40),
       child: Column(
         children: [
-          Icon(Icons.search_off, size: 36, color: FoxColors.textDisabled),
-          SizedBox(height: Gap.sm),
-          Text(
-            'No offers match these filters',
-            style: TextStyle(fontSize: 13, color: FoxColors.textDisabled),
+          Icon(
+            filtered ? Icons.filter_alt_off_outlined : Icons.search_off,
+            size: 36,
+            color: FoxColors.textDisabled,
           ),
+          const SizedBox(height: Gap.sm),
+          Text(
+            filtered
+                ? '$hiddenCount offers outside these filters'
+                : 'No offers yet — go live and drive.',
+            style: const TextStyle(
+                fontSize: 13, color: FoxColors.textDisabled),
+          ),
+          if (filtered) ...[
+            const SizedBox(height: Gap.sm),
+            TextButton(
+              onPressed: onShowAll,
+              style:
+                  TextButton.styleFrom(foregroundColor: FoxColors.brandFox),
+              child: const Text('Show all',
+                  style: TextStyle(fontWeight: FontWeight.w700)),
+            ),
+          ],
         ],
       ),
     );
@@ -718,6 +770,15 @@ class _Stat extends StatelessWidget {
   final String value;
   final String sub;
 
+  static bool _isInt(String s) => int.tryParse(s) != null;
+  static const _valueStyle = TextStyle(
+    fontFamily: FoxFonts.display,
+    fontSize: 17,
+    fontWeight: FontWeight.w600,
+    color: FoxColors.textPrimary,
+    fontFeatures: [FontFeature.tabularFigures()],
+  );
+
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -732,16 +793,16 @@ class _Stat extends StatelessWidget {
           ),
         ),
         const SizedBox(height: Gap.xs),
-        Text(
-          value,
-          style: const TextStyle(
-            fontFamily: FoxFonts.display,
-            fontSize: 17,
-            fontWeight: FontWeight.w600,
-            color: FoxColors.textPrimary,
-            fontFeatures: [FontFeature.tabularFigures()],
-          ),
-        ),
+        _isInt(value)
+            ? TweenAnimationBuilder<int>(
+                tween: IntTween(begin: 0, end: int.parse(value)),
+                duration: MediaQuery.of(context).disableAnimations
+                    ? Duration.zero
+                    : Motion.count,
+                curve: Motion.curve,
+                builder: (context, v, _) => Text('$v', style: _valueStyle),
+              )
+            : Text(value, style: _valueStyle),
         Text(
           sub,
           style: const TextStyle(
