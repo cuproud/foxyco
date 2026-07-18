@@ -9,6 +9,7 @@ import '../theme/tokens.dart';
 import '../theme/verdict_style.dart';
 import 'dashboard_controller.dart';
 import 'dashboard_state.dart';
+import 'profile_card.dart';
 
 /// Home dashboard (references/foxyco_home_v3.html).
 ///
@@ -31,6 +32,8 @@ class HomeScreen extends ConsumerWidget {
       children: [
         const _BrandBar(),
         const SizedBox(height: Gap.md),
+        // Hidden (zero-height, incl. its own bottom pad) until a name is set.
+        const ProfileCard(),
         _Hero(
           status: state.status,
           tally: ref.watch(todayTallyProvider),
