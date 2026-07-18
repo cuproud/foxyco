@@ -10,6 +10,7 @@ import '../theme/verdict_style.dart';
 import 'dashboard_controller.dart';
 import 'dashboard_state.dart';
 import 'profile_card.dart';
+import 'slide_to_live.dart';
 
 /// Home dashboard (references/foxyco_home_v3.html).
 ///
@@ -42,15 +43,10 @@ class HomeScreen extends ConsumerWidget {
               .watchedApps
               .map((p) => p.label)
               .toList(),
-          // Hero button is the Start/Stop outer gate (spec M5 §4); pause
-          // stays on the bubble long-press.
-          onToggleActive: switch (state.status) {
-            WatchStatus.stopped => controller.startMonitoring,
-            WatchStatus.watching ||
-            WatchStatus.paused =>
-              controller.stopMonitoring,
-            WatchStatus.blocked => controller.requestMissingPermissions,
-          },
+          // Slide-to-go-live is the Start/Stop outer gate (spec M6 §3.2);
+          // pause stays on the bubble long-press.
+          onStart: controller.startMonitoring,
+          onStop: controller.stopMonitoring,
           onFix: controller.requestMissingPermissions,
         ),
         const SizedBox(height: Gap.lg),
@@ -155,14 +151,16 @@ class _Hero extends StatelessWidget {
     required this.status,
     required this.tally,
     required this.platforms,
-    required this.onToggleActive,
+    required this.onStart,
+    required this.onStop,
     required this.onFix,
   });
 
   final WatchStatus status;
   final Tally tally;
   final List<String> platforms;
-  final VoidCallback onToggleActive; // online <-> offline
+  final VoidCallback onStart; // begin monitoring
+  final VoidCallback onStop; // stop monitoring
   final VoidCallback onFix; // grant missing permission
 
   @override
@@ -226,40 +224,30 @@ class _Hero extends StatelessWidget {
             ],
           ),
           const SizedBox(height: Gap.lg),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '$total',
-                    style: const TextStyle(
-                      fontFamily: FoxFonts.display,
-                      fontSize: 56,
-                      height: 1.0,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: -1.5,
-                      color: FoxColors.cream,
-                      fontFeatures: [FontFeature.tabularFigures()],
-                    ),
-                  ),
-                  const SizedBox(height: Gap.xs),
-                  Text(
-                    'offers seen today',
-                    style: TextStyle(
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.w500,
-                      letterSpacing: 0.1,
-                      color: FoxColors.cream.withValues(alpha: 0.52),
-                    ),
-                  ),
-                ],
+              Text(
+                '$total',
+                style: const TextStyle(
+                  fontFamily: FoxFonts.display,
+                  fontSize: 56,
+                  height: 1.0,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: -1.5,
+                  color: FoxColors.cream,
+                  fontFeatures: [FontFeature.tabularFigures()],
+                ),
               ),
-              const Spacer(),
-              _ActiveButton(
-                status: status,
-                onTap: status == WatchStatus.blocked ? onFix : onToggleActive,
+              const SizedBox(height: Gap.xs),
+              Text(
+                'offers seen today',
+                style: TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w500,
+                  letterSpacing: 0.1,
+                  color: FoxColors.cream.withValues(alpha: 0.52),
+                ),
               ),
             ],
           ),
@@ -267,6 +255,13 @@ class _Hero extends StatelessWidget {
           _SegBar(tally: tally),
           const SizedBox(height: Gap.sm + Gap.xs),
           _SegLegend(tally: tally),
+          const SizedBox(height: Gap.md),
+          SlideToLive(
+            status: status,
+            onStart: onStart,
+            onStop: onStop,
+            onFix: onFix,
+          ),
         ],
       ),
     );
@@ -291,52 +286,6 @@ class _AppTag extends StatelessWidget {
           fontSize: 11,
           fontWeight: FontWeight.w600,
           color: FoxColors.cream.withValues(alpha: 0.68),
-        ),
-      ),
-    );
-  }
-}
-
-/// Go-live / stop toggle. Running (watching or paused) → a quiet cream
-/// "Stop"; stopped or blocked → the accent "Go Live" call-to-action.
-class _ActiveButton extends StatelessWidget {
-  const _ActiveButton({required this.status, required this.onTap});
-  final WatchStatus status;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    // Paused still counts as running — the hero button is the outer
-    // Start/Stop gate, so its tap stops; label must say so.
-    final online =
-        status == WatchStatus.watching || status == WatchStatus.paused;
-    final (bg, fg, icon, label) = online
-        ? (FoxColors.cream, FoxColors.ink, Icons.stop_rounded, 'Stop')
-        : (FoxColors.brandFox, Colors.white, Icons.bolt_rounded, 'Go Live');
-
-    return Material(
-      color: bg,
-      borderRadius: BorderRadius.circular(Radii.pill),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(Radii.pill),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: 18, color: fg),
-              const SizedBox(width: 6),
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 13.5,
-                  fontWeight: FontWeight.w700,
-                  color: fg,
-                ),
-              ),
-            ],
-          ),
         ),
       ),
     );

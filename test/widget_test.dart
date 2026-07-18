@@ -33,7 +33,7 @@ void main() {
     expect(find.text('No offers yet'), findsOneWidget);
   });
 
-  testWidgets('Go Live / Stop toggles monitoring', (tester) async {
+  testWidgets('Go live / Stop toggles monitoring', (tester) async {
     tall(tester);
     await tester.pumpWidget(
       const ProviderScope(
@@ -41,19 +41,25 @@ void main() {
       ),
     );
 
-    // Boots stopped with the start CTA showing.
+    // Boots stopped with the slide-to-go-live CTA showing.
     expect(find.text('Ready when you are'), findsOneWidget);
-    expect(find.text('Go Live'), findsOneWidget);
+    expect(find.text('Slide to go live'), findsOneWidget);
 
-    await tester.tap(find.text('Go Live'));
+    // Slide the thumb fully right past the commit threshold → onStart.
+    await tester.drag(
+        find.byKey(const ValueKey('slide-thumb')), const Offset(1080, 0));
     await tester.pump();
     expect(find.text('On the prowl'), findsOneWidget); // hero status
-    expect(find.text('Stop'), findsOneWidget); // button flipped
+    // 'Live' now shows in both the brand-bar pill and the slide live bar.
+    expect(find.text('Live'), findsNWidgets(2));
+    expect(find.byKey(const ValueKey('slide-stop-thumb')), findsOneWidget);
 
-    await tester.tap(find.text('Stop'));
+    // Slide the stop thumb fully left past the threshold → onStop.
+    await tester.drag(
+        find.byKey(const ValueKey('slide-stop-thumb')), const Offset(-1080, 0));
     await tester.pump();
     expect(find.text('Ready when you are'), findsOneWidget); // fully stopped
-    expect(find.text('Go Live'), findsOneWidget);
+    expect(find.text('Slide to go live'), findsOneWidget);
     expect(find.text('Off'), findsOneWidget); // brand-bar live pill
   });
 }
