@@ -200,7 +200,7 @@ class _SheenLoopState extends State<_SheenLoop>
           end: Alignment(-0.5 + 3 * _c.value, 0.3),
           colors: const [
             Colors.transparent,
-            Color(0x14FFFFFF),
+            Color(0x14FFFFFF), // 8% white sheen sweep — decorative shimmer, not a token
             Colors.transparent,
           ],
         ).createShader(bounds),

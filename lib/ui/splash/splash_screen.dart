@@ -203,6 +203,7 @@ class _SplashScenePainter extends CustomPainter {
       Paint()
         ..shader = LinearGradient(
           colors: [
+            // warm headlight-beam gradient — splash painter, intentionally off-token
             const Color(0xFFFFE9B8).withValues(alpha: beamAlpha),
             const Color(0x00FFE9B8),
           ],

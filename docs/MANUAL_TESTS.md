@@ -247,4 +247,28 @@ opaque TextureView made translucent (dark gradient box), node LruCache bounded.
 
 ---
 
-_Last updated: 2026-07-17 (M5 rows: pill size, logs, profile card, manual start)._
+## M6 — Showroom (dark UI, garage, slide-to-live, splash) (2026-07-18)
+
+> Whole app went dark green-black ("showroom"). New: garage with multiple
+> vehicles, slide-to-go-live control (replaces the Start button), animated
+> splash. Overlay/pill/parse untouched — OV + M5 rows below still hold.
+
+| # | How | PASS bar | Status |
+|---|-----|----------|--------|
+| M6.1 | Cold-start the app | Dark splash: wordmark fades in + car drives in over ≈1.8 s, then crossfades to Home. Total never exceeds 3 s | [ ] |
+| M6.2 | Enable "Remove animations" (OS a11y), cold start | Static logo ~0.5 s, NO car sweep, then Home | [ ] |
+| M6.3 | Drag the bolt thumb ≥85% right | Medium haptic; control morphs to a Live bar with a pulsing dot; watching starts | [ ] |
+| M6.4 | Drag thumb ~40% and release | Springs back with overshoot, light haptic, stays STOPPED (no watch) | [ ] |
+| M6.5 | While live, drag thumb back left | Watching stops; bar morphs back to the slide track | [ ] |
+| M6.6 | TalkBack on, focus the control | Announced as "Go live" / "Stop" button; double-tap activates it | [ ] |
+| M6.7 | Install over an M5 build that had a saved profile | The saved vehicle appears in Garage as active; name preserved; 0 data lost | [ ] |
+| M6.8 | Add a 2nd vehicle, set active, edit it, delete the active one | Active switches on tap; deleting active falls back to the remaining vehicle; hero card follows the active one | [ ] |
+| M6.9 | Edit a vehicle, change its color, press Cancel | 0 changes persisted — hero card AND garage tile unchanged | [ ] |
+| M6.10 | Set device clock to 23:30, open Home | Greeting reads "Late shift, &lt;name&gt;" (NOT "Good evening") | [ ] |
+| M6.11 | With yesterday-only offers, open History on the Today filter | Header shows "0 today"; body shows "N offers outside these filters" with a Show-all reset | [ ] |
+| M6.12 | View Home + History outdoors in bright light | Verdict colors + all text stay legible on the dark cards | [ ] |
+| M6.13 | Re-run OV.1 and OV.6 (bubble + pill flows) | Behavior IDENTICAL to M3/M5 — overlay was untouched in M6 | [ ] |
+
+---
+
+_Last updated: 2026-07-18 (M6 rows: splash, slide-to-live, garage, dark UI, history count)._

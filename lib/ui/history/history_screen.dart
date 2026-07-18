@@ -366,7 +366,7 @@ class _TopCard extends StatelessWidget {
           Row(
             children: [
               const Icon(Icons.local_fire_department,
-                  color: Color(0xFFFFB25C), size: 20),
+                  color: Color(0xFFFFB25C), size: 20), // warm streak-flame accent — one-off
               const SizedBox(width: Gap.sm + Gap.xs),
               Expanded(
                 child: Column(
@@ -487,6 +487,7 @@ class _Switch extends StatelessWidget {
               color: Colors.white,
               shape: BoxShape.circle,
               boxShadow: [
+                // local thumb drop-shadow (25% black) — decorative, not Shadows.soft
                 BoxShadow(color: Color(0x40000000), blurRadius: 4, offset: Offset(0, 2)),
               ],
             ),
