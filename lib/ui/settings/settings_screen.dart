@@ -118,9 +118,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ],
           ),
         ),
-        const SizedBox(height: Gap.xl),
+        const SizedBox(height: Gap.lg),
         const _SectionLabel('Live preview'),
-        const SizedBox(height: Gap.sm + Gap.xs),
+        const SizedBox(height: Gap.sm),
         _PreviewCard(
           sample: sample,
           unit: unit,
@@ -135,9 +135,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             }
           }),
         ),
-        const SizedBox(height: Gap.xl),
+        const SizedBox(height: Gap.lg),
         const _SectionLabel('Pickup guard'),
-        const SizedBox(height: Gap.sm + Gap.xs),
+        const SizedBox(height: Gap.sm),
         _Card(
           child: _ThresholdSlider(
             label: 'Near pickup at or under',
@@ -155,9 +155,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           'longer dead runs show red.',
           style: text.bodyMedium?.copyWith(color: FoxColors.textSecondary),
         ),
-        const SizedBox(height: Gap.xl),
+        const SizedBox(height: Gap.lg),
         const _SectionLabel('Watched apps'),
-        const SizedBox(height: Gap.sm + Gap.xs),
+        const SizedBox(height: Gap.sm),
         _Card(
           child: Material(
             type: MaterialType.transparency,
@@ -178,9 +178,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
           ),
         ),
-        const SizedBox(height: Gap.xl),
+        const SizedBox(height: Gap.lg),
         const _SectionLabel('Pill size'),
-        const SizedBox(height: Gap.sm + Gap.xs),
+        const SizedBox(height: Gap.sm),
         _Card(
           child: _ChoiceRow<PillSize>(
             values: PillSize.values,
@@ -193,9 +193,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             onChanged: controller.setPillSize,
           ),
         ),
-        const SizedBox(height: Gap.xl),
+        const SizedBox(height: Gap.lg),
         const _SectionLabel('Parser health'),
-        const SizedBox(height: Gap.sm + Gap.xs),
+        const SizedBox(height: Gap.sm),
         _Card(
           child: Column(
             children: [
@@ -218,9 +218,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           'FoxyCo can\'t read them — the app\'s layout likely changed.',
           style: text.bodyMedium?.copyWith(color: FoxColors.textSecondary),
         ),
-        const SizedBox(height: Gap.xl),
+        const SizedBox(height: Gap.lg),
         const _SectionLabel('History'),
-        const SizedBox(height: Gap.sm + Gap.xs),
+        const SizedBox(height: Gap.sm),
         _Card(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -396,10 +396,11 @@ class _Card extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(Gap.md + Gap.xs),
+      padding: const EdgeInsets.symmetric(
+          horizontal: Gap.md, vertical: Gap.sm + Gap.xs),
       decoration: BoxDecoration(
         color: FoxColors.bgSurface,
-        borderRadius: BorderRadius.circular(Radii.card),
+        borderRadius: BorderRadius.circular(Radii.cardSm),
         border: Border.all(color: FoxColors.borderSoft),
         boxShadow: Shadows.card,
       ),

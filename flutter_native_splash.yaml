@@ -1,10 +1,14 @@
+# Launch screen — the window the OS paints while the engine boots. Cream to
+# match the app's first frame (FoxColors.bgBase) so launch feels like one
+# continuous surface, with the fox coin mark centered.
+# Regenerate: dart run flutter_native_splash:create
 flutter_native_splash:
-  color: "#0B0E11"
-  image: assets/branding/foxyco_splash.png
+  color: "#F6F3EA"
+  image: assets/branding/splash_mark.png
   android_12:
-    color: "#0B0E11"
-    image: assets/branding/foxyco_icon_car_b.png
+    color: "#F6F3EA"
+    image: assets/branding/splash_mark_a12.png
   android: true
   ios: false
   web: false
-  fullscreen: true
+  fullscreen: false
