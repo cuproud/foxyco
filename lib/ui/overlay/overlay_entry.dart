@@ -66,7 +66,13 @@ class _OverlayRootState extends State<_OverlayRoot> {
   // stuck mid-screen — exactly the "lands in centre, won't go to an edge" bug.
   // 300dp holds the compact `small` pill (verdict WORD + "$7 · $1.21/km · $73/hr")
   // and leaves real horizontal travel so it can snap to either edge.
-  static const _pillBox = (w: 300, h: 72);
+  //
+  // Per-size boxes (spec M5 §1). Width MUST stay <360dp — see comment above.
+  static ({int w, int h}) _pillBoxFor(PillSize size) => switch (size) {
+        PillSize.small => (w: 300, h: 72),
+        PillSize.medium => (w: 324, h: 84),
+        PillSize.large => (w: 348, h: 100),
+      };
   static const _bubbleBox = (w: 72, h: 72);
 
   OverlayPayload? _payload;
@@ -99,8 +105,9 @@ class _OverlayRootState extends State<_OverlayRoot> {
     }
 
     if (data['kind'] == 'offer') {
-      setState(() => _payload = OverlayPayload.fromMap(data));
-      _resize(_pillBox); // widen the window to fit the pill
+      final payload = OverlayPayload.fromMap(data);
+      setState(() => _payload = payload);
+      _resize(_pillBoxFor(payload.size)); // window fits the chosen size
       _dismissTimer?.cancel();
       _dismissTimer = Timer(_dismissAfter, _clearPill);
     }
@@ -175,7 +182,7 @@ class _OverlayRootState extends State<_OverlayRoot> {
                 key: ValueKey('pill-${payload.hashCode}'),
                 behavior: HitTestBehavior.opaque,
                 onTap: () {},
-                child: VerdictPill(payload: payload, size: PillSize.small),
+                child: VerdictPill(payload: payload),
               ),
       ),
     );

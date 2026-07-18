@@ -5,6 +5,7 @@ import 'package:foxyco/domain/fox_settings.dart';
 import 'package:foxyco/domain/rate_mode.dart';
 import 'package:foxyco/domain/thresholds.dart';
 import 'package:foxyco/ui/settings/settings_controller.dart';
+import 'package:foxyco/ui/overlay/verdict_pill.dart';
 import 'package:foxyco/ui/settings/settings_screen.dart';
 import 'package:foxyco/ui/theme/app_theme.dart';
 
@@ -51,6 +52,27 @@ void main() {
     await tester.pump();
 
     expect(container.read(settingsProvider).thresholds, Thresholds.defaults);
+  });
+
+  testWidgets('pill size selector shows live VerdictPill preview',
+      (tester) async {
+    // Tall viewport so the lazy ListView builds the pill-size section.
+    tester.view.physicalSize = const Size(1080, 3600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(_host());
+    await tester.pumpAndSettle();
+
+    // Preview pill is rendered on the settings screen.
+    expect(find.byType(VerdictPill), findsOneWidget);
+
+    // Selecting Large re-renders the preview at the large size.
+    final smallSize = tester.getSize(find.byType(VerdictPill));
+    await tester.tap(find.text('Large'));
+    await tester.pumpAndSettle();
+    final largeSize = tester.getSize(find.byType(VerdictPill));
+    expect(largeSize.height, greaterThan(smallSize.height));
   });
 
   test('controller clamps GOOD above BAD (band stays coherent)', () {

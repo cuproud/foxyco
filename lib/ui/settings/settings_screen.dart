@@ -3,13 +3,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/decision_engine.dart';
 import '../../domain/fox_settings.dart';
-import '../../domain/overlay_payload.dart' show PillSize;
+import '../../domain/overlay_payload.dart' show OverlayPayload, PillSize;
 import '../../domain/platform.dart';
 import '../../domain/rate_mode.dart';
 import '../../domain/thresholds.dart';
 import '../../domain/verdict.dart';
 import '../../services/offer_log.dart';
 import '../../services/parse_health.dart';
+import '../overlay/verdict_pill.dart';
 import '../theme/tokens.dart';
 import '../theme/verdict_style.dart';
 import 'settings_controller.dart';
@@ -191,6 +192,20 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               PillSize.large => 'Large',
             },
             onChanged: controller.setPillSize,
+          ),
+        ),
+        const SizedBox(height: Gap.sm + Gap.xs),
+        // Live preview — sample payload at the selected size, so the change is
+        // visible instantly without waiting for a real offer.
+        Center(
+          child: VerdictPill(
+            payload: const OverlayPayload(
+              verdict: Verdict.good,
+              totalKm: 8.4,
+              payout: 12,
+              totalMinutes: 24,
+            ),
+            size: settings.pillSize,
           ),
         ),
         const SizedBox(height: Gap.lg),
