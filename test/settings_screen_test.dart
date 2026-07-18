@@ -4,11 +4,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:foxyco/domain/fox_settings.dart';
 import 'package:foxyco/domain/rate_mode.dart';
 import 'package:foxyco/domain/thresholds.dart';
+import 'package:foxyco/ui/settings/garage_controller.dart';
 import 'package:foxyco/ui/settings/settings_controller.dart';
 import 'package:foxyco/ui/overlay/verdict_pill.dart';
-import 'package:foxyco/ui/settings/profile_controller.dart';
 import 'package:foxyco/ui/settings/settings_screen.dart';
 import 'package:foxyco/ui/theme/app_theme.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 // SettingsScreen lives inside RootShell's Scaffold (which supplies the Material
 // ancestor its Sliders need); mirror that here.
@@ -20,6 +21,8 @@ Widget _host() => ProviderScope(
     );
 
 void main() {
+  setUp(() => SharedPreferences.setMockInitialValues({}));
+
   testWidgets('renders thresholds and live preview', (tester) async {
     // Tall viewport so the lazy ListView builds the bottom preview card.
     tester.view.physicalSize = const Size(1080, 2600);
@@ -76,7 +79,8 @@ void main() {
     expect(largeSize.height, greaterThan(smallSize.height));
   });
 
-  testWidgets('profile form saves name live', (tester) async {
+  testWidgets('driver name saves on the check button, not live',
+      (tester) async {
     tester.view.physicalSize = const Size(1080, 3600);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
@@ -86,12 +90,32 @@ void main() {
 
     final nameField = find.widgetWithText(TextField, 'Name');
     expect(nameField, findsOneWidget);
-    await tester.enterText(nameField, 'Vamsi');
-    await tester.pumpAndSettle();
 
     final ctx = tester.element(find.byType(SettingsScreen));
     final container = ProviderScope.containerOf(ctx);
-    expect(container.read(profileProvider).name, 'Vamsi');
+
+    // Typing alone does not persist — the check button must appear.
+    await tester.enterText(nameField, 'Vamsi');
+    await tester.pump();
+    expect(container.read(driverNameProvider), '');
+    expect(find.byKey(const ValueKey('save-name')), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('save-name')));
+    await tester.pump();
+    expect(container.read(driverNameProvider), 'Vamsi');
+  });
+
+  testWidgets('garage section offers an add-vehicle affordance',
+      (tester) async {
+    tester.view.physicalSize = const Size(1080, 3600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(_host());
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('add-vehicle')), findsOneWidget);
+    expect(find.text('Add vehicle'), findsOneWidget);
   });
 
   test('controller clamps GOOD above BAD (band stays coherent)', () {

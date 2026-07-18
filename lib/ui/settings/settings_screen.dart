@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../domain/decision_engine.dart';
-import '../../domain/driver_profile.dart';
 import '../../domain/fox_settings.dart';
+import '../../domain/garage.dart';
 import '../../domain/overlay_payload.dart' show OverlayPayload, PillSize;
 import '../../domain/platform.dart';
 import '../../domain/rate_mode.dart';
@@ -13,9 +14,10 @@ import '../../services/offer_log.dart';
 import '../../services/parse_health.dart';
 import '../overlay/verdict_pill.dart';
 import '../theme/tokens.dart';
+import '../theme/vehicle_art.dart';
 import '../theme/verdict_style.dart';
+import 'garage_controller.dart';
 import 'logs_screen.dart';
-import 'profile_controller.dart';
 import 'settings_controller.dart';
 
 /// Settings — every driver-tunable knob in [FoxSettings]: verdict thresholds
@@ -69,243 +71,356 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ],
         ),
         const SizedBox(height: Gap.md),
-        const _SectionLabel('Driver profile'),
-        const SizedBox(height: Gap.sm),
-        const _Card(child: _ProfileForm()),
-        const SizedBox(height: Gap.lg),
-        const _SectionLabel('Verdict thresholds'),
-        const SizedBox(height: Gap.sm),
-        Text(
-          perHour
-              ? 'FoxyCo scores every offer by dollars per hour. '
-                  'Set where GOOD and BAD begin.'
-              : 'FoxyCo scores every offer by dollars per kilometre. '
-                  'Set where GOOD and BAD begin.',
-          style: text.bodyMedium?.copyWith(color: FoxColors.textSecondary),
-        ),
-        const SizedBox(height: Gap.md),
-        // Rate mode — each mode keeps its own cut points. Offers with no
-        // parsed time fall back to $/km scoring (engine fail-safe).
-        Center(
-          child: SegmentedButton<RateMode>(
-            segments: [
-              for (final m in RateMode.values)
-                ButtonSegment(value: m, label: Text(m.label)),
+        _staggered(
+          0,
+          const Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _SectionLabel('Driver', icon: Icons.person_outline_rounded),
+              SizedBox(height: Gap.sm),
+              _Card(child: _DriverNameCard()),
             ],
-            selected: {settings.rateMode},
-            onSelectionChanged: (s) => controller.setRateMode(s.first),
-            style: SegmentedButton.styleFrom(
-              selectedBackgroundColor: FoxColors.brandFoxSoft,
-              selectedForegroundColor: FoxColors.brandFoxDeep,
-            ),
           ),
         ),
-        const SizedBox(height: Gap.md),
-        _Card(
-          child: Column(
+        const SizedBox(height: Gap.lg),
+        _staggered(
+          1,
+          const Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              _ThresholdBand(thresholds: t, min: min, max: max),
-              const SizedBox(height: Gap.lg),
-              _ThresholdSlider(
-                label: 'GOOD at or above',
-                color: VerdictColors.good,
-                value: t.goodAtOrAbove,
-                min: min,
-                max: max,
-                onChanged: controller.setGood,
+              _SectionLabel('Garage', icon: Icons.garage_outlined),
+              SizedBox(height: Gap.sm),
+              _GarageList(),
+            ],
+          ),
+        ),
+        const SizedBox(height: Gap.lg),
+        _staggered(
+          2,
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const _SectionLabel('Verdict thresholds',
+                  icon: Icons.tune_rounded),
+              const SizedBox(height: Gap.sm),
+              Text(
+                perHour
+                    ? 'FoxyCo scores every offer by dollars per hour. '
+                        'Set where GOOD and BAD begin.'
+                    : 'FoxyCo scores every offer by dollars per kilometre. '
+                        'Set where GOOD and BAD begin.',
+                style:
+                    text.bodyMedium?.copyWith(color: FoxColors.textSecondary),
               ),
               const SizedBox(height: Gap.md),
-              _ThresholdSlider(
-                label: 'BAD below',
-                color: VerdictColors.bad,
-                value: t.badBelow,
-                min: min,
-                max: max,
-                onChanged: controller.setBad,
+              // Rate mode — each mode keeps its own cut points. Offers with no
+              // parsed time fall back to $/km scoring (engine fail-safe).
+              Center(
+                child: SegmentedButton<RateMode>(
+                  segments: [
+                    for (final m in RateMode.values)
+                      ButtonSegment(value: m, label: Text(m.label)),
+                  ],
+                  selected: {settings.rateMode},
+                  onSelectionChanged: (s) => controller.setRateMode(s.first),
+                  style: SegmentedButton.styleFrom(
+                    selectedBackgroundColor: FoxColors.brandFoxSoft,
+                    selectedForegroundColor: FoxColors.brandFoxDeep,
+                  ),
+                ),
+              ),
+              const SizedBox(height: Gap.md),
+              _Card(
+                child: Column(
+                  children: [
+                    _ThresholdBand(thresholds: t, min: min, max: max),
+                    const SizedBox(height: Gap.md),
+                    _ThresholdSlider(
+                      label: 'GOOD at or above',
+                      color: VerdictColors.good,
+                      value: t.goodAtOrAbove,
+                      min: min,
+                      max: max,
+                      onChanged: controller.setGood,
+                    ),
+                    const SizedBox(height: Gap.md),
+                    _ThresholdSlider(
+                      label: 'BAD below',
+                      color: VerdictColors.bad,
+                      value: t.badBelow,
+                      min: min,
+                      max: max,
+                      onChanged: controller.setBad,
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
         ),
         const SizedBox(height: Gap.lg),
-        const _SectionLabel('Live preview'),
-        const SizedBox(height: Gap.sm),
-        _PreviewCard(
-          sample: sample,
-          unit: unit,
-          verdict: _engine.evaluate(sample, t),
-          min: min,
-          max: max,
-          onChanged: (v) => setState(() {
-            if (perHour) {
-              _samplePph = v;
-            } else {
-              _samplePpk = v;
-            }
-          }),
-        ),
-        const SizedBox(height: Gap.lg),
-        const _SectionLabel('Pickup guard'),
-        const SizedBox(height: Gap.sm),
-        _Card(
-          child: _ThresholdSlider(
-            label: 'Near pickup at or under',
-            color: FoxColors.brandFox,
-            value: settings.pickupNearKm,
-            min: 0.5,
-            max: 10.0,
-            unit: 'km',
-            onChanged: controller.setPickupNearKm,
-          ),
-        ),
-        const SizedBox(height: Gap.sm),
-        Text(
-          'Pickups under this distance show green on the pill; '
-          'longer dead runs show red.',
-          style: text.bodyMedium?.copyWith(color: FoxColors.textSecondary),
-        ),
-        const SizedBox(height: Gap.lg),
-        const _SectionLabel('Watched apps'),
-        const SizedBox(height: Gap.sm),
-        _Card(
-          child: Material(
-            type: MaterialType.transparency,
-            child: Column(
-              children: [
-                for (final app in GigPlatform.values) ...[
-                  SwitchListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: Text(app.label, style: text.titleMedium),
-                    value: settings.watches(app),
-                    activeTrackColor: FoxColors.brandFox,
-                    onChanged: (_) => controller.toggleApp(app),
-                  ),
-                  if (app != GigPlatform.values.last)
-                    const Divider(color: FoxColors.border, height: 1),
-                ],
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(height: Gap.lg),
-        const _SectionLabel('Pill size'),
-        const SizedBox(height: Gap.sm),
-        _Card(
-          child: _ChoiceRow<PillSize>(
-            values: PillSize.values,
-            selected: settings.pillSize,
-            labelOf: (s) => switch (s) {
-              PillSize.small => 'Small',
-              PillSize.medium => 'Medium',
-              PillSize.large => 'Large',
-            },
-            onChanged: controller.setPillSize,
-          ),
-        ),
-        const SizedBox(height: Gap.sm + Gap.xs),
-        // Live preview — sample payload at the selected size, so the change is
-        // visible instantly without waiting for a real offer.
-        Center(
-          child: VerdictPill(
-            payload: const OverlayPayload(
-              verdict: Verdict.good,
-              totalKm: 8.4,
-              payout: 12,
-              totalMinutes: 24,
-            ),
-            size: settings.pillSize,
-          ),
-        ),
-        const SizedBox(height: Gap.lg),
-        const _SectionLabel('Parser health'),
-        const SizedBox(height: Gap.sm),
-        _Card(
-          child: Column(
+        _staggered(
+          3,
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              for (final app in GigPlatform.values) ...[
-                _HealthRow(
-                  app: app,
-                  watched: settings.watches(app),
-                  health: ref.watch(parseHealthProvider)[app] ??
-                      const PlatformHealth(),
-                ),
-                if (app != GigPlatform.values.last)
-                  const Divider(color: FoxColors.border, height: Gap.lg),
-              ],
+              const _SectionLabel('Live preview',
+                  icon: Icons.visibility_outlined),
+              const SizedBox(height: Gap.sm),
+              _PreviewCard(
+                sample: sample,
+                unit: unit,
+                verdict: _engine.evaluate(sample, t),
+                min: min,
+                max: max,
+                onChanged: (v) => setState(() {
+                  if (perHour) {
+                    _samplePph = v;
+                  } else {
+                    _samplePpk = v;
+                  }
+                }),
+              ),
             ],
           ),
         ),
-        const SizedBox(height: Gap.sm),
-        Text(
-          'This session. "Needs update" means offer cards are arriving but '
-          'FoxyCo can\'t read them — the app\'s layout likely changed.',
-          style: text.bodyMedium?.copyWith(color: FoxColors.textSecondary),
+        const SizedBox(height: Gap.lg),
+        _staggered(
+          4,
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const _SectionLabel('Pickup guard',
+                  icon: Icons.near_me_outlined),
+              const SizedBox(height: Gap.sm),
+              _Card(
+                child: _ThresholdSlider(
+                  label: 'Near pickup at or under',
+                  color: FoxColors.brandFox,
+                  value: settings.pickupNearKm,
+                  min: 0.5,
+                  max: 10.0,
+                  unit: 'km',
+                  onChanged: controller.setPickupNearKm,
+                ),
+              ),
+              const SizedBox(height: Gap.sm),
+              Text(
+                'Pickups under this distance show green on the pill; '
+                'longer dead runs show red.',
+                style:
+                    text.bodyMedium?.copyWith(color: FoxColors.textSecondary),
+              ),
+            ],
+          ),
         ),
         const SizedBox(height: Gap.lg),
-        const _SectionLabel('Logs'),
-        const SizedBox(height: Gap.sm),
-        _Card(
-          child: InkWell(
-            borderRadius: BorderRadius.circular(Radii.card),
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(builder: (_) => const LogsScreen()),
-            ),
-            child: Row(
-              children: [
-                Expanded(
+        _staggered(
+          5,
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const _SectionLabel('Watched apps', icon: Icons.apps_rounded),
+              const SizedBox(height: Gap.sm),
+              _Card(
+                child: Material(
+                  type: MaterialType.transparency,
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('View logs', style: text.titleMedium),
-                      const SizedBox(height: Gap.xs),
-                      Text(
-                        'Persistent debug log — survives restarts',
-                        style: text.bodyMedium
-                            ?.copyWith(color: FoxColors.textSecondary),
-                      ),
+                      for (final app in GigPlatform.values) ...[
+                        SwitchListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: Text(app.label, style: text.titleMedium),
+                          value: settings.watches(app),
+                          activeTrackColor: FoxColors.brandFox,
+                          onChanged: (_) => controller.toggleApp(app),
+                        ),
+                        if (app != GigPlatform.values.last)
+                          const Divider(color: FoxColors.border, height: 1),
+                      ],
                     ],
                   ),
                 ),
-                const Icon(Icons.chevron_right_rounded,
-                    color: FoxColors.textSecondary),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
         const SizedBox(height: Gap.lg),
-        const _SectionLabel('History'),
-        const SizedBox(height: Gap.sm),
-        _Card(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+        _staggered(
+          6,
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text('Keep offers for', style: text.titleMedium),
+              const _SectionLabel('Pill size', icon: Icons.circle_outlined),
               const SizedBox(height: Gap.sm),
-              _ChoiceRow<int>(
-                values: const [7, 30, 90, FoxSettings.keepForever],
-                selected: settings.retentionDays,
-                labelOf: (d) =>
-                    d == FoxSettings.keepForever ? 'Forever' : '$d days',
-                onChanged: (d) {
-                  controller.setRetentionDays(d);
-                  if (d != FoxSettings.keepForever) {
-                    ref.read(offerLogProvider.notifier).purgeOlderThan(d);
-                  }
-                },
+              _Card(
+                child: _ChoiceRow<PillSize>(
+                  values: PillSize.values,
+                  selected: settings.pillSize,
+                  labelOf: (s) => switch (s) {
+                    PillSize.small => 'Small',
+                    PillSize.medium => 'Medium',
+                    PillSize.large => 'Large',
+                  },
+                  onChanged: controller.setPillSize,
+                ),
               ),
-              const Divider(color: FoxColors.border, height: Gap.xl),
+              const SizedBox(height: Gap.sm + Gap.xs),
+              // Live preview — sample payload at the selected size, so the
+              // change is visible instantly without waiting for a real offer.
               Center(
-                child: TextButton(
-                  onPressed: () => _confirmClear(context),
-                  style: TextButton.styleFrom(
-                      foregroundColor: VerdictColors.bad),
-                  child: const Text('Clear offer history',
-                      style: TextStyle(fontWeight: FontWeight.w700)),
+                child: VerdictPill(
+                  payload: const OverlayPayload(
+                    verdict: Verdict.good,
+                    totalKm: 8.4,
+                    payout: 12,
+                    totalMinutes: 24,
+                  ),
+                  size: settings.pillSize,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: Gap.lg),
+        _staggered(
+          7,
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const _SectionLabel('Parser health',
+                  icon: Icons.monitor_heart_outlined),
+              const SizedBox(height: Gap.sm),
+              _Card(
+                child: Column(
+                  children: [
+                    for (final app in GigPlatform.values) ...[
+                      _HealthRow(
+                        app: app,
+                        watched: settings.watches(app),
+                        health: ref.watch(parseHealthProvider)[app] ??
+                            const PlatformHealth(),
+                      ),
+                      if (app != GigPlatform.values.last)
+                        const Divider(
+                            color: FoxColors.border, height: Gap.lg),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(height: Gap.sm),
+              Text(
+                'This session. "Needs update" means offer cards are arriving '
+                'but FoxyCo can\'t read them — the app\'s layout likely '
+                'changed.',
+                style:
+                    text.bodyMedium?.copyWith(color: FoxColors.textSecondary),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: Gap.lg),
+        _staggered(
+          8,
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const _SectionLabel('Logs', icon: Icons.description_outlined),
+              const SizedBox(height: Gap.sm),
+              _Card(
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(Radii.card),
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                        builder: (_) => const LogsScreen()),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('View logs', style: text.titleMedium),
+                            const SizedBox(height: Gap.xs),
+                            Text(
+                              'Persistent debug log — survives restarts',
+                              style: text.bodyMedium
+                                  ?.copyWith(color: FoxColors.textSecondary),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const Icon(Icons.chevron_right_rounded,
+                          color: FoxColors.textSecondary),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: Gap.lg),
+        _staggered(
+          9,
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const _SectionLabel('History', icon: Icons.history_rounded),
+              const SizedBox(height: Gap.sm),
+              _Card(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Keep offers for', style: text.titleMedium),
+                    const SizedBox(height: Gap.sm),
+                    _ChoiceRow<int>(
+                      values: const [7, 30, 90, FoxSettings.keepForever],
+                      selected: settings.retentionDays,
+                      labelOf: (d) =>
+                          d == FoxSettings.keepForever ? 'Forever' : '$d days',
+                      onChanged: (d) {
+                        controller.setRetentionDays(d);
+                        if (d != FoxSettings.keepForever) {
+                          ref
+                              .read(offerLogProvider.notifier)
+                              .purgeOlderThan(d);
+                        }
+                      },
+                    ),
+                    const Divider(color: FoxColors.border, height: Gap.xl),
+                    Center(
+                      child: TextButton(
+                        onPressed: () => _confirmClear(context),
+                        style: TextButton.styleFrom(
+                            foregroundColor: VerdictColors.bad),
+                        child: const Text('Clear offer history',
+                            style: TextStyle(fontWeight: FontWeight.w700)),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
           ),
         ),
       ],
+    );
+  }
+
+  /// Section-entry stagger (spec M6 §6): each section fades + slides up with a
+  /// small per-index delay. Reduced-motion or below-the-fold sections (i > 7)
+  /// render instantly — no loops, no jank.
+  Widget _staggered(int i, Widget child) {
+    if (MediaQuery.of(context).disableAnimations || i > 7) return child;
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: 1),
+      duration: Motion.base + Motion.stagger * i,
+      curve: Motion.curve,
+      builder: (context, t, c) => Opacity(
+        opacity: t,
+        child: Transform.translate(offset: Offset(0, 16 * (1 - t)), child: c),
+      ),
+      child: child,
     );
   }
 
@@ -463,13 +578,18 @@ class _Card extends StatelessWidget {
 }
 
 class _SectionLabel extends StatelessWidget {
-  const _SectionLabel(this.text);
+  const _SectionLabel(this.text, {this.icon});
   final String text;
+  final IconData? icon;
 
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
+        if (icon != null) ...[
+          Icon(icon, size: 14, color: FoxColors.textDisabled),
+          const SizedBox(width: 6),
+        ],
         Text(text.toUpperCase(),
             style: Theme.of(context).textTheme.labelSmall),
         const SizedBox(width: Gap.sm + Gap.xs),
@@ -575,6 +695,7 @@ class _ThresholdSlider extends StatelessWidget {
                   ? '\$${value.toStringAsFixed(2)}'
                   : '${value.toStringAsFixed(1)} $unit',
               style: text.titleMedium?.copyWith(
+                fontSize: 13.5,
                 color: color,
                 fontFeatures: const [FontFeature.tabularFigures()],
               ),
@@ -683,124 +804,204 @@ class _PreviewCard extends StatelessWidget {
   }
 }
 
-/// Live-apply profile form (spec M5 §3): text fields save on edit, swatch row
-/// picks the vehicle color, choice chips pick the body style. No save button —
-/// matches the rest of the settings screen.
-class _ProfileForm extends ConsumerStatefulWidget {
-  const _ProfileForm();
+/// Driver name with an explicit save; the check button appears only while the
+/// draft differs from the stored name (spec M6 §4.2 — no silent live-apply).
+class _DriverNameCard extends ConsumerStatefulWidget {
+  const _DriverNameCard();
 
   @override
-  ConsumerState<_ProfileForm> createState() => _ProfileFormState();
+  ConsumerState<_DriverNameCard> createState() => _DriverNameCardState();
 }
 
-class _ProfileFormState extends ConsumerState<_ProfileForm> {
+class _DriverNameCardState extends ConsumerState<_DriverNameCard> {
   late final _name = TextEditingController();
-  late final _make = TextEditingController();
-  late final _model = TextEditingController();
-  late final _year = TextEditingController();
-  late final _plate = TextEditingController();
   bool _seeded = false;
 
   @override
   void dispose() {
-    for (final c in [_name, _make, _model, _year, _plate]) {
-      c.dispose();
-    }
+    _name.dispose();
     super.dispose();
   }
 
-  /// Seed controllers once from the async-loaded profile — after that the
-  /// text fields own their text and only push INTO the provider.
-  void _seed(DriverProfile p) {
-    if (_seeded) return;
-    if (p == DriverProfile.empty) return; // still loading or truly empty
-    _name.text = p.name;
-    _make.text = p.vehicleMake;
-    _model.text = p.vehicleModel;
-    _year.text = p.vehicleYear;
-    _plate.text = p.licensePlate;
-    _seeded = true;
-  }
+  @override
+  Widget build(BuildContext context) {
+    final saved = ref.watch(driverNameProvider);
+    // Seed once from the async-loaded name — after that the field owns its text.
+    if (!_seeded && saved.isNotEmpty) {
+      _name.text = saved;
+      _seeded = true;
+    }
+    final dirty = _name.text.trim() != saved.trim();
 
-  TextField _field(
-    TextEditingController c,
-    String label,
-    void Function(String) onChanged, {
-    TextInputType? keyboard,
-  }) =>
-      TextField(
-        controller: c,
-        onChanged: onChanged,
-        keyboardType: keyboard,
-        decoration: InputDecoration(labelText: label, isDense: true),
-      );
+    return Row(
+      children: [
+        Expanded(
+          child: TextField(
+            controller: _name,
+            onChanged: (_) => setState(() {}),
+            decoration:
+                const InputDecoration(labelText: 'Name', isDense: true),
+          ),
+        ),
+        if (dirty) ...[
+          const SizedBox(width: Gap.sm),
+          IconButton(
+            key: const ValueKey('save-name'),
+            onPressed: () {
+              ref
+                  .read(driverNameProvider.notifier)
+                  .setName(_name.text.trim());
+              setState(() {});
+            },
+            icon: const Icon(Icons.check_circle_rounded,
+                color: FoxColors.brandFox),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+/// Vehicle list — premium mini car-cards + a "+ Add vehicle" affordance (spec
+/// M6 §4.2). Tap sets active (instant, persisted). The edit icon opens the
+/// editor.
+class _GarageList extends ConsumerWidget {
+  const _GarageList();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final garage = ref.watch(garageProvider);
+    return Column(
+      children: [
+        for (final v in garage.vehicles) ...[
+          _VehicleCard(
+            vehicle: v,
+            active: garage.active?.id == v.id,
+            onTap: () => ref.read(garageProvider.notifier).setActive(v.id),
+            onEdit: () => context.push('/vehicle-editor', extra: v),
+          ),
+          const SizedBox(height: Gap.sm),
+        ],
+        // "+ Add vehicle" card.
+        InkWell(
+          key: const ValueKey('add-vehicle'),
+          borderRadius: BorderRadius.circular(Radii.cardSm),
+          onTap: () => context.push('/vehicle-editor'),
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: Gap.md),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(Radii.cardSm),
+              border: Border.all(color: FoxColors.border),
+            ),
+            child: const Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.add_rounded, color: FoxColors.brandFox, size: 20),
+                SizedBox(width: Gap.sm),
+                Text(
+                  'Add vehicle',
+                  style: TextStyle(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w700,
+                    color: FoxColors.brandFox,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// One vehicle row: art thumbnail, title + plate chip, active tick, edit icon.
+class _VehicleCard extends StatelessWidget {
+  const _VehicleCard({
+    required this.vehicle,
+    required this.active,
+    required this.onTap,
+    required this.onEdit,
+  });
+
+  final Vehicle vehicle;
+  final bool active;
+  final VoidCallback onTap;
+  final VoidCallback onEdit;
 
   @override
   Widget build(BuildContext context) {
-    final profile = ref.watch(profileProvider);
-    final controller = ref.read(profileProvider.notifier);
-    _seed(profile);
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _field(_name, 'Name', controller.setName),
-        const SizedBox(height: Gap.sm),
-        Row(children: [
-          Expanded(child: _field(_make, 'Make', controller.setMake)),
-          const SizedBox(width: Gap.sm),
-          Expanded(child: _field(_model, 'Model', controller.setModel)),
-        ]),
-        const SizedBox(height: Gap.sm),
-        Row(children: [
-          Expanded(
-            child: _field(_year, 'Year', controller.setYear,
-                keyboard: TextInputType.number),
+    return InkWell(
+      borderRadius: BorderRadius.circular(Radii.cardSm),
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(Gap.sm + Gap.xs),
+        decoration: BoxDecoration(
+          color: FoxColors.bgSurface,
+          borderRadius: BorderRadius.circular(Radii.cardSm),
+          border: Border.all(
+            color: active ? FoxColors.brandFox : FoxColors.borderSoft,
+            width: active ? 1.5 : 1,
           ),
-          const SizedBox(width: Gap.sm),
-          Expanded(child: _field(_plate, 'Plate', controller.setPlate)),
-        ]),
-        const SizedBox(height: Gap.md),
-        // Color swatches — fixed palette, no custom picker.
-        Wrap(
-          spacing: Gap.sm,
-          runSpacing: Gap.sm,
+          boxShadow: active ? Shadows.glowSoft : Shadows.soft,
+        ),
+        child: Row(
           children: [
-            for (final entry in DriverProfile.palette.entries)
-              GestureDetector(
-                onTap: () => controller.setColor(entry.key),
-                child: Container(
-                  width: 32,
-                  height: 32,
-                  decoration: BoxDecoration(
-                    color: Color(entry.key),
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      width: profile.vehicleColor == entry.key ? 3 : 1,
-                      color: profile.vehicleColor == entry.key
-                          ? FoxColors.brandFox
-                          : FoxColors.textDisabled,
+            VehicleArt(
+              bodyType: vehicle.bodyType,
+              color: Color(vehicle.colorValue),
+              fuelType: vehicle.fuelType,
+              width: 72,
+            ),
+            const SizedBox(width: Gap.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    vehicle.title.isEmpty ? 'Unnamed vehicle' : vehicle.title,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: FoxColors.textPrimary,
                     ),
                   ),
-                ),
+                  if (vehicle.plate.trim().isNotEmpty) ...[
+                    const SizedBox(height: 3),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 7, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: FoxColors.bgSurface2,
+                        borderRadius: BorderRadius.circular(5),
+                        border: Border.all(color: FoxColors.border),
+                      ),
+                      child: Text(
+                        vehicle.plate,
+                        style: const TextStyle(
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.8,
+                          color: FoxColors.textSecondary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
               ),
+            ),
+            if (active)
+              const Icon(Icons.check_circle_rounded,
+                  color: FoxColors.brandFox, size: 20),
+            IconButton(
+              onPressed: onEdit,
+              icon: const Icon(Icons.edit_outlined,
+                  color: FoxColors.textSecondary, size: 18),
+            ),
           ],
         ),
-        const SizedBox(height: Gap.md),
-        // Body style chips.
-        Wrap(
-          spacing: Gap.sm,
-          runSpacing: Gap.xs,
-          children: [
-            for (final t in VehicleType.values)
-              ChoiceChip(
-                label: Text(t.name),
-                selected: profile.vehicleType == t,
-                onSelected: (_) => controller.setType(t),
-              ),
-          ],
-        ),
-      ],
+      ),
     );
   }
 }

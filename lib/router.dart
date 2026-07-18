@@ -1,6 +1,8 @@
 import 'package:go_router/go_router.dart';
 
+import 'domain/garage.dart';
 import 'ui/onboarding/onboarding_screen.dart';
+import 'ui/settings/vehicle_editor_screen.dart';
 import 'ui/shell/root_shell.dart';
 
 /// App routes. The root is the three-tab [RootShell] (Home / History /
@@ -15,6 +17,11 @@ GoRouter createRouter({required bool showOnboarding}) => GoRouter(
     GoRoute(
       path: '/onboarding',
       builder: (context, state) => const OnboardingScreen(),
+    ),
+    GoRoute(
+      path: '/vehicle-editor',
+      builder: (context, state) =>
+          VehicleEditorScreen(initial: state.extra as Vehicle?),
     ),
   ],
 );
