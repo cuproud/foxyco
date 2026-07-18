@@ -121,7 +121,13 @@ public class OverlayService extends Service implements View.OnTouchListener {
         Log.d("onStartCommand", "Service started");
         FlutterEngine engine = FlutterEngineCache.getInstance().get(OverlayConstants.CACHED_TAG);
         engine.getLifecycleChannel().appIsResumed();
-        flutterView = new FlutterView(getApplicationContext(), new FlutterTextureView(getApplicationContext()));
+        // FoxyCo patch: TextureView defaults to OPAQUE — the window's transparent
+        // area then composites as a dark box/gradient behind the bubble and pill
+        // (bug screenshots 2026-07-17). setOpaque(false) makes the surface truly
+        // translucent so only our widgets paint.
+        FlutterTextureView textureView = new FlutterTextureView(getApplicationContext());
+        textureView.setOpaque(false);
+        flutterView = new FlutterView(getApplicationContext(), textureView);
         flutterView.attachToFlutterEngine(FlutterEngineCache.getInstance().get(OverlayConstants.CACHED_TAG));
         flutterView.setFitsSystemWindows(true);
         flutterView.setFocusable(true);

@@ -14,6 +14,7 @@ import android.graphics.PixelFormat;
 import android.graphics.Rect;
 import android.os.Build;
 import android.os.Handler;
+import android.os.HandlerThread;
 import android.os.Looper;
 import android.util.Log;
 import android.util.LruCache;
@@ -49,23 +50,66 @@ public class AccessibilityListener extends AccessibilityService {
     private static WindowManager mWindowManager;
     private static FlutterView mOverlayView;
     static private boolean isOverlayShown = false;
-    private static final int CACHE_SIZE = 4 * 1024 * 1024; // 4Mib
+    // FoxyCo patch: LruCache's ctor arg is ENTRY COUNT (default sizeOf() == 1),
+    // not bytes — the old 4*1024*1024 retained ~4M AccessibilityNodeInfo
+    // snapshots, an unbounded leak in practice (every node of every walk is
+    // stored). FoxyCo never taps gig-app nodes, so a small cache is plenty.
+    private static final int CACHE_SIZE = 512;
     private static final int maxDepth = 20;
     private static LruCache<String, AccessibilityNodeInfo> nodeMap =
             new LruCache<>(CACHE_SIZE);
-    private static final int DEFAULT_MAX_TREE_DEPTH = 15;
+    // FoxyCo patch: was 15 — too shallow for Uber Driver, whose RIBs UI nests
+    // views 20–40 deep. Chrome (tab bar) sits shallow and was captured; the
+    // offer card's $/legs/Accept sit deeper and were truncated away, so Uber
+    // reads arrived with only chrome text (device log 2026-07-16). 60 is a
+    // recursion-bomb guard, not a tuning knob.
+    private static final int DEFAULT_MAX_TREE_DEPTH = 60;
     private int maximumTreeDepth = DEFAULT_MAX_TREE_DEPTH;
 
     public static AccessibilityNodeInfo getNodeInfo(String id) {
         return nodeMap.get(id);
     }
 
+    // FoxyCo patch — the "everything hangs" root cause. All of this processing
+    // (a depth-60 recursive walk of EVERY same-package window, per-node binder
+    // IPC, then Gson-serializing the whole node dump to SharedPreferences) ran
+    // on the app process's MAIN thread on every accessibility event (~3/s while
+    // an offer card animates). That starved the overlay window's touch handling
+    // — unresponsive/undraggable/unclosable bubble and pill, taps not opening
+    // the app — and backed parsing up by seconds. Node access is binder IPC and
+    // safe off the main thread, so run it all on one background HandlerThread.
+    // Queue depth 1: a new event evicts any not-yet-started walk, so we always
+    // parse the freshest frame instead of grinding through a stale backlog.
+    private static final Handler sWorker;
+    static {
+        HandlerThread thread = new HandlerThread("foxyco-a11y");
+        thread.start();
+        sWorker = new Handler(thread.getLooper());
+    }
+
     @RequiresApi(api = Build.VERSION_CODES.N)
     @Override
     public void onAccessibilityEvent(AccessibilityEvent accessibilityEvent) {
+        // Copy: the framework may recycle the event after this callback returns.
+        final AccessibilityEvent event = AccessibilityEvent.obtain(accessibilityEvent);
+        sWorker.removeCallbacksAndMessages(null); // coalesce — latest frame wins
+        sWorker.post(() -> processEvent(event));
+    }
+
+    @RequiresApi(api = Build.VERSION_CODES.N)
+    private void processEvent(AccessibilityEvent accessibilityEvent) {
         try {
             final int eventType = accessibilityEvent.getEventType();
             AccessibilityNodeInfo parentNodeInfo = accessibilityEvent.getSource();
+            // FoxyCo patch: window-level events (a new window appearing — e.g.
+            // Uber's offer card, which is its OWN focused window) routinely carry
+            // a NULL source. Upstream bailed here, so the card was never walked
+            // and Uber offers were invisible. Fall back to the active window's
+            // root — at card time the card IS the active window (ground-truth
+            // uiautomator dump 2026-07-16).
+            if (parentNodeInfo == null) {
+                parentNodeInfo = getRootInActiveWindow();
+            }
             AccessibilityWindowInfo windowInfo = null;
             List<String> nextTexts = new ArrayList<>();
             List<Integer> actions = new ArrayList<>();
@@ -97,13 +141,32 @@ public class AccessibilityListener extends AccessibilityService {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
                 data.put("contentChangeTypes", accessibilityEvent.getContentChangeTypes());
             }
-            if (parentNodeInfo.getText() != null) {
-                data.put("capturedText", parentNodeInfo.getText().toString());
+            // FoxyCo patch: fall back to contentDescription. Uber Driver's offer
+            // card exposes its content ($, mins, km, Accept) ONLY via
+            // contentDescription — getText() is empty on those nodes — so
+            // text-only capture reads Uber cards as blank (device log 2026-07-16).
+            CharSequence parentText = parentNodeInfo.getText();
+            if (parentText == null || parentText.length() == 0) {
+                parentText = parentNodeInfo.getContentDescription();
+            }
+            if (parentText != null) {
+                data.put("capturedText", parentText.toString());
             }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR2) {
                 data.put("nodeId", parentNodeInfo.getViewIdResourceName());
             }
             getSubNodes(parentNodeInfo, subNodeActions, traversedNodes, 0);
+            // FoxyCo patch: ALSO walk the active window's ROOT. The event source
+            // is only the subtree that fired the event — on Uber that's the map
+            // container, while the offer card is a SIBLING subtree that never
+            // fires its own events. uiautomator (which dumps from the active
+            // root) sees the card fine; source-only traversal never does
+            // (ground-truth dump 2026-07-16, $15.18 card present at depth 19).
+            // traversedNodes dedupes the overlap with the source subtree.
+            AccessibilityNodeInfo activeRoot = getRootInActiveWindow();
+            if (activeRoot != null && packageName.equals(String.valueOf(activeRoot.getPackageName()))) {
+                getSubNodes(activeRoot, subNodeActions, traversedNodes, 0);
+            }
             // FoxyCo patch: the event source is only ONE node's subtree. An offer
             // card that lives in a SEPARATE window (e.g. Uber's card drawn over the
             // map) is never in that subtree when the event fires from another window,
@@ -114,8 +177,10 @@ public class AccessibilityListener extends AccessibilityService {
             // active window isn't double-counted (which would e.g. give Lyft 4 legs
             // instead of 2). Package-scoped so our own overlay pill, the status/nav
             // bars, and the IME never leak their text into the gig app's read.
-            // BISECT: temporarily disabled to confirm baseline delivery works.
-            // collectSamePackageWindows(subNodeActions, traversedNodes, packageName);
+            // NOTE: a bisect once shipped with this line commented out — that broke
+            // Uber AND Hopp parsing entirely (their cards are separate windows).
+            // Keep it enabled.
+            collectSamePackageWindows(subNodeActions, traversedNodes, packageName);
             data.put("nodesText", nextTexts);
             actions.addAll(parentNodeInfo.getActionList().stream().map(AccessibilityNodeInfo.AccessibilityAction::getId).collect(Collectors.toList()));
             data.put("parentActions", actions);
@@ -139,6 +204,9 @@ public class AccessibilityListener extends AccessibilityService {
             sendBroadcast(intent);
         } catch (Exception ex) {
             Log.e("EVENT", "onAccessibilityEvent: " + ex.getMessage());
+        } finally {
+            // Balances the AccessibilityEvent.obtain() copy made on the main thread.
+            accessibilityEvent.recycle();
         }
     }
 
@@ -180,7 +248,13 @@ public class AccessibilityListener extends AccessibilityService {
             windowInfo = node.getWindow();
             nested.put("mapId", mapId);
             nested.put("nodeId", node.getViewIdResourceName());
-            nested.put("capturedText", node.getText());
+            // FoxyCo patch: same contentDescription fallback as the event source —
+            // Uber's card content lives ONLY in contentDescription.
+            CharSequence nodeText = node.getText();
+            if (nodeText == null || nodeText.length() == 0) {
+                nodeText = node.getContentDescription();
+            }
+            nested.put("capturedText", nodeText);
             nested.put("screenBounds", getBoundingPoints(rect));
             nested.put("isClickable", node.isClickable());
             nested.put("isScrollable", node.isScrollable());
@@ -222,6 +296,11 @@ public class AccessibilityListener extends AccessibilityService {
         try {
             List<AccessibilityWindowInfo> windows = getWindows();
             if (windows == null) return;
+            // FoxyCo: MUST pass the SHARED traversedNodes set. A diagnostic build
+            // once walked each window into a separate set — every node the event
+            // source already captured was appended AGAIN, so every leg line
+            // appeared twice and foldLegs summed doubled distances (the
+            // "39.2 km for a 19.6 km ride" pill-math bug, screenshots 2026-07-17).
             for (AccessibilityWindowInfo window : windows) {
                 if (window == null) continue;
                 AccessibilityNodeInfo root = window.getRoot();

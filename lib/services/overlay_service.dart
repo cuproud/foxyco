@@ -108,9 +108,15 @@ class OverlayService {
   Future<void> setPaused(bool paused) =>
       FlutterOverlayWindow.shareData(OverlayControl.paused(paused));
 
-  /// Drop the current pill without tearing the overlay down.
-  Future<void> clearPill() =>
-      FlutterOverlayWindow.shareData(OverlayControl.clearPill());
+  /// Drop the current pill without tearing the overlay down. Sent twice, like
+  /// [showOffer]'s belt-and-braces: a single `shareData` can be dropped while
+  /// the overlay isolate is waking from idle (plugin characteristic, worse in
+  /// debug), which left a stale pill hanging until the safety timer.
+  Future<void> clearPill() async {
+    await FlutterOverlayWindow.shareData(OverlayControl.clearPill());
+    await Future<void>.delayed(const Duration(milliseconds: 250));
+    await FlutterOverlayWindow.shareData(OverlayControl.clearPill());
+  }
 
   /// Tear the overlay window down entirely (stop watching).
   Future<void> hide() => FlutterOverlayWindow.closeOverlay();

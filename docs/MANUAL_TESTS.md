@@ -213,4 +213,21 @@ showing. Misses with zero successes ⇒ "Needs update".
 
 ---
 
-_Last updated: 2026-07-16 (rate-mode RM-rows, shift-summary SS-rows, resilience R-rows, onboarding O-rows added; real offer log; settings expanded)._
+## Overlay responsiveness + read pipeline (2026-07-17 bug batch)
+
+Fixes: a11y event processing moved off the main thread (unresponsive
+bubble/pill root cause), duplicate-window node walk removed (doubled leg math),
+opaque TextureView made translucent (dark gradient box), node LruCache bounded.
+
+| # | How | PASS bar | Status |
+|---|-----|----------|--------|
+| OV.1 | Long session (30+ min) in Hopp/Lyft with offers streaming | Bubble stays draggable/tappable the whole time — no freeze, no force-close needed | [ ] |
+| OV.2 | Tap bubble mid-offer-storm | FoxyCo foregrounds within ~1 s | [ ] |
+| OV.3 | Real offer, compare pill to card | Pill km/min/$ EXACTLY match the card's summed legs (e.g. 2-leg 4.5+15.1 km card ⇒ 19.6 km, never 39.2) | [ ] |
+| OV.4 | Look behind bubble AND pill on a light map | No dark box/gradient/halo behind either — fully transparent around the widgets | [ ] |
+| OV.5 | Decline/dismiss an offer | Pill drops to bubble within ~1–2 s (clearGrace + isolate wake), never sticks to the 45 s timer | [ ] |
+| OV.6 | Offer appears | Pill within ~1 s of the card (parse no longer lags seconds behind) | [ ] |
+
+---
+
+_Last updated: 2026-07-17 (OV-rows: overlay responsiveness, pill math, transparency, decline-clear)._

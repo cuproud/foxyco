@@ -52,16 +52,14 @@ class VerdictPill extends StatelessWidget {
         clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(Radii.pill),
-          boxShadow: [
+          // One tight, neutral drop shadow. The old verdict-colored glow +
+          // wide dark blur painted a smeary gradient across the overlay
+          // window box over the map — looked like a dirty halo, not depth.
+          boxShadow: const [
             BoxShadow(
-              color: _rateColor.withValues(alpha: 0.28),
-              blurRadius: 14,
-              offset: const Offset(0, 6),
-            ),
-            const BoxShadow(
-              color: Color(0x38141C17),
-              blurRadius: 18,
-              offset: Offset(0, 8),
+              color: Color(0x2E141C17),
+              blurRadius: 8,
+              offset: Offset(0, 3),
             ),
           ],
         ),
