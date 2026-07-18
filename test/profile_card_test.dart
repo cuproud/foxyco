@@ -2,50 +2,83 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:foxyco/domain/driver_profile.dart';
+import 'package:foxyco/domain/garage.dart';
 import 'package:foxyco/ui/home/profile_card.dart';
-import 'package:foxyco/ui/settings/profile_controller.dart';
+import 'package:foxyco/ui/settings/garage_controller.dart';
+import 'package:foxyco/ui/theme/vehicle_art.dart';
 
-class _FixedProfile extends ProfileController {
-  _FixedProfile(this._p);
-  final DriverProfile _p;
+class _FixedGarage extends GarageController {
+  _FixedGarage(this._g);
+  final Garage _g;
   @override
-  DriverProfile build() => _p;
+  Garage build() => _g;
 }
 
-Widget _app(DriverProfile p) => ProviderScope(
-      overrides: [profileProvider.overrideWith(() => _FixedProfile(p))],
+class _FixedName extends DriverNameController {
+  _FixedName(this._n);
+  final String _n;
+  @override
+  String build() => _n;
+}
+
+Widget _app(String name, Garage g) => ProviderScope(
+      overrides: [
+        garageProvider.overrideWith(() => _FixedGarage(g)),
+        driverNameProvider.overrideWith(() => _FixedName(name)),
+      ],
       child: const MaterialApp(home: Scaffold(body: ProfileCard())),
     );
 
 void main() {
-  testWidgets('no name → no card', (tester) async {
-    await tester.pumpWidget(_app(DriverProfile.empty));
-    await tester.pump();
-    expect(
-      find.byWidgetPredicate(
-        (w) => w is CustomPaint && w.painter is VehiclePainter,
-      ),
-      findsNothing,
-    );
-    expect(find.textContaining('Good'), findsNothing);
+  test('greeting bands: 05/12/17/22 boundaries (spec M6 §3.1)', () {
+    expect(ProfileCard.greetingFor(5), 'Good morning');
+    expect(ProfileCard.greetingFor(11), 'Good morning');
+    expect(ProfileCard.greetingFor(12), 'Good afternoon');
+    expect(ProfileCard.greetingFor(16), 'Good afternoon');
+    expect(ProfileCard.greetingFor(17), 'Good evening');
+    expect(ProfileCard.greetingFor(21), 'Good evening');
+    expect(ProfileCard.greetingFor(22), 'Late shift');
+    expect(ProfileCard.greetingFor(1), 'Late shift');
+    expect(ProfileCard.greetingFor(4), 'Late shift');
   });
 
-  testWidgets('named profile → greeting + vehicle line + art', (tester) async {
-    final p = DriverProfile.empty.copyWith(
-      name: 'Vamsi',
-      vehicleMake: 'Toyota',
-      vehicleColor: 0xFFC62828,
-      vehicleType: VehicleType.sedan,
+  testWidgets('no name → no card', (tester) async {
+    await tester.pumpWidget(_app('', Garage.empty));
+    await tester.pump();
+    expect(find.byType(VehicleArt), findsNothing);
+    expect(find.textContaining(','), findsNothing);
+  });
+
+  testWidgets('name + active vehicle → greeting, vehicle line, art, EV badge',
+      (tester) async {
+    const g = Garage(
+      vehicles: [
+        Vehicle(
+          id: 'a',
+          make: 'Toyota',
+          model: 'Camry',
+          year: '2022',
+          plate: 'ABC-123',
+          colorValue: 0xFFC62828,
+          bodyType: VehicleType.sedan,
+          fuelType: FuelType.ev,
+        ),
+      ],
+      activeId: 'a',
     );
-    await tester.pumpWidget(_app(p));
+    await tester.pumpWidget(_app('Vamsi', g));
     await tester.pump(const Duration(seconds: 1));
     expect(find.textContaining('Vamsi'), findsOneWidget);
-    expect(find.textContaining('Red Toyota'), findsOneWidget);
-    expect(
-      find.byWidgetPredicate(
-        (w) => w is CustomPaint && w.painter is VehiclePainter,
-      ),
-      findsOneWidget,
-    );
+    expect(find.textContaining('Red 2022 Toyota Camry'), findsOneWidget);
+    expect(find.byType(VehicleArt), findsOneWidget);
+    expect(find.text('⚡ EV'), findsOneWidget);
+  });
+
+  testWidgets('name but empty garage → card shows greeting, no art',
+      (tester) async {
+    await tester.pumpWidget(_app('Vamsi', Garage.empty));
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.textContaining('Vamsi'), findsOneWidget);
+    expect(find.byType(VehicleArt), findsNothing);
   });
 }
