@@ -230,4 +230,21 @@ opaque TextureView made translucent (dark gradient box), node LruCache bounded.
 
 ---
 
-_Last updated: 2026-07-17 (OV-rows: overlay responsiveness, pill math, transparency, decline-clear)._
+## M5 — Polish & Control (2026-07-17)
+
+| # | How | PASS bar | Status |
+|---|-----|----------|--------|
+| M5.1 | Settings → Pill size Large, tap "Show a demo pill" | Pill renders LARGE (window ~348×100dp); Small/Medium likewise exact | [ ] |
+| M5.2 | Change size while a pill is up | Live pill keeps its size; NEXT offer uses the new size | [ ] |
+| M5.3 | Drag large pill to either edge | Still draggable — window under 360dp never pins mid-screen | [ ] |
+| M5.4 | Drive a session, `adb install -r` a new build, open Settings → Logs | Pre-update lines still present | [ ] |
+| M5.5 | Logs → copy | Clipboard holds the tail; Clear (confirm) empties viewer | [ ] |
+| M5.6 | Fill profile name+vehicle in Settings, back to Home | Hero card: greeting, vehicle line, tinted silhouette matches type+color | [ ] |
+| M5.7 | Clear profile name | Card gone; dashboard exactly as before | [ ] |
+| M5.8 | Fresh install, grant both permissions | Bubble does NOT appear until Start Monitoring tapped | [ ] |
+| M5.9 | Start → kill app → relaunch | Boots STOPPED (never auto-watching) | [ ] |
+| M5.10 | While watching: bubble long-press pause, resume | Pause/resume unchanged, layered under Start/Stop | [ ] |
+
+---
+
+_Last updated: 2026-07-17 (M5 rows: pill size, logs, profile card, manual start)._
