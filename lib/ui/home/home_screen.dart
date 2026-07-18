@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/offer_summary.dart';
+import '../../domain/platform.dart';
 import '../../services/offer_log.dart';
 import '../overlay/overlay_controller.dart';
 import '../settings/settings_controller.dart';
+import '../theme/platform_badge.dart';
 import '../theme/tokens.dart';
 import '../theme/verdict_style.dart';
 import 'dashboard_controller.dart';
@@ -41,7 +43,6 @@ class HomeScreen extends ConsumerWidget {
           platforms: ref
               .watch(settingsProvider)
               .watchedApps
-              .map((p) => p.label)
               .toList(),
           // Slide-to-go-live is the Start/Stop outer gate (spec M6 §3.2);
           // pause stays on the bubble long-press.
@@ -158,7 +159,7 @@ class _Hero extends StatelessWidget {
 
   final WatchStatus status;
   final Tally tally;
-  final List<String> platforms;
+  final List<GigPlatform> platforms;
   final VoidCallback onStart; // begin monitoring
   final VoidCallback onStop; // stop monitoring
   final VoidCallback onFix; // grant missing permission
@@ -218,7 +219,7 @@ class _Hero extends StatelessWidget {
               ),
               const Spacer(),
               for (final p in platforms) ...[
-                _AppTag(p),
+                PlatformBadge(platform: p),
                 const SizedBox(width: 6),
               ],
             ],
@@ -227,16 +228,23 @@ class _Hero extends StatelessWidget {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                '$total',
-                style: const TextStyle(
-                  fontFamily: FoxFonts.display,
-                  fontSize: 56,
-                  height: 1.0,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: -1.5,
-                  color: FoxColors.cream,
-                  fontFeatures: [FontFeature.tabularFigures()],
+              TweenAnimationBuilder<int>(
+                tween: IntTween(begin: 0, end: total),
+                duration: MediaQuery.of(context).disableAnimations
+                    ? Duration.zero
+                    : Motion.count,
+                curve: Motion.curve,
+                builder: (context, value, _) => Text(
+                  '$value',
+                  style: const TextStyle(
+                    fontFamily: FoxFonts.display,
+                    fontSize: 56,
+                    height: 1.0,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: -1.5,
+                    color: FoxColors.cream,
+                    fontFeatures: [FontFeature.tabularFigures()],
+                  ),
                 ),
               ),
               const SizedBox(height: Gap.xs),
@@ -268,62 +276,40 @@ class _Hero extends StatelessWidget {
   }
 }
 
-class _AppTag extends StatelessWidget {
-  const _AppTag(this.label);
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-      decoration: BoxDecoration(
-        color: FoxColors.cream.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(Radii.pill),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.w600,
-          color: FoxColors.cream.withValues(alpha: 0.68),
-        ),
-      ),
-    );
-  }
-}
-
-/// The proportional good/ok/bad bar inside the hero.
+/// The proportional good/ok/bad bar inside the hero. Segments grow into place
+/// (spec M6 §3.3); an empty tally leaves the tinted track showing.
 class _SegBar extends StatelessWidget {
   const _SegBar({required this.tally});
   final Tally tally;
 
   @override
   Widget build(BuildContext context) {
-    // Empty tally -> no segments, and the container's tinted track shows through.
+    final total = tally.good + tally.ok + tally.bad;
+    final reduced = MediaQuery.of(context).disableAnimations;
     return ClipRRect(
       borderRadius: BorderRadius.circular(Radii.pill),
       child: Container(
-        height: 12,
-        color: FoxColors.cream.withValues(alpha: 0.10),
-        child: Row(
-          children: [
-            if (tally.good > 0)
-              Expanded(
-                flex: tally.good,
-                child: const ColoredBox(color: VerdictColors.goodOnDark),
+        height: 16,
+        color: FoxColors.cream.withValues(alpha: 0.08),
+        child: total == 0
+            ? null // empty tally -> track shows through (spec M6 §3.3)
+            : LayoutBuilder(
+                builder: (context, c) => Row(
+                  children: [
+                    for (final (count, color) in [
+                      (tally.good, VerdictColors.good),
+                      (tally.ok, VerdictColors.ok),
+                      (tally.bad, VerdictColors.bad),
+                    ])
+                      AnimatedContainer(
+                        duration: reduced ? Duration.zero : Motion.base,
+                        curve: Motion.curve,
+                        width: c.maxWidth * count / total,
+                        color: color,
+                      ),
+                  ],
+                ),
               ),
-            if (tally.ok > 0)
-              Expanded(
-                flex: tally.ok,
-                child: const ColoredBox(color: VerdictColors.okOnDark),
-              ),
-            if (tally.bad > 0)
-              Expanded(
-                flex: tally.bad,
-                child: const ColoredBox(color: VerdictColors.badOnDark),
-              ),
-          ],
-        ),
       ),
     );
   }
@@ -338,9 +324,9 @@ class _SegLegend extends StatelessWidget {
     return Row(
       children: [
         _LegendItem(VerdictColors.goodOnDark, tally.good, 'good'),
-        const SizedBox(width: Gap.md),
+        const SizedBox(width: Gap.sm),
         _LegendItem(VerdictColors.okOnDark, tally.ok, 'ok'),
-        const SizedBox(width: Gap.md),
+        const SizedBox(width: Gap.sm),
         _LegendItem(VerdictColors.badOnDark, tally.bad, 'bad'),
       ],
     );
@@ -355,38 +341,44 @@ class _LegendItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Container(
-          width: 8,
-          height: 8,
-          decoration: BoxDecoration(
-            color: color,
-            borderRadius: BorderRadius.circular(2),
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: FoxColors.cream.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(Radii.pill),
+        border: Border.all(color: FoxColors.cream.withValues(alpha: 0.10)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
           ),
-        ),
-        const SizedBox(width: 6),
-        Text.rich(
-          TextSpan(
-            children: [
-              TextSpan(
-                text: '$count',
-                style: const TextStyle(
-                  color: FoxColors.cream,
-                  fontWeight: FontWeight.w700,
-                  fontFeatures: [FontFeature.tabularFigures()],
+          const SizedBox(width: 6),
+          Text.rich(
+            TextSpan(
+              children: [
+                TextSpan(
+                  text: '$count',
+                  style: const TextStyle(
+                    color: FoxColors.cream,
+                    fontWeight: FontWeight.w700,
+                    fontFeatures: [FontFeature.tabularFigures()],
+                  ),
                 ),
+                TextSpan(text: ' $label'),
+              ],
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: FoxColors.cream.withValues(alpha: 0.55),
               ),
-              TextSpan(text: ' $label'),
-            ],
-            style: TextStyle(
-              fontSize: 12.5,
-              fontWeight: FontWeight.w600,
-              color: FoxColors.cream.withValues(alpha: 0.55),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -495,13 +487,19 @@ class _Ticket extends StatelessWidget {
             child: Row(
               children: [
                 Container(
-                  width: 3,
+                  width: 4,
                   margin: const EdgeInsets.symmetric(vertical: 14),
                   decoration: BoxDecoration(
                     color: style.color,
                     borderRadius: const BorderRadius.horizontal(
                       right: Radius.circular(3),
                     ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: style.color.withValues(alpha: 0.55),
+                        blurRadius: 10,
+                      ),
+                    ],
                   ),
                 ),
                 Expanded(
