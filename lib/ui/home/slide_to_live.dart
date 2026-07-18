@@ -150,7 +150,7 @@ class _SlideToLiveState extends State<SlideToLive>
               children: [
                 // Orange fill rising behind the thumb.
                 AnimatedContainer(
-                  duration: _dragging ? Duration.zero : Motion.fast,
+                  duration: (_dragging || _reduced) ? Duration.zero : Motion.fast,
                   width: x + _thumb + 6,
                   height: _height,
                   decoration: BoxDecoration(
@@ -192,6 +192,8 @@ class _SlideToLiveState extends State<SlideToLive>
                             (_drag + d.delta.dx / travelPx).clamp(0.0, 1.0)),
                     onHorizontalDragEnd:
                         blocked ? null : (_) => _release(_drag),
+                    onHorizontalDragCancel:
+                        blocked ? null : () => _release(_drag),
                     child: Container(
                       width: _thumb,
                       height: _thumb,
@@ -279,6 +281,7 @@ class _SlideToLiveState extends State<SlideToLive>
                   onHorizontalDragUpdate: (d) => setState(() => _drag =
                       (_drag - d.delta.dx / travelPx).clamp(0.0, 1.0)),
                   onHorizontalDragEnd: (_) => _release(_drag),
+                  onHorizontalDragCancel: () => _release(_drag),
                   child: Container(
                     width: _thumb,
                     height: _thumb,
