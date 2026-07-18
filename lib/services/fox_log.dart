@@ -50,13 +50,17 @@ class FoxLog {
 
   /// Write the buffer out now. Safe to call anytime; fail-soft.
   Future<void> flush() async {
+    _flushTimer?.cancel();
+    _flushTimer = null;
     if (_buffer.isEmpty) return;
     final lines = List.of(_buffer);
     _buffer.clear();
     try {
       final file = await _file();
       if (file == null) return;
-      await file.writeAsString('${lines.join('\n')}\n',
+      // Sync write: keeps FoxLog usable under FakeAsync (widget tests) where
+      // real async I/O futures never complete. Writes are small + buffered.
+      file.writeAsStringSync('${lines.join('\n')}\n',
           mode: FileMode.append, flush: true);
       if (file.lengthSync() > maxBytes) _rotate(file);
     } catch (_) {/* fail-soft */}

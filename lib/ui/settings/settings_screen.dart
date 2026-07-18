@@ -13,6 +13,7 @@ import '../../services/parse_health.dart';
 import '../overlay/verdict_pill.dart';
 import '../theme/tokens.dart';
 import '../theme/verdict_style.dart';
+import 'logs_screen.dart';
 import 'settings_controller.dart';
 
 /// Settings — every driver-tunable knob in [FoxSettings]: verdict thresholds
@@ -232,6 +233,37 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           'This session. "Needs update" means offer cards are arriving but '
           'FoxyCo can\'t read them — the app\'s layout likely changed.',
           style: text.bodyMedium?.copyWith(color: FoxColors.textSecondary),
+        ),
+        const SizedBox(height: Gap.lg),
+        const _SectionLabel('Logs'),
+        const SizedBox(height: Gap.sm),
+        _Card(
+          child: InkWell(
+            borderRadius: BorderRadius.circular(Radii.card),
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const LogsScreen()),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('View logs', style: text.titleMedium),
+                      const SizedBox(height: Gap.xs),
+                      Text(
+                        'Persistent debug log — survives restarts',
+                        style: text.bodyMedium
+                            ?.copyWith(color: FoxColors.textSecondary),
+                      ),
+                    ],
+                  ),
+                ),
+                const Icon(Icons.chevron_right_rounded,
+                    color: FoxColors.textSecondary),
+              ],
+            ),
+          ),
         ),
         const SizedBox(height: Gap.lg),
         const _SectionLabel('History'),
