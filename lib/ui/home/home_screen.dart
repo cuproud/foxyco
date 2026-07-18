@@ -42,7 +42,15 @@ class HomeScreen extends ConsumerWidget {
               .watchedApps
               .map((p) => p.label)
               .toList(),
-          onToggleActive: controller.togglePause,
+          // Hero button is the Start/Stop outer gate (spec M5 §4); pause
+          // stays on the bubble long-press.
+          onToggleActive: switch (state.status) {
+            WatchStatus.stopped => controller.startMonitoring,
+            WatchStatus.watching ||
+            WatchStatus.paused =>
+              controller.stopMonitoring,
+            WatchStatus.blocked => controller.requestMissingPermissions,
+          },
           onFix: controller.requestMissingPermissions,
         ),
         const SizedBox(height: Gap.lg),
@@ -164,6 +172,7 @@ class _Hero extends StatelessWidget {
     final statusText = switch (status) {
       WatchStatus.watching => 'On the prowl',
       WatchStatus.paused => 'Off duty',
+      WatchStatus.stopped => 'Ready when you are',
       WatchStatus.blocked => 'Access needed',
     };
     final paused = !online;
@@ -288,8 +297,8 @@ class _AppTag extends StatelessWidget {
   }
 }
 
-/// Go-live / stop toggle. Online → a quiet cream "Stop"; offline or blocked →
-/// the accent "Go Live" call-to-action.
+/// Go-live / stop toggle. Running (watching or paused) → a quiet cream
+/// "Stop"; stopped or blocked → the accent "Go Live" call-to-action.
 class _ActiveButton extends StatelessWidget {
   const _ActiveButton({required this.status, required this.onTap});
   final WatchStatus status;
@@ -297,7 +306,10 @@ class _ActiveButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final online = status == WatchStatus.watching;
+    // Paused still counts as running — the hero button is the outer
+    // Start/Stop gate, so its tap stops; label must say so.
+    final online =
+        status == WatchStatus.watching || status == WatchStatus.paused;
     final (bg, fg, icon, label) = online
         ? (FoxColors.cream, FoxColors.ink, Icons.stop_rounded, 'Stop')
         : (FoxColors.brandFox, Colors.white, Icons.bolt_rounded, 'Go Live');

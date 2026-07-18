@@ -38,7 +38,7 @@ class DashboardController extends Notifier<DashboardState> {
     ref.onDispose(() => _statusSub?.cancel());
 
     return const DashboardState(
-      status: WatchStatus.watching,
+      status: WatchStatus.stopped,
       permissions: PermissionStatus(
         overlayGranted: true,
         accessibilityGranted: true,
@@ -46,10 +46,35 @@ class DashboardController extends Notifier<DashboardState> {
     );
   }
 
-  /// Toggle watching ↔ paused (Home "Pause"/"Resume", bubble long-press later).
-  /// No-op while blocked — you can't pause something that isn't running.
-  void togglePause() {
+  /// Start Monitoring (spec M5 §4): opens the parse gate and summons the
+  /// bubble (overlay controller listens on status). No-op while blocked.
+  void startMonitoring() {
     if (state.status == WatchStatus.blocked) return;
+    state = _with(status: WatchStatus.watching);
+    ref.read(foxLogProvider).log('status', 'watch → watching (started)');
+    if (kDebugMode) debugPrint('FoxyCo watch status → watching (started)');
+  }
+
+  /// Full stop: overlay torn down, parse gate closed. Works from watching
+  /// AND paused (pause is a layer on top of running).
+  void stopMonitoring() {
+    if (state.status == WatchStatus.blocked ||
+        state.status == WatchStatus.stopped) {
+      return;
+    }
+    state = _with(status: WatchStatus.stopped);
+    ref.read(foxLogProvider).log('status', 'watch → stopped');
+    if (kDebugMode) debugPrint('FoxyCo watch status → stopped');
+  }
+
+  /// Toggle watching ↔ paused (bubble long-press; Start/Stop is the outer
+  /// gate). No-op while blocked or stopped — you can't pause something that
+  /// isn't running.
+  void togglePause() {
+    if (state.status == WatchStatus.blocked ||
+        state.status == WatchStatus.stopped) {
+      return;
+    }
     final next = state.status == WatchStatus.paused
         ? WatchStatus.watching
         : WatchStatus.paused;
@@ -58,13 +83,18 @@ class DashboardController extends Notifier<DashboardState> {
     if (kDebugMode) debugPrint('FoxyCo watch status → ${next.name}');
   }
 
-  /// Bubble was dropped on the ✕ target (HANDOFF 10): explicit pause.
-  /// No-op while paused/blocked.
+  /// Bubble was dropped on the ✕ target: full stop (the native side already
+  /// closed the overlay window, so "stopped" keeps app and overlay in sync).
   void stopWatching() {
-    if (state.status != WatchStatus.watching) return;
-    state = _with(status: WatchStatus.paused);
-    ref.read(foxLogProvider).log('status', 'watch → paused (bubble dropped)');
-    if (kDebugMode) debugPrint('FoxyCo watch status → paused (bubble dropped)');
+    if (state.status != WatchStatus.watching &&
+        state.status != WatchStatus.paused) {
+      return;
+    }
+    state = _with(status: WatchStatus.stopped);
+    ref.read(foxLogProvider).log('status', 'watch → stopped (bubble dropped)');
+    if (kDebugMode) {
+      debugPrint('FoxyCo watch status → stopped (bubble dropped)');
+    }
   }
 
   /// Read real OS permission state (overlay + accessibility) and recompute
@@ -92,10 +122,11 @@ class DashboardController extends Notifier<DashboardState> {
       final WatchStatus status;
       if (!permissions.allGranted) {
         status = WatchStatus.blocked;
-      } else if (state.status == WatchStatus.paused) {
-        status = WatchStatus.paused; // keep an explicit pause
+      } else if (state.status == WatchStatus.watching ||
+          state.status == WatchStatus.paused) {
+        status = state.status; // explicit running state survives a refresh
       } else {
-        status = WatchStatus.watching;
+        status = WatchStatus.stopped; // granted but user hasn't started
       }
       state = _with(status: status, permissions: permissions);
       ref.read(foxLogProvider).log('status', 'watch → ${status.name}');

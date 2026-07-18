@@ -131,6 +131,7 @@ void main() {
     final c = _containerWith(fake);
     // Instantiate the controller so it subscribes to the action stream.
     c.read(overlayControllerProvider);
+    c.read(dashboardProvider.notifier).startMonitoring();
     expect(c.read(dashboardProvider).status, WatchStatus.watching);
 
     fake.emitAction(OverlayAction.togglePause);
@@ -140,14 +141,17 @@ void main() {
     expect(fake.hidden, isTrue); // offline tears the bubble down, not dims it
   });
 
-  test('brings the overlay up immediately when status is watching (req 11)',
-      () async {
+  test('brings the overlay up when monitoring starts (req 11)', () async {
     final fake = _FakeOverlayService();
     final c = _containerWith(fake);
 
-    // Merely instantiating the controller — no Simulate button — must raise the
-    // bubble, because the default dashboard status is `watching`.
+    // Boot lands stopped (spec M5 §4): instantiating the controller must NOT
+    // raise the bubble; pressing Start must.
     c.read(overlayControllerProvider);
+    await Future<void>.delayed(Duration.zero);
+    expect(fake.watchingStarted, isFalse);
+
+    c.read(dashboardProvider.notifier).startMonitoring();
     await Future<void>.delayed(Duration.zero);
 
     expect(fake.watchingStarted, isTrue);
@@ -158,6 +162,7 @@ void main() {
     final fake = _FakeOverlayService();
     final c = _containerWith(fake);
     c.read(overlayControllerProvider);
+    c.read(dashboardProvider.notifier).startMonitoring();
     await Future<void>.delayed(Duration.zero);
 
     c.read(dashboardProvider.notifier).togglePause(); // → offline
@@ -170,16 +175,32 @@ void main() {
     expect(fake.pausedCalls.last, isFalse); // ...un-paused
   });
 
-  test('dropping the bubble (stopWatching action) pauses the dashboard',
+  test('stopped status hides the overlay', () async {
+    final fake = _FakeOverlayService();
+    final c = _containerWith(fake);
+    c.read(overlayControllerProvider);
+    c.read(dashboardProvider.notifier).startMonitoring();
+    await Future<void>.delayed(Duration.zero);
+    expect(fake.watchingStarted, isTrue);
+
+    c.read(dashboardProvider.notifier).stopMonitoring();
+    await Future<void>.delayed(Duration.zero);
+
+    expect(c.read(dashboardProvider).status, WatchStatus.stopped);
+    expect(fake.hidden, isTrue);
+  });
+
+  test('dropping the bubble (stopWatching action) stops the dashboard',
       () async {
     final fake = _FakeOverlayService();
     final c = _containerWith(fake);
     c.read(overlayControllerProvider);
+    c.read(dashboardProvider.notifier).startMonitoring();
     expect(c.read(dashboardProvider).status, WatchStatus.watching);
 
     fake.emitAction(OverlayAction.stopWatching);
     await Future<void>.delayed(Duration.zero);
 
-    expect(c.read(dashboardProvider).status, WatchStatus.paused);
+    expect(c.read(dashboardProvider).status, WatchStatus.stopped);
   });
 }

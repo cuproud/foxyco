@@ -58,7 +58,8 @@ class OverlayController extends Notifier<void> {
         await _service.startWatching(paused: false);
       case WatchStatus.paused:
       case WatchStatus.blocked:
-        // Offline / blocked: tear the overlay down completely — no lingering
+      case WatchStatus.stopped:
+        // Off in any flavor: tear the overlay down completely — no lingering
         // bubble. Going online again re-creates it. (Driver asked for a clean
         // on/off, not a dimmed bubble that sits there.)
         await _service.hide();

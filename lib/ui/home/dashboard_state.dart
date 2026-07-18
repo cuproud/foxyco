@@ -3,8 +3,14 @@ enum WatchStatus {
   /// Live and reading offers.
   watching,
 
-  /// Driver paused it (bubble long-press / Home pause).
+  /// Driver paused it (bubble long-press / Home pause) — temporary mute
+  /// while running; Start/Stop is the outer gate.
   paused,
+
+  /// Fully off — user hasn't started monitoring (or explicitly stopped).
+  /// The boot state whenever permissions are granted; NEVER persisted as
+  /// running across restarts (spec M5 §4, option A).
+  stopped,
 
   /// A required permission is missing — can't watch until fixed.
   blocked,

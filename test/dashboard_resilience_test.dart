@@ -47,7 +47,7 @@ class _FakeOverlayService implements OverlayService {
 
 void main() {
   test('mid-shift accessibility revoke flips the dashboard to blocked '
-      '(and re-grant restores watching)', () async {
+      '(and re-grant lands on stopped, not auto-watching)', () async {
     final watcher = _FakeWatcher();
     final container = ProviderContainer(
       overrides: [
@@ -58,7 +58,9 @@ void main() {
     addTearDown(container.dispose);
     addTearDown(watcher.status.close);
 
-    // Boot: both grants present → watching.
+    // Boot: stopped even with both grants (spec M5 §4 — manual start).
+    expect(container.read(dashboardProvider).status, WatchStatus.stopped);
+    container.read(dashboardProvider.notifier).startMonitoring();
     expect(container.read(dashboardProvider).status, WatchStatus.watching);
 
     // The OS reports the service turned OFF (user revoked it in settings, or
@@ -72,11 +74,12 @@ void main() {
       isFalse,
     );
 
-    // Re-granted out-of-band → straight back to watching.
+    // Re-granted out-of-band → back to stopped, awaiting an explicit start
+    // (the revoke ended the shift; we never auto-resume watching).
     watcher.enabled = true;
     watcher.status.add(true);
     await Future<void>.delayed(Duration.zero);
-    expect(container.read(dashboardProvider).status, WatchStatus.watching);
+    expect(container.read(dashboardProvider).status, WatchStatus.stopped);
   });
 
   test('an explicit pause survives a permission re-check', () async {
@@ -90,6 +93,8 @@ void main() {
     addTearDown(container.dispose);
     addTearDown(watcher.status.close);
 
+    // Pause only exists on a running watch — start first.
+    container.read(dashboardProvider.notifier).startMonitoring();
     container.read(dashboardProvider.notifier).togglePause();
     expect(container.read(dashboardProvider).status, WatchStatus.paused);
 

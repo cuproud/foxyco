@@ -102,6 +102,8 @@ void main() {
       ],
     );
     addTearDown(c.dispose);
+    // Boot lands stopped (spec M5 §4) — these tests exercise a live watch.
+    c.read(dashboardProvider.notifier).startMonitoring();
     return c;
   }
 
