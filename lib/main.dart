@@ -12,12 +12,14 @@ import 'ui/theme/app_theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
-    statusBarColor: Colors.transparent,
-    statusBarIconBrightness: Brightness.light,
-    systemNavigationBarColor: Color(0xFF0C1210), // FoxColors.bgBase
-    systemNavigationBarIconBrightness: Brightness.light,
-  ));
+  SystemChrome.setSystemUIOverlayStyle(
+    const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.light,
+      systemNavigationBarColor: Color(0xFF0C1210), // FoxColors.bgBase
+      systemNavigationBarIconBrightness: Brightness.light,
+    ),
+  );
   // Read the first-run flag BEFORE runApp so the app boots straight into the
   // right screen — no flash of Home before onboarding takes over.
   final onboarded = await OnboardingGate.isDone();
@@ -48,7 +50,10 @@ class FoxyCoApp extends ConsumerStatefulWidget {
 
 class _FoxyCoAppState extends ConsumerState<FoxyCoApp>
     with WidgetsBindingObserver {
-  late final _router = createRouter(showOnboarding: widget.showOnboarding);
+  late final _router = createRouter(
+    showOnboarding: widget.showOnboarding,
+    showSplash: !widget.showOnboarding,
+  );
 
   @override
   void initState() {
