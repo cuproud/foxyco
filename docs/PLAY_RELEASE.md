@@ -74,7 +74,28 @@ The math drivers do in their head: *"one avoided bad ride ≈ saved 30 dead minu
 5. **Build** — `flutter build appbundle` (NOT apk — Play requires .aab; also drops install size from ~60MB to ~25MB per device).
 6. **Testing tracks — use them in this order:**
    - *Internal testing* (you + up to 100 testers, live in minutes) — your real-shift testing happens here.
-   - *Closed testing* — **new personal accounts must run a closed test with ≥12 testers for 14 days before production access.** Recruit driver friends/subreddit. Plan for this — it is the real launch gate.
+   - *Closed testing* — **new personal accounts must run a closed test with
+     ≥12 opted-in testers CONCURRENTLY for 14 consecutive days before
+     production access.** Recruit driver friends/subreddit. Plan for this —
+     it is the real launch gate.
+
+     **Tester math + recruiting (decided):**
+     - 12 = opted-in simultaneously; drop below 12 → the 14-day clock pauses.
+       Over-recruit to 16–20 so dropouts don't stall it.
+     - Ghost testers risk rejection at the production questionnaire — ping
+       testers twice in the window ("open it once this week").
+     - Sources, easiest first: personal circle (demo pill works for
+       non-drivers) → driver subreddits/WhatsApp/Facebook groups (also future
+       buyers) → tester-swap communities (r/AndroidClosedTesting etc., fast
+       filler, zero real feedback) → Baltics driver groups (exercise the Hopp
+       parser for real).
+     - Use ONE Google Group as tester list — adding a tester = adding to the
+       group, no new build/review.
+     - No penalty for falling short — production just stays locked; app can
+       sit in closed testing indefinitely. Failure mode is purely lost days.
+       Rejection at the questionnaire has no cooldown; fix and reapply.
+     - Budget ~3 weeks total: recruit → 14 clean days → questionnaire →
+       review (1–3 days). Billing code (~2 days) fits inside the wait.
    - *Production* — after the 14-day gate, promote the same build.
 7. **Review time** — first submission: 1–7 days (accessibility apps often get the longer end + questions). Updates after: hours–2 days.
 
@@ -103,6 +124,58 @@ Honest limitation, decided up front: a determined user can clear app data to res
 - Pill "locked" state in the overlay isolate
 - NOTE: billing runs through the Play Store app — FoxyCo itself still needs **no INTERNET permission**. Offline story survives.
 
+### 4a. What locks when the trial ends (decided)
+
+**Stays free forever** (goodwill + demo value): app opens, Home, Settings,
+offer history, demo pill.
+
+**Locked** (the actual value): live watching still STARTS, but the pill
+renders "🦊 Unlock" instead of verdict/numbers; tapping it opens the paywall.
+Rationale: the driver sees the pill working during a real offer and can't
+read the verdict — frustration at the exact moment of value converts better
+than blocking go-live outright.
+
+Enforcement points (both isolates):
+1. Main isolate — `entitlementProvider` gates overlay payload building.
+2. Overlay isolate — the payload carries an `entitled` flag; pill widget
+   branches locked/unlocked. Overlay independently rejects payloads with the
+   flag missing/stale (second patch site for crackers, no new channel).
+
+### 4b. Anti-piracy — decided approach (bar-raiser, not DRM)
+
+No server; keep the no-INTERNET story. Three layers:
+
+1. **Signature-verified purchase (highest value).** Play Billing returns
+   purchase JSON + RSA signature; the app's Base64 public key from Play
+   Console is embedded and verified LOCALLY. Fake-purchase-store patches
+   ("lucky patcher") fail signature. Works offline forever.
+2. **Random re-verification.** Every launch: if 1-in-5 roll OR cached
+   entitlement older than 7 days → re-query Billing, re-verify signature,
+   refresh cache. A patch that removes the launch check still re-locks days
+   later. Cache in SharedPreferences next to trial state.
+3. **Tamper frictions (free).** R8 obfuscation already on; give the
+   entitlement class a boring name (crackers grep for `Purchase*`);
+   packageName + signing-cert sanity check at boot (resigned repacks
+   quietly stay locked); duplicate check in the overlay isolate (see 4a).
+
+**Deliberately NOT doing:** Play Integrity API (verdicts need server-side
+decryption — breaks offline), root/emulator detection, online activation.
+Hostile to legit users; pirates strip them first anyway. Pirate users ≈
+people who'd never pay; layers 1–3 cost half a day inside the billing task
+and beat what most paid apps ship.
+
+### 4c. Testers at production launch
+
+- Closed track survives production promotion; testers keep the app and update
+  normally — no reinstall, nothing breaks.
+- Their on-device trials started at THEIR first launch — most expired by
+  launch day; they hit the paywall like everyone.
+- During testing, add tester Gmails to Play Console → **License testing** —
+  they see the real purchase dialog, test card, no charge. Remove them after
+  launch; license-test "purchases" aren't real entitlements owed.
+- Thank-you option: Play **promo codes** for the unlock product — generate
+  free codes, hand to testers.
+
 ---
 
 ## 5. Launch-week playbook (the "welcome trail")
@@ -130,10 +203,10 @@ Honest limitation, decided up front: a determined user can clear app data to res
 - 155 automated tests + manual device matrix (MANUAL_TESTS.md)
 
 ### Missing before charging money ❌
-1. **Billing + trial gate** (§4) — the actual monetization code
+1. **Billing + trial gate + anti-piracy layers** (§4–4b) — the monetization code
 2. **Play Console papers** (§3.3) — privacy page, forms, screenshots
 3. **Upload keystore** — one manual command (AUDIT.md)
-4. **Closed-test cohort** — 12 testers × 14 days, calendar-blocking
+4. **Closed-test cohort** — 12 testers × 14 days, calendar-blocking (§3.6)
 5. Real-shift battery numbers on a mid-range phone (AUDIT #4 measure)
 
 ### Nice-to-have, post-launch
