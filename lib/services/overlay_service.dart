@@ -66,7 +66,8 @@ class OverlayService {
   /// that made a top-anchored window clip off the top. `enableDrag` +
   /// `positionGravity.auto` let the user fling it to either edge.
   Future<void> startWatching({bool paused = false}) async {
-    if (!await FlutterOverlayWindow.isActive()) {
+    final wasActive = await FlutterOverlayWindow.isActive();
+    if (!wasActive) {
       await FlutterOverlayWindow.showOverlay(
         height: _dpToPx(_restHeightDp),
         width: _dpToPx(_restWidthDp),
@@ -77,6 +78,14 @@ class OverlayService {
         overlayTitle: 'FoxyCo',
         overlayContent: 'Watching for offers',
       );
+      // closeOverlay only removes the WINDOW — the overlay isolate (and its
+      // widget state, incl. a shown pill) survives to the next session. A
+      // fresh window is bubble-sized, so a stale `_payload` from before the
+      // teardown renders as pill text clipped into the 72 dp box (device
+      // 2026-07-18: offline demo → go live → garbled bubble). Reset it the
+      // moment the window is (re)created. Skipped when already active so a
+      // live pill is never wiped mid-offer.
+      await clearPill();
     }
     await setPaused(paused);
   }
@@ -118,6 +127,14 @@ class OverlayService {
     await FlutterOverlayWindow.shareData(OverlayControl.clearPill());
   }
 
-  /// Tear the overlay window down entirely (stop watching).
-  Future<void> hide() => FlutterOverlayWindow.closeOverlay();
+  /// Tear the overlay window down entirely (stop watching). The isolate (and
+  /// its widget state) outlives the window, so drop any shown pill first —
+  /// second line of defense alongside [startWatching]'s reset for the same
+  /// stale-pill-in-bubble-window bug.
+  Future<void> hide() async {
+    if (await FlutterOverlayWindow.isActive()) {
+      await FlutterOverlayWindow.shareData(OverlayControl.clearPill());
+    }
+    await FlutterOverlayWindow.closeOverlay();
+  }
 }

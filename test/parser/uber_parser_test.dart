@@ -95,4 +95,37 @@ void main() {
       isNull,
     );
   });
+
+  test('real device: card merged with map chrome — Quest \$ must not win', () {
+    // uiautomator win_1.xml 2026-07-19. The a11y walk merges every same-package
+    // window, and the MAP subtree comes first, so its Quest banner ("$20 extra
+    // for 30 trips") precedes the card's payout in node order.
+    final nodes = [
+      'Home', '8%', 'Search for places',
+      'Quest', '\$20 extra for 30 trips', '1/30',
+      'Unlock Platinum', '482 / 900 pts',
+      'UberX', 'Exclusive',
+      '\$4.06', '4.98',
+      '7 mins (2.9 km) away', '347 Kingsdale Ave, North York',
+      '4 mins (1.4 km) trip', '2901 Bayview Ave, Toronto',
+      'Accept',
+    ];
+    final offer = parser.parse(nodes)!;
+    expect(offer.payout, 4.06);
+    expect(offer.pickupKm, 2.9);
+    expect(offer.dropoffKm, 1.4);
+  });
+
+  test('real device: Trip Radar stacked card uses Match, not Accept', () {
+    // uiautomator win_8.xml 2026-07-19 — busy-period Radar card.
+    final offer = parser.parse([
+      'UberX', '\$6.80', '5.00',
+      '7 mins (2.8 km) away', 'Subway',
+      '12 mins (5.0 km) trip', '81 Glendora Ave',
+      'Match',
+    ])!;
+    expect(offer.payout, 6.80);
+    expect(offer.pickupKm, 2.8);
+    expect(offer.dropoffKm, 5.0);
+  });
 }

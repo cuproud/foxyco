@@ -23,12 +23,25 @@ class PlatformHealth {
   /// misses with [parsed] still at zero that signal a broken parser.
   final int cardMisses;
 
-  const PlatformHealth({this.parsed = 0, this.cardMisses = 0});
+  /// Frames from this app that carried NO readable text at all. A high count
+  /// with zero [parsed] means the app renders its offer card outside the
+  /// accessibility tree (canvas/Compose — Uber, device 2026-07-18): selectors
+  /// can't fix that; only a screen-capture + OCR fallback can.
+  final int textlessFrames;
+
+  const PlatformHealth(
+      {this.parsed = 0, this.cardMisses = 0, this.textlessFrames = 0});
 
   /// Enough card-like frames to be sure offers are arriving, yet not one
   /// parsed → the selectors are likely stale for this app's current layout.
   static const brokenAfterMisses = 10;
   bool get likelyBroken => parsed == 0 && cardMisses >= brokenAfterMisses;
+
+  /// Everything this app sends is textless → its UI is unreadable via
+  /// accessibility; surfaced in Settings as "needs OCR" rather than "broken".
+  static const unreadableAfterTextless = 10;
+  bool get likelyUnreadable =>
+      parsed == 0 && textlessFrames >= unreadableAfterTextless;
 }
 
 /// Session parse-health tally, keyed by platform. The M3 pipeline reports
@@ -50,7 +63,25 @@ class ParseHealth extends Notifier<Map<GigPlatform, PlatformHealth>> {
     final h = _of(p);
     state = {
       ...state,
-      p: PlatformHealth(parsed: h.parsed, cardMisses: h.cardMisses + 1),
+      p: PlatformHealth(
+        parsed: h.parsed,
+        cardMisses: h.cardMisses + 1,
+        textlessFrames: h.textlessFrames,
+      ),
+    };
+  }
+
+  /// A frame from this app carried no readable text at all (see
+  /// [PlatformHealth.textlessFrames]).
+  void recordTextlessFrame(GigPlatform p) {
+    final h = _of(p);
+    state = {
+      ...state,
+      p: PlatformHealth(
+        parsed: h.parsed,
+        cardMisses: h.cardMisses,
+        textlessFrames: h.textlessFrames + 1,
+      ),
     };
   }
 }

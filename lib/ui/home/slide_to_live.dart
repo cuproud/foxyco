@@ -222,8 +222,11 @@ class _SlideToLiveState extends State<SlideToLive>
       key: const ValueKey('live'),
       builder: (context, c) {
         final travelPx = c.maxWidth - _thumb - 12;
-        // Stop-drag is RIGHT→LEFT: thumb starts on the left (x = 0) and the
-        // driver drags it back; _drag tracks 0..1 travel.
+        // Stop-drag is RIGHT→LEFT: the thumb RESTS at the right end and the
+        // driver pulls it back toward the left; _drag tracks 0..1 travel.
+        // (It used to rest at the LEFT end — covering the "Live" label — so a
+        // leftward drag had nowhere to go and stopping was impossible on
+        // device: the finger hit the screen edge ~250 px short of commit.)
         final x = _drag * travelPx;
         final paused = widget.status == WatchStatus.paused;
         return Container(
@@ -273,7 +276,7 @@ class _SlideToLiveState extends State<SlideToLive>
                 ),
               ),
               Positioned(
-                left: 6 + x,
+                left: 6 + (travelPx - x),
                 child: GestureDetector(
                   key: const ValueKey('slide-stop-thumb'),
                   onHorizontalDragStart: (_) =>

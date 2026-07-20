@@ -30,8 +30,12 @@ class HomeScreen extends ConsumerWidget {
     final blocked = state.status == WatchStatus.blocked;
 
     return ListView(
-      // Bottom pad clears the floating nav (64 + margins).
-      padding: const EdgeInsets.fromLTRB(Gap.md, Gap.sm, Gap.md, 100),
+      // Bottom pad must clear the floating nav: 64 bar + margins PLUS the
+      // device's gesture-bar inset (extendBody lets content run under it —
+      // a fixed 100 left the demo button unreachable behind the nav on
+      // gesture-nav phones, device 2026-07-18).
+      padding: EdgeInsets.fromLTRB(Gap.md, Gap.sm, Gap.md,
+          100 + MediaQuery.of(context).padding.bottom),
       children: [
         const _BrandBar(),
         const SizedBox(height: Gap.md),
@@ -110,13 +114,16 @@ class _LivePill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Off state must stay on a DARK chip: cream text/dot on a cream pill was
+    // invisible — the header showed a blank white capsule (device 2026-07-18).
     final color = paused ? FoxColors.textSecondary : VerdictColors.good;
-    final bg = paused ? FoxColors.cream : VerdictColors.goodBg;
+    final bg = paused ? FoxColors.bgSurface2 : VerdictColors.goodBg;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
         color: bg,
         borderRadius: BorderRadius.circular(Radii.pill),
+        border: paused ? Border.all(color: FoxColors.border) : null,
         boxShadow: Shadows.soft,
       ),
       child: Row(

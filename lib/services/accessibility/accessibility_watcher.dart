@@ -66,7 +66,18 @@ class AccessibilityWatcher {
       pending = null;
       if (event == null) return;
       final texts = _flatten(event);
-      if (texts.isEmpty) return;
+      if (texts.isEmpty) {
+        // Do NOT stay silent here. A window frame with ZERO readable text from
+        // a watched app is the signature of a canvas/Compose-rendered screen
+        // (suspected Uber offer card, device 2026-07-18) — exactly the case an
+        // OCR fallback would need. Emitting the empty read lets the pipeline
+        // count textless frames per platform, so logcat/Settings can tell
+        // "Uber sends nothing" apart from "Uber sends unreadable frames".
+        controller.add(
+          ScreenRead(packageName: event.packageName ?? '', texts: const []),
+        );
+        return;
+      }
       // Dedupe: skip if identical to the last emitted read for this package.
       final key = '${event.packageName}|${texts.join('')}';
       if (key == lastKey) return;

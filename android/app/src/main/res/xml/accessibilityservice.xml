@@ -21,4 +21,5 @@
     android:accessibilityFeedbackType="feedbackGeneric"
     android:notificationTimeout="300"
     android:accessibilityFlags="flagDefault|flagReportViewIds|flagRetrieveInteractiveWindows|flagIncludeNotImportantViews"
-    android:canRetrieveWindowContent="true" />
+    android:canRetrieveWindowContent="true"
+    android:isAccessibilityTool="true" />

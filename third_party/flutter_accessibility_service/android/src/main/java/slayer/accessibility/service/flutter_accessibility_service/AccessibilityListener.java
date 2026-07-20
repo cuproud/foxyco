@@ -47,6 +47,10 @@ import io.flutter.embedding.engine.FlutterEngineCache;
 
 public class AccessibilityListener extends AccessibilityService {
     private static AccessibilityListener instance;
+    // FoxyCo: per-event walk diagnostics (FOXYCO_WALK logcat). Costs a full
+    // extra node scan + per-window getRoot() IPC on every a11y event — keep
+    // OFF outside active parser debugging.
+    private static final boolean DEBUG_WALK = false;
     private static WindowManager mWindowManager;
     private static FlutterView mOverlayView;
     static private boolean isOverlayShown = false;
@@ -156,6 +160,7 @@ public class AccessibilityListener extends AccessibilityService {
                 data.put("nodeId", parentNodeInfo.getViewIdResourceName());
             }
             getSubNodes(parentNodeInfo, subNodeActions, traversedNodes, 0);
+            final int nAfterSource = subNodeActions.size();
             // FoxyCo patch: ALSO walk the active window's ROOT. The event source
             // is only the subtree that fired the event — on Uber that's the map
             // container, while the offer card is a SIBLING subtree that never
@@ -167,6 +172,7 @@ public class AccessibilityListener extends AccessibilityService {
             if (activeRoot != null && packageName.equals(String.valueOf(activeRoot.getPackageName()))) {
                 getSubNodes(activeRoot, subNodeActions, traversedNodes, 0);
             }
+            final int nAfterActive = subNodeActions.size();
             // FoxyCo patch: the event source is only ONE node's subtree. An offer
             // card that lives in a SEPARATE window (e.g. Uber's card drawn over the
             // map) is never in that subtree when the event fires from another window,
@@ -181,6 +187,30 @@ public class AccessibilityListener extends AccessibilityService {
             // Uber AND Hopp parsing entirely (their cards are separate windows).
             // Keep it enabled.
             collectSamePackageWindows(subNodeActions, traversedNodes, packageName);
+            // FoxyCo diagnostic (2026-07-19, root causes fixed same day): stage
+            // counts + text scan proved where card text was lost. Gated OFF now —
+            // this ran a full node scan + string build on EVERY a11y event, real
+            // battery/CPU load over a shift. Flip DEBUG_WALK to re-arm.
+            if (DEBUG_WALK) {
+                Log.i("FOXYCO_WALK", "src=" + nAfterSource
+                        + " active=" + (nAfterActive - nAfterSource)
+                        + " windows=" + (subNodeActions.size() - nAfterActive)
+                        + " total=" + subNodeActions.size()
+                        + " srcNull=" + (accessibilityEvent.getSource() == null)
+                        + " type=" + eventType);
+                int withText = 0; String cardHit = null;
+                for (HashMap<String, Object> n : subNodeActions) {
+                    Object t = n.get("capturedText");
+                    if (t != null && t.toString().trim().length() > 0) {
+                        withText++;
+                        String s = t.toString();
+                        if (cardHit == null && (s.contains("$") || s.contains("Match") || s.contains("Accept") || s.contains("away"))) {
+                            cardHit = s.length() > 40 ? s.substring(0, 40) : s;
+                        }
+                    }
+                }
+                Log.i("FOXYCO_WALK", "withText=" + withText + " cardHit=" + cardHit);
+            }
             data.put("nodesText", nextTexts);
             actions.addAll(parentNodeInfo.getActionList().stream().map(AccessibilityNodeInfo.AccessibilityAction::getId).collect(Collectors.toList()));
             data.put("parentActions", actions);
@@ -240,6 +270,18 @@ public class AccessibilityListener extends AccessibilityService {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR2) {
             if (traversedNodes.contains(node)) return;
             traversedNodes.add(node);
+            // FoxyCo patch — THE Uber root cause (device 2026-07-19). Per-node
+            // metadata below is live binder IPC against a window that may die
+            // mid-walk. Uber's offer/Radar cards are transient animating windows:
+            // getWindow() was checked once, then called AGAIN 3x for
+            // isActive/isFocused/getType — the re-call returned null mid-
+            // animation and the NPE unwound the whole recursion into
+            // processEvent's catch, discarding the ENTIRE frame. Every card
+            // frame contains card nodes, so every card frame died and Uber
+            // never parsed, while stable map-only frames sailed through.
+            // Fix: (a) reuse the ONE getWindow() result, (b) per-node
+            // try-catch so a dying node skips itself, never the frame.
+            try {
             String mapId = generateNodeId(node);
             AccessibilityWindowInfo windowInfo = null;
             HashMap<String, Object> nested = new HashMap<>();
@@ -264,9 +306,9 @@ public class AccessibilityListener extends AccessibilityService {
             nested.put("isEditable", node.isEditable());
             nested.put("parentActions", node.getActionList().stream().map(AccessibilityNodeInfo.AccessibilityAction::getId).collect(Collectors.toList()));
             if (windowInfo != null) {
-                nested.put("isActive", node.getWindow().isActive());
-                nested.put("isFocused", node.getWindow().isFocused());
-                nested.put("windowType", node.getWindow().getType());
+                nested.put("isActive", windowInfo.isActive());
+                nested.put("isFocused", windowInfo.isFocused());
+                nested.put("windowType", windowInfo.getType());
             }
             arr.add(nested);
             storeNode(mapId, node);
@@ -275,6 +317,11 @@ public class AccessibilityListener extends AccessibilityService {
                 if (child == null)
                     continue;
                 getSubNodes(child, arr, traversedNodes, currentDepth + 1);
+            }
+            } catch (Exception ex) {
+                // Node/window died mid-walk (transient offer card animating away).
+                // Skip just this subtree — the rest of the frame must survive.
+                Log.d("EVENT", "getSubNodes: skipped dying node: " + ex.getMessage());
             }
         }
     }
@@ -296,6 +343,20 @@ public class AccessibilityListener extends AccessibilityService {
         try {
             List<AccessibilityWindowInfo> windows = getWindows();
             if (windows == null) return;
+            // FoxyCo diagnostic (2026-07-19, gated with DEBUG_WALK): list every
+            // window the service can see. getRoot() is an IPC round-trip per
+            // window — too dear to pay on every event once the bug was fixed.
+            if (DEBUG_WALK) {
+                StringBuilder sb = new StringBuilder();
+                for (AccessibilityWindowInfo w : windows) {
+                    if (w == null) continue;
+                    AccessibilityNodeInfo r = w.getRoot();
+                    sb.append('[').append(w.getType()).append(':')
+                      .append(r == null ? "nullRoot" : String.valueOf(r.getPackageName()))
+                      .append("] ");
+                }
+                Log.i("FOXYCO_WALK", "windows=" + windows.size() + " " + sb);
+            }
             // FoxyCo: MUST pass the SHARED traversedNodes set. A diagnostic build
             // once walked each window into a separate set — every node the event
             // source already captured was appended AGAIN, so every leg line
@@ -326,6 +387,17 @@ public class AccessibilityListener extends AccessibilityService {
         return frame;
     }
 
+
+    /// FoxyCo patch (device 2026-07-19): Uber's fullscreen Accept/Exclusive offer
+    /// activity sets FLAG_HIDE_NON_SYSTEM_OVERLAY_WINDOWS, which hides every
+    /// TYPE_APPLICATION_OVERLAY window (our bubble/pill) for exactly as long as
+    /// the card is on screen. TYPE_ACCESSIBILITY_OVERLAY windows are exempt —
+    /// but only THIS service's WindowManager can add them. flutter_overlay_window
+    /// grabs it via reflection (no gradle coupling) and falls back to the normal
+    /// app-overlay type when the service isn't connected.
+    public static WindowManager getA11yWindowManager() {
+        return instance != null ? mWindowManager : null;
+    }
 
     @RequiresApi(api = Build.VERSION_CODES.LOLLIPOP_MR1)
     @Override
@@ -449,11 +521,14 @@ public class AccessibilityListener extends AccessibilityService {
         nodeMap.put(uuid, node);
     }
 
+    // FoxyCo: one Gson for the service — was allocated per event (~3/s while a
+    // card animates), pure garbage-collector churn on the hot path.
+    private static final Gson GSON = new Gson();
+
     void storeToSharedPrefs(HashMap<String, Object> data) {
         SharedPreferences sharedPreferences = getSharedPreferences(SHARED_PREFS_TAG, MODE_PRIVATE);
         SharedPreferences.Editor editor = sharedPreferences.edit();
-        Gson gson = new Gson();
-        String json = gson.toJson(data);
+        String json = GSON.toJson(data);
         editor.putString(ACCESSIBILITY_NODE, json);
         editor.apply();
     }

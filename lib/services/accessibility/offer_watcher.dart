@@ -98,17 +98,18 @@ class OfferWatcher extends Notifier<Offer?> {
       '${o.platform.name}|${o.payout}|${o.totalKm.toStringAsFixed(1)}';
 
   void _onRead(ScreenRead read) {
-    // Trace EVERY read so a broken parse is diagnosable from logcat, not just a
-    // successful one. Strip before release (see completion doc loose ends).
+    // Trace EVERY read so a broken parse is diagnosable from logcat. Debug
+    // builds only — a11y events fire many times a second over a whole shift,
+    // and a per-read log line is real string churn + disk flushes in release.
     if (kDebugMode) {
       debugPrint(
         'FoxyCo[watch] read pkg=${read.packageName} '
         'nodes=${read.texts.length} :: ${read.texts.join(" | ")}',
       );
+      ref
+          .read(foxLogProvider)
+          .log('watch', 'read pkg=${read.packageName} nodes=${read.texts.length}');
     }
-    ref
-        .read(foxLogProvider)
-        .log('watch', 'read pkg=${read.packageName} nodes=${read.texts.length}');
 
     // Respect pause/blocked — don't score while the driver has it off.
     if (ref.read(dashboardProvider).status != WatchStatus.watching) {
@@ -118,6 +119,15 @@ class OfferWatcher extends Notifier<Offer?> {
 
     final parser = ref.read(parserRegistryProvider).forPackage(read.packageName);
     if (parser == null) return; // not an app we read (noise from other apps)
+
+    // A watched app sent a frame with ZERO readable text. Uber's offer card is
+    // suspected to render on canvas/Compose with no a11y text (device
+    // 2026-07-18: Hopp/Lyft parse, Uber never does) — count these so Settings'
+    // parser health can say "unreadable, needs OCR" instead of a silent blank.
+    if (read.texts.isEmpty) {
+      ref.read(parseHealthProvider.notifier).recordTextlessFrame(parser.platform);
+      return;
+    }
 
     final offer = parser.parse(read.texts);
     if (offer == null) {

@@ -138,9 +138,20 @@ class OverlayController extends Notifier<void> {
     _next++;
     await _service.showOffer(sample);
     // Demo only: no real offer will "leave the screen" to clear this, so
-    // auto-retract to the resting bubble after a few seconds instead of
-    // leaving the pill stuck until the 45 s safety timer.
-    Timer(const Duration(seconds: 5), _service.clearPill);
+    // auto-retract after a few seconds instead of leaving the pill stuck
+    // until the 45 s safety timer. And because showOffer had to bring the
+    // overlay WINDOW up to draw the pill, an offline demo must tear the
+    // whole window down again — otherwise a "watching" bubble lingers while
+    // the dashboard says stopped (device 2026-07-18). Online, only the pill
+    // drops and the real bubble stays.
+    Timer(const Duration(seconds: 5), () async {
+      final status = ref.read(dashboardProvider).status;
+      if (status == WatchStatus.watching || status == WatchStatus.paused) {
+        await _service.clearPill();
+      } else {
+        await _service.hide();
+      }
+    });
     return true;
   }
 

@@ -50,7 +50,12 @@ class ParserPatterns {
   /// shows a `Toll Fee • $2.10` node ABOVE the payout, so a naive first-$ match
   /// grabs the toll. Skip any node mentioning these before taking its amount.
   static final _notPayout = RegExp(
-    r'\b(toll|fee|tip|bonus|surge|/\s*hr|per\s*hr|est\.?\s*rate)\b|/hr',
+    // `extra|quest|promotion`: Uber's home-map Quest banner ("$20 extra for 30
+    // trips") rides along in the same read as a live card now that the a11y
+    // walk merges all same-package windows (device 2026-07-19) — and the map
+    // subtree walks FIRST, so without this filter the Quest $ wins over the
+    // card's payout.
+    r'\b(toll|fee|tip|bonus|surge|extra|quest|promotions?|/\s*hr|per\s*hr|est\.?\s*rate)\b|/hr',
     caseSensitive: false,
   );
 
@@ -81,7 +86,11 @@ class ParserPatterns {
   static final _browseMarker = RegExp(
     r'scheduled ride|rides? available|ride finder|looking for rides|'
     r'open requests|go online|priority mode|earnings goal|turbo|'
-    r'wait in your area|min away|select a ride',
+    r'wait in your area|min away|select a ride|'
+    // Uber home-map hallmarks: never present on an offer card, always on the
+    // between-offers map — lets the pill clear promptly instead of riding the
+    // minVisible floor (device 2026-07-19: pill lingered until next offer).
+    r'finding trips|trip planner|go offline',
     caseSensitive: false,
   );
   static bool looksLikeBrowse(String joined) => _browseMarker.hasMatch(joined);
@@ -118,7 +127,13 @@ class ParserPatterns {
     for (final node in nodeTexts) {
       if (!payout.hasMatch(node)) continue;
       if (_notPayout.hasMatch(node)) continue;
-      return double.tryParse(payout.firstMatch(node)!.group(1)!);
+      final amount = double.tryParse(payout.firstMatch(node)!.group(1)!);
+      // $0.00 is never an offer — it's Uber's home-map earnings chip ("Home |
+      // $0.00"), which rides in every merged read. Treating it as a payout kept
+      // looksLikeOfferCard true on map frames, so the pill never cleared
+      // (device 2026-07-19).
+      if (amount == null || amount <= 0) continue;
+      return amount;
     }
     return null;
   }
