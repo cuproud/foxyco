@@ -122,9 +122,16 @@ class DashboardController extends Notifier<DashboardState> {
       final WatchStatus status;
       if (!permissions.allGranted) {
         status = WatchStatus.blocked;
-      } else if (state.status == WatchStatus.watching ||
-          state.status == WatchStatus.paused) {
-        status = state.status; // explicit running state survives a refresh
+      } else if (state.status == WatchStatus.watching) {
+        // "Watching" is only real while the bubble window is actually up.
+        // Swipe-away / OOM kills the overlay service while this in-memory
+        // state lives on, and the dashboard showed a stale "online" on
+        // reopen (device 2026-07-19). Paused is exempt: its overlay is torn
+        // down BY DESIGN (see OverlayController._applyStatus).
+        final overlayUp = await ref.read(overlayServiceProvider).isActive();
+        status = overlayUp ? state.status : WatchStatus.stopped;
+      } else if (state.status == WatchStatus.paused) {
+        status = state.status; // explicit pause survives a refresh
       } else {
         status = WatchStatus.stopped; // granted but user hasn't started
       }

@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_overlay_window/flutter_overlay_window.dart';
 
@@ -89,13 +90,16 @@ class _OverlayRootState extends State<_OverlayRoot> {
 
   /// Grow/shrink the overlay window to match the current content. Called from
   /// the overlay isolate (where resizeOverlay's method channel is registered).
-  void _resize(({int w, int h}) box) =>
-      FlutterOverlayWindow.resizeOverlay(box.w, box.h, true);
+  /// The pill stretch is centered on screen (centerX) — reading a verdict
+  /// pinned to whichever edge the bubble was hugging was awkward; native
+  /// restores the bubble's edge X on the shrink back.
+  void _resize(({int w, int h}) box, {bool centerX = false}) =>
+      FlutterOverlayWindow.resizeOverlay(box.w, box.h, true, centerX: centerX);
 
   /// Route an inbound `shareData` map by its `kind` tag. Anything unrecognized
   /// is ignored (fail safe) so a stray message never crashes the overlay.
   void _onData(dynamic data) {
-    debugPrint('FoxyCo[overlay] _onData: $data');
+    if (kDebugMode) debugPrint('FoxyCo[overlay] _onData: $data');
     if (data is! Map) return;
 
     if (OverlayControl.isControl(data)) {
@@ -107,15 +111,29 @@ class _OverlayRootState extends State<_OverlayRoot> {
     if (data['kind'] == 'offer') {
       final payload = OverlayPayload.fromMap(data);
       setState(() => _payload = payload);
-      _resize(_pillBoxFor(payload.size)); // window fits the chosen size
+      _resize(_pillBoxFor(payload.size), centerX: true); // centered pill
       _dismissTimer?.cancel();
       _dismissTimer = Timer(_dismissAfter, _clearPill);
     }
   }
 
   void _clearPill() {
-    if (mounted) setState(() => _payload = null);
-    _resize(_bubbleBox); // shrink back so the bubble hugs the edge / drags
+    if (!mounted) return;
+    if (_payload == null) {
+      // Already a bubble (e.g. clearPill's belt-and-braces second send) —
+      // just make sure the window is bubble-sized.
+      _resize(_bubbleBox);
+      return;
+    }
+    setState(() => _payload = null);
+    // Let the pill→bubble cross-fade play out inside the still-large window
+    // BEFORE shrinking it. Resizing in the same frame clipped the pill
+    // mid-fade — the retract read as a hard snap (device 2026-07-19). If a
+    // new offer lands during the fade, _onData re-grows the window and the
+    // payload check below skips the stale shrink.
+    Timer(Motion.base + const Duration(milliseconds: 40), () {
+      if (mounted && _payload == null) _resize(_bubbleBox);
+    });
   }
 
   // Bubble gestures → actions sent back to the main isolate.
@@ -145,9 +163,8 @@ class _OverlayRootState extends State<_OverlayRoot> {
   @override
   Widget build(BuildContext context) {
     final payload = _payload;
-    debugPrint(
-      'FoxyCo[overlay] build — payload=${payload?.verdict}, paused=$_paused',
-    );
+    // (build-time debugPrint removed — it fired on every frame of the
+    // AnimatedSwitcher cross-fade + plasma ring, spamming logcat all session.)
     // The overlay window is a COMPACT box resting on the right edge (see
     // OverlayService) — small on purpose so it only captures touches over
     // itself, never the whole screen. Center our single widget in it: the

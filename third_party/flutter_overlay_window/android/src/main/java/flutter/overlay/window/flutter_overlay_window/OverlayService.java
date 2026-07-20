@@ -57,6 +57,22 @@ public class OverlayService extends Service implements View.OnTouchListener {
     private static OverlayService instance;
     public static boolean isRunning = false;
     private WindowManager windowManager = null;
+    /** FoxyCo patch: true when the window is attached through the accessibility
+     *  service's WindowManager as TYPE_ACCESSIBILITY_OVERLAY (immune to Uber's
+     *  FLAG_HIDE_NON_SYSTEM_OVERLAY_WINDOWS on Accept cards). */
+    private boolean useAccessibilityOverlay = false;
+
+    /** Reflection lookup so this plugin needs no gradle dependency on the
+     *  accessibility plugin. Returns null when the service isn't connected. */
+    private static WindowManager a11yWindowManager() {
+        try {
+            Class<?> c = Class.forName(
+                    "slayer.accessibility.service.flutter_accessibility_service.AccessibilityListener");
+            return (WindowManager) c.getMethod("getA11yWindowManager").invoke(null);
+        } catch (Throwable t) {
+            return null;
+        }
+    }
     private FlutterView flutterView;
     private MethodChannel flutterChannel;
     private BasicMessageChannel<Object> overlayMessageChannel;
@@ -92,6 +108,18 @@ public class OverlayService extends Service implements View.OnTouchListener {
         NotificationManager notificationManager = (NotificationManager) getApplicationContext().getSystemService(Context.NOTIFICATION_SERVICE);
         notificationManager.cancel(OverlayConstants.NOTIFICATION_ID);
         instance = null;
+    }
+
+    /// FoxyCo patch (device 2026-07-19): swiping FoxyCo out of Recents kills
+    /// the activity but this foreground service (and the whole process, with
+    /// the in-memory "watching" state) survives — reopening the app showed a
+    /// stale "online" session. A swipe-away means "close the app": tell the
+    /// main isolate we stopped (if it's still around), then tear down.
+    @Override
+    public void onTaskRemoved(Intent rootIntent) {
+        sendActionToApp("stopWatching");
+        stopSelf();
+        super.onTaskRemoved(rootIntent);
     }
 
     @RequiresApi(api = Build.VERSION_CODES.JELLY_BEAN_MR1)
@@ -145,7 +173,13 @@ public class OverlayService extends Service implements View.OnTouchListener {
                 int width = call.argument("width");
                 int height = call.argument("height");
                 boolean enableDrag = call.argument("enableDrag");
-                resizeOverlay(width, height, enableDrag, result);
+                // FoxyCo patch (device 2026-07-19): pill window inherited the
+                // bubble's edge-hugging X, so the verdict pill showed pinned
+                // left/right instead of centered. Optional flag: center the
+                // window horizontally for this size, remembering the bubble's X
+                // to restore on the next non-centered resize (shrink-to-bubble).
+                Boolean center = call.argument("centerX");
+                resizeOverlay(width, height, enableDrag, center != null && center, result);
             } else if (call.method.equals("bringToFront")) {
                 // FoxyCo (HANDOFF bug: tap bubble → foreground app). Called on the
                 // OVERLAY method channel directly from the overlay isolate's bubble
@@ -164,7 +198,16 @@ public class OverlayService extends Service implements View.OnTouchListener {
             // never reliably reached native code.
             WindowSetup.messenger.send(message);
         });
-        windowManager = (WindowManager) getSystemService(WINDOW_SERVICE);
+        // FoxyCo patch (device 2026-07-19): Uber's fullscreen Accept card sets
+        // FLAG_HIDE_NON_SYSTEM_OVERLAY_WINDOWS — a TYPE_APPLICATION_OVERLAY
+        // bubble/pill goes invisible for exactly the card's lifetime (the one
+        // moment FoxyCo exists for). TYPE_ACCESSIBILITY_OVERLAY is exempt, but
+        // only the accessibility service's WindowManager may add one, so borrow
+        // it (same process) via reflection; fall back to the normal path when
+        // the service isn't connected.
+        WindowManager a11yWm = a11yWindowManager();
+        useAccessibilityOverlay = a11yWm != null;
+        windowManager = useAccessibilityOverlay ? a11yWm : (WindowManager) getSystemService(WINDOW_SERVICE);
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.HONEYCOMB) {
             windowManager.getDefaultDisplay().getSize(szWindow);
@@ -182,7 +225,9 @@ public class OverlayService extends Service implements View.OnTouchListener {
                 WindowSetup.height != -1999 ? WindowSetup.height : screenHeight(),
                 0,
                 -statusBarHeightPx(),
-                Build.VERSION.SDK_INT >= Build.VERSION_CODES.O ? WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY : WindowManager.LayoutParams.TYPE_PHONE,
+                useAccessibilityOverlay
+                        ? WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY
+                        : (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O ? WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY : WindowManager.LayoutParams.TYPE_PHONE),
                 WindowSetup.flag | WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS
                         | WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
                         | WindowManager.LayoutParams.FLAG_LAYOUT_INSET_DECOR
@@ -259,11 +304,23 @@ public class OverlayService extends Service implements View.OnTouchListener {
         }
     }
 
-    private void resizeOverlay(int width, int height, boolean enableDrag, MethodChannel.Result result) {
+    private void resizeOverlay(int width, int height, boolean enableDrag, boolean centerX, MethodChannel.Result result) {
         if (windowManager != null) {
             WindowManager.LayoutParams params = (WindowManager.LayoutParams) flutterView.getLayoutParams();
             params.width = (width == -1999 || width == -1) ? -1 : dpToPx(width);
             params.height = (height != 1999 || height != -1) ? dpToPx(height) : height;
+            // FoxyCo patch: pill centering (see method-channel comment). params.x
+            // is offset from the gravity edge, so centered = (screen - window)/2.
+            // Save/restore the bubble's X around the centered stretch so the
+            // bubble snaps back to the edge the driver left it on.
+            if (centerX) {
+                if (savedRestX == Integer.MIN_VALUE) savedRestX = params.x;
+                int w = params.width == -1 ? szWindow.x : params.width;
+                params.x = Math.max(0, (szWindow.x - w) / 2);
+            } else if (savedRestX != Integer.MIN_VALUE) {
+                params.x = savedRestX;
+                savedRestX = Integer.MIN_VALUE;
+            }
             WindowSetup.enableDrag = enableDrag;
             windowManager.updateViewLayout(flutterView, params);
             result.success(true);
@@ -271,6 +328,10 @@ public class OverlayService extends Service implements View.OnTouchListener {
             result.success(false);
         }
     }
+
+    /// FoxyCo: bubble X remembered while the pill holds a centered window.
+    /// MIN_VALUE == nothing saved.
+    private int savedRestX = Integer.MIN_VALUE;
 
     private void moveOverlay(int x, int y, MethodChannel.Result result) {
         if (windowManager != null) {

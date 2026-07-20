@@ -271,4 +271,67 @@ opaque TextureView made translucent (dark gradient box), node LruCache bounded.
 
 ---
 
-_Last updated: 2026-07-18 (M6 rows: splash, slide-to-live, garage, dark UI, history count)._
+## M6.1 — Device-feedback fixes (2026-07-18, post-install review)
+
+> From on-device review: stop slider dead, blank white pill when off, no name
+> save affordance, pill font, plasma ring, Uber never parsing.
+
+| # | How | PASS bar | Status |
+|---|-----|----------|--------|
+| M6F.1 | Go live, then drag the stop thumb LEFT from the RIGHT end of the bar | Thumb rests at the right end (Live label + "slide back to stop" fully readable, nothing covered); dragging ≥85% left stops watching — no force-close needed | [ ] |
+| M6F.2 | While live, drag stop thumb ~40% left and release | Springs back to the right end, light haptic, stays LIVE | [ ] |
+| M6F.3 | Home while NOT live | Top-right chip reads "Off" — grey text on a dark chip with a hairline border. NO blank white pill | [ ] |
+| M6F.4 | Settings → type a new name | An orange "Save" button (labeled, not just an icon) appears next to the field; tapping it saves, keyboard closes, "Name saved" snackbar shows; keyboard Done key also saves | [ ] |
+| M6F.5 | Settings → name unchanged | No Save button visible (field clean = nothing to save) | [ ] |
+| M6F.6 | Trigger a demo/real pill | $/km figure renders in Fraunces serif (matches the big "37" on Home); "/km", "km", "$/hr" all in Inter — no Roboto mix | [ ] |
+| M6F.7 | Watch the pill for ~3 s | Animated ring around the pill: two bright arcs orbiting a faint outline, GREEN on good / YELLOW on ok / RED on bad. Moving, not static | [ ] |
+| M6F.8 | OS "Remove animations" on, trigger a pill | Ring present but STATIC (color signal kept, no orbit) | [ ] |
+| M6F.9 | Go live, open Uber Driver, wait for ≥10 offer frames, then Settings → Parser health | Uber row reads "Unreadable · OCR needed" (red) if Uber sends textless frames — NOT "No offers yet" | [ ] |
+| M6F.10 | Scroll Home to the bottom on a gesture-nav phone | "Show a demo pill" fully visible ABOVE the floating nav; tappable without fighting the bar | [ ] |
+| M6F.11 | While OFFLINE (stopped), tap "Show a demo pill" | Pill shows ~5 s, then pill AND bubble disappear completely — no lingering bubble while the dashboard says stopped | [ ] |
+| M6F.12 | While LIVE, tap "Show a demo pill" | Pill shows ~5 s, then retracts to the resting bubble (bubble stays — you're still watching) | [ ] |
+| M6F.13 | While OFFLINE: demo pill → let it vanish → go LIVE | A clean fox BUBBLE appears — never clipped/garbled pill text in a bubble-sized box | [ ] |
+
+---
+
+## M7 — Uber parsing fixed (2026-07-19, verified live on device)
+
+> Three stacked root causes fixed: fork NPE on transient card windows,
+> `isAccessibilityTool` for Uber's accessibilityDataSensitive card views, and
+> TYPE_ACCESSIBILITY_OVERLAY pill (Uber's Accept card hides normal overlays).
+> Rows M7.1–M7.4 were all PASSED live on 2026-07-19 (logs in completion doc).
+
+| # | How | PASS bar | Status |
+|---|-----|----------|--------|
+| M7.1 | Live + Uber online, wait for a Trip Radar "Match" card | Pill shows with the card's payout (e.g. $2.94 — never the Quest "$20 extra" or the $0.00 earnings chip) | [x] |
+| M7.2 | Same for a fullscreen "Accept" (Exclusive) card | Bubble AND pill stay VISIBLE on top of the card (not hidden by Uber) and pill shows the card payout | [x] |
+| M7.3 | Let a card expire / dismiss it | Pill retracts to bubble within ~1–2 s of the map returning — does NOT sit until the next offer | [x] |
+| M7.4 | Between offers, watch the map ≥30 s | No pill appears from map chrome ($0.00 chip, Quest banner, ETA bubbles) | [x] |
+| M7.5 | After any FoxyCo reinstall | `adb install -r --user 0` ONLY; then toggle the a11y service OFF→ON or nothing parses | [ ] |
+
+_Last updated: 2026-07-19 (M7 rows: Uber Match/Accept parsing, pill visibility on Accept cards, pill clear; M7.1–M7.4 verified live)._
+
+---
+
+## M8 — Device feedback round 2 (2026-07-19)
+
+> Logs section removed from Settings; pill centered on screen; full-fox bubble
+> asset; verdict chips + top-offers fix in History; pill legend + Large-preview
+> overflow fix; smooth pill→bubble retract; swipe-away kills the session
+> honestly; FOXYCO_WALK diagnostics gated off (battery).
+
+| # | How | PASS bar | Status |
+|---|-----|----------|--------|
+| M8.1 | Open Settings, scroll | NO "Logs" section between Parser health and History | [ ] |
+| M8.2 | Live + real/demo offer with the bubble parked on an edge | Pill appears HORIZONTALLY CENTERED on the screen — not pinned left/right | [ ] |
+| M8.3 | Let the pill clear | Bubble returns to the SAME edge it was parked on before the offer | [ ] |
+| M8.4 | Look at the bubble | Full fox head visible incl. both ears (no clipping) on the dark disc | [ ] |
+| M8.5 | Demo pill → wait for retract | Pill cross-fades to bubble smoothly — no hard snap/clip mid-fade | [ ] |
+| M8.6 | History → verdict chips | Good/OK/Bad chips filter the list; "All" resets; combines with app + range chips | [ ] |
+| M8.7 | History → "Top offers only" ≥ $15 with OK/BAD offers over $15 logged | Those offers SHOW (fare floor only — verdict no longer forces GOOD) | [ ] |
+| M8.8 | Settings → pill size Large on a narrow phone | Preview scales down to fit — no yellow/black overflow stripes | [ ] |
+| M8.9 | Settings → below the preview | "How to read it" legend: verdict block, green km, red km, $/hr rows | [ ] |
+| M8.10 | Go live, swipe FoxyCo out of Recents, reopen | Dashboard shows STOPPED (not a stale "online"); bubble gone | [ ] |
+| M8.11 | Watch logcat during a live Uber session | No FOXYCO_WALK spam (gated behind DEBUG_WALK=false) | [ ] |
+
+_Last updated: 2026-07-19 (M8 rows: settings/history/pill UX round 2 + lifecycle honesty)._

@@ -17,7 +17,6 @@ import '../theme/tokens.dart';
 import '../theme/vehicle_art.dart';
 import '../theme/verdict_style.dart';
 import 'garage_controller.dart';
-import 'logs_screen.dart';
 import 'settings_controller.dart';
 
 /// Settings — every driver-tunable knob in [FoxSettings]: verdict thresholds
@@ -268,17 +267,32 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               const SizedBox(height: Gap.sm + Gap.xs),
               // Live preview — sample payload at the selected size, so the
               // change is visible instantly without waiting for a real offer.
+              // FittedBox: the Large pill is wider than a narrow phone minus
+              // page padding and overflowed with stripes (device 2026-07-19);
+              // scale-down keeps it whole instead.
               Center(
-                child: VerdictPill(
-                  payload: const OverlayPayload(
-                    verdict: Verdict.good,
-                    totalKm: 8.4,
-                    payout: 12,
-                    totalMinutes: 24,
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: VerdictPill(
+                    payload: const OverlayPayload(
+                      verdict: Verdict.good,
+                      totalKm: 8.4,
+                      payout: 12,
+                      totalMinutes: 24,
+                      pickupKm: 2.1,
+                      pickupNearKm: 3,
+                    ),
+                    size: settings.pillSize,
+                    // Static ring in the preview: the orbit loop would keep the
+                    // settings list repainting forever for a decorative detail.
+                    animate: false,
                   ),
-                  size: settings.pillSize,
                 ),
               ),
+              const SizedBox(height: Gap.sm + Gap.xs),
+              // Quick "how to read it" legend for first-time users — mirrors
+              // the sample pill above (M6 follow-up, device 2026-07-19).
+              const _PillLegend(),
             ],
           ),
         ),
@@ -322,46 +336,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         const SizedBox(height: Gap.lg),
         _staggered(
           8,
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const _SectionLabel('Logs', icon: Icons.description_outlined),
-              const SizedBox(height: Gap.sm),
-              _Card(
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(Radii.card),
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                        builder: (_) => const LogsScreen()),
-                  ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('View logs', style: text.titleMedium),
-                            const SizedBox(height: Gap.xs),
-                            Text(
-                              'Persistent debug log — survives restarts',
-                              style: text.bodyMedium
-                                  ?.copyWith(color: FoxColors.textSecondary),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const Icon(Icons.chevron_right_rounded,
-                          color: FoxColors.textSecondary),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: Gap.lg),
-        _staggered(
-          9,
           Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -521,12 +495,17 @@ class _HealthRow extends StatelessWidget {
     final text = Theme.of(context).textTheme;
     final (label, color, bg) = !watched
         ? ('Off', FoxColors.textDisabled, FoxColors.bgBase)
-        : health.likelyBroken
-            ? ('Needs update', VerdictColors.bad, VerdictColors.badBg)
-            : health.parsed > 0
-                ? ('OK · ${health.parsed} read', VerdictColors.good,
-                    VerdictColors.goodBg)
-                : ('No offers yet', FoxColors.textSecondary, FoxColors.bgBase);
+        : health.likelyUnreadable
+            // Frames arrive but carry no readable text (canvas/Compose UI) —
+            // a parser update can't fix this; it needs the OCR fallback.
+            ? ('Unreadable · OCR needed', VerdictColors.bad, VerdictColors.badBg)
+            : health.likelyBroken
+                ? ('Needs update', VerdictColors.bad, VerdictColors.badBg)
+                : health.parsed > 0
+                    ? ('OK · ${health.parsed} read', VerdictColors.good,
+                        VerdictColors.goodBg)
+                    : ('No offers yet', FoxColors.textSecondary,
+                        FoxColors.bgBase);
 
     return Opacity(
       opacity: watched ? 1 : 0.55,
@@ -823,6 +802,19 @@ class _DriverNameCardState extends ConsumerState<_DriverNameCard> {
     super.dispose();
   }
 
+  void _save() {
+    ref.read(driverNameProvider.notifier).setName(_name.text.trim());
+    FocusScope.of(context).unfocus();
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(const SnackBar(
+        content: Text('Name saved'),
+        duration: Duration(seconds: 2),
+        behavior: SnackBarBehavior.floating,
+      ));
+    setState(() {});
+  }
+
   @override
   Widget build(BuildContext context) {
     final saved = ref.watch(driverNameProvider);
@@ -833,28 +825,46 @@ class _DriverNameCardState extends ConsumerState<_DriverNameCard> {
     }
     final dirty = _name.text.trim() != saved.trim();
 
+    // The old affordance was a lone check ICON — testers read the field as
+    // "editable all the time, no save" (device feedback 2026-07-18). Now: a
+    // labeled Save button while dirty, keyboard-done also saves, and a
+    // snackbar confirms the write.
     return Row(
       children: [
         Expanded(
           child: TextField(
             controller: _name,
             onChanged: (_) => setState(() {}),
+            textInputAction: TextInputAction.done,
+            onSubmitted: (_) {
+              if (_name.text.trim() != saved.trim()) _save();
+            },
             decoration:
                 const InputDecoration(labelText: 'Name', isDense: true),
           ),
         ),
         if (dirty) ...[
           const SizedBox(width: Gap.sm),
-          IconButton(
+          FilledButton.icon(
             key: const ValueKey('save-name'),
-            onPressed: () {
-              ref
-                  .read(driverNameProvider.notifier)
-                  .setName(_name.text.trim());
-              setState(() {});
-            },
-            icon: const Icon(Icons.check_circle_rounded,
-                color: FoxColors.brandFox),
+            onPressed: _save,
+            style: FilledButton.styleFrom(
+              backgroundColor: FoxColors.brandFox,
+              foregroundColor: Colors.white,
+              // Theme default is Size.fromHeight(52) → infinite width, which
+              // can't sit in this Row next to the field.
+              minimumSize: const Size(0, 44),
+              padding: const EdgeInsets.symmetric(
+                  horizontal: Gap.md, vertical: 10),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(Radii.field),
+              ),
+            ),
+            icon: const Icon(Icons.check_rounded, size: 18),
+            label: const Text(
+              'Save',
+              style: TextStyle(fontWeight: FontWeight.w700),
+            ),
           ),
         ],
       ],
@@ -1002,6 +1012,71 @@ class _VehicleCard extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// "How to read the pill" legend under the live preview — a quick walkthrough
+/// for new installs. Each row = one colored key + what it means, mirroring the
+/// sample pill exactly (verdict block, green/red pickup km, $/hr).
+class _PillLegend extends StatelessWidget {
+  const _PillLegend();
+
+  @override
+  Widget build(BuildContext context) {
+    final text = Theme.of(context).textTheme;
+    Widget row(Color dot, String label, String meaning) => Padding(
+          padding: const EdgeInsets.only(top: Gap.xs),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Container(
+                  width: 8,
+                  height: 8,
+                  decoration:
+                      BoxDecoration(color: dot, shape: BoxShape.circle),
+                ),
+              ),
+              const SizedBox(width: Gap.sm),
+              Expanded(
+                child: Text.rich(
+                  TextSpan(
+                    children: [
+                      TextSpan(
+                        text: '$label — ',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w700,
+                          color: FoxColors.cream,
+                        ),
+                      ),
+                      TextSpan(text: meaning),
+                    ],
+                  ),
+                  style: text.bodyMedium
+                      ?.copyWith(color: FoxColors.textSecondary),
+                ),
+              ),
+            ],
+          ),
+        );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('How to read it',
+            style: text.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w700, color: FoxColors.cream)),
+        row(const Color(0xFF39A96C), '\$/km block',
+            'the verdict. Green GOOD, amber OK, red BAD — take it in a glance.'),
+        row(const Color(0xFF5ECD90), 'Green km',
+            'pickup is within your pickup radius (set below).'),
+        row(const Color(0xFFFF8A7E), 'Red km',
+            'pickup is beyond your radius — you drive further for free.'),
+        row(FoxColors.creamDim, '\$/hr',
+            'payout over the full trip time, so long rides don\'t fool you.'),
+      ],
     );
   }
 }

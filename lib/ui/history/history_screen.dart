@@ -37,6 +37,7 @@ enum HistoryRange { today, week, month, all }
 class _HistoryScreenState extends ConsumerState<HistoryScreen> {
   HistoryRange _range = HistoryRange.today;
   final Set<GigPlatform?> _apps = {null}; // null == "All"
+  final Set<Verdict?> _verdicts = {null}; // null == "All"
   bool _topOnly = false;
   int _minFare = 20;
 
@@ -56,9 +57,14 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
         break;
     }
     if (!_apps.contains(null) && !_apps.contains(o.platform)) return false;
-    if (_topOnly && !(o.verdict == Verdict.good && o.payout >= _minFare)) {
+    if (!_verdicts.contains(null) && !_verdicts.contains(o.verdict)) {
       return false;
     }
+    // Top-only is a FARE floor, nothing more. It used to also require
+    // verdict == GOOD, which read as "filter broken": raise the fare and a
+    // $22 OK offer silently vanished (device 2026-07-19). Verdict now has its
+    // own chips above.
+    if (_topOnly && o.payout < _minFare) return false;
     return true;
   }
 
@@ -100,6 +106,11 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
           selected: _apps,
           onToggle: _toggleApp,
         ),
+        const SizedBox(height: Gap.sm),
+        _VerdictChips(
+          selected: _verdicts,
+          onToggle: _toggleVerdict,
+        ),
         const SizedBox(height: Gap.md),
         _TopCard(
           on: _topOnly,
@@ -120,6 +131,9 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                       _apps
                         ..clear()
                         ..add(null);
+                      _verdicts
+                        ..clear()
+                        ..add(null);
                       _topOnly = false;
                     }),
           )
@@ -133,17 +147,25 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
   }
 
   void _toggleApp(GigPlatform? app) {
-    setState(() {
-      if (app == null) {
-        _apps
-          ..clear()
-          ..add(null);
-        return;
-      }
-      _apps.remove(null);
-      _apps.contains(app) ? _apps.remove(app) : _apps.add(app);
-      if (_apps.isEmpty) _apps.add(null);
-    });
+    setState(() => _toggleIn(_apps, app));
+  }
+
+  void _toggleVerdict(Verdict? v) {
+    setState(() => _toggleIn(_verdicts, v));
+  }
+
+  /// Shared multi-select behavior for filter chip sets where `null` == "All":
+  /// picking All clears the rest; emptying the set falls back to All.
+  static void _toggleIn<T>(Set<T?> set, T? value) {
+    if (value == null) {
+      set
+        ..clear()
+        ..add(null);
+      return;
+    }
+    set.remove(null);
+    set.contains(value) ? set.remove(value) : set.add(value);
+    if (set.isEmpty) set.add(null);
   }
 
   /// Rows with a date header before each new day (skipped while top-only, where
@@ -331,6 +353,63 @@ class _AppChips extends StatelessWidget {
   }
 }
 
+/// Verdict grouping chips (good / ok / bad), same multi-select + "All"
+/// behavior as [_AppChips]. Icon + word, never color alone (colorblind-safe).
+class _VerdictChips extends StatelessWidget {
+  const _VerdictChips({required this.selected, required this.onToggle});
+  final Set<Verdict?> selected;
+  final ValueChanged<Verdict?> onToggle;
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: Gap.sm,
+      runSpacing: Gap.sm,
+      children: [
+        _chip(null),
+        for (final v in const [Verdict.good, Verdict.ok, Verdict.bad])
+          _chip(v),
+      ],
+    );
+  }
+
+  Widget _chip(Verdict? v) {
+    final active = selected.contains(v);
+    final style = v == null ? null : VerdictStyle.of(v);
+    return GestureDetector(
+      onTap: () => onToggle(v),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: active ? FoxColors.bgSurface2 : FoxColors.bgSurface,
+          borderRadius: BorderRadius.circular(Radii.pill),
+          border: Border.all(
+              color: active ? FoxColors.border : FoxColors.borderSoft),
+          boxShadow: active ? null : Shadows.soft,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (style != null) ...[
+              Icon(style.icon,
+                  size: 12, color: active ? style.color : FoxColors.textSecondary),
+              const SizedBox(width: 6),
+            ],
+            Text(
+              style?.label ?? 'All',
+              style: TextStyle(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w700,
+                color: active ? FoxColors.cream : FoxColors.textSecondary,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 /// Dark "top offers only" card with a switch + fare stepper.
 class _TopCard extends StatelessWidget {
   const _TopCard({
@@ -382,7 +461,7 @@ class _TopCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      on ? 'GOOD offers over \$$minFare' : 'Best \$/km, all fares',
+                      on ? 'Offers over \$$minFare' : 'Best \$/km, all fares',
                       style: TextStyle(
                         fontSize: 12,
                         color: FoxColors.cream.withValues(alpha: 0.55),

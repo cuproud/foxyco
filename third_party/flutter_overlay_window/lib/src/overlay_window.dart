@@ -124,17 +124,23 @@ class FlutterOverlayWindow {
   }
 
   /// Update the overlay size in the screen
+  ///
+  /// FoxyCo: `centerX` centers the window horizontally for this size (verdict
+  /// pill); native side remembers the previous X and restores it on the next
+  /// non-centered resize (shrink back to bubble).
   static Future<bool?> resizeOverlay(
     int width,
     int height,
-    bool enableDrag,
-  ) async {
+    bool enableDrag, {
+    bool centerX = false,
+  }) async {
     final bool? _res = await _overlayChannel.invokeMethod<bool?>(
       'resizeOverlay',
       {
         'width': width,
         'height': height,
         'enableDrag': enableDrag,
+        'centerX': centerX,
       },
     );
     return _res;
