@@ -334,4 +334,8 @@ _Last updated: 2026-07-19 (M7 rows: Uber Match/Accept parsing, pill visibility o
 | M8.10 | Go live, swipe FoxyCo out of Recents, reopen | Dashboard shows STOPPED (not a stale "online"); bubble gone | [ ] |
 | M8.11 | Watch logcat during a live Uber session | No FOXYCO_WALK spam (gated behind DEBUG_WALK=false) | [ ] |
 
-_Last updated: 2026-07-19 (M8 rows: settings/history/pill UX round 2 + lifecycle honesty)._
+| M8.12 | Drag the bubble anywhere | Red gradient strip + white ✕ circle fade in at screen bottom while dragging; gone the instant you release | [ ] |
+| M8.13 | Drag the bubble INTO the bottom strip | ✕ turns solid red + swells while finger is in the zone; release closes the session (dashboard flips to stopped) | [ ] |
+| M8.14 | Drag near-but-above the strip and release | ✕ stays neutral, bubble parks at the bottom edge, session KEEPS running | [ ] |
+
+_Last updated: 2026-07-19 (M8 rows: settings/history/pill UX round 2 + lifecycle honesty + dismiss-zone discoverability)._

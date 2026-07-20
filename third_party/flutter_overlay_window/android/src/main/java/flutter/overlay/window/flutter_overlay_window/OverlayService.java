@@ -10,6 +10,9 @@ import android.content.res.Configuration;
 import android.content.res.Resources;
 import android.graphics.Color;
 import android.graphics.PixelFormat;
+import android.graphics.drawable.GradientDrawable;
+import android.widget.LinearLayout;
+import android.widget.TextView;
 import android.app.PendingIntent;
 import android.graphics.Point;
 import android.os.Build;
@@ -98,6 +101,9 @@ public class OverlayService extends Service implements View.OnTouchListener {
     @Override
     public void onDestroy() {
         Log.d("OverLay", "Destroying the overlay window service");
+        // FoxyCo patch: dismiss-zone view is a second window — drop it too or
+        // it leaks (service can die mid-drag: drop-to-close calls stopSelf).
+        hideDismissZone();
         if (windowManager != null) {
             windowManager.removeView(flutterView);
             windowManager = null;
@@ -446,6 +452,103 @@ public class OverlayService extends Service implements View.OnTouchListener {
                 Float.parseFloat(dp + ""), mResources.getDisplayMetrics());
     }
 
+    /// FoxyCo patch: visible drop-to-dismiss zone (device 2026-07-19 — the
+    /// drag-to-close gesture existed but nothing on screen ever hinted at it).
+    /// While the bubble is dragged, a red-tinted gradient strip with an ✕
+    /// target fades in over the nav-bar area; the ✕ swells + saturates while
+    /// the finger is inside the dismiss band. Removed the moment the drag
+    /// ends. Same window type as the overlay itself and NOT_TOUCHABLE, so it
+    /// can never eat a touch.
+    private View dismissZoneView;
+    private TextView dismissIcon;
+    private boolean dismissHot = false;
+
+    /// The one predicate for "finger is in the close zone" — the visual (hot
+    /// state) and the actual dismiss on ACTION_UP must never disagree.
+    private boolean inDismissZone(float rawY) {
+        return rawY >= szWindow.y - navigationBarHeightPx();
+    }
+
+    private void showDismissZone() {
+        if (dismissZoneView != null || windowManager == null) return;
+        Context ctx = getApplicationContext();
+
+        LinearLayout zone = new LinearLayout(ctx);
+        zone.setOrientation(LinearLayout.VERTICAL);
+        zone.setGravity(Gravity.CENTER_HORIZONTAL | Gravity.BOTTOM);
+        // Soft red wash rising from the bottom edge — reads "danger, drop
+        // here to close" without covering the map.
+        GradientDrawable bg = new GradientDrawable(
+                GradientDrawable.Orientation.BOTTOM_TOP,
+                new int[]{0x66E5352B, 0x00E5352B});
+        zone.setBackground(bg);
+
+        dismissIcon = new TextView(ctx);
+        dismissIcon.setText("✕");
+        dismissIcon.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 22);
+        dismissIcon.setTextColor(Color.WHITE);
+        dismissIcon.setGravity(Gravity.CENTER);
+        int d = dpToPx(48);
+        GradientDrawable circle = new GradientDrawable();
+        circle.setShape(GradientDrawable.OVAL);
+        circle.setColor(0x88141C17);
+        circle.setStroke(dpToPx(2), 0xFFFFFFFF);
+        dismissIcon.setBackground(circle);
+        LinearLayout.LayoutParams ip = new LinearLayout.LayoutParams(d, d);
+        ip.bottomMargin = navigationBarHeightPx() + dpToPx(12);
+        zone.addView(dismissIcon, ip);
+
+        WindowManager.LayoutParams lp = new WindowManager.LayoutParams(
+                WindowManager.LayoutParams.MATCH_PARENT,
+                dpToPx(140) + navigationBarHeightPx(),
+                useAccessibilityOverlay
+                        ? WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY
+                        : (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
+                                ? WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+                                : WindowManager.LayoutParams.TYPE_PHONE),
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
+                        | WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
+                        | WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS
+                        | WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+                PixelFormat.TRANSLUCENT);
+        lp.gravity = Gravity.BOTTOM;
+
+        zone.setAlpha(0f);
+        zone.animate().alpha(1f).setDuration(150).start();
+        try {
+            windowManager.addView(zone, lp);
+            dismissZoneView = zone;
+        } catch (Exception e) {
+            Log.e("OverlayService", "showDismissZone failed", e);
+        }
+    }
+
+    private void updateDismissZone(float rawY) {
+        if (dismissIcon == null) return;
+        boolean hot = inDismissZone(rawY);
+        if (hot == dismissHot) return;
+        dismissHot = hot;
+        GradientDrawable circle = (GradientDrawable) dismissIcon.getBackground();
+        circle.setColor(hot ? 0xFFE5352B : 0x88141C17);
+        dismissIcon.animate().scaleX(hot ? 1.3f : 1f).scaleY(hot ? 1.3f : 1f)
+                .setDuration(120).start();
+    }
+
+    private void hideDismissZone() {
+        if (dismissZoneView == null) return;
+        View v = dismissZoneView;
+        dismissZoneView = null;
+        dismissIcon = null;
+        dismissHot = false;
+        if (windowManager != null) {
+            try {
+                windowManager.removeView(v);
+            } catch (Exception e) {
+                Log.e("OverlayService", "hideDismissZone failed", e);
+            }
+        }
+    }
+
     private double pxToDp(int px) {
         return (double) px / mResources.getDisplayMetrics().density;
     }
@@ -509,9 +612,16 @@ public class OverlayService extends Service implements View.OnTouchListener {
                         windowManager.updateViewLayout(flutterView, params);
                     }
                     dragging = true;
+                    // FoxyCo patch: surface the dismiss zone the moment a real
+                    // drag starts (not on a tap) and keep its ✕ hot-state in
+                    // sync with the finger. Discoverability for drop-to-close.
+                    showDismissZone();
+                    updateDismissZone(event.getRawY());
                     break;
                 case MotionEvent.ACTION_UP:
                 case MotionEvent.ACTION_CANCEL:
+                    // FoxyCo patch: drag over → drop zone leaves with it.
+                    hideDismissZone();
                     // FoxyCo patch: "drop to dismiss". If the user releases the
                     // drag inside the bottom nav-bar zone, close the overlay
                     // instead of snapping it to an edge. Fixes the bubble getting
@@ -524,7 +634,7 @@ public class OverlayService extends Service implements View.OnTouchListener {
                     // on-screen, so dismissing must be a deliberate shove of the
                     // FINGER into the nav-bar strip itself (~nav bar height). Tune
                     // on device if it feels too eager / too hard to hit.
-                    if (dragging && event.getRawY() >= szWindow.y - navigationBarHeightPx()) {
+                    if (dragging && inDismissZone(event.getRawY())) {
                         // HANDOFF req 10: tell the main isolate we STOPPED, so the
                         // dashboard flips out of "Watching" instead of desyncing.
                         // Send before tearing down — the messenger routes to the
