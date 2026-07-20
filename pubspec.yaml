@@ -96,7 +96,10 @@ flutter:
   uses-material-design: true
 
   assets:
-    - assets/branding/
+    # Only runtime-used branding files — the rest of assets/branding/ are
+    # icon/splash generator INPUTS and must not ship in the APK (~6MB).
+    - assets/branding/foxyco_bubble.png
+    - assets/branding/foxyco_head.png
     - assets/car/
 
   # Fraunces (serif display — big money numbers) + Inter (UI). Variable TTFs:

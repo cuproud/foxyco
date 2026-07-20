@@ -87,11 +87,15 @@ class AccessibilityWatcher {
       );
     }
 
-    debugPrint('FoxyCo[watch] reads() subscribing to accessStream');
+    if (kDebugMode) {
+      debugPrint('FoxyCo[watch] reads() subscribing to accessStream');
+    }
     final sub = FlutterAccessibilityService.accessStream.listen(
       (event) {
-        debugPrint('FoxyCo[watch] RAW event pkg=${event.packageName} '
-            'sub=${event.subNodes?.length}');
+        if (kDebugMode) {
+          debugPrint('FoxyCo[watch] RAW event pkg=${event.packageName} '
+              'sub=${event.subNodes?.length}');
+        }
         pending = event;
         // TRAILING THROTTLE, not a reset-on-every-event debounce. A live offer
         // screen (Uber's map panning, a countdown ticking) fires content-change

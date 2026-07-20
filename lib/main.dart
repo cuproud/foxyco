@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -34,7 +35,9 @@ void overlayMain() {
   // The overlay runs in a fresh isolate — its binding isn't initialized for us,
   // so without this the isolate boots and silently renders nothing.
   WidgetsFlutterBinding.ensureInitialized();
-  debugPrint('FoxyCo[overlay] overlayMain — isolate booted, runApp');
+  if (kDebugMode) {
+    debugPrint('FoxyCo[overlay] overlayMain — isolate booted, runApp');
+  }
   runApp(const FoxOverlayApp());
 }
 

@@ -26,6 +26,7 @@ class _SplashScreenState extends State<SplashScreen>
     with SingleTickerProviderStateMixin {
   late final AnimationController _c;
   Timer? _ceiling;
+  Timer? _reducedTimer;
   bool _navigated = false;
 
   @override
@@ -41,7 +42,7 @@ class _SplashScreenState extends State<SplashScreen>
       if (!mounted) return;
       final reduced = MediaQuery.of(context).disableAnimations;
       if (reduced) {
-        Timer(const Duration(milliseconds: 500), _go);
+        _reducedTimer = Timer(const Duration(milliseconds: 500), _go);
       } else {
         _c.forward().whenComplete(_go);
       }
@@ -58,6 +59,7 @@ class _SplashScreenState extends State<SplashScreen>
   @override
   void dispose() {
     _ceiling?.cancel();
+    _reducedTimer?.cancel();
     _c.dispose();
     super.dispose();
   }

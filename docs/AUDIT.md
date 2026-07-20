@@ -122,6 +122,50 @@ Reviewing the overlay code against the risks above:
 
 ---
 
+## M9 release-readiness sweep — 2026-07-20
+
+Full pass against every risk above, ahead of the first Play submission.
+
+- **#1 accessibility policy (🟡 ready, needs listing text):** `@xml/accessibilityservice`
+  declares the real purpose in `android:description`, is scoped to the 3 gig packages
+  only, READ-ONLY (`canPerformGestures` never requested), `isAccessibilityTool=true`.
+  Onboarding has the explicit consent/grant screen. ⏳ Play Console: fill the
+  AccessibilityService declaration form + prominent-disclosure video at submission.
+- **#2 ToS / no automation (🟢):** read-and-advise only; no click/gesture APIs anywhere
+  in the codebase; strictly-manual rule enforced (memory: never act inside gig apps).
+- **#3 parser fail-safe (🟢):** low-confidence parses drop (`parse null (low conf)`),
+  fixture tests per platform, parse-health streak surface in Settings.
+- **#4 battery (🟢 code / ⏳ measure):** packageNames scoped, 300ms notification
+  timeout, debounce in watcher, overlay content clears on timer. Home car hero:
+  15 layers decode once at display width (`cacheWidth`), glow pulse is opacity-only.
+- **#5 privacy (🟢):** merged release manifest re-checked 2026-07-20 — NO `INTERNET`
+  permission. Only SYSTEM_ALERT_WINDOW, FOREGROUND_SERVICE(+SPECIAL_USE), WAKE_LOCK.
+  No analytics/crash SDKs. Log stores platform/payout/km/verdict/timestamp only.
+- **#6 overlay correctness (🟢 device-verified M8):** pill top-center touch-through,
+  drop-to-dismiss zone, savedRestX edge restore.
+- **#7 a11y of FoxyCo (🟢):** verdict = color + word + dot everywhere (legend pills,
+  seg bar); reduced-motion honored on splash, car hero, greeting, counters.
+- **#9 plugin risk (🟢):** both shims vendored in `third_party/` and locally patched
+  (fork NPE, messenger ownership) — we already maintain them.
+- **Release hygiene (this sweep):** all `debugPrint`s now `kDebugMode`-guarded
+  (release builds log nothing); no commented-out code blocks in `lib/`;
+  `flutter analyze` clean; 155 tests green.
+
+### Blockers left for Play submission (not code)
+
+1. **Signing:** release build still uses the debug keystore
+   (`android/app/build.gradle.kts` TODO). Generate upload keystore, back it up,
+   move to `signingConfigs.release`, then build `appbundle`.
+2. **Application ID:** `com.foxyco.app` is marked placeholder — lock it now
+   (namespace is `com.foxyco.foxyco`; align or accept mismatch deliberately).
+3. **Play Console papers:** accessibility declaration form, data-safety form
+   (all "no data collected/shared" — true, offline), listing screenshots,
+   privacy-policy URL (required even for offline apps).
+4. **R8/shrink:** not enabled; enable `minifyEnabled` + `shrinkResources` with
+   keep rules for the two vendored plugins before the store build (APK size).
+
+---
+
 ## Go/no-go checklist before public release
 
 - [ ] Accessibility use disclosed + consent screen shipped

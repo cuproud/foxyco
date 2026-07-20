@@ -133,31 +133,34 @@ class CarHero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AspectRatio(
-      aspectRatio: 1536 / 1024,
-      child: LayoutBuilder(
-        builder: (context, c) {
-          // Decode once at display resolution — full 1536px RGBA × 15 layers
-          // would hold ~90MB; at card width it's a fraction of that.
-          final cacheW =
-              (c.maxWidth * MediaQuery.of(context).devicePixelRatio).round();
-          return Stack(
-            fit: StackFit.expand,
-            children: [
-              for (final (name, opacityOf) in _layers)
-                if (opacityOf(state) > 0.004)
-                  Opacity(
-                    opacity: opacityOf(state).clamp(0.0, 1.0),
-                    child: Image.asset(
-                      'assets/car/$name.png',
-                      fit: BoxFit.contain,
-                      cacheWidth: cacheW,
-                      gaplessPlayback: true,
+    // Decorative — 15 stacked images are noise to screen readers.
+    return ExcludeSemantics(
+      child: AspectRatio(
+        aspectRatio: 1536 / 1024,
+        child: LayoutBuilder(
+          builder: (context, c) {
+            // Decode once at display resolution — full 1536px RGBA × 15
+            // layers would hold ~90MB; at card width it's a fraction of that.
+            final cacheW =
+                (c.maxWidth * MediaQuery.of(context).devicePixelRatio).round();
+            return Stack(
+              fit: StackFit.expand,
+              children: [
+                for (final (name, opacityOf) in _layers)
+                  if (opacityOf(state) > 0.004)
+                    Opacity(
+                      opacity: opacityOf(state).clamp(0.0, 1.0),
+                      child: Image.asset(
+                        'assets/car/$name.png',
+                        fit: BoxFit.contain,
+                        cacheWidth: cacheW,
+                        gaplessPlayback: true,
+                      ),
                     ),
-                  ),
-            ],
-          );
-        },
+              ],
+            );
+          },
+        ),
       ),
     );
   }

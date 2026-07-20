@@ -84,7 +84,9 @@ class _OverlayRootState extends State<_OverlayRoot> {
   @override
   void initState() {
     super.initState();
-    debugPrint('FoxyCo[overlay] _OverlayRoot.initState — attaching listener');
+    if (kDebugMode) {
+      debugPrint('FoxyCo[overlay] _OverlayRoot.initState — attaching listener');
+    }
     _sub = FlutterOverlayWindow.overlayListener.listen(_onData);
   }
 
