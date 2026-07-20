@@ -89,6 +89,8 @@ The math drivers do in their head: *"one avoided bad ride ≈ saved 30 dead minu
        buyers) → tester-swap communities (r/AndroidClosedTesting etc., fast
        filler, zero real feedback) → Baltics driver groups (exercise the Hopp
        parser for real).
+     - **Cap enrollment at 20–30** (see §4c) — over the 12 floor, under
+       chaos; private opt-in link only.
      - Use ONE Google Group as tester list — adding a tester = adding to the
        group, no new build/review.
      - No penalty for falling short — production just stays locked; app can
@@ -164,17 +166,33 @@ Hostile to legit users; pirates strip them first anyway. Pirate users ≈
 people who'd never pay; layers 1–3 cost half a day inside the billing task
 and beat what most paid apps ship.
 
-### 4c. Testers at production launch
+### 4c. Testers at production launch — nobody keeps it free (decided)
 
-- Closed track survives production promotion; testers keep the app and update
-  normally — no reinstall, nothing breaks.
-- Their on-device trials started at THEIR first launch — most expired by
-  launch day; they hit the paywall like everyone.
-- During testing, add tester Gmails to Play Console → **License testing** —
-  they see the real purchase dialog, test card, no charge. Remove them after
-  launch; license-test "purchases" aren't real entitlements owed.
-- Thank-you option: Play **promo codes** for the unlock product — generate
-  free codes, hand to testers.
+**Tester cap: 20–30.** Play has no "limit reached" banner; the cap IS the
+email list / Google Group — stop adding past 30, outsiders simply can't
+access the listing. Keep the opt-in link private (DM only). 20–30 sits
+comfortably above the 12-concurrent floor and stays manageable.
+
+**Three layers guarantee no permanent free copies:**
+
+1. **Trial gate applies to testers too.** 7 days from THEIR first launch,
+   on-device — most tester trials expire mid-window, so they test the
+   paywall for real before launch.
+2. **License testing is temporary by design.** During the test window,
+   tester Gmails go on Play Console → License testing so they can exercise
+   the purchase flow (real dialog, test card, no charge). **At production
+   launch: clear the list → their test "purchases" vanish → locked → they
+   pay like everyone.** License-test purchases are not real entitlements.
+3. **Build kill-date (belt-and-suspenders).** Closed-track builds bake in a
+   drop-dead date: `now > buildExpiry → paywall regardless of trial state`.
+   One const + one check inside the billing task.
+
+Closed track survives production promotion — testers keep the app installed
+and update normally; the layers above decide what they can USE, not whether
+the app runs.
+
+Only deliberate exception, if ever: Play **promo codes** for the unlock —
+your call per person, never automatic.
 
 ---
 
