@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -6,6 +8,7 @@ import '../../domain/platform.dart';
 import '../../services/offer_log.dart';
 import '../overlay/overlay_controller.dart';
 import '../settings/settings_controller.dart';
+import '../theme/car_hero.dart';
 import '../theme/platform_badge.dart';
 import '../theme/tokens.dart';
 import '../theme/verdict_style.dart';
@@ -34,34 +37,48 @@ class HomeScreen extends ConsumerWidget {
       // device's gesture-bar inset (extendBody lets content run under it —
       // a fixed 100 left the demo button unreachable behind the nav on
       // gesture-nav phones, device 2026-07-18).
-      padding: EdgeInsets.fromLTRB(Gap.md, Gap.sm, Gap.md,
-          100 + MediaQuery.of(context).padding.bottom),
+      // Horizontal padding lives on the children (not the ListView) so the
+      // showroom car can bleed edge-to-edge like the reference mock.
+      padding: EdgeInsets.fromLTRB(
+          0, Gap.sm, 0, 100 + MediaQuery.of(context).padding.bottom),
       children: [
-        const _BrandBar(),
-        const SizedBox(height: Gap.md),
+        const _Padded(child: _BrandBar()),
+        const SizedBox(height: Gap.sm),
         // Hidden (zero-height, incl. its own bottom pad) until a name is set.
-        const ProfileCard(),
-        _Hero(
-          status: state.status,
-          tally: ref.watch(todayTallyProvider),
-          platforms: ref
-              .watch(settingsProvider)
-              .watchedApps
-              .toList(),
-          // Slide-to-go-live is the Start/Stop outer gate (spec M6 §3.2);
-          // pause stays on the bubble long-press.
-          onStart: controller.startMonitoring,
-          onStop: controller.stopMonitoring,
-          onFix: controller.requestMissingPermissions,
+        const _Padded(child: ProfileCard()),
+        // The car sits on the page itself, full-bleed above the receipt card
+        // (references/car/foxyco_hero_home (1).html) — not boxed inside it.
+        _CarStage(online: state.status == WatchStatus.watching),
+        const SizedBox(height: Gap.sm),
+        _Padded(
+          child: _Hero(
+            status: state.status,
+            tally: ref.watch(todayTallyProvider),
+            yesterdayTotal: () {
+              final y = ref.watch(yesterdayTallyProvider);
+              return y.good + y.ok + y.bad;
+            }(),
+            platforms: ref
+                .watch(settingsProvider)
+                .watchedApps
+                .toList(),
+            // Slide-to-go-live is the Start/Stop outer gate (spec M6 §3.2);
+            // pause stays on the bubble long-press.
+            onStart: controller.startMonitoring,
+            onStop: controller.stopMonitoring,
+            onFix: controller.requestMissingPermissions,
+          ),
         ),
         const SizedBox(height: Gap.lg),
         if (blocked) ...[
-          _AccessAlert(onFix: controller.requestMissingPermissions),
+          _Padded(
+              child: _AccessAlert(
+                  onFix: controller.requestMissingPermissions)),
           const SizedBox(height: Gap.lg),
         ],
-        const _SectionLabel('Last offer'),
+        const _Padded(child: _SectionLabel('Last offer')),
         const SizedBox(height: Gap.sm + Gap.xs),
-        _Ticket(offer: ref.watch(lastOfferProvider)),
+        _Padded(child: _Ticket(offer: ref.watch(lastOfferProvider))),
         const SizedBox(height: Gap.md),
         Center(
           child: TextButton(
@@ -82,6 +99,18 @@ class HomeScreen extends ConsumerWidget {
   }
 }
 
+/// Standard page gutter for everything except the full-bleed car.
+class _Padded extends StatelessWidget {
+  const _Padded({required this.child});
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.symmetric(horizontal: Gap.md),
+        child: child,
+      );
+}
+
 /// Brand mark + name + a Live/Paused status pill.
 class _BrandBar extends ConsumerWidget {
   const _BrandBar();
@@ -92,12 +121,12 @@ class _BrandBar extends ConsumerWidget {
         ref.watch(dashboardProvider).status != WatchStatus.watching;
     return Row(
       children: [
-        ClipOval(
-          child: Image.asset(
-            'assets/branding/foxyco_bubble.png',
-            width: 30,
-            height: 30,
-          ),
+        // Full fox head in-app; the round disc PNG is the floating bubble's
+        // only (user 2026-07-20).
+        Image.asset(
+          'assets/branding/foxyco_head.png',
+          width: 32,
+          height: 32,
         ),
         const SizedBox(width: Gap.sm + Gap.xs),
         Text('FoxyCo', style: Theme.of(context).textTheme.titleLarge),
@@ -158,6 +187,7 @@ class _Hero extends StatelessWidget {
   const _Hero({
     required this.status,
     required this.tally,
+    required this.yesterdayTotal,
     required this.platforms,
     required this.onStart,
     required this.onStop,
@@ -166,6 +196,7 @@ class _Hero extends StatelessWidget {
 
   final WatchStatus status;
   final Tally tally;
+  final int yesterdayTotal;
   final List<GigPlatform> platforms;
   final VoidCallback onStart; // begin monitoring
   final VoidCallback onStop; // stop monitoring
@@ -184,7 +215,10 @@ class _Hero extends StatelessWidget {
     final paused = !online;
 
     return Container(
-      padding: const EdgeInsets.all(Gap.lg),
+      // Tighter than Gap.lg all around — every vertical px here pushes
+      // slide-to-live toward/below the fold.
+      padding: const EdgeInsets.fromLTRB(
+          Gap.lg, Gap.md + Gap.xs, Gap.lg, Gap.md + Gap.xs),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
@@ -192,7 +226,22 @@ class _Hero extends StatelessWidget {
           colors: [FoxColors.inkSoft, FoxColors.ink],
         ),
         borderRadius: BorderRadius.circular(Radii.hero),
-        boxShadow: Shadows.hero,
+        // Live: warm orange edge + soft glow so the main card visibly
+        // "powers up" with the car (premium pass 2026-07-20).
+        border: Border.all(
+          color: paused
+              ? FoxColors.border
+              : FoxColors.brandFox.withValues(alpha: 0.35),
+        ),
+        boxShadow: [
+          ...Shadows.hero,
+          if (!paused)
+            BoxShadow(
+              color: FoxColors.brandFox.withValues(alpha: 0.10),
+              blurRadius: 32,
+              spreadRadius: 2,
+            ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -231,42 +280,57 @@ class _Hero extends StatelessWidget {
               ],
             ],
           ),
-          const SizedBox(height: Gap.lg),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          const SizedBox(height: Gap.md),
+          // Compact stat row (ref mock): number + wrapped caption left,
+          // "vs yesterday" trend chip right — keeps slide-to-live above the
+          // fold on common phones.
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              TweenAnimationBuilder<int>(
-                tween: IntTween(begin: 0, end: total),
-                duration: MediaQuery.of(context).disableAnimations
-                    ? Duration.zero
-                    : Motion.count,
-                curve: Motion.curve,
-                builder: (context, value, _) => Text(
-                  '$value',
-                  style: const TextStyle(
-                    fontFamily: FoxFonts.display,
-                    fontSize: 56,
-                    height: 1.0,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: -1.5,
-                    color: FoxColors.cream,
-                    fontFeatures: [FontFeature.tabularFigures()],
+              // FittedBox: 5+ digit days (log caps at 2000/day anyway) scale
+              // down instead of overflowing the row.
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 150),
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: TweenAnimationBuilder<int>(
+                    tween: IntTween(begin: 0, end: total),
+                    duration: MediaQuery.of(context).disableAnimations
+                        ? Duration.zero
+                        : Motion.count,
+                    curve: Motion.curve,
+                    builder: (context, value, _) => Text(
+                      '$value',
+                      style: const TextStyle(
+                        fontFamily: FoxFonts.display,
+                        fontSize: 46,
+                        height: 1.0,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: -1.5,
+                        color: FoxColors.cream,
+                        fontFeatures: [FontFeature.tabularFigures()],
+                      ),
+                    ),
                   ),
                 ),
               ),
-              const SizedBox(height: Gap.xs),
-              Text(
-                'offers seen today',
-                style: TextStyle(
-                  fontSize: 12.5,
-                  fontWeight: FontWeight.w500,
-                  letterSpacing: 0.1,
-                  color: FoxColors.cream.withValues(alpha: 0.52),
+              const SizedBox(width: Gap.sm + Gap.xs),
+              Expanded(
+                child: Text(
+                  'offers seen\ntoday',
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    height: 1.25,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.1,
+                    color: FoxColors.cream.withValues(alpha: 0.55),
+                  ),
                 ),
               ),
+              _TrendChip(today: total, yesterday: yesterdayTotal),
             ],
           ),
-          const SizedBox(height: Gap.md + Gap.xs),
+          const SizedBox(height: Gap.md),
           _SegBar(tally: tally),
           const SizedBox(height: Gap.sm + Gap.xs),
           _SegLegend(tally: tally),
@@ -278,6 +342,161 @@ class _Hero extends StatelessWidget {
             onFix: onFix,
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// "vs yesterday" trend chip (ref mock): green up / red down / neutral dash.
+class _TrendChip extends StatelessWidget {
+  const _TrendChip({required this.today, required this.yesterday});
+  final int today;
+  final int yesterday;
+
+  @override
+  Widget build(BuildContext context) {
+    final diff = today - yesterday;
+    final up = diff > 0;
+    final flat = diff == 0;
+    final color = flat
+        ? FoxColors.textSecondary
+        : up
+            ? VerdictColors.good
+            : VerdictColors.bad;
+    final label = flat
+        ? '–'
+        : yesterday == 0
+            ? (up ? '+$diff' : '$diff')
+            : '${up ? '+' : ''}${(diff * 100 / yesterday).round()}%';
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: FoxColors.bgSurface2.withValues(alpha: 0.55),
+        borderRadius: BorderRadius.circular(Radii.cardSm),
+        border: Border.all(color: FoxColors.borderSoft),
+      ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (!flat)
+                Icon(
+                  up
+                      ? Icons.trending_up_rounded
+                      : Icons.trending_down_rounded,
+                  size: 15,
+                  color: color,
+                ),
+              if (!flat) const SizedBox(width: 4),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: color,
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 2),
+          const Text(
+            'vs yesterday',
+            style: TextStyle(
+              fontSize: 9.5,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.2,
+              color: FoxColors.textDisabled,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// The showroom car on the home page (references/car/foxyco_hero_home (1).html).
+/// Live → full reveal, lights on; off → stealth, lights dim. The crossfade is
+/// a 600ms tween; on top runs one idle loop — a 3.2s glow pulse. Car body
+/// stays FIXED (no float — device feedback 2026-07-20). Pulse skipped under
+/// reduced motion.
+class _CarStage extends StatefulWidget {
+  const _CarStage({required this.online});
+  final bool online;
+
+  @override
+  State<_CarStage> createState() => _CarStageState();
+}
+
+class _CarStageState extends State<_CarStage>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _idle; // 0..1 looping, drives float + pulse
+
+  @override
+  void initState() {
+    super.initState();
+    _idle = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 6),
+    );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && !MediaQuery.of(context).disableAnimations) {
+        _idle.repeat();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _idle.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final reduced = MediaQuery.of(context).disableAnimations;
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: widget.online ? 1.0 : 0.0),
+      duration: reduced ? Duration.zero : const Duration(milliseconds: 600),
+      curve: Curves.easeInOut,
+      builder: (context, lit, _) => AnimatedBuilder(
+        animation: _idle,
+        builder: (context, _) {
+          final t = _idle.value;
+          // Pulse: ~2 cycles per 6s loop (≈3s, matching the mock's 3.2s
+          // glowpulse), scaling the glows only — car body stays fixed.
+          final pulse =
+              reduced ? 1.0 : 0.85 + 0.15 * math.sin(4 * math.pi * t);
+          final base =
+              CarHeroState.lerp(CarHeroState.stealth, CarHeroState.reveal, lit);
+          final state = CarHeroState(
+            shadow: base.shadow,
+            stealthBacklight: base.stealthBacklight * pulse,
+            fogRear: base.fogRear,
+            carStealth: base.carStealth,
+            fogFront: base.fogFront,
+            rimLight: base.rimLight,
+            headlightBeams: base.headlightBeams,
+            revealBacklight: base.revealBacklight * pulse,
+            groundGlow: base.groundGlow * pulse,
+            carReveal: base.carReveal,
+            bodyAccent: base.bodyAccent,
+            grilleLights: base.grilleLights,
+            headlightsSharp: base.headlightsSharp,
+            interiorGlow: base.interiorGlow,
+            reflection: base.reflection,
+          );
+          // Crop the canvas' empty top/bottom bands (~80% height keeps some
+          // air around the car without pushing slide-to-live off-screen).
+          return ClipRect(
+            child: Align(
+              alignment: const Alignment(0, -0.2),
+              heightFactor: 0.8,
+              child: CarHero(state: state),
+            ),
+          );
+        },
       ),
     );
   }
@@ -328,13 +547,17 @@ class _SegLegend extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Three equal-width pills under the bar (ref mock) — centered content,
+    // verdict-tinted like the mock's Good/Okay/Bad chips.
     return Row(
       children: [
-        _LegendItem(VerdictColors.goodOnDark, tally.good, 'good'),
+        Expanded(
+            child: _LegendItem(VerdictColors.goodOnDark, tally.good, 'good')),
         const SizedBox(width: Gap.sm),
-        _LegendItem(VerdictColors.okOnDark, tally.ok, 'ok'),
+        Expanded(child: _LegendItem(VerdictColors.okOnDark, tally.ok, 'ok')),
         const SizedBox(width: Gap.sm),
-        _LegendItem(VerdictColors.badOnDark, tally.bad, 'bad'),
+        Expanded(
+            child: _LegendItem(VerdictColors.badOnDark, tally.bad, 'bad')),
       ],
     );
   }
@@ -349,19 +572,26 @@ class _LegendItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
       decoration: BoxDecoration(
-        color: FoxColors.cream.withValues(alpha: 0.06),
+        color: color.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(Radii.pill),
-        border: Border.all(color: FoxColors.cream.withValues(alpha: 0.10)),
+        border: Border.all(color: color.withValues(alpha: 0.28)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Container(
-            width: 8,
-            height: 8,
-            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+            width: 7,
+            height: 7,
+            decoration: BoxDecoration(
+              color: color,
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(color: color.withValues(alpha: 0.6), blurRadius: 6),
+              ],
+            ),
           ),
           const SizedBox(width: 6),
           Text.rich(
@@ -375,12 +605,14 @@ class _LegendItem extends StatelessWidget {
                     fontFeatures: [FontFeature.tabularFigures()],
                   ),
                 ),
-                TextSpan(text: ' $label'),
+                TextSpan(
+                  text: ' $label',
+                  style: TextStyle(color: color.withValues(alpha: 0.9)),
+                ),
               ],
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
-                color: FoxColors.cream.withValues(alpha: 0.55),
               ),
             ),
           ),
@@ -481,7 +713,11 @@ class _Ticket extends StatelessWidget {
 
     return Container(
       decoration: BoxDecoration(
-        color: FoxColors.bgSurface,
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [FoxColors.inkSoft, FoxColors.ink],
+        ),
         borderRadius: BorderRadius.circular(Radii.card),
         border: Border.all(color: FoxColors.borderSoft),
         boxShadow: Shadows.card,
@@ -559,13 +795,18 @@ class _Ticket extends StatelessWidget {
           ),
           const _Perforation(),
           Padding(
-            padding: const EdgeInsets.fromLTRB(21, 16, 21, 18),
+            padding: const EdgeInsets.fromLTRB(18, 14, 18, 16),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                _TicketStat('${o.totalKm.toStringAsFixed(1)} km', 'DISTANCE'),
-                _TicketStat(fare, 'FARE'),
-                _TicketStat('\$${o.pricePerKm.toStringAsFixed(2)}', 'PER KM'),
+                Expanded(
+                    child: _TicketStat(
+                        '${o.totalKm.toStringAsFixed(1)} km', 'DISTANCE')),
+                const SizedBox(width: Gap.sm),
+                Expanded(child: _TicketStat(fare, 'FARE')),
+                const SizedBox(width: Gap.sm),
+                Expanded(
+                    child: _TicketStat(
+                        '\$${o.pricePerKm.toStringAsFixed(2)}', 'PER KM')),
               ],
             ),
           ),
@@ -585,30 +826,41 @@ class _TicketStat extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          value,
-          style: const TextStyle(
-            fontFamily: FoxFonts.display,
-            fontSize: 18.5,
-            fontWeight: FontWeight.w600,
-            color: FoxColors.textPrimary,
-            fontFeatures: [FontFeature.tabularFigures()],
+    // Tinted well matching the pill's stat rows — value on top, label under.
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: FoxColors.bgSurface2.withValues(alpha: 0.55),
+        borderRadius: BorderRadius.circular(Radii.field),
+        border: Border.all(color: FoxColors.borderSoft),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontFamily: FoxFonts.display,
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              color: FoxColors.textPrimary,
+              fontFeatures: [FontFeature.tabularFigures()],
+            ),
           ),
-        ),
-        const SizedBox(height: 3),
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 10.5,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 0.7,
-            color: FoxColors.textDisabled,
+          const SizedBox(height: 3),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.7,
+              color: FoxColors.textDisabled,
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -673,10 +925,8 @@ class _EmptyTicket extends StatelessWidget {
       ),
       child: Column(
         children: [
-          ClipOval(
-            child: Image.asset('assets/branding/foxyco_bubble.png',
-                width: 64, height: 64),
-          ),
+          Image.asset('assets/branding/foxyco_head.png',
+              width: 64, height: 64),
           const SizedBox(height: Gap.sm),
           Text('No offers yet', style: text.titleMedium),
           const SizedBox(height: Gap.xs),

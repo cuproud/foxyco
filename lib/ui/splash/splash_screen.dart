@@ -1,28 +1,28 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../domain/driver_profile.dart';
-import '../../domain/garage.dart';
-import '../settings/garage_controller.dart';
+import '../theme/car_hero.dart';
 import '../theme/tokens.dart';
-import '../theme/vehicle_art.dart';
 
-/// Cold-start splash (spec M6 §10). A single [AnimationController] drives the
-/// wordmark fade (0–0.25) and the car drive-in (0.15–0.75) over 1.8s, then
-/// `context.go('/')`. A hard 3s ceiling [Timer] force-navigates even if the
+/// Cold-start splash (spec M6 §10, car-hero redesign 2026-07-20). A single
+/// [AnimationController] drives a three-act ignition sequence over 2.2s:
+/// stealth car fades from black (0–0.27), lights flare on with a flicker
+/// (0.27–0.55), then the full-color reveal blooms and the wordmark fades up
+/// (0.55–1.0). A hard 3.5s ceiling [Timer] force-navigates even if the
 /// controller stalls — the splash never traps. Reduced motion skips the
-/// animation: the wordmark shows instantly and a short timer moves on.
-class SplashScreen extends ConsumerStatefulWidget {
+/// animation: the full reveal + wordmark show instantly and a short timer
+/// moves on.
+class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
   @override
-  ConsumerState<SplashScreen> createState() => _SplashScreenState();
+  State<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends ConsumerState<SplashScreen>
+class _SplashScreenState extends State<SplashScreen>
     with SingleTickerProviderStateMixin {
   late final AnimationController _c;
   Timer? _ceiling;
@@ -33,10 +33,10 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     super.initState();
     _c = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1800),
+      duration: const Duration(milliseconds: 2200),
     );
     // Ceiling armed before anything can fail — splash always exits.
-    _ceiling = Timer(const Duration(seconds: 3), _go);
+    _ceiling = Timer(const Duration(milliseconds: 3500), _go);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       final reduced = MediaQuery.of(context).disableAnimations;
@@ -62,52 +62,100 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     super.dispose();
   }
 
+  /// Headlight flicker: two brief dips on the way to full, like a cold start.
+  static double _flicker(double t) {
+    if (t <= 0) return 0;
+    if (t >= 1) return 1;
+    if (t < 0.35) return t * 2.0; // first surge
+    if (t < 0.45) return 0.15; // dip
+    if (t < 0.70) return 0.9; // second surge
+    if (t < 0.78) return 0.4; // dip
+    return 1.0; // steady on
+  }
+
+  CarHeroState _stateAt(double t) {
+    final fadeIn = const Interval(0.0, 0.27, curve: Curves.easeOut)
+        .transform(t);
+    final ignition = const Interval(0.27, 0.55).transform(t);
+    final reveal = const Interval(0.55, 1.0, curve: Curves.easeInOutCubic)
+        .transform(t);
+    final lights = _flicker(ignition);
+
+    // Stealth base fades in, then the reveal crossfade takes over.
+    final base = CarHeroState.lerp(
+      const CarHeroState(),
+      CarHeroState.stealth,
+      fadeIn,
+    );
+    final lit = CarHeroState(
+      shadow: base.shadow,
+      stealthBacklight: base.stealthBacklight,
+      fogRear: base.fogRear,
+      carStealth: base.carStealth,
+      fogFront: base.fogFront,
+      rimLight: (base.rimLight + 0.65 * lights).clamp(0.0, 1.0),
+      headlightBeams: lights,
+      headlightsSharp: lights,
+      grilleLights: lights,
+      interiorGlow: 0.8 * lights,
+      reflection: base.reflection,
+    );
+    return CarHeroState.lerp(lit, CarHeroState.reveal, reveal);
+  }
+
   @override
   Widget build(BuildContext context) {
     final reduced = MediaQuery.of(context).disableAnimations;
-    final bodyType =
-        ref.watch(activeVehicleProvider)?.bodyType ?? VehicleType.sedan;
 
     return Scaffold(
       backgroundColor: FoxColors.bgBase,
       body: reduced
-          ? const Center(child: _Wordmark(opacity: 1))
+          ? const Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _SplashCar(state: CarHeroState.reveal),
+                  SizedBox(height: Gap.lg),
+                  _Wordmark(opacity: 1),
+                ],
+              ),
+            )
           : AnimatedBuilder(
               animation: _c,
               builder: (context, _) {
+                final t = _c.value;
                 final wordmark = const Interval(
-                  0.0,
-                  0.25,
+                  0.65,
+                  0.95,
                   curve: Curves.easeOut,
-                ).transform(_c.value);
-                final drive = const Interval(
-                  0.15,
-                  0.75,
-                  curve: Curves.easeOutCubic,
-                ).transform(_c.value);
-                return Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    Align(
-                      alignment: const Alignment(0, -0.25),
-                      child: _Wordmark(opacity: wordmark),
-                    ),
-                    Align(
-                      alignment: const Alignment(0, 0.35),
-                      child: CustomPaint(
-                        size: const Size(320, 120),
-                        painter: _SplashScenePainter(
-                          progress: drive,
-                          shimmer: _c.value,
-                          bodyType: bodyType,
-                        ),
-                      ),
-                    ),
-                  ],
+                ).transform(t);
+                return Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _SplashCar(state: _stateAt(t)),
+                      const SizedBox(height: Gap.lg),
+                      _Wordmark(opacity: wordmark),
+                    ],
+                  ),
                 );
               },
             ),
     );
+  }
+}
+
+/// Car capped to a phone-friendly width so the splash column never overflows
+/// short viewports.
+class _SplashCar extends StatelessWidget {
+  const _SplashCar({required this.state});
+
+  final CarHeroState state;
+
+  @override
+  Widget build(BuildContext context) {
+    final w = math.min(360.0, MediaQuery.of(context).size.width * 0.86);
+    return SizedBox(width: w, child: CarHero(state: state));
   }
 }
 
@@ -132,88 +180,4 @@ class _Wordmark extends StatelessWidget {
       ),
     );
   }
-}
-
-/// Car silhouette drives in from the left with a headlight beam; a road line
-/// shimmers underneath. The silhouette reuses [VehicleArtPainter] with a flat
-/// dark tint — at this size the shape reads, not the detail.
-class _SplashScenePainter extends CustomPainter {
-  const _SplashScenePainter({
-    required this.progress,
-    required this.shimmer,
-    required this.bodyType,
-  });
-
-  final double progress; // 0..1 drive-in
-  final double shimmer; // 0..1 whole-sequence t
-  final VehicleType bodyType;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final w = size.width;
-    final h = size.height;
-
-    // Road line with a moving shimmer highlight.
-    final roadY = 0.88 * h;
-    canvas.drawLine(
-      Offset(0.05 * w, roadY),
-      Offset(0.95 * w, roadY),
-      Paint()
-        ..color = FoxColors.cream.withValues(alpha: 0.12)
-        ..strokeWidth = 2,
-    );
-    final shimmerX = (0.05 + 0.9 * shimmer) * w;
-    canvas.drawLine(
-      Offset(shimmerX - 0.08 * w, roadY),
-      Offset(shimmerX + 0.08 * w, roadY),
-      Paint()
-        ..color = FoxColors.cream.withValues(alpha: 0.45)
-        ..strokeWidth = 2
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3),
-    );
-
-    // Car drives in: x from off-screen-left to centered.
-    const carW = 150.0;
-    const carH = carW * 0.48;
-    final carX = -carW + (0.5 * w - carW / 2 + carW) * progress;
-    canvas.save();
-    canvas.translate(carX, roadY - carH - 8);
-    VehicleArtPainter(
-      bodyType: bodyType,
-      color: const Color(0xFF2A3A31), // silhouette tint
-      fuelType: FuelType.gas,
-    ).paint(canvas, const Size(carW, carH));
-    canvas.restore();
-
-    // Headlight beam off the car's nose, fading out during the last stretch.
-    final noseX = carX + carW * 0.95;
-    final noseY = roadY - carH * 0.35;
-    final beamAlpha = (0.30 * (1 - (progress - 0.6).clamp(0, 0.4) / 0.4)).clamp(
-      0.0,
-      0.30,
-    );
-    final beam = Path()
-      ..moveTo(noseX, noseY - 14)
-      ..lineTo(noseX + 0.35 * w, noseY - 4)
-      ..lineTo(noseX + 0.35 * w, noseY + 18)
-      ..lineTo(noseX, noseY + 14)
-      ..close();
-    canvas.drawPath(
-      beam,
-      Paint()
-        ..shader = LinearGradient(
-          colors: [
-            // warm headlight-beam gradient — splash painter, intentionally off-token
-            const Color(0xFFFFE9B8).withValues(alpha: beamAlpha),
-            const Color(0x00FFE9B8),
-          ],
-        ).createShader(Rect.fromLTWH(noseX, noseY - 14, 0.35 * w, 32)),
-    );
-  }
-
-  @override
-  bool shouldRepaint(_SplashScenePainter old) =>
-      old.progress != progress ||
-      old.shimmer != shimmer ||
-      old.bodyType != bodyType;
 }

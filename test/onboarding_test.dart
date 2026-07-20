@@ -54,7 +54,10 @@ void main() {
     // Final CTA replaces Next and lands on Home.
     expect(find.text('Next'), findsNothing);
     await tester.tap(find.text('Start driving smarter'));
-    await tester.pumpAndSettle();
+    // Home's car hero runs an endless idle loop — pumpAndSettle would hang.
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pump(const Duration(milliseconds: 400));
     expect(find.byType(OnboardingScreen), findsNothing);
     expect(find.text('FoxyCo'), findsOneWidget);
   });
@@ -63,7 +66,10 @@ void main() {
     await tester.pumpWidget(app(showOnboarding: true));
 
     await tester.tap(find.text('Skip for now'));
-    await tester.pumpAndSettle();
+    // Home's car hero runs an endless idle loop — pumpAndSettle would hang.
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pump(const Duration(milliseconds: 400));
     expect(find.byType(OnboardingScreen), findsNothing);
     expect(find.text('FoxyCo'), findsOneWidget);
   });

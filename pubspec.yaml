@@ -97,6 +97,7 @@ flutter:
 
   assets:
     - assets/branding/
+    - assets/car/
 
   # Fraunces (serif display — big money numbers) + Inter (UI). Variable TTFs:
   # Flutter maps FontWeight to the wght axis, so one asset per family covers all.

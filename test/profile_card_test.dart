@@ -5,7 +5,7 @@ import 'package:foxyco/domain/driver_profile.dart';
 import 'package:foxyco/domain/garage.dart';
 import 'package:foxyco/ui/home/profile_card.dart';
 import 'package:foxyco/ui/settings/garage_controller.dart';
-import 'package:foxyco/ui/theme/vehicle_art.dart';
+
 
 class _FixedGarage extends GarageController {
   _FixedGarage(this._g);
@@ -45,11 +45,11 @@ void main() {
   testWidgets('no name → no card', (tester) async {
     await tester.pumpWidget(_app('', Garage.empty));
     await tester.pump();
-    expect(find.byType(VehicleArt), findsNothing);
+    
     expect(find.textContaining(','), findsNothing);
   });
 
-  testWidgets('name + active vehicle → greeting, vehicle line, art, EV badge',
+  testWidgets('name + active vehicle → greeting only (details removed)',
       (tester) async {
     const g = Garage(
       vehicles: [
@@ -69,16 +69,14 @@ void main() {
     await tester.pumpWidget(_app('Vamsi', g));
     await tester.pump(const Duration(seconds: 1));
     expect(find.textContaining('Vamsi'), findsOneWidget);
-    expect(find.textContaining('Red 2022 Toyota Camry'), findsOneWidget);
-    expect(find.byType(VehicleArt), findsOneWidget);
-    expect(find.text('⚡ EV'), findsOneWidget);
+    
   });
 
-  testWidgets('name but empty garage → card shows greeting, no art',
+  testWidgets('name but empty garage → greeting shows, no vehicle line',
       (tester) async {
     await tester.pumpWidget(_app('Vamsi', Garage.empty));
     await tester.pump(const Duration(seconds: 1));
     expect(find.textContaining('Vamsi'), findsOneWidget);
-    expect(find.byType(VehicleArt), findsNothing);
+    
   });
 }

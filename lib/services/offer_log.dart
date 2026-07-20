@@ -101,10 +101,21 @@ final offerLogProvider = NotifierProvider<OfferLog, List<OfferSummary>>(
 final todayTallyProvider = Provider<Tally>((ref) {
   final log = ref.watch(offerLogProvider);
   final now = DateTime.now();
+  return _tallyFor(log, now);
+});
+
+/// Yesterday's counts — feeds the "vs yesterday" trend chip on Home.
+final yesterdayTallyProvider = Provider<Tally>((ref) {
+  final log = ref.watch(offerLogProvider);
+  final y = DateTime.now().subtract(const Duration(days: 1));
+  return _tallyFor(log, y);
+});
+
+Tally _tallyFor(List<OfferSummary> log, DateTime day) {
   var good = 0, ok = 0, bad = 0;
   for (final o in log) {
     final t = o.seenAt;
-    if (t.year != now.year || t.month != now.month || t.day != now.day) {
+    if (t.year != day.year || t.month != day.month || t.day != day.day) {
       continue;
     }
     switch (o.verdict) {
@@ -119,7 +130,7 @@ final todayTallyProvider = Provider<Tally>((ref) {
     }
   }
   return Tally(good: good, ok: ok, bad: bad);
-});
+}
 
 /// The most recent logged offer, or null when the log is empty.
 final lastOfferProvider = Provider<OfferSummary?>((ref) {

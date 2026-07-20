@@ -1,0 +1,89 @@
+{
+  "canvasWidth": 1536,
+  "canvasHeight": 1024,
+  "carBoundingBox": {
+    "left": 12,
+    "top": 0,
+    "right": 1523,
+    "bottom": 1024
+  },
+  "groundLineY": 790,
+  "masterSha256": "eda84ed3fe6d1499a5a2c1942b0b09f9c339d35596e49a46bd5593da499b032d",
+  "validationPassed": true,
+  "vehicleGeometryChanged": false,
+  "wheelGeometryChanged": false,
+  "files": [
+    {
+      "name": "body_accent_glow.png",
+      "width": 1536,
+      "height": 1024,
+      "mode": "RGBA",
+      "alignmentPassed": true,
+      "alphaNoisePassed": true
+    },
+    {
+      "name": "car_reflection.png",
+      "width": 1536,
+      "height": 1024,
+      "mode": "RGBA",
+      "alignmentPassed": true,
+      "alphaNoisePassed": true
+    },
+    {
+      "name": "car_reveal.png",
+      "width": 1536,
+      "height": 1024,
+      "mode": "RGBA",
+      "alignmentPassed": true,
+      "alphaNoisePassed": true
+    },
+    {
+      "name": "car_shadow.png",
+      "width": 1536,
+      "height": 1024,
+      "mode": "RGBA",
+      "alignmentPassed": true,
+      "alphaNoisePassed": true
+    },
+    {
+      "name": "grille_lights.png",
+      "width": 1536,
+      "height": 1024,
+      "mode": "RGBA",
+      "alignmentPassed": true,
+      "alphaNoisePassed": true
+    },
+    {
+      "name": "ground_color_glow.png",
+      "width": 1536,
+      "height": 1024,
+      "mode": "RGBA",
+      "alignmentPassed": true,
+      "alphaNoisePassed": true
+    },
+    {
+      "name": "headlights_sharp.png",
+      "width": 1536,
+      "height": 1024,
+      "mode": "RGBA",
+      "alignmentPassed": true,
+      "alphaNoisePassed": true
+    },
+    {
+      "name": "interior_glow.png",
+      "width": 1536,
+      "height": 1024,
+      "mode": "RGBA",
+      "alignmentPassed": true,
+      "alphaNoisePassed": true
+    },
+    {
+      "name": "reveal_backlight.png",
+      "width": 1536,
+      "height": 1024,
+      "mode": "RGBA",
+      "alignmentPassed": true,
+      "alphaNoisePassed": true
+    }
+  ]
+}

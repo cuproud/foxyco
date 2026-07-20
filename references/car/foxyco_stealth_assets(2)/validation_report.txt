@@ -1,0 +1,10 @@
+Validation passed: True
+Canvas size: 1536x1024
+Master SHA-256: eda84ed3fe6d1499a5a2c1942b0b09f9c339d35596e49a46bd5593da499b032d
+Master alpha bounding box: (12, 0, 1523, 1024)
+Ground line Y: 790
+Vehicle geometry changed: False
+Wheel geometry changed: False
+Shared asset hashes match across ZIPs: True
+car_reveal SHA-256 matches master: True
+car_stealth alpha channel matches master: True

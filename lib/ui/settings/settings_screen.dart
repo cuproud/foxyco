@@ -14,7 +14,7 @@ import '../../services/offer_log.dart';
 import '../../services/parse_health.dart';
 import '../overlay/verdict_pill.dart';
 import '../theme/tokens.dart';
-import '../theme/vehicle_art.dart';
+import '../theme/vehicle_badge.dart';
 import '../theme/verdict_style.dart';
 import 'garage_controller.dart';
 import 'settings_controller.dart';
@@ -102,37 +102,42 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               const _SectionLabel('Verdict thresholds',
                   icon: Icons.tune_rounded),
               const SizedBox(height: Gap.sm),
-              Text(
-                perHour
-                    ? 'FoxyCo scores every offer by dollars per hour. '
-                        'Set where GOOD and BAD begin.'
-                    : 'FoxyCo scores every offer by dollars per kilometre. '
-                        'Set where GOOD and BAD begin.',
-                style:
-                    text.bodyMedium?.copyWith(color: FoxColors.textSecondary),
-              ),
-              const SizedBox(height: Gap.md),
-              // Rate mode — each mode keeps its own cut points. Offers with no
-              // parsed time fall back to $/km scoring (engine fail-safe).
-              Center(
-                child: SegmentedButton<RateMode>(
-                  segments: [
-                    for (final m in RateMode.values)
-                      ButtonSegment(value: m, label: Text(m.label)),
-                  ],
-                  selected: {settings.rateMode},
-                  onSelectionChanged: (s) => controller.setRateMode(s.first),
-                  style: SegmentedButton.styleFrom(
-                    selectedBackgroundColor: FoxColors.brandFoxSoft,
-                    selectedForegroundColor: FoxColors.brandFoxDeep,
-                  ),
-                ),
-              ),
-              const SizedBox(height: Gap.md),
+              // One card owns the whole story: what it does, the mode toggle,
+              // the band, the two cut sliders (was 3 loose blocks — bulky).
               _Card(
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    _ThresholdBand(thresholds: t, min: min, max: max),
+                    Text(
+                      perHour
+                          ? 'Offers are scored by dollars per hour. Set where '
+                              'GOOD and BAD begin.'
+                          : 'Offers are scored by dollars per kilometre. Set '
+                              'where GOOD and BAD begin.',
+                      style: text.bodyMedium
+                          ?.copyWith(color: FoxColors.textSecondary),
+                    ),
+                    const SizedBox(height: Gap.md),
+                    // Rate mode — each mode keeps its own cut points. Offers
+                    // with no parsed time fall back to $/km (engine fail-safe).
+                    Center(
+                      child: SegmentedButton<RateMode>(
+                        segments: [
+                          for (final m in RateMode.values)
+                            ButtonSegment(value: m, label: Text(m.label)),
+                        ],
+                        selected: {settings.rateMode},
+                        onSelectionChanged: (s) =>
+                            controller.setRateMode(s.first),
+                        style: SegmentedButton.styleFrom(
+                          selectedBackgroundColor: FoxColors.brandFoxSoft,
+                          selectedForegroundColor: FoxColors.brandFoxDeep,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: Gap.md),
+                    _ThresholdBand(
+                        thresholds: t, min: min, max: max, unit: unit),
                     const SizedBox(height: Gap.md),
                     _ThresholdSlider(
                       label: 'GOOD at or above',
@@ -193,22 +198,26 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   icon: Icons.near_me_outlined),
               const SizedBox(height: Gap.sm),
               _Card(
-                child: _ThresholdSlider(
-                  label: 'Near pickup at or under',
-                  color: FoxColors.brandFox,
-                  value: settings.pickupNearKm,
-                  min: 0.5,
-                  max: 10.0,
-                  unit: 'km',
-                  onChanged: controller.setPickupNearKm,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _ThresholdSlider(
+                      label: 'Near pickup at or under',
+                      color: FoxColors.brandFox,
+                      value: settings.pickupNearKm,
+                      min: 0.5,
+                      max: 10.0,
+                      unit: 'km',
+                      onChanged: controller.setPickupNearKm,
+                    ),
+                    Text(
+                      'Pickups under this distance show green on the pill; '
+                      'longer dead runs show red.',
+                      style: text.bodyMedium
+                          ?.copyWith(color: FoxColors.textSecondary),
+                    ),
+                  ],
                 ),
-              ),
-              const SizedBox(height: Gap.sm),
-              Text(
-                'Pickups under this distance show green on the pill; '
-                'longer dead runs show red.',
-                style:
-                    text.bodyMedium?.copyWith(color: FoxColors.textSecondary),
               ),
             ],
           ),
@@ -584,11 +593,13 @@ class _ThresholdBand extends StatelessWidget {
     required this.thresholds,
     required this.min,
     required this.max,
+    required this.unit,
   });
 
   final Thresholds thresholds;
   final double min;
   final double max;
+  final String unit;
 
   @override
   Widget build(BuildContext context) {
@@ -628,7 +639,7 @@ class _ThresholdBand extends StatelessWidget {
           children: [
             Text('\$${min.toStringAsFixed(2)}',
                 style: Theme.of(context).textTheme.labelSmall),
-            Text('\$${max.toStringAsFixed(2)}/km',
+            Text('\$${max.toStringAsFixed(2)}$unit',
                 style: Theme.of(context).textTheme.labelSmall),
           ],
         ),
@@ -836,11 +847,13 @@ class _DriverNameCardState extends ConsumerState<_DriverNameCard> {
             controller: _name,
             onChanged: (_) => setState(() {}),
             textInputAction: TextInputAction.done,
+            // Greeting shows this name — cap it so it can't dominate Home.
+            maxLength: 20,
             onSubmitted: (_) {
               if (_name.text.trim() != saved.trim()) _save();
             },
-            decoration:
-                const InputDecoration(labelText: 'Name', isDense: true),
+            decoration: const InputDecoration(
+                labelText: 'Name', isDense: true, counterText: ''),
           ),
         ),
         if (dirty) ...[
@@ -958,11 +971,10 @@ class _VehicleCard extends StatelessWidget {
         ),
         child: Row(
           children: [
-            VehicleArt(
+            VehicleBadge(
               bodyType: vehicle.bodyType,
               color: Color(vehicle.colorValue),
               fuelType: vehicle.fuelType,
-              width: 72,
             ),
             const SizedBox(width: Gap.md),
             Expanded(

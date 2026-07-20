@@ -4,13 +4,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/driver_profile.dart';
 import '../../domain/garage.dart';
 import '../theme/tokens.dart';
-import '../theme/vehicle_art.dart';
+import '../theme/vehicle_badge.dart';
 import 'garage_controller.dart';
 
 /// Full-screen vehicle editor (spec M6 §4.3). Local draft state only —
-/// NOTHING touches the garage until Save; Cancel/back discards. The live art
-/// preview re-tints/re-shapes as the driver edits. Delete (existing vehicles
-/// only) confirms first; the controller handles the active-fallback.
+/// NOTHING touches the garage until Save; Cancel/back discards. The live
+/// badge preview re-tints/re-shapes as the driver edits. Delete (existing
+/// vehicles only) confirms first; the controller handles the active-fallback.
 class VehicleEditorScreen extends ConsumerStatefulWidget {
   const VehicleEditorScreen({super.key, this.initial});
 
@@ -115,6 +115,7 @@ class _VehicleEditorScreenState extends ConsumerState<VehicleEditorScreen> {
           // Live preview re-renders on every draft edit (spec M6 §4.3).
           Container(
             margin: const EdgeInsets.symmetric(vertical: Gap.lg),
+            padding: const EdgeInsets.all(Gap.lg),
             decoration: BoxDecoration(
               gradient: const LinearGradient(
                 begin: Alignment.topLeft,
@@ -125,14 +126,11 @@ class _VehicleEditorScreenState extends ConsumerState<VehicleEditorScreen> {
               border: Border.all(color: FoxColors.borderSoft),
             ),
             child: Center(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: Gap.lg),
-                child: VehicleArt(
-                  bodyType: _body,
-                  color: Color(_color),
-                  fuelType: _fuel,
-                  width: 220,
-                ),
+              child: VehicleBadge(
+                bodyType: _body,
+                color: Color(_color),
+                fuelType: _fuel,
+                size: 72,
               ),
             ),
           ),

@@ -54,9 +54,14 @@ public class FlutterOverlayWindowPlugin implements
         messenger = new BasicMessageChannel(flutterPluginBinding.getBinaryMessenger(), OverlayConstants.MESSENGER_TAG,
                 JSONMessageCodec.INSTANCE);
         messenger.setMessageHandler(this);
-
-        WindowSetup.messenger = messenger;
-        WindowSetup.messenger.setMessageHandler(this);
+        // FoxyCo patch: WindowSetup.messenger is claimed in onAttachedToActivity,
+        // NOT here. This method runs for BOTH engines (the overlay engine
+        // auto-registers plugins too), and the overlay engine attaches last —
+        // claiming here left the static pointing at the OVERLAY channel, so
+        // every overlay→app action (stopWatching, togglePause) looped back into
+        // the overlay isolate and the dashboard stayed "Watching" after a
+        // drop-to-dismiss while FoxyCo was foregrounded (device 2026-07-20).
+        // Only the main engine ever gets an activity.
     }
 
     @RequiresApi(api = Build.VERSION_CODES.N)
@@ -137,12 +142,24 @@ public class FlutterOverlayWindowPlugin implements
     @Override
     public void onDetachedFromEngine(@NonNull FlutterPluginBinding binding) {
         channel.setMethodCallHandler(null);
-        WindowSetup.messenger.setMessageHandler(null);
+        // FoxyCo patch: only release the static if WE own it — the overlay
+        // engine's plugin instance detaching must not silence the main app's
+        // channel.
+        if (WindowSetup.messenger == messenger && WindowSetup.messenger != null) {
+            WindowSetup.messenger.setMessageHandler(null);
+            WindowSetup.messenger = null;
+        }
     }
 
     @Override
     public void onAttachedToActivity(@NonNull ActivityPluginBinding binding) {
         mActivity = binding.getActivity();
+        // FoxyCo patch: claim the overlay↔app messenger HERE — only the MAIN
+        // engine's plugin instance ever gets an activity, so the static is
+        // guaranteed to point at the main isolate. sendActionToApp / the
+        // service's overlay→main forward both route through it.
+        WindowSetup.messenger = messenger;
+        WindowSetup.messenger.setMessageHandler(this);
         if (FlutterEngineCache.getInstance().get(OverlayConstants.CACHED_TAG) == null) {
             FlutterEngineGroup enn = new FlutterEngineGroup(context);
             DartExecutor.DartEntrypoint dEntry = new DartExecutor.DartEntrypoint(

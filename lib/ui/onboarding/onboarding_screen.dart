@@ -174,7 +174,12 @@ class _Page extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Text(emoji, style: const TextStyle(fontSize: 64)),
+          // Real fox head for FoxyCo's own intro page; emoji for the rest.
+          if (emoji == '🦊')
+            Image.asset('assets/branding/foxyco_head.png',
+                width: 96, height: 96)
+          else
+            Text(emoji, style: const TextStyle(fontSize: 64)),
           const SizedBox(height: Gap.lg),
           Text(title, style: text.headlineMedium, textAlign: TextAlign.center),
           const SizedBox(height: Gap.md),

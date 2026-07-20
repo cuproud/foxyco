@@ -337,5 +337,22 @@ _Last updated: 2026-07-19 (M7 rows: Uber Match/Accept parsing, pill visibility o
 | M8.12 | Drag the bubble anywhere | Red gradient strip + white ✕ circle fade in at screen bottom while dragging; gone the instant you release | [ ] |
 | M8.13 | Drag the bubble INTO the bottom strip | ✕ turns solid red + swells while finger is in the zone; release closes the session (dashboard flips to stopped) | [ ] |
 | M8.14 | Drag near-but-above the strip and release | ✕ stays neutral, bubble parks at the bottom edge, session KEEPS running | [ ] |
+| M8.15 | With FoxyCo itself foregrounded, drop the bubble on the ✕ | Bubble closes AND dashboard flips to stopped (messenger no longer loops back to the overlay isolate) | [ ] |
 
-_Last updated: 2026-07-19 (M8 rows: settings/history/pill UX round 2 + lifecycle honesty + dismiss-zone discoverability)._
+---
+
+## M9 — Car hero (photographic splash + home showroom) (2026-07-20)
+
+> Splash and home hero now composite the layered car renders in assets/car/
+> (stealth + reveal sets). Supersedes M6.1/M6.2 pass bars.
+
+| # | How | PASS bar | Status |
+|---|-----|----------|--------|
+| M9.1 | Cold-start the app | 3-act splash ≈2.2 s: dark car fades from black → headlights/grille FLICKER on → full-color reveal blooms + wordmark. Total never exceeds 3.5 s | [ ] |
+| M9.2 | Enable "Remove animations" (OS a11y), cold start | Static full-reveal car + wordmark ~0.5 s, NO animation, then Home | [ ] |
+| M9.3 | Home while STOPPED | Hero card shows the dark stealth car (lights off, fog) | [ ] |
+| M9.4 | Slide to go live | Car cross-fades to the lit full-color reveal over ≈0.6 s; stopping fades it back to stealth | [ ] |
+| M9.5 | Watch the home car ~10 s | Gentle float (±6 px) + glow pulse loops; no jank, no layer misalignment | [ ] |
+| M9.6 | "Remove animations" on, open Home | Car is STATIC (no float/pulse); state crossfade is instant | [ ] |
+
+_Last updated: 2026-07-20 (M9: layered car hero on splash + home)._

@@ -26,7 +26,7 @@ void main() {
     // Boot lands stopped (spec M5 §4): monitoring waits for an explicit start.
     expect(find.text('FoxyCo'), findsOneWidget);
     expect(find.text('Ready when you are'), findsOneWidget);
-    expect(find.text('offers seen today'), findsOneWidget);
+    expect(find.textContaining('offers seen'), findsOneWidget);
     expect(find.text('LAST OFFER'), findsOneWidget);
 
     // Off-device the offer log is empty — the ticket shows its empty state.
