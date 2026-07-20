@@ -489,11 +489,16 @@ class _CarStageState extends State<_CarStage>
           );
           // Crop the canvas' empty top/bottom bands (~80% height keeps some
           // air around the car without pushing slide-to-live off-screen).
+          // Car pixels span 98% of the canvas width — inset slightly so the
+          // nose/tail don't kiss the screen edges (ref mock has margin).
           return ClipRect(
             child: Align(
               alignment: const Alignment(0, -0.2),
               heightFactor: 0.8,
-              child: CarHero(state: state),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: Gap.md),
+                child: CarHero(state: state),
+              ),
             ),
           );
         },
