@@ -139,6 +139,23 @@ touching DecisionEngine/overlay.
 
 ---
 
+## M9 — Photographic car hero + release readiness (2026-07-20)  ✅
+
+Goal: premium showroom look with real layered car renders; pass a full
+production audit.
+
+- [x] `CarHero` layered composite (15 pre-aligned PNGs, stealth + reveal sets)
+- [x] Splash: 2.2s three-act ignition (fade → headlight flicker → reveal)
+- [x] Home: full-bleed car above hero card; live=reveal / stopped=stealth
+- [x] Score card: trend chip vs yesterday, equal verdict legend pills
+- [x] Release hygiene: kDebugMode-guarded logs, R8 on, signing wired,
+      appId locked, license audit clear (see AUDIT.md + PLAY_RELEASE.md)
+
+**Done when:** release build green, audits pass. ✅ Remaining for store:
+keystore generation + Play Console papers + billing/trial (PLAY_RELEASE.md).
+
+---
+
 ## Later (💤 — NOT now, architecture only)
 
 Profit engine (fuel/wear/tax) · ~~auto-accept/decline~~ (**NEVER — product rule 2026-07-16:

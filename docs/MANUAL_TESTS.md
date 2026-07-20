@@ -354,5 +354,7 @@ _Last updated: 2026-07-19 (M7 rows: Uber Match/Accept parsing, pill visibility o
 | M9.4 | Slide to go live | Car cross-fades to the lit full-color reveal over ≈0.6 s; stopping fades it back to stealth | [ ] |
 | M9.5 | Watch the home car ~10 s | Gentle float (±6 px) + glow pulse loops; no jank, no layer misalignment | [ ] |
 | M9.6 | "Remove animations" on, open Home | Car is STATIC (no float/pulse); state crossfade is instant | [ ] |
+| M9.7 | Home page at open (no scroll) | Slide-to-go-live fully visible above the fold; car has side margins | [ ] |
+| M9.8 | Brand bar + onboarding + empty ticket | Full fox head (ears, no disc, no stray dots); floating bubble still round disc | [ ] |
 
 _Last updated: 2026-07-20 (M9: layered car hero on splash + home)._
