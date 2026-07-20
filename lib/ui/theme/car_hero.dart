@@ -96,6 +96,10 @@ class CarHero extends StatelessWidget {
 
   final CarHeroState state;
 
+  /// All layer asset basenames — splash uses this to precache.
+  static List<String> get layerNames =>
+      [for (final (name, _) in _layers) name];
+
   // Bottom-to-top compositing order (per asset-set READMEs).
   static const _layers = <(String, double Function(CarHeroState))>[
     ('stealth_backlight', _sBacklight),
@@ -148,13 +152,16 @@ class CarHero extends StatelessWidget {
               children: [
                 for (final (name, opacityOf) in _layers)
                   if (opacityOf(state) > 0.004)
-                    Opacity(
-                      opacity: opacityOf(state).clamp(0.0, 1.0),
-                      child: Image.asset(
-                        'assets/car/$name.png',
-                        fit: BoxFit.contain,
-                        cacheWidth: cacheW,
-                        gaplessPlayback: true,
+                    Image.asset(
+                      'assets/car/$name.png',
+                      fit: BoxFit.contain,
+                      cacheWidth: cacheW,
+                      gaplessPlayback: true,
+                      // Image's own opacity paints with alpha directly — an
+                      // Opacity widget here would saveLayer per layer per
+                      // frame (15 layers = real GPU cost on low-end).
+                      opacity: AlwaysStoppedAnimation(
+                        opacityOf(state).clamp(0.0, 1.0),
                       ),
                     ),
               ],

@@ -28,6 +28,7 @@ class _SplashScreenState extends State<SplashScreen>
   Timer? _ceiling;
   Timer? _reducedTimer;
   bool _navigated = false;
+  bool _precached = false;
 
   @override
   void initState() {
@@ -47,6 +48,24 @@ class _SplashScreenState extends State<SplashScreen>
         _c.forward().whenComplete(_go);
       }
     });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_precached) return;
+    _precached = true;
+    // Warm every car layer at HOME's full-bleed decode width — the splash
+    // decodes its own (smaller) copies on first frame regardless; this makes
+    // the Home hero appear instantly after navigation, no layer pop-in.
+    final mq = MediaQuery.of(context);
+    final cacheW = (mq.size.width * mq.devicePixelRatio).round();
+    for (final name in CarHero.layerNames) {
+      precacheImage(
+        ResizeImage(AssetImage('assets/car/$name.png'), width: cacheW),
+        context,
+      );
+    }
   }
 
   void _go() {

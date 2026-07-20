@@ -153,16 +153,36 @@ Full pass against every risk above, ahead of the first Play submission.
 
 ### Blockers left for Play submission (not code)
 
-1. **Signing:** release build still uses the debug keystore
-   (`android/app/build.gradle.kts` TODO). Generate upload keystore, back it up,
-   move to `signingConfigs.release`, then build `appbundle`.
-2. **Application ID:** `com.foxyco.app` is marked placeholder — lock it now
-   (namespace is `com.foxyco.foxyco`; align or accept mismatch deliberately).
+1. ~~**Signing wiring**~~ ✅ 2026-07-20: gradle reads `android/key.properties`
+   (gitignored) with debug fallback. ⏳ YOU still must generate the keystore:
+   ```
+   keytool -genkeypair -v -keystore ~/foxyco-upload.jks -alias upload \
+     -keyalg RSA -keysize 2048 -validity 10000
+   ```
+   then write `android/key.properties` (storePassword/keyPassword/keyAlias=upload/
+   storeFile) and BACK BOTH UP — losing them loses the Play listing.
+2. ~~**Application ID**~~ ✅ locked `com.foxyco.app` 2026-07-20.
 3. **Play Console papers:** accessibility declaration form, data-safety form
    (all "no data collected/shared" — true, offline), listing screenshots,
    privacy-policy URL (required even for offline apps).
-4. **R8/shrink:** not enabled; enable `minifyEnabled` + `shrinkResources` with
-   keep rules for the two vendored plugins before the store build (APK size).
+4. ~~**R8/shrink**~~ ✅ 2026-07-20: `minifyEnabled` + `shrinkResources` on, keep
+   rules for both vendored plugins (`proguard-rules.pro`); release build green.
+
+### License audit — 2026-07-20 (all clear ✅)
+
+| Component | License | OK |
+|---|---|---|
+| flutter_overlay_window (vendored) | MIT (Iheb Briki) | ✅ |
+| flutter_accessibility_service (vendored) | MIT (Iheb Briki) | ✅ |
+| flutter_riverpod, permission_handler, cupertino_icons | MIT | ✅ |
+| go_router, shared_preferences, path_provider, flutter_lints | BSD-3 (Flutter Authors) | ✅ |
+| Fraunces font | SIL OFL 1.1 (`fonts/OFL_Fraunces.txt`) | ✅ |
+| Inter font | SIL OFL 1.1 (`fonts/OFL_Inter.txt`) | ✅ |
+| Car renders, fox logo, all branding PNGs | generated for this project | ✅ |
+
+No GPL/AGPL/commercial anywhere in the tree. OFL texts now committed beside the
+fonts (OFL requires shipping the license with the font). Flutter's built-in
+`LicenseRegistry` covers pub packages at runtime; nothing further owed.
 
 ---
 
