@@ -47,3 +47,4 @@ dist/
 
 # Local tooling
 .tokensave/
+*:Zone.Identifier
