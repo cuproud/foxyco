@@ -18,16 +18,8 @@ class ReminderSection extends ConsumerWidget {
     final reminders = ref.watch(reminderProvider);
     final text = Theme.of(context).textTheme;
 
-    return Container(
-      padding: const EdgeInsets.all(Gap.md + Gap.xs),
-      decoration: BoxDecoration(
-        color: FoxColors.bgSurface,
-        borderRadius: BorderRadius.circular(Radii.card),
-        border: Border.all(color: FoxColors.borderSoft),
-        boxShadow: Shadows.card,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           if (reminders.isEmpty)
             Text(
@@ -66,7 +58,6 @@ class ReminderSection extends ConsumerWidget {
             label: const Text('Add reminder'),
           ),
         ],
-      ),
     );
   }
 }

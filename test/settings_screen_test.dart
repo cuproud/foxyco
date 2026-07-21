@@ -20,11 +20,18 @@ Widget _host() => ProviderScope(
   ),
 );
 
+/// Groups start collapsed (except Driver); open one before asserting on its
+/// body widgets. Single-open means opening a group closes the previous one.
+Future<void> openGroup(WidgetTester tester, String title) async {
+  await tester.tap(find.text(title));
+  await tester.pumpAndSettle();
+}
+
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
   testWidgets('renders thresholds and live preview', (tester) async {
-    // Tall viewport so the lazy ListView builds the bottom preview card.
+    // Tall viewport so the lazy ListView builds every collapsed group.
     tester.view.physicalSize = const Size(1080, 2600);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
@@ -32,9 +39,14 @@ void main() {
     await tester.pumpWidget(_host());
 
     expect(find.text('Settings'), findsOneWidget);
+
+    await openGroup(tester, 'Verdict thresholds');
     expect(find.text('GOOD at or above'), findsOneWidget);
     expect(find.text('BAD below'), findsOneWidget);
-    // Default band: GOOD ≥ 1.50 sample offer at 1.25 ⇒ OK.
+
+    // Live preview is a separate group; opening it collapses thresholds.
+    await openGroup(tester, 'Live preview');
+    // Default band: GOOD ≥ 1.50, sample offer at 1.25 ⇒ OK.
     expect(find.text('OK'), findsOneWidget);
   });
 
@@ -97,6 +109,8 @@ void main() {
     await tester.pumpWidget(_host());
     await tester.pumpAndSettle();
 
+    await openGroup(tester, 'Pill size');
+
     // Preview pill is rendered on the settings screen.
     expect(find.byType(VerdictPill), findsOneWidget);
 
@@ -155,8 +169,29 @@ void main() {
     await tester.pumpWidget(_host());
     await tester.pumpAndSettle();
 
+    await openGroup(tester, 'Garage');
     expect(find.byKey(const ValueKey('add-vehicle')), findsOneWidget);
     expect(find.text('Add vehicle'), findsOneWidget);
+  });
+
+  testWidgets('accordion opens one group at a time', (tester) async {
+    tester.view.physicalSize = const Size(1080, 3600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(_host());
+    await tester.pumpAndSettle();
+
+    // Watched apps' switch tiles are hidden while the group is collapsed.
+    expect(find.text('Uber'), findsNothing);
+
+    await openGroup(tester, 'Watched apps');
+    expect(find.text('Uber'), findsOneWidget);
+
+    // Opening another group collapses the previous one.
+    await openGroup(tester, 'History');
+    expect(find.text('Uber'), findsNothing);
+    expect(find.text('Keep offers for'), findsOneWidget);
   });
 
   test('controller clamps GOOD above BAD (band stays coherent)', () {
