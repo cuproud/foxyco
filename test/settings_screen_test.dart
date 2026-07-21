@@ -174,6 +174,24 @@ void main() {
     expect(find.text('Add vehicle'), findsOneWidget);
   });
 
+  testWidgets('font picker shows samples saves choice', (tester) async {
+    tester.view.physicalSize = const Size(1080, 3600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(_host());
+    await tester.pumpAndSettle();
+
+    await openGroup(tester, 'Appearance');
+    // One live "$24.50" sample per MoneyFont value.
+    expect(find.text(r'$24.50'), findsNWidgets(3));
+
+    await tester.tap(find.text('Space Grotesk'));
+    await tester.pumpAndSettle();
+    // Summary line + card label both reflect the pick.
+    expect(find.text('Space Grotesk'), findsWidgets);
+  });
+
   testWidgets('accordion opens one group at a time', (tester) async {
     tester.view.physicalSize = const Size(1080, 3600);
     tester.view.devicePixelRatio = 1.0;

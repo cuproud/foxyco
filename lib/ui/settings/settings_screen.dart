@@ -9,6 +9,7 @@ import 'package:share_plus/share_plus.dart';
 import '../../domain/decision_engine.dart';
 import '../../domain/fox_settings.dart';
 import '../../domain/garage.dart';
+import '../../domain/money_font.dart';
 import '../../domain/overlay_payload.dart' show OverlayPayload, PillSize;
 import '../../domain/platform.dart';
 import '../../domain/rate_mode.dart';
@@ -413,8 +414,28 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             summary: settings.moneyFont.label,
             open: _open == 8,
             onTap: () => _toggle(8),
-            // ponytail: Task 5 fills this body.
-            child: const SizedBox.shrink(),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  'Typeface for the big money numbers — pill, home and '
+                  'history.',
+                  style: text.bodyMedium?.copyWith(
+                    color: FoxColors.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: Gap.md),
+                for (final f in MoneyFont.values) ...[
+                  _FontChoiceCard(
+                    font: f,
+                    selected: settings.moneyFont == f,
+                    onTap: () => controller.setMoneyFont(f),
+                  ),
+                  if (f != MoneyFont.values.last)
+                    const SizedBox(height: Gap.sm),
+                ],
+              ],
+            ),
           ),
         ),
         const SizedBox(height: Gap.sm),
@@ -822,6 +843,82 @@ class _HealthRow extends StatelessWidget {
 /// One accordion group card: tappable header (icon chip + title + live
 /// summary + chevron) over an AnimatedSize body. Single-open behavior lives
 /// in the parent (`_open` index) so the page never grows unbounded.
+/// A live "$24.50" sample in each MoneyFont, tappable to select it app-wide.
+class _FontChoiceCard extends StatelessWidget {
+  const _FontChoiceCard({
+    required this.font,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final MoneyFont font;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.selectionClick();
+        onTap();
+      },
+      child: AnimatedContainer(
+        duration: Motion.base,
+        padding: const EdgeInsets.symmetric(
+          horizontal: Gap.md,
+          vertical: Gap.sm + Gap.xs,
+        ),
+        decoration: BoxDecoration(
+          color: selected ? FoxColors.brandFoxSoft : FoxColors.bgSurface2,
+          borderRadius: BorderRadius.circular(Radii.field),
+          border: Border.all(
+            color: selected
+                ? FoxColors.brandFox.withValues(alpha: 0.6)
+                : FoxColors.borderSoft,
+          ),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    r'$24.50',
+                    style: TextStyle(
+                      fontFamily: font.family,
+                      fontSize: 26,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: -0.5,
+                      color: FoxColors.cream,
+                      fontFeatures: const [FontFeature.tabularFigures()],
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    font.label,
+                    style: const TextStyle(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w600,
+                      color: FoxColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (selected)
+              const Icon(
+                Icons.check_circle_rounded,
+                color: FoxColors.brandFox,
+                size: 20,
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _SettingsGroup extends StatelessWidget {
   const _SettingsGroup({
     required this.title,
