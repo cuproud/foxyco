@@ -1305,7 +1305,7 @@ class _Stat extends StatelessWidget {
   final TextSpan? subSpan;
 
   static bool _isInt(String s) => int.tryParse(s) != null;
-  static final _valueStyle = TextStyle(
+  static TextStyle get _valueStyle => TextStyle(
     fontFamily: FoxFonts.display,
     fontSize: 17,
     fontWeight: FontWeight.w600,

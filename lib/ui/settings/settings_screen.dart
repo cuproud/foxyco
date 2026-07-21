@@ -1014,8 +1014,9 @@ class _SettingsGroup extends StatelessWidget {
               ),
             ),
           ),
-          // AnimatedSize measures the child, so collapse = height 0 without
-          // detaching state while open.
+          // AnimatedSize animates the height change; the body is conditionally
+          // built, so collapsing discards the group's child state (deliberate —
+          // groups are cheap to rebuild).
           AnimatedSize(
             duration: Motion.morph,
             curve: Motion.curve,

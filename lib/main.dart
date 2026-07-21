@@ -96,9 +96,7 @@ class _FoxyCoAppState extends ConsumerState<FoxyCoApp>
     // Money-font pick lives in settings; poking the static before the theme
     // builds means every `fontFamily: FoxFonts.display` call site follows on
     // the rebuild this watch triggers.
-    final moneyFont = ref.watch(
-      settingsProvider.select((s) => s.moneyFont),
-    );
+    final moneyFont = ref.watch(settingsProvider.select((s) => s.moneyFont));
     FoxFonts.display = moneyFont.family;
     return MaterialApp.router(
       title: 'FoxyCo',

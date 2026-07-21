@@ -29,58 +29,56 @@ class _ReminderSectionState extends ConsumerState<ReminderSection> {
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          if (reminders.isEmpty)
-            Text(
-              'Inspection due? Insurance renewal? Add a date and FoxyCo '
-              'reminds you on the Home screen ahead of time.',
-              style: text.bodyMedium?.copyWith(
-                fontSize: 12.5,
-                height: 1.45,
-                color: FoxColors.textSecondary,
-              ),
-            )
-          else
-            for (final r in visible) ...[
-              _ReminderRow(reminder: r),
-              if (r != visible.last)
-                const Divider(color: FoxColors.border, height: Gap.md),
-            ],
-          if (reminders.length > cap)
-            TextButton(
-              onPressed: () => setState(() => _showAll = !_showAll),
-              style: TextButton.styleFrom(
-                foregroundColor: FoxColors.textSecondary,
-                textStyle: const TextStyle(
-                  fontSize: 12.5,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              child: Text(
-                _showAll ? 'Show less' : 'Show all (${reminders.length})',
-              ),
+      children: [
+        if (reminders.isEmpty)
+          Text(
+            'Inspection due? Insurance renewal? Add a date and FoxyCo '
+            'reminds you on the Home screen ahead of time.',
+            style: text.bodyMedium?.copyWith(
+              fontSize: 12.5,
+              height: 1.45,
+              color: FoxColors.textSecondary,
             ),
-          const SizedBox(height: Gap.sm + Gap.xs),
-          OutlinedButton.icon(
-            onPressed: () => showReminderEditor(context, ref),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: FoxColors.brandFox,
-              side: BorderSide(
-                color: FoxColors.brandFox.withValues(alpha: 0.5),
-              ),
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(Radii.field),
-              ),
+          )
+        else
+          for (final r in visible) ...[
+            _ReminderRow(reminder: r),
+            if (r != visible.last)
+              const Divider(color: FoxColors.border, height: Gap.md),
+          ],
+        if (reminders.length > cap)
+          TextButton(
+            onPressed: () => setState(() => _showAll = !_showAll),
+            style: TextButton.styleFrom(
+              foregroundColor: FoxColors.textSecondary,
               textStyle: const TextStyle(
-                fontSize: 13.5,
+                fontSize: 12.5,
                 fontWeight: FontWeight.w700,
               ),
             ),
-            icon: const Icon(Icons.add_rounded, size: 18),
-            label: const Text('Add reminder'),
+            child: Text(
+              _showAll ? 'Show less' : 'Show all (${reminders.length})',
+            ),
           ),
-        ],
+        const SizedBox(height: Gap.sm + Gap.xs),
+        OutlinedButton.icon(
+          onPressed: () => showReminderEditor(context, ref),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: FoxColors.brandFox,
+            side: BorderSide(color: FoxColors.brandFox.withValues(alpha: 0.5)),
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(Radii.field),
+            ),
+            textStyle: const TextStyle(
+              fontSize: 13.5,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          icon: const Icon(Icons.add_rounded, size: 18),
+          label: const Text('Add reminder'),
+        ),
+      ],
     );
   }
 }

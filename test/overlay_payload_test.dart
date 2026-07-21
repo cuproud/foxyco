@@ -68,7 +68,10 @@ void main() {
         payout: 10,
         moneyFont: MoneyFont.spaceGrotesk,
       );
-      expect(OverlayPayload.fromMap(p.toMap()).moneyFont, MoneyFont.spaceGrotesk);
+      expect(
+        OverlayPayload.fromMap(p.toMap()).moneyFont,
+        MoneyFont.spaceGrotesk,
+      );
     });
 
     test('moneyFont missing from map falls back to inter', () {
