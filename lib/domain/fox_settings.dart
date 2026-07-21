@@ -1,3 +1,4 @@
+import 'money_font.dart';
 import 'overlay_payload.dart' show PillSize;
 import 'platform.dart';
 import 'rate_mode.dart';
@@ -38,6 +39,9 @@ class FoxSettings {
   /// leaves (read-only heuristic). Off = every offer logs as unknown.
   final bool trackOutcomes;
 
+  /// Typeface for the big money numbers, picked in Settings → Appearance.
+  final MoneyFont moneyFont;
+
   const FoxSettings({
     required this.thresholds,
     required this.hourThresholds,
@@ -47,6 +51,7 @@ class FoxSettings {
     required this.retentionDays,
     required this.pillSize,
     required this.trackOutcomes,
+    this.moneyFont = MoneyFont.inter,
   });
 
   static const keepForever = 9999;
@@ -67,6 +72,7 @@ class FoxSettings {
     retentionDays: 30,
     pillSize: PillSize.small,
     trackOutcomes: true,
+    moneyFont: MoneyFont.inter,
   );
 
   bool watches(GigPlatform p) => watchedApps.contains(p);
@@ -86,6 +92,7 @@ class FoxSettings {
     int? retentionDays,
     PillSize? pillSize,
     bool? trackOutcomes,
+    MoneyFont? moneyFont,
   }) => FoxSettings(
     thresholds: thresholds ?? this.thresholds,
     hourThresholds: hourThresholds ?? this.hourThresholds,
@@ -95,6 +102,7 @@ class FoxSettings {
     retentionDays: retentionDays ?? this.retentionDays,
     pillSize: pillSize ?? this.pillSize,
     trackOutcomes: trackOutcomes ?? this.trackOutcomes,
+    moneyFont: moneyFont ?? this.moneyFont,
   );
 
   Map<String, dynamic> toJson() => {
@@ -108,6 +116,7 @@ class FoxSettings {
     'retentionDays': retentionDays,
     'pillSize': pillSize.name,
     'trackOutcomes': trackOutcomes,
+    'moneyFont': moneyFont.name,
   };
 
   factory FoxSettings.fromJson(Map<String, dynamic> j) {
@@ -139,6 +148,7 @@ class FoxSettings {
           PillSize.values.where((s) => s.name == j['pillSize']).firstOrNull ??
           d.pillSize,
       trackOutcomes: (j['trackOutcomes'] as bool?) ?? d.trackOutcomes,
+      moneyFont: MoneyFont.fromName(j['moneyFont'] as String?),
     );
   }
 }
