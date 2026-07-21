@@ -410,3 +410,22 @@ _Last updated: 2026-07-20 (M10: premium polish batches 1–3)._
 | M10.28 | Set reminder date to yesterday | Red "1d overdue" pill + red Home banner | [ ] |
 | M10.29 | Kill + reopen app | Reminders persist | [ ] |
 | M10.30 | Home greeting across day parts | Snack emoji rotates: ☕ morning, 🌮 afternoon, 🍜 evening, 🍪 late shift | [ ] |
+
+---
+
+## M11 — Settings redesign (accordion, money font, garage silhouettes) (2026-07-21)
+
+> Settings regrouped into 11 single-open accordion cards; new Appearance
+> money-font picker (Space Grotesk asset) that re-skins every $ figure app-wide
+> incl. the overlay pill; CustomPainter vehicle silhouettes per body type; car
+> reminders capped to 3 with a "Show all" expander.
+
+| # | How | PASS bar | Status |
+|---|-----|----------|--------|
+| M11.1 | Open Settings | 11 collapsed group cards; **Driver** open by default; opening any other group collapses the previous; the chevron rotates on open/close | [ ] |
+| M11.2 | Settings → Appearance → money font | 3 font cards each preview **"$24.50"** in their own face; tapping one instantly re-skins the Home hero + History amounts; survives kill + reopen | [ ] |
+| M11.3 | Switch font, then trigger the next offer | The pill's $ figures render in the newly-picked font (font survives the overlay payload round-trip) | [ ] |
+| M11.4 | Garage with vehicles of each body type | Silhouette matches type (sedan/SUV/hatch/pickup/van/bike) at row size; color tint + EV badge intact | [ ] |
+| M11.5 | Car reminders with 5+ saved | List shows 3 rows + **"Show all (5)"**; expand/collapse toggles the rest; group summary count is correct | [ ] |
+
+_Last updated: 2026-07-21 (M11: settings accordion, money-font picker, garage silhouettes, reminder cap-3)._
