@@ -29,9 +29,8 @@ class Vehicle {
   String get colorName => DriverProfile.palette[colorValue] ?? '';
 
   /// "2022 Toyota Camry" — empty parts skipped cleanly.
-  String get title => [year, make, model]
-      .where((s) => s.trim().isNotEmpty)
-      .join(' ');
+  String get title =>
+      [year, make, model].where((s) => s.trim().isNotEmpty).join(' ');
 
   /// "Red 2022 Toyota Camry · ABC-123" — matches [DriverProfile.vehicleLine].
   /// The color only shows alongside real vehicle info.
@@ -55,45 +54,42 @@ class Vehicle {
     int? colorValue,
     VehicleType? bodyType,
     FuelType? fuelType,
-  }) =>
-      Vehicle(
-        id: id,
-        make: make ?? this.make,
-        model: model ?? this.model,
-        year: year ?? this.year,
-        plate: plate ?? this.plate,
-        colorValue: colorValue ?? this.colorValue,
-        bodyType: bodyType ?? this.bodyType,
-        fuelType: fuelType ?? this.fuelType,
-      );
+  }) => Vehicle(
+    id: id,
+    make: make ?? this.make,
+    model: model ?? this.model,
+    year: year ?? this.year,
+    plate: plate ?? this.plate,
+    colorValue: colorValue ?? this.colorValue,
+    bodyType: bodyType ?? this.bodyType,
+    fuelType: fuelType ?? this.fuelType,
+  );
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'make': make,
-        'model': model,
-        'year': year,
-        'plate': plate,
-        'color': colorValue,
-        'body': bodyType.name,
-        'fuel': fuelType.name,
-      };
+    'id': id,
+    'make': make,
+    'model': model,
+    'year': year,
+    'plate': plate,
+    'color': colorValue,
+    'body': bodyType.name,
+    'fuel': fuelType.name,
+  };
 
   factory Vehicle.fromJson(Map<String, dynamic> j) => Vehicle(
-        id: j['id'] is String ? j['id'] as String : '',
-        make: j['make'] is String ? j['make'] as String : '',
-        model: j['model'] is String ? j['model'] as String : '',
-        year: j['year'] is String ? j['year'] as String : '',
-        plate: j['plate'] is String ? j['plate'] as String : '',
-        colorValue: j['color'] is int ? j['color'] as int : 0xFFF5F5F5,
-        bodyType: VehicleType.values
-                .where((t) => t.name == j['body'])
-                .firstOrNull ??
-            VehicleType.sedan,
-        fuelType: FuelType.values
-                .where((t) => t.name == j['fuel'])
-                .firstOrNull ??
-            FuelType.gas,
-      );
+    id: j['id'] is String ? j['id'] as String : '',
+    make: j['make'] is String ? j['make'] as String : '',
+    model: j['model'] is String ? j['model'] as String : '',
+    year: j['year'] is String ? j['year'] as String : '',
+    plate: j['plate'] is String ? j['plate'] as String : '',
+    colorValue: j['color'] is int ? j['color'] as int : 0xFFF5F5F5,
+    bodyType:
+        VehicleType.values.where((t) => t.name == j['body']).firstOrNull ??
+        VehicleType.sedan,
+    fuelType:
+        FuelType.values.where((t) => t.name == j['fuel']).firstOrNull ??
+        FuelType.gas,
+  );
 }
 
 /// The multi-vehicle garage (spec M6 §4). [toJson]/[fromJson] are the whole
@@ -141,9 +137,9 @@ class Garage {
   }
 
   Map<String, dynamic> toJson() => {
-        'vehicles': vehicles.map((v) => v.toJson()).toList(),
-        'activeId': activeId,
-      };
+    'vehicles': vehicles.map((v) => v.toJson()).toList(),
+    'activeId': activeId,
+  };
 
   factory Garage.fromJson(Map<String, dynamic> j) {
     final raw = j['vehicles'];
@@ -160,9 +156,12 @@ class Garage {
   /// with no vehicle info (name only) yields an EMPTY garage; an otherwise-
   /// populated profile becomes a single-vehicle garage.
   factory Garage.fromLegacyProfile(DriverProfile p) {
-    final hasVehicle =
-        [p.vehicleMake, p.vehicleModel, p.vehicleYear, p.licensePlate]
-            .any((s) => s.trim().isNotEmpty);
+    final hasVehicle = [
+      p.vehicleMake,
+      p.vehicleModel,
+      p.vehicleYear,
+      p.licensePlate,
+    ].any((s) => s.trim().isNotEmpty);
     if (!hasVehicle) return Garage.empty;
     final v = Vehicle(
       id: 'migrated-m5',

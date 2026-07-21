@@ -1,13 +1,18 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../domain/car_reminder.dart';
 import '../../domain/offer_summary.dart';
 import '../../domain/platform.dart';
 import '../../services/offer_log.dart';
+import '../history/offer_detail_sheet.dart';
 import '../overlay/overlay_controller.dart';
+import '../settings/reminder_controller.dart';
 import '../settings/settings_controller.dart';
+import '../shell/root_shell.dart';
 import '../theme/car_hero.dart';
 import '../theme/platform_badge.dart';
 import '../theme/tokens.dart';
@@ -15,6 +20,7 @@ import '../theme/verdict_style.dart';
 import 'dashboard_controller.dart';
 import 'dashboard_state.dart';
 import 'profile_card.dart';
+import 'shift_recap_sheet.dart';
 import 'slide_to_live.dart';
 
 /// Home dashboard (references/foxyco_home_v3.html).
@@ -40,7 +46,11 @@ class HomeScreen extends ConsumerWidget {
       // Horizontal padding lives on the children (not the ListView) so the
       // showroom car can bleed edge-to-edge like the reference mock.
       padding: EdgeInsets.fromLTRB(
-          0, Gap.sm, 0, 100 + MediaQuery.of(context).padding.bottom),
+        0,
+        Gap.sm,
+        0,
+        100 + MediaQuery.of(context).padding.bottom,
+      ),
       children: [
         const _Padded(child: _BrandBar()),
         const SizedBox(height: Gap.sm),
@@ -58,22 +68,37 @@ class HomeScreen extends ConsumerWidget {
               final y = ref.watch(yesterdayTallyProvider);
               return y.good + y.ok + y.bad;
             }(),
-            platforms: ref
-                .watch(settingsProvider)
-                .watchedApps
-                .toList(),
+            platforms: ref.watch(settingsProvider).watchedApps.toList(),
             // Slide-to-go-live is the Start/Stop outer gate (spec M6 §3.2);
             // pause stays on the bubble long-press.
             onStart: controller.startMonitoring,
-            onStop: controller.stopMonitoring,
+            onStop: () {
+              final since = controller.stopMonitoring();
+              maybeShowShiftRecap(
+                context,
+                liveSince: since,
+                allOffers: ref.read(offerLogProvider),
+              );
+            },
             onFix: controller.requestMissingPermissions,
+            onOpenSettings: () => ref.read(tabIndexProvider.notifier).go(2),
           ),
         ),
         const SizedBox(height: Gap.lg),
         if (blocked) ...[
           _Padded(
-              child: _AccessAlert(
-                  onFix: controller.requestMissingPermissions)),
+            child: _AccessAlert(onFix: controller.requestMissingPermissions),
+          ),
+          const SizedBox(height: Gap.lg),
+        ],
+        // Car reminder inside its lead window — tap through to Settings.
+        if (ref.watch(dueRemindersProvider).isNotEmpty) ...[
+          _Padded(
+            child: _ReminderBanner(
+              reminder: ref.watch(dueRemindersProvider).first,
+              onTap: () => ref.read(tabIndexProvider.notifier).go(2),
+            ),
+          ),
           const SizedBox(height: Gap.lg),
         ],
         const _Padded(child: _SectionLabel('Last offer')),
@@ -87,14 +112,83 @@ class HomeScreen extends ConsumerWidget {
             child: Text(
               'Show a demo pill',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: FoxColors.textDisabled,
+                // textSecondary + 12.5: 36%-alpha at 11.5px failed contrast.
+                color: FoxColors.textSecondary,
                 decoration: TextDecoration.underline,
-                fontSize: 11.5,
+                decorationColor: FoxColors.textSecondary,
+                fontSize: 12.5,
               ),
             ),
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Amber banner for the soonest due car reminder ("Safety inspection in 12
+/// days"). Softer than the red access alert — informational, not blocking.
+class _ReminderBanner extends StatelessWidget {
+  const _ReminderBanner({required this.reminder, required this.onTap});
+
+  final CarReminder reminder;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final days = reminder.daysLeft();
+    final when = days < 0
+        ? '${-days} days overdue'
+        : days == 0
+        ? 'today'
+        : days == 1
+        ? 'tomorrow'
+        : 'in $days days';
+    return InkWell(
+      borderRadius: BorderRadius.circular(Radii.cardSm),
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(Gap.md),
+        decoration: BoxDecoration(
+          color: days < 0 ? VerdictColors.badBg : VerdictColors.okBg,
+          borderRadius: BorderRadius.circular(Radii.cardSm),
+          border: Border.all(
+            color: (days < 0 ? VerdictColors.bad : VerdictColors.ok).withValues(
+              alpha: 0.35,
+            ),
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              Icons.event_outlined,
+              size: 18,
+              color: days < 0 ? VerdictColors.bad : VerdictColors.ok,
+            ),
+            const SizedBox(width: Gap.sm + Gap.xs),
+            Expanded(
+              child: Text(
+                '${reminder.title} $when'
+                '${reminder.note.isEmpty ? '' : ' — ${reminder.note}'}',
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w600,
+                  height: 1.35,
+                  color: FoxColors.textPrimary,
+                ),
+              ),
+            ),
+            const SizedBox(width: Gap.sm),
+            const Icon(
+              Icons.chevron_right_rounded,
+              size: 18,
+              color: FoxColors.textSecondary,
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -106,9 +200,9 @@ class _Padded extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.symmetric(horizontal: Gap.md),
-        child: child,
-      );
+    padding: const EdgeInsets.symmetric(horizontal: Gap.md),
+    child: child,
+  );
 }
 
 /// Brand mark + name + a Live/Paused status pill.
@@ -117,17 +211,12 @@ class _BrandBar extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final paused =
-        ref.watch(dashboardProvider).status != WatchStatus.watching;
+    final paused = ref.watch(dashboardProvider).status != WatchStatus.watching;
     return Row(
       children: [
         // Full fox head in-app; the round disc PNG is the floating bubble's
         // only (user 2026-07-20).
-        Image.asset(
-          'assets/branding/foxyco_head.png',
-          width: 32,
-          height: 32,
-        ),
+        Image.asset('assets/branding/foxyco_head.png', width: 32, height: 32),
         const SizedBox(width: Gap.sm + Gap.xs),
         Text('FoxyCo', style: Theme.of(context).textTheme.titleLarge),
         const Spacer(),
@@ -192,6 +281,7 @@ class _Hero extends StatelessWidget {
     required this.onStart,
     required this.onStop,
     required this.onFix,
+    required this.onOpenSettings,
   });
 
   final WatchStatus status;
@@ -201,6 +291,7 @@ class _Hero extends StatelessWidget {
   final VoidCallback onStart; // begin monitoring
   final VoidCallback onStop; // stop monitoring
   final VoidCallback onFix; // grant missing permission
+  final VoidCallback onOpenSettings; // platform badges tap-through
 
   @override
   Widget build(BuildContext context) {
@@ -218,7 +309,11 @@ class _Hero extends StatelessWidget {
       // Tighter than Gap.lg all around — every vertical px here pushes
       // slide-to-live toward/below the fold.
       padding: const EdgeInsets.fromLTRB(
-          Gap.lg, Gap.md + Gap.xs, Gap.lg, Gap.md + Gap.xs),
+        Gap.lg,
+        Gap.md + Gap.xs,
+        Gap.lg,
+        Gap.md + Gap.xs,
+      ),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
@@ -274,10 +369,23 @@ class _Hero extends StatelessWidget {
                 ),
               ),
               const Spacer(),
-              for (final p in platforms) ...[
-                PlatformBadge(platform: p),
-                const SizedBox(width: 6),
-              ],
+              // Tap the badges → Settings (watched-apps live there); they
+              // were dead decorative pixels before.
+              GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () {
+                  HapticFeedback.selectionClick();
+                  onOpenSettings();
+                },
+                child: Row(
+                  children: [
+                    for (final p in platforms) ...[
+                      PlatformBadge(platform: p),
+                      const SizedBox(width: 6),
+                    ],
+                  ],
+                ),
+              ),
             ],
           ),
           const SizedBox(height: Gap.md),
@@ -355,19 +463,38 @@ class _TrendChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // No yesterday baseline → "+11 vs yesterday" is meaningless; show a
+    // neutral "first day" chip instead.
+    if (yesterday == 0) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: FoxColors.bgSurface2.withValues(alpha: 0.55),
+          borderRadius: BorderRadius.circular(Radii.cardSm),
+          border: Border.all(color: FoxColors.borderSoft),
+        ),
+        child: const Text(
+          'first day',
+          style: TextStyle(
+            fontSize: 10.5,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 0.2,
+            color: FoxColors.textDisabled,
+          ),
+        ),
+      );
+    }
     final diff = today - yesterday;
     final up = diff > 0;
     final flat = diff == 0;
     final color = flat
         ? FoxColors.textSecondary
         : up
-            ? VerdictColors.good
-            : VerdictColors.bad;
+        ? VerdictColors.good
+        : VerdictColors.bad;
     final label = flat
         ? '–'
-        : yesterday == 0
-            ? (up ? '+$diff' : '$diff')
-            : '${up ? '+' : ''}${(diff * 100 / yesterday).round()}%';
+        : '${up ? '+' : ''}${(diff * 100 / yesterday).round()}%';
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
@@ -382,9 +509,7 @@ class _TrendChip extends StatelessWidget {
             children: [
               if (!flat)
                 Icon(
-                  up
-                      ? Icons.trending_up_rounded
-                      : Icons.trending_down_rounded,
+                  up ? Icons.trending_up_rounded : Icons.trending_down_rounded,
                   size: 15,
                   color: color,
                 ),
@@ -466,10 +591,12 @@ class _CarStageState extends State<_CarStage>
           final t = _idle.value;
           // Pulse: ~2 cycles per 6s loop (≈3s, matching the mock's 3.2s
           // glowpulse), scaling the glows only — car body stays fixed.
-          final pulse =
-              reduced ? 1.0 : 0.85 + 0.15 * math.sin(4 * math.pi * t);
-          final base =
-              CarHeroState.lerp(CarHeroState.stealth, CarHeroState.reveal, lit);
+          final pulse = reduced ? 1.0 : 0.85 + 0.15 * math.sin(4 * math.pi * t);
+          final base = CarHeroState.lerp(
+            CarHeroState.stealth,
+            CarHeroState.reveal,
+            lit,
+          );
           final state = CarHeroState(
             shadow: base.shadow,
             stealthBacklight: base.stealthBacklight * pulse,
@@ -557,12 +684,12 @@ class _SegLegend extends StatelessWidget {
     return Row(
       children: [
         Expanded(
-            child: _LegendItem(VerdictColors.goodOnDark, tally.good, 'good')),
+          child: _LegendItem(VerdictColors.goodOnDark, tally.good, 'good'),
+        ),
         const SizedBox(width: Gap.sm),
         Expanded(child: _LegendItem(VerdictColors.okOnDark, tally.ok, 'ok')),
         const SizedBox(width: Gap.sm),
-        Expanded(
-            child: _LegendItem(VerdictColors.badOnDark, tally.bad, 'bad')),
+        Expanded(child: _LegendItem(VerdictColors.badOnDark, tally.bad, 'bad')),
       ],
     );
   }
@@ -615,10 +742,7 @@ class _LegendItem extends StatelessWidget {
                   style: TextStyle(color: color.withValues(alpha: 0.9)),
                 ),
               ],
-              style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-              ),
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
             ),
           ),
         ],
@@ -644,8 +768,11 @@ class _AccessAlert extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const Icon(Icons.warning_amber_rounded,
-              color: VerdictColors.bad, size: 22),
+          const Icon(
+            Icons.warning_amber_rounded,
+            color: VerdictColors.bad,
+            size: 22,
+          ),
           const SizedBox(width: Gap.sm + Gap.xs),
           Expanded(
             child: Text.rich(
@@ -658,7 +785,10 @@ class _AccessAlert extends StatelessWidget {
                   TextSpan(text: "FoxyCo can't read offers until it's on."),
                 ],
                 style: TextStyle(
-                    fontSize: 13, height: 1.4, color: FoxColors.textPrimary),
+                  fontSize: 13,
+                  height: 1.4,
+                  color: FoxColors.textPrimary,
+                ),
               ),
             ),
           ),
@@ -672,8 +802,10 @@ class _AccessAlert extends StatelessWidget {
                 borderRadius: BorderRadius.circular(Radii.pill),
               ),
             ),
-            child: const Text('Fix',
-                style: TextStyle(fontWeight: FontWeight.w700)),
+            child: const Text(
+              'Fix',
+              style: TextStyle(fontWeight: FontWeight.w700),
+            ),
           ),
         ],
       ),
@@ -689,8 +821,7 @@ class _SectionLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Text(text.toUpperCase(),
-            style: Theme.of(context).textTheme.labelSmall),
+        Text(text.toUpperCase(), style: Theme.of(context).textTheme.labelSmall),
         const SizedBox(width: Gap.sm + Gap.xs),
         const Expanded(child: Divider(color: FoxColors.border, height: 1)),
       ],
@@ -710,112 +841,127 @@ class _Ticket extends StatelessWidget {
 
     final o = offer!;
     final style = VerdictStyle.of(o.verdict);
-    final time =
-        '${o.seenAt.hour.toString().padLeft(2, '0')}:${o.seenAt.minute.toString().padLeft(2, '0')}';
+    // Locale-aware (12h markets see "6:48 PM", not hardcoded 24h).
+    final time = MaterialLocalizations.of(context).formatTimeOfDay(
+      TimeOfDay.fromDateTime(o.seenAt),
+      alwaysUse24HourFormat: MediaQuery.of(context).alwaysUse24HourFormat,
+    );
     final fare = o.payout == o.payout.roundToDouble()
         ? '\$${o.payout.toStringAsFixed(0)}'
         : '\$${o.payout.toStringAsFixed(2)}';
 
-    return Container(
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [FoxColors.inkSoft, FoxColors.ink],
+    return InkWell(
+      borderRadius: BorderRadius.circular(Radii.card),
+      onTap: () => showOfferDetail(context, o),
+      child: Container(
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [FoxColors.inkSoft, FoxColors.ink],
+          ),
+          borderRadius: BorderRadius.circular(Radii.card),
+          border: Border.all(color: FoxColors.borderSoft),
+          boxShadow: Shadows.card,
         ),
-        borderRadius: BorderRadius.circular(Radii.card),
-        border: Border.all(color: FoxColors.borderSoft),
-        boxShadow: Shadows.card,
-      ),
-      child: Column(
-        children: [
-          // Top: verdict badge + app + time. A verdict-colored spine runs
-          // down the left edge.
-          IntrinsicHeight(
-            child: Row(
-              children: [
-                Container(
-                  width: 4,
-                  margin: const EdgeInsets.symmetric(vertical: 14),
-                  decoration: BoxDecoration(
-                    color: style.color,
-                    borderRadius: const BorderRadius.horizontal(
-                      right: Radius.circular(3),
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: style.color.withValues(alpha: 0.55),
-                        blurRadius: 10,
+        child: Column(
+          children: [
+            // Top: verdict badge + app + time. A verdict-colored spine runs
+            // down the left edge.
+            IntrinsicHeight(
+              child: Row(
+                children: [
+                  Container(
+                    width: 4,
+                    margin: const EdgeInsets.symmetric(vertical: 14),
+                    decoration: BoxDecoration(
+                      color: style.color,
+                      borderRadius: const BorderRadius.horizontal(
+                        right: Radius.circular(3),
                       ),
-                    ],
-                  ),
-                ),
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(18, 18, 18, 14),
-                    child: Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 4.5),
-                          decoration: BoxDecoration(
-                            color: style.bg,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            style.label == '—' ? '—' : _title(style.label),
-                            style: TextStyle(
-                              fontFamily: FoxFonts.display,
-                              fontSize: 14.5,
-                              fontWeight: FontWeight.w600,
-                              color: style.color,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: Gap.sm + Gap.xs),
-                        Text(
-                          o.platform.label,
-                          style: const TextStyle(
-                            fontSize: 13.5,
-                            fontWeight: FontWeight.w700,
-                            color: FoxColors.textSecondary,
-                          ),
-                        ),
-                        const Spacer(),
-                        Text(
-                          time,
-                          style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: FoxColors.textDisabled,
-                            fontFeatures: [FontFeature.tabularFigures()],
-                          ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: style.color.withValues(alpha: 0.55),
+                          blurRadius: 10,
                         ),
                       ],
                     ),
                   ),
-                ),
-              ],
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(18, 18, 18, 14),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 4.5,
+                            ),
+                            decoration: BoxDecoration(
+                              color: style.bg,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              style.label == '—' ? '—' : _title(style.label),
+                              style: TextStyle(
+                                fontFamily: FoxFonts.display,
+                                fontSize: 14.5,
+                                fontWeight: FontWeight.w600,
+                                color: style.color,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: Gap.sm + Gap.xs),
+                          Text(
+                            o.platform.label,
+                            style: const TextStyle(
+                              fontSize: 13.5,
+                              fontWeight: FontWeight.w700,
+                              color: FoxColors.textSecondary,
+                            ),
+                          ),
+                          const Spacer(),
+                          Text(
+                            time,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: FoxColors.textDisabled,
+                              fontFeatures: [FontFeature.tabularFigures()],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-          const _Perforation(),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(18, 14, 18, 16),
-            child: Row(
-              children: [
-                Expanded(
+            const _Perforation(),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(18, 14, 18, 16),
+              child: Row(
+                children: [
+                  Expanded(
                     child: _TicketStat(
-                        '${o.totalKm.toStringAsFixed(1)} km', 'DISTANCE')),
-                const SizedBox(width: Gap.sm),
-                Expanded(child: _TicketStat(fare, 'FARE')),
-                const SizedBox(width: Gap.sm),
-                Expanded(
+                      '${o.totalKm.toStringAsFixed(1)} km',
+                      'DISTANCE',
+                    ),
+                  ),
+                  const SizedBox(width: Gap.sm),
+                  Expanded(child: _TicketStat(fare, 'FARE')),
+                  const SizedBox(width: Gap.sm),
+                  Expanded(
                     child: _TicketStat(
-                        '\$${o.pricePerKm.toStringAsFixed(2)}', 'PER KM')),
-              ],
+                      '\$${o.pricePerKm.toStringAsFixed(2)}',
+                      'PER KM',
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -842,16 +988,21 @@ class _TicketStat extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            value,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              fontFamily: FoxFonts.display,
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-              color: FoxColors.textPrimary,
-              fontFeatures: [FontFeature.tabularFigures()],
+          // scaleDown, not ellipsis: "11.0 …" on the distance well looked
+          // broken (device 2026-07-20).
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              value,
+              maxLines: 1,
+              style: const TextStyle(
+                fontFamily: FoxFonts.display,
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: FoxColors.textPrimary,
+                fontFeatures: [FontFeature.tabularFigures()],
+              ),
             ),
           ),
           const SizedBox(height: 3),
@@ -905,13 +1056,13 @@ class _Perforation extends StatelessWidget {
   }
 
   Widget _notch() => Container(
-        width: 20,
-        height: 20,
-        decoration: const BoxDecoration(
-          color: FoxColors.bgBase,
-          shape: BoxShape.circle,
-        ),
-      );
+    width: 20,
+    height: 20,
+    decoration: const BoxDecoration(
+      color: FoxColors.bgBase,
+      shape: BoxShape.circle,
+    ),
+  );
 }
 
 class _EmptyTicket extends StatelessWidget {
@@ -930,13 +1081,12 @@ class _EmptyTicket extends StatelessWidget {
       ),
       child: Column(
         children: [
-          Image.asset('assets/branding/foxyco_head.png',
-              width: 64, height: 64),
+          Image.asset('assets/branding/foxyco_head.png', width: 64, height: 64),
           const SizedBox(height: Gap.sm),
-          Text('No offers yet', style: text.titleMedium),
+          Text('No offers yet 🍪', style: text.titleMedium),
           const SizedBox(height: Gap.xs),
           Text(
-            "Open Uber or Hopp and drive — I'll start scoring.",
+            "Open Uber or Hopp and drive — I'll sniff out the tasty ones.",
             textAlign: TextAlign.center,
             style: text.bodyMedium?.copyWith(color: FoxColors.textSecondary),
           ),

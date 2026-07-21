@@ -125,21 +125,23 @@ void main() {
     expect(fake.hidden, isTrue);
   });
 
-  test('bubble long-press takes the dashboard offline + closes the overlay',
-      () async {
-    final fake = _FakeOverlayService();
-    final c = _containerWith(fake);
-    // Instantiate the controller so it subscribes to the action stream.
-    c.read(overlayControllerProvider);
-    c.read(dashboardProvider.notifier).startMonitoring();
-    expect(c.read(dashboardProvider).status, WatchStatus.watching);
+  test(
+    'bubble long-press takes the dashboard offline + closes the overlay',
+    () async {
+      final fake = _FakeOverlayService();
+      final c = _containerWith(fake);
+      // Instantiate the controller so it subscribes to the action stream.
+      c.read(overlayControllerProvider);
+      c.read(dashboardProvider.notifier).startMonitoring();
+      expect(c.read(dashboardProvider).status, WatchStatus.watching);
 
-    fake.emitAction(OverlayAction.togglePause);
-    await Future<void>.delayed(Duration.zero); // let the stream deliver
+      fake.emitAction(OverlayAction.togglePause);
+      await Future<void>.delayed(Duration.zero); // let the stream deliver
 
-    expect(c.read(dashboardProvider).status, WatchStatus.paused);
-    expect(fake.hidden, isTrue); // offline tears the bubble down, not dims it
-  });
+      expect(c.read(dashboardProvider).status, WatchStatus.paused);
+      expect(fake.hidden, isTrue); // offline tears the bubble down, not dims it
+    },
+  );
 
   test('brings the overlay up when monitoring starts (req 11)', () async {
     final fake = _FakeOverlayService();
@@ -190,17 +192,19 @@ void main() {
     expect(fake.hidden, isTrue);
   });
 
-  test('dropping the bubble (stopWatching action) stops the dashboard',
-      () async {
-    final fake = _FakeOverlayService();
-    final c = _containerWith(fake);
-    c.read(overlayControllerProvider);
-    c.read(dashboardProvider.notifier).startMonitoring();
-    expect(c.read(dashboardProvider).status, WatchStatus.watching);
+  test(
+    'dropping the bubble (stopWatching action) stops the dashboard',
+    () async {
+      final fake = _FakeOverlayService();
+      final c = _containerWith(fake);
+      c.read(overlayControllerProvider);
+      c.read(dashboardProvider.notifier).startMonitoring();
+      expect(c.read(dashboardProvider).status, WatchStatus.watching);
 
-    fake.emitAction(OverlayAction.stopWatching);
-    await Future<void>.delayed(Duration.zero);
+      fake.emitAction(OverlayAction.stopWatching);
+      await Future<void>.delayed(Duration.zero);
 
-    expect(c.read(dashboardProvider).status, WatchStatus.stopped);
-  });
+      expect(c.read(dashboardProvider).status, WatchStatus.stopped);
+    },
+  );
 }

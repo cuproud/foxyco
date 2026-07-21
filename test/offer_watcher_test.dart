@@ -2,11 +2,13 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:foxyco/domain/offer_summary.dart';
 import 'package:foxyco/domain/overlay_action.dart';
 import 'package:foxyco/domain/overlay_payload.dart';
 import 'package:foxyco/parser/parser_registry.dart';
 import 'package:foxyco/services/accessibility/accessibility_watcher.dart';
 import 'package:foxyco/services/accessibility/offer_watcher.dart';
+import 'package:foxyco/services/offer_log.dart';
 import 'package:foxyco/services/overlay_service.dart';
 import 'package:foxyco/ui/home/dashboard_controller.dart';
 import 'package:foxyco/ui/home/dashboard_state.dart';
@@ -136,53 +138,61 @@ void main() {
     expect(pill.verdict.name, 'bad');
   });
 
-  test('same offer re-firing shows the pill only once (flicker guard)', () async {
-    final c = container();
-    c.read(offerWatcherProvider);
-    c.read(overlayControllerProvider);
+  test(
+    'same offer re-firing shows the pill only once (flicker guard)',
+    () async {
+      final c = container();
+      c.read(offerWatcherProvider);
+      c.read(overlayControllerProvider);
 
-    // Same card emits repeatedly (map pans, chips animate).
-    watcher.emit(_hoppNodes);
-    await Future<void>.delayed(Duration.zero);
-    watcher.emit(_hoppNodes);
-    watcher.emit(_hoppNodes);
-    await Future<void>.delayed(Duration.zero);
+      // Same card emits repeatedly (map pans, chips animate).
+      watcher.emit(_hoppNodes);
+      await Future<void>.delayed(Duration.zero);
+      watcher.emit(_hoppNodes);
+      watcher.emit(_hoppNodes);
+      await Future<void>.delayed(Duration.zero);
 
-    expect(overlay.shown, hasLength(1)); // not 3
+      expect(overlay.shown, hasLength(1)); // not 3
 
-    // Screen leaves the offer for longer than the grace window (so the pill
-    // truly clears), then the same offer returns → shows again.
-    watcher.emit(const ScreenRead(
-      packageName: ParserRegistry.hoppPackage,
-      texts: ['Home', 'Go online'],
-    ));
-    await pastGrace();
-    watcher.emit(_hoppNodes);
-    await Future<void>.delayed(Duration.zero);
+      // Screen leaves the offer for longer than the grace window (so the pill
+      // truly clears), then the same offer returns → shows again.
+      watcher.emit(
+        const ScreenRead(
+          packageName: ParserRegistry.hoppPackage,
+          texts: ['Home', 'Go online'],
+        ),
+      );
+      await pastGrace();
+      watcher.emit(_hoppNodes);
+      await Future<void>.delayed(Duration.zero);
 
-    expect(overlay.shown, hasLength(2));
-  });
+      expect(overlay.shown, hasLength(2));
+    },
+  );
 
-  test('a transient non-offer frame does NOT clear the pill (anti-flash)', () async {
-    final c = container();
-    c.read(offerWatcherProvider);
-    c.read(overlayControllerProvider);
+  test(
+    'a transient non-offer frame does NOT clear the pill (anti-flash)',
+    () async {
+      final c = container();
+      c.read(offerWatcherProvider);
+      c.read(overlayControllerProvider);
 
-    watcher.emit(_hoppNodes);
-    await Future<void>.delayed(Duration.zero);
-    expect(overlay.shown, hasLength(1));
+      watcher.emit(_hoppNodes);
+      await Future<void>.delayed(Duration.zero);
+      expect(overlay.shown, hasLength(1));
 
-    // A single blank frame arrives WHILE the card is still up (map pan behind
-    // the card / half-rendered tree), then the card re-parses before the grace
-    // window elapses. The pill must survive — no clear, no re-show flicker.
-    watcher.emit(_hoppHome);
-    await Future<void>.delayed(Duration.zero);
-    watcher.emit(_hoppNodes);
-    await pastGrace();
+      // A single blank frame arrives WHILE the card is still up (map pan behind
+      // the card / half-rendered tree), then the card re-parses before the grace
+      // window elapses. The pill must survive — no clear, no re-show flicker.
+      watcher.emit(_hoppHome);
+      await Future<void>.delayed(Duration.zero);
+      watcher.emit(_hoppNodes);
+      await pastGrace();
 
-    expect(overlay.clears, 0); // never blinked out
-    expect(overlay.shown, hasLength(1)); // and never re-shown
-  });
+      expect(overlay.clears, 0); // never blinked out
+      expect(overlay.shown, hasLength(1)); // and never re-shown
+    },
+  );
 
   test('keeps the pill while the card is up but the full parse fails', () async {
     final c = container();
@@ -251,17 +261,20 @@ void main() {
     expect(overlay.clears, 1);
   });
 
-  test('does not clear when a non-offer screen was never showing a pill', () async {
-    final c = container();
-    c.read(offerWatcherProvider);
-    c.read(overlayControllerProvider);
+  test(
+    'does not clear when a non-offer screen was never showing a pill',
+    () async {
+      final c = container();
+      c.read(offerWatcherProvider);
+      c.read(overlayControllerProvider);
 
-    watcher.emit(_hoppHome);
-    await Future<void>.delayed(Duration.zero);
+      watcher.emit(_hoppHome);
+      await Future<void>.delayed(Duration.zero);
 
-    expect(overlay.shown, isEmpty);
-    expect(overlay.clears, 0);
-  });
+      expect(overlay.shown, isEmpty);
+      expect(overlay.clears, 0);
+    },
+  );
 
   test('drops reads while paused (gating)', () async {
     final c = container();
@@ -281,12 +294,76 @@ void main() {
     c.read(offerWatcherProvider);
     c.read(overlayControllerProvider);
 
-    watcher.emit(const ScreenRead(
-      packageName: 'com.whatsapp',
-      texts: ['\$8.50', '11 min · 5.2 km', '11 min · 7.7 km'],
-    ));
+    watcher.emit(
+      const ScreenRead(
+        packageName: 'com.whatsapp',
+        texts: ['\$8.50', '11 min · 5.2 km', '11 min · 7.7 km'],
+      ),
+    );
     await Future<void>.delayed(Duration.zero);
 
     expect(overlay.shown, isEmpty);
+  });
+
+  group('outcome inference', () {
+    test('card → browse screen marks the offer missed', () async {
+      final c = container();
+      c.read(offerWatcherProvider);
+      c.read(overlayControllerProvider);
+
+      watcher.emit(_hoppNodes);
+      await Future<void>.delayed(Duration.zero);
+      expect(
+        c.read(offerLogProvider).first.outcome,
+        OfferOutcome.unknown,
+      );
+
+      // "Go online" is a browse marker → driver passed on the offer.
+      watcher.emit(_hoppHome);
+      await pastGrace();
+      expect(c.read(offerLogProvider).first.outcome, OfferOutcome.missed);
+    });
+
+    test('card → non-browse screen (in-trip nav) marks it taken', () async {
+      final c = container();
+      c.read(offerWatcherProvider);
+      c.read(overlayControllerProvider);
+
+      watcher.emit(_hoppNodes);
+      await Future<void>.delayed(Duration.zero);
+
+      // No card hallmarks, no browse markers — the in-trip navigation screen
+      // after an accept.
+      watcher.emit(
+        const ScreenRead(
+          packageName: ParserRegistry.hoppPackage,
+          texts: ['Navigate to rider', '3 min', 'Main St'],
+        ),
+      );
+      await pastGrace();
+      expect(c.read(offerLogProvider).first.outcome, OfferOutcome.taken);
+    });
+
+    test('card frame returning cancels a pending outcome', () async {
+      final c = container();
+      c.read(offerWatcherProvider);
+      c.read(overlayControllerProvider);
+
+      watcher.emit(_hoppNodes);
+      await Future<void>.delayed(Duration.zero);
+
+      // A stray non-card frame arms taken… but the card comes right back
+      // before the grace elapses — no outcome may be stamped.
+      watcher.emit(
+        const ScreenRead(
+          packageName: ParserRegistry.hoppPackage,
+          texts: ['Navigate to rider'],
+        ),
+      );
+      watcher.emit(_hoppPartial); // card hallmark → cancel
+      await pastGrace();
+      expect(c.read(offerLogProvider).first.outcome, OfferOutcome.unknown);
+      expect(overlay.clears, 0);
+    });
   });
 }

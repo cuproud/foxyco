@@ -2,18 +2,24 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:foxyco/ui/overlay/fox_bubble.dart';
 
-Widget _host(Widget child) => MaterialApp(home: Scaffold(body: Center(child: child)));
+Widget _host(Widget child) => MaterialApp(
+  home: Scaffold(body: Center(child: child)),
+);
 
 void main() {
   testWidgets('tap and long-press fire their callbacks', (tester) async {
     var tapped = false;
     var longPressed = false;
 
-    await tester.pumpWidget(_host(FoxBubble(
-      paused: false,
-      onTap: () => tapped = true,
-      onLongPress: () => longPressed = true,
-    )));
+    await tester.pumpWidget(
+      _host(
+        FoxBubble(
+          paused: false,
+          onTap: () => tapped = true,
+          onLongPress: () => longPressed = true,
+        ),
+      ),
+    );
 
     await tester.tap(find.byType(FoxBubble));
     await tester.longPress(find.byType(FoxBubble));

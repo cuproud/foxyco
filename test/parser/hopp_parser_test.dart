@@ -74,33 +74,44 @@ void main() {
   });
 
   test('returns null with only one leg (half-rendered card, fail safe)', () {
-    expect(parser.parse(['\$8.50', '(NET)', '11 min · 5.2 km', 'Match']), isNull);
+    expect(
+      parser.parse(['\$8.50', '(NET)', '11 min · 5.2 km', 'Match']),
+      isNull,
+    );
   });
 
-  test('parses a MULTI-STOP ride, summing every leg after pickup into trip', () {
-    // A ride with one stop is 3 legs: pickup, then stop, then final dropoff.
-    // pickup = 5.2 km / 11 min; trip = 7.7 + 4.1 = 11.8 km, 11 + 9 = 20 min.
-    final offer = parser.parse([
-      '\$8.50',
-      '11 min · 5.2 km',
-      '11 min · 7.7 km',
-      '9 min · 4.1 km',
-      'Match',
-    ])!;
-    expect(offer.pickupKm, 5.2);
-    expect(offer.dropoffKm, closeTo(11.8, 1e-9)); // 7.7 + 4.1
-    expect(offer.pickupMinutes, 11);
-    expect(offer.dropoffMinutes, 20); // 11 + 9
-    expect(offer.totalKm, closeTo(17.0, 1e-9));
-  });
+  test(
+    'parses a MULTI-STOP ride, summing every leg after pickup into trip',
+    () {
+      // A ride with one stop is 3 legs: pickup, then stop, then final dropoff.
+      // pickup = 5.2 km / 11 min; trip = 7.7 + 4.1 = 11.8 km, 11 + 9 = 20 min.
+      final offer = parser.parse([
+        '\$8.50',
+        '11 min · 5.2 km',
+        '11 min · 7.7 km',
+        '9 min · 4.1 km',
+        'Match',
+      ])!;
+      expect(offer.pickupKm, 5.2);
+      expect(offer.dropoffKm, closeTo(11.8, 1e-9)); // 7.7 + 4.1
+      expect(offer.pickupMinutes, 11);
+      expect(offer.dropoffMinutes, 20); // 11 + 9
+      expect(offer.totalKm, closeTo(17.0, 1e-9));
+    },
+  );
 
   test('returns null with too many legs (a ride LIST, not one card)', () {
     // Above the multi-stop cap → assume we latched onto a list; fail safe.
     expect(
       parser.parse([
         '\$8.50',
-        '1 min · 1 km', '2 min · 2 km', '3 min · 3 km',
-        '4 min · 4 km', '5 min · 5 km', '6 min · 6 km', '7 min · 7 km',
+        '1 min · 1 km',
+        '2 min · 2 km',
+        '3 min · 3 km',
+        '4 min · 4 km',
+        '5 min · 5 km',
+        '6 min · 6 km',
+        '7 min · 7 km',
         'Match',
       ]),
       isNull,
@@ -108,7 +119,10 @@ void main() {
   });
 
   test('returns null when payout is missing', () {
-    expect(parser.parse(['11 min · 5.2 km', '11 min · 7.7 km', 'Match']), isNull);
+    expect(
+      parser.parse(['11 min · 5.2 km', '11 min · 7.7 km', 'Match']),
+      isNull,
+    );
   });
 
   test('returns null without an Accept/Match affordance (contract)', () {

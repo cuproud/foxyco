@@ -38,8 +38,7 @@ class OverlayPayload {
 
   /// Dollars per hour — the Maxymo-style headline. Zero when no time was parsed,
   /// so the pill hides it rather than dividing by zero.
-  double get pricePerHour =>
-      totalMinutes > 0 ? payout / totalMinutes * 60 : 0;
+  double get pricePerHour => totalMinutes > 0 ? payout / totalMinutes * 60 : 0;
 
   /// Whether the km stat should be verdict-colored, and which way. Null means
   /// "no signal" (unknown pickup or feature disabled) → default cream.

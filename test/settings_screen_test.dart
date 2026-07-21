@@ -14,11 +14,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 // SettingsScreen lives inside RootShell's Scaffold (which supplies the Material
 // ancestor its Sliders need); mirror that here.
 Widget _host() => ProviderScope(
-      child: MaterialApp(
-        theme: AppTheme.dark,
-        home: const Scaffold(body: SettingsScreen()),
-      ),
-    );
+  child: MaterialApp(
+    theme: AppTheme.dark,
+    home: const Scaffold(body: SettingsScreen()),
+  ),
+);
 
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
@@ -47,19 +47,48 @@ void main() {
       UncontrolledProviderScope(
         container: container,
         child: MaterialApp(
-            theme: AppTheme.dark,
-            home: const Scaffold(body: SettingsScreen())),
+          theme: AppTheme.dark,
+          home: const Scaffold(body: SettingsScreen()),
+        ),
       ),
     );
 
+    // Header Reset opens a confirm dialog (destructive gate); confirm it.
     await tester.tap(find.text('Reset'));
-    await tester.pump();
+    await tester.pumpAndSettle();
+    expect(find.text('Reset all settings?'), findsOneWidget);
+    await tester.tap(find.text('Reset').last); // dialog's confirm action
+    await tester.pumpAndSettle();
 
     expect(container.read(settingsProvider).thresholds, Thresholds.defaults);
   });
 
-  testWidgets('pill size selector shows live VerdictPill preview',
-      (tester) async {
+  testWidgets('Reset cancel keeps tuned settings', (tester) async {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+    container.read(settingsProvider.notifier).setGood(2.5);
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(
+          theme: AppTheme.dark,
+          home: const Scaffold(body: SettingsScreen()),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Reset'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+
+    expect(container.read(settingsProvider).thresholds.goodAtOrAbove, 2.5);
+  });
+
+  testWidgets('pill size selector shows live VerdictPill preview', (
+    tester,
+  ) async {
     // Tall viewport so the lazy ListView builds the pill-size section.
     tester.view.physicalSize = const Size(1080, 3600);
     tester.view.devicePixelRatio = 1.0;
@@ -79,8 +108,9 @@ void main() {
     expect(largeSize.height, greaterThan(smallSize.height));
   });
 
-  testWidgets('driver name saves on the check button, not live',
-      (tester) async {
+  testWidgets('driver name saves on the check button, not live', (
+    tester,
+  ) async {
     tester.view.physicalSize = const Size(1080, 3600);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
@@ -103,10 +133,21 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('save-name')));
     await tester.pump();
     expect(container.read(driverNameProvider), 'Vamsi');
+
+    // Saved → display mode: plain text + pencil, no TextField.
+    await tester.pumpAndSettle();
+    expect(find.widgetWithText(TextField, 'Name'), findsNothing);
+    expect(find.byKey(const ValueKey('edit-name')), findsOneWidget);
+
+    // Pencil → back to the editable field.
+    await tester.tap(find.byKey(const ValueKey('edit-name')));
+    await tester.pumpAndSettle();
+    expect(find.widgetWithText(TextField, 'Name'), findsOneWidget);
   });
 
-  testWidgets('garage section offers an add-vehicle affordance',
-      (tester) async {
+  testWidgets('garage section offers an add-vehicle affordance', (
+    tester,
+  ) async {
     tester.view.physicalSize = const Size(1080, 3600);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
@@ -179,7 +220,10 @@ void main() {
     // A pre-rate-mode settings blob: only km cuts present.
     final back = FoxSettings.fromJson({'good': 1.8, 'bad': 0.9});
     expect(back.rateMode, RateMode.perKm);
-    expect(back.thresholds, const Thresholds(goodAtOrAbove: 1.8, badBelow: 0.9));
+    expect(
+      back.thresholds,
+      const Thresholds(goodAtOrAbove: 1.8, badBelow: 0.9),
+    );
     expect(back.hourThresholds, FoxSettings.defaultHourThresholds);
   });
 }

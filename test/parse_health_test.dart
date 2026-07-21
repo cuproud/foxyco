@@ -27,10 +27,7 @@ void main() {
     );
 
     h.recordCardMiss(GigPlatform.uber);
-    expect(
-      c.read(parseHealthProvider)[GigPlatform.uber]!.likelyBroken,
-      isTrue,
-    );
+    expect(c.read(parseHealthProvider)[GigPlatform.uber]!.likelyBroken, isTrue);
   });
 
   test('a successful parse clears the miss streak and unflags', () {

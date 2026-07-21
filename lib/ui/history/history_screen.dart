@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/offer_stats.dart';
@@ -9,6 +10,7 @@ import '../../services/offer_log.dart';
 import '../theme/platform_badge.dart';
 import '../theme/tokens.dart';
 import '../theme/verdict_style.dart';
+import 'offer_detail_sheet.dart';
 
 /// History (references/foxyco_history.html).
 ///
@@ -50,9 +52,9 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
       case HistoryRange.today:
         if (d != 0) return false;
       case HistoryRange.week:
-        if (d > 7) return false;
+        if (d >= 7) return false; // today + 6 prior days = 7
       case HistoryRange.month:
-        if (d > 30) return false;
+        if (d >= 30) return false;
       case HistoryRange.all:
         break;
     }
@@ -72,12 +74,21 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
   Widget build(BuildContext context) {
     final all = ref.watch(offerLogProvider);
     final filtered = all.where(_passes).toList()
-      ..sort((a, b) => _topOnly
-          ? b.pricePerKm.compareTo(a.pricePerKm)
-          : b.seenAt.compareTo(a.seenAt));
+      ..sort(
+        (a, b) => _topOnly
+            ? b.pricePerKm.compareTo(a.pricePerKm)
+            : b.seenAt.compareTo(a.seenAt),
+      );
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(Gap.md, Gap.sm, Gap.md, 100),
+      // 100 clears the floating nav; add the gesture-bar inset like Home does
+      // (fixed 100 clipped the last card on gesture-nav phones).
+      padding: EdgeInsets.fromLTRB(
+        Gap.md,
+        Gap.sm,
+        Gap.md,
+        100 + MediaQuery.of(context).padding.bottom,
+      ),
       children: [
         Row(
           crossAxisAlignment: CrossAxisAlignment.baseline,
@@ -102,23 +113,17 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
           onChanged: (r) => setState(() => _range = r),
         ),
         const SizedBox(height: Gap.sm + Gap.xs),
-        _AppChips(
-          selected: _apps,
-          onToggle: _toggleApp,
-        ),
+        _AppChips(selected: _apps, onToggle: _toggleApp),
         const SizedBox(height: Gap.sm),
-        _VerdictChips(
-          selected: _verdicts,
-          onToggle: _toggleVerdict,
-        ),
+        _VerdictChips(selected: _verdicts, onToggle: _toggleVerdict),
         const SizedBox(height: Gap.md),
         _TopCard(
           on: _topOnly,
           minFare: _minFare,
           matchCount: filtered.length,
           onToggle: () => setState(() => _topOnly = !_topOnly),
-          onFare: (d) => setState(
-              () => _minFare = (_minFare + d).clamp(0, 100)),
+          onFare: (d) =>
+              setState(() => _minFare = (_minFare + d).clamp(0, 100)),
         ),
         const SizedBox(height: Gap.lg),
         if (filtered.isEmpty)
@@ -127,18 +132,22 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
             onShowAll: all.isEmpty
                 ? null
                 : () => setState(() {
-                      _range = HistoryRange.all;
-                      _apps
-                        ..clear()
-                        ..add(null);
-                      _verdicts
-                        ..clear()
-                        ..add(null);
-                      _topOnly = false;
-                    }),
+                    _range = HistoryRange.all;
+                    _apps
+                      ..clear()
+                      ..add(null);
+                    _verdicts
+                      ..clear()
+                      ..add(null);
+                    _topOnly = false;
+                  }),
           )
         else ...[
           _StatsCard(stats: OfferStats.from(filtered)),
+          const SizedBox(height: Gap.sm),
+          _HourlyChart(offers: filtered),
+          const SizedBox(height: Gap.sm),
+          _AppVerdictChart(offers: filtered),
           const SizedBox(height: Gap.lg),
           ..._grouped(filtered),
         ],
@@ -181,10 +190,15 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     for (final o in offers) {
       final label = _dateLabel(o.seenAt);
       if (label != lastLabel) {
-        out.add(Padding(
-          padding: EdgeInsets.only(top: lastLabel == null ? 0 : Gap.md, bottom: Gap.sm),
-          child: _DateHeader(label),
-        ));
+        out.add(
+          Padding(
+            padding: EdgeInsets.only(
+              top: lastLabel == null ? 0 : Gap.md,
+              bottom: Gap.sm,
+            ),
+            child: _DateHeader(label),
+          ),
+        );
         lastLabel = label;
       }
       out.add(_row(o, i++));
@@ -215,8 +229,18 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     if (d == 0) return 'Today';
     if (d == 1) return 'Yesterday';
     const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
     return '${months[t.month - 1]} ${t.day}';
   }
@@ -240,7 +264,7 @@ class _RangeControl extends StatelessWidget {
     final items = HistoryRange.values;
     final index = items.indexOf(value);
     return Container(
-      height: 40,
+      height: 44, // was 40 — a11y minimum for a tap row
       decoration: BoxDecoration(
         color: FoxColors.bgSurface,
         borderRadius: BorderRadius.circular(Radii.pill),
@@ -248,50 +272,55 @@ class _RangeControl extends StatelessWidget {
         boxShadow: Shadows.soft,
       ),
       padding: const EdgeInsets.all(4),
-      child: LayoutBuilder(builder: (context, c) {
-        final slot = c.maxWidth / items.length;
-        return Stack(
-          children: [
-            AnimatedPositioned(
-              duration: Motion.base,
-              curve: Curves.easeOutBack,
-              left: slot * index,
-              top: 0,
-              bottom: 0,
-              width: slot,
-              child: Container(
-                decoration: BoxDecoration(
-                  color: FoxColors.bgSurface2,
-                  borderRadius: BorderRadius.circular(Radii.pill),
+      child: LayoutBuilder(
+        builder: (context, c) {
+          final slot = c.maxWidth / items.length;
+          return Stack(
+            children: [
+              AnimatedPositioned(
+                duration: Motion.base,
+                curve: Curves.easeOutBack,
+                left: slot * index,
+                top: 0,
+                bottom: 0,
+                width: slot,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: FoxColors.bgSurface2,
+                    borderRadius: BorderRadius.circular(Radii.pill),
+                  ),
                 ),
               ),
-            ),
-            Row(
-              children: [
-                for (final r in items)
-                  Expanded(
-                    child: GestureDetector(
-                      behavior: HitTestBehavior.opaque,
-                      onTap: () => onChanged(r),
-                      child: Center(
-                        child: Text(
-                          _labels[r]!,
-                          style: TextStyle(
-                            fontSize: 12.5,
-                            fontWeight: FontWeight.w700,
-                            color: r == value
-                                ? FoxColors.cream
-                                : FoxColors.textSecondary,
+              Row(
+                children: [
+                  for (final r in items)
+                    Expanded(
+                      child: GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: () {
+                          HapticFeedback.selectionClick();
+                          onChanged(r);
+                        },
+                        child: Center(
+                          child: Text(
+                            _labels[r]!,
+                            style: TextStyle(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w700,
+                              color: r == value
+                                  ? FoxColors.cream
+                                  : FoxColors.textSecondary,
+                            ),
                           ),
                         ),
                       ),
                     ),
-                  ),
-              ],
-            ),
-          ],
-        );
-      }),
+                ],
+              ),
+            ],
+          );
+        },
+      ),
     );
   }
 }
@@ -321,14 +350,18 @@ class _AppChips extends StatelessWidget {
   Widget _chip(GigPlatform? app, String label) {
     final active = selected.contains(app);
     return GestureDetector(
-      onTap: () => onToggle(app),
+      onTap: () {
+        HapticFeedback.selectionClick();
+        onToggle(app);
+      },
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
           color: active ? FoxColors.bgSurface2 : FoxColors.bgSurface,
           borderRadius: BorderRadius.circular(Radii.pill),
           border: Border.all(
-              color: active ? FoxColors.border : FoxColors.borderSoft),
+            color: active ? FoxColors.border : FoxColors.borderSoft,
+          ),
           boxShadow: active ? null : Shadows.soft,
         ),
         child: Row(
@@ -367,8 +400,7 @@ class _VerdictChips extends StatelessWidget {
       runSpacing: Gap.sm,
       children: [
         _chip(null),
-        for (final v in const [Verdict.good, Verdict.ok, Verdict.bad])
-          _chip(v),
+        for (final v in const [Verdict.good, Verdict.ok, Verdict.bad]) _chip(v),
       ],
     );
   }
@@ -377,22 +409,29 @@ class _VerdictChips extends StatelessWidget {
     final active = selected.contains(v);
     final style = v == null ? null : VerdictStyle.of(v);
     return GestureDetector(
-      onTap: () => onToggle(v),
+      onTap: () {
+        HapticFeedback.selectionClick();
+        onToggle(v);
+      },
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
           color: active ? FoxColors.bgSurface2 : FoxColors.bgSurface,
           borderRadius: BorderRadius.circular(Radii.pill),
           border: Border.all(
-              color: active ? FoxColors.border : FoxColors.borderSoft),
+            color: active ? FoxColors.border : FoxColors.borderSoft,
+          ),
           boxShadow: active ? null : Shadows.soft,
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             if (style != null) ...[
-              Icon(style.icon,
-                  size: 12, color: active ? style.color : FoxColors.textSecondary),
+              Icon(
+                style.icon,
+                size: 12,
+                color: active ? style.color : FoxColors.textSecondary,
+              ),
               const SizedBox(width: 6),
             ],
             Text(
@@ -444,8 +483,11 @@ class _TopCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(Icons.local_fire_department,
-                  color: Color(0xFFFFB25C), size: 20), // warm streak-flame accent — one-off
+              const Icon(
+                Icons.local_fire_department,
+                color: Color(0xFFFFB25C),
+                size: 20,
+              ), // warm streak-flame accent — one-off
               const SizedBox(width: Gap.sm + Gap.xs),
               Expanded(
                 child: Column(
@@ -475,8 +517,9 @@ class _TopCard extends StatelessWidget {
           ),
           AnimatedCrossFade(
             duration: Motion.base,
-            crossFadeState:
-                on ? CrossFadeState.showFirst : CrossFadeState.showSecond,
+            crossFadeState: on
+                ? CrossFadeState.showFirst
+                : CrossFadeState.showSecond,
             firstChild: Padding(
               padding: const EdgeInsets.only(top: Gap.md),
               child: Row(
@@ -544,31 +587,53 @@ class _Switch extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: Motion.base,
-        width: 44,
-        height: 26,
-        decoration: BoxDecoration(
-          color: on ? FoxColors.brandFox : FoxColors.cream.withValues(alpha: 0.15),
-          borderRadius: BorderRadius.circular(Radii.pill),
-        ),
-        child: AnimatedAlign(
-          duration: Motion.base,
-          curve: Curves.easeOutBack,
-          alignment: on ? Alignment.centerRight : Alignment.centerLeft,
-          child: Container(
-            width: 20,
-            height: 20,
-            margin: const EdgeInsets.symmetric(horizontal: 3),
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              shape: BoxShape.circle,
-              boxShadow: [
-                // local thumb drop-shadow (25% black) — decorative, not Shadows.soft
-                BoxShadow(color: Color(0x40000000), blurRadius: 4, offset: Offset(0, 2)),
-              ],
+    // 48dp hit area + semantics around the 44×26 visual.
+    return Semantics(
+      toggled: on,
+      button: true,
+      label: 'Top offers only',
+      child: GestureDetector(
+        onTap: () {
+          HapticFeedback.selectionClick();
+          onTap();
+        },
+        behavior: HitTestBehavior.opaque,
+        child: SizedBox(
+          width: 56,
+          height: 48,
+          child: Center(
+            child: AnimatedContainer(
+              duration: Motion.base,
+              width: 44,
+              height: 26,
+              decoration: BoxDecoration(
+                color: on
+                    ? FoxColors.brandFox
+                    : FoxColors.cream.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(Radii.pill),
+              ),
+              child: AnimatedAlign(
+                duration: Motion.base,
+                curve: Curves.easeOutBack,
+                alignment: on ? Alignment.centerRight : Alignment.centerLeft,
+                child: Container(
+                  width: 20,
+                  height: 20,
+                  margin: const EdgeInsets.symmetric(horizontal: 3),
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      // local thumb drop-shadow (25% black) — decorative, not Shadows.soft
+                      BoxShadow(
+                        color: Color(0x40000000),
+                        blurRadius: 4,
+                        offset: Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             ),
           ),
         ),
@@ -584,27 +649,358 @@ class _StepBtn extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // 48dp hit area around the 30dp visual (a11y minimum).
     return GestureDetector(
       onTap: onTap,
-      child: Container(
-        width: 30,
-        height: 30,
-        decoration: BoxDecoration(
-          color: FoxColors.cream.withValues(alpha: 0.08),
-          shape: BoxShape.circle,
-          border: Border.all(color: FoxColors.cream.withValues(alpha: 0.2)),
-        ),
-        alignment: Alignment.center,
-        child: Text(
-          glyph,
-          style: const TextStyle(
-            color: FoxColors.cream,
-            fontSize: 16,
-            fontWeight: FontWeight.w700,
-            height: 1,
+      behavior: HitTestBehavior.opaque,
+      child: SizedBox(
+        width: 48,
+        height: 48,
+        child: Center(
+          child: Container(
+            width: 30,
+            height: 30,
+            decoration: BoxDecoration(
+              color: FoxColors.cream.withValues(alpha: 0.08),
+              shape: BoxShape.circle,
+              border: Border.all(color: FoxColors.cream.withValues(alpha: 0.2)),
+            ),
+            alignment: Alignment.center,
+            child: Text(
+              glyph,
+              style: const TextStyle(
+                color: FoxColors.cream,
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                height: 1,
+              ),
+            ),
           ),
         ),
       ),
+    );
+  }
+}
+
+/// 24-bin offers-per-hour bar chart under the stats card. One series, one
+/// hue (brand orange), peak bin at full strength with a direct count label —
+/// selective labeling, no legend needed. Bars are plain Containers; heights
+/// scale to the busiest bin.
+class _HourlyChart extends StatelessWidget {
+  const _HourlyChart({required this.offers});
+  final List<OfferSummary> offers;
+
+  @override
+  Widget build(BuildContext context) {
+    final bins = List<int>.filled(24, 0);
+    for (final o in offers) {
+      bins[o.seenAt.hour]++;
+    }
+    final peak = bins.reduce((a, b) => a > b ? a : b);
+    if (peak == 0) return const SizedBox.shrink();
+    final peakHour = bins.indexOf(peak);
+
+    const chartH = 56.0;
+    return Container(
+      padding: const EdgeInsets.fromLTRB(
+        Gap.md + Gap.xs,
+        Gap.md,
+        Gap.md + Gap.xs,
+        Gap.sm + Gap.xs,
+      ),
+      decoration: BoxDecoration(
+        color: FoxColors.bgSurface,
+        borderRadius: BorderRadius.circular(Radii.card),
+        border: Border.all(color: FoxColors.borderSoft),
+        boxShadow: Shadows.card,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('BY HOUR', style: Theme.of(context).textTheme.labelSmall),
+          const SizedBox(height: Gap.sm),
+          // Peak count sits right above its bar.
+          SizedBox(
+            height: chartH + 16,
+            child: LayoutBuilder(
+              builder: (context, c) {
+                final slot = c.maxWidth / 24;
+                return Stack(
+                  children: [
+                    Positioned(
+                      bottom: 0,
+                      left: 0,
+                      right: 0,
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          for (var h = 0; h < 24; h++)
+                            Expanded(
+                              child: Padding(
+                                // 2px gap between bars (1px each side).
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 1,
+                                ),
+                                child: Container(
+                                  // Empty bins keep a 2px baseline stub so the
+                                  // 24-hour axis reads as continuous.
+                                  height: bins[h] == 0
+                                      ? 2
+                                      : (chartH * bins[h] / peak).clamp(
+                                          3.0,
+                                          chartH,
+                                        ),
+                                  decoration: BoxDecoration(
+                                    color: h == peakHour
+                                        ? FoxColors.brandFox
+                                        : bins[h] == 0
+                                        ? FoxColors.cream.withValues(
+                                            alpha: 0.08,
+                                          )
+                                        : FoxColors.brandFox.withValues(
+                                            alpha: 0.38,
+                                          ),
+                                    borderRadius: const BorderRadius.vertical(
+                                      top: Radius.circular(3),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                    // Direct label on the peak only.
+                    Positioned(
+                      bottom: chartH + 2,
+                      left: (slot * peakHour + slot / 2 - 20).clamp(
+                        0.0,
+                        c.maxWidth - 40,
+                      ),
+                      child: SizedBox(
+                        width: 40,
+                        child: Text(
+                          '$peak',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w700,
+                            color: FoxColors.cream,
+                            fontFeatures: [FontFeature.tabularFigures()],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: Gap.xs),
+          // Sparse hour axis: 12A · 6A · 12P · 6P.
+          Row(
+            children: [
+              for (final (flex, label) in [
+                (6, '12 AM'),
+                (6, '6 AM'),
+                (6, '12 PM'),
+                (6, '6 PM'),
+              ])
+                Expanded(
+                  flex: flex,
+                  child: Text(
+                    label,
+                    style: const TextStyle(
+                      fontSize: 9.5,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.3,
+                      color: FoxColors.textDisabled,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Per-app verdict breakdown: one horizontal stacked bar per platform,
+/// segments in verdict colors (good/ok/bad), bar length proportional to the
+/// busiest app so cross-app volume compares at a glance. Counts label each
+/// row's end; identity comes from badge + name, never color alone.
+class _AppVerdictChart extends StatelessWidget {
+  const _AppVerdictChart({required this.offers});
+  final List<OfferSummary> offers;
+
+  @override
+  Widget build(BuildContext context) {
+    // (good, ok, bad) per platform, apps with 0 offers skipped.
+    final rows = <(GigPlatform, int, int, int)>[];
+    var maxTotal = 0;
+    for (final p in GigPlatform.values) {
+      var g = 0, k = 0, b = 0;
+      for (final o in offers) {
+        if (o.platform != p) continue;
+        switch (o.verdict) {
+          case Verdict.good:
+            g++;
+          case Verdict.ok:
+            k++;
+          case Verdict.bad:
+            b++;
+          case Verdict.unknown:
+            break;
+        }
+      }
+      final total = g + k + b;
+      if (total == 0) continue;
+      rows.add((p, g, k, b));
+      if (total > maxTotal) maxTotal = total;
+    }
+    if (rows.length < 2) {
+      // 1 app → hourly chart already tells the story
+      return const SizedBox.shrink();
+    }
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(
+        Gap.md + Gap.xs,
+        Gap.md,
+        Gap.md + Gap.xs,
+        Gap.md,
+      ),
+      decoration: BoxDecoration(
+        color: FoxColors.bgSurface,
+        borderRadius: BorderRadius.circular(Radii.card),
+        border: Border.all(color: FoxColors.borderSoft),
+        boxShadow: Shadows.card,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text('BY APP', style: Theme.of(context).textTheme.labelSmall),
+              const Spacer(),
+              // Tiny legend: dot + word per verdict.
+              for (final (c, l) in [
+                (VerdictColors.good, 'good'),
+                (VerdictColors.ok, 'ok'),
+                (VerdictColors.bad, 'bad'),
+              ]) ...[
+                Container(
+                  width: 6,
+                  height: 6,
+                  margin: const EdgeInsets.only(left: Gap.sm),
+                  decoration: BoxDecoration(color: c, shape: BoxShape.circle),
+                ),
+                const SizedBox(width: 3),
+                Text(
+                  l,
+                  style: const TextStyle(
+                    fontSize: 9.5,
+                    fontWeight: FontWeight.w600,
+                    color: FoxColors.textSecondary,
+                  ),
+                ),
+              ],
+            ],
+          ),
+          const SizedBox(height: Gap.sm + Gap.xs),
+          for (final (p, g, k, b) in rows) ...[
+            _appRow(context, p, g, k, b, maxTotal),
+            if ((p, g, k, b) != rows.last) const SizedBox(height: Gap.sm),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _appRow(
+    BuildContext context,
+    GigPlatform p,
+    int good,
+    int ok,
+    int bad,
+    int maxTotal,
+  ) {
+    final total = good + ok + bad;
+    return Row(
+      children: [
+        // Fixed label column keeps the bars' baselines aligned.
+        SizedBox(
+          width: 64,
+          child: Row(
+            children: [
+              PlatformBadge(platform: p, size: 16),
+              const SizedBox(width: 5),
+              Expanded(
+                child: Text(
+                  p.label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w700,
+                    color: FoxColors.textPrimary,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: Gap.sm),
+        Expanded(
+          child: FractionallySizedBox(
+            alignment: Alignment.centerLeft,
+            widthFactor: total / maxTotal,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(Radii.pill),
+              child: SizedBox(
+                height: 14,
+                child: Builder(
+                  builder: (context) {
+                    final segs = [
+                      (good, VerdictColors.good),
+                      (ok, VerdictColors.ok),
+                      (bad, VerdictColors.bad),
+                    ].where((s) => s.$1 > 0).toList();
+                    return Row(
+                      children: [
+                        // 2px surface gaps between segments.
+                        for (final (i, (count, color)) in segs.indexed)
+                          Expanded(
+                            flex: count,
+                            child: Container(
+                              margin: EdgeInsets.only(left: i == 0 ? 0 : 2),
+                              color: color,
+                            ),
+                          ),
+                      ],
+                    );
+                  },
+                ),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: Gap.sm),
+        SizedBox(
+          width: 24,
+          child: Text(
+            '$total',
+            textAlign: TextAlign.right,
+            style: const TextStyle(
+              fontSize: 11.5,
+              fontWeight: FontWeight.w700,
+              color: FoxColors.cream,
+              fontFeatures: [FontFeature.tabularFigures()],
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -617,8 +1013,10 @@ class _DateHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Text(label.toUpperCase(),
-            style: Theme.of(context).textTheme.labelSmall),
+        Text(
+          label.toUpperCase(),
+          style: Theme.of(context).textTheme.labelSmall,
+        ),
         const SizedBox(width: Gap.sm + Gap.xs),
         const Expanded(child: Divider(color: FoxColors.border, height: 1)),
       ],
@@ -633,100 +1031,132 @@ class _OfferRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final style = VerdictStyle.of(offer.verdict);
-    final time =
-        '${offer.seenAt.hour.toString().padLeft(2, '0')}:${offer.seenAt.minute.toString().padLeft(2, '0')}';
-    return Container(
-      margin: const EdgeInsets.only(bottom: Gap.sm),
-      padding: const EdgeInsets.symmetric(horizontal: Gap.md, vertical: 12),
-      decoration: BoxDecoration(
-        color: FoxColors.bgSurface,
-        borderRadius: BorderRadius.circular(Radii.cardSm),
-        border: Border.all(color: FoxColors.borderSoft),
-        boxShadow: Shadows.soft,
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 4,
-            height: 40,
-            decoration: BoxDecoration(
-              color: style.color,
-              borderRadius: BorderRadius.circular(2),
-              boxShadow: [
-                BoxShadow(
-                    color: style.color.withValues(alpha: 0.5), blurRadius: 8),
-              ],
+    // Locale-aware (12h markets see "6:48 PM", not hardcoded 24h).
+    final time = MaterialLocalizations.of(context).formatTimeOfDay(
+      TimeOfDay.fromDateTime(offer.seenAt),
+      alwaysUse24HourFormat: MediaQuery.of(context).alwaysUse24HourFormat,
+    );
+    return InkWell(
+      borderRadius: BorderRadius.circular(Radii.cardSm),
+      onTap: () => showOfferDetail(context, offer),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: Gap.sm),
+        padding: const EdgeInsets.symmetric(horizontal: Gap.md, vertical: 12),
+        decoration: BoxDecoration(
+          color: FoxColors.bgSurface,
+          borderRadius: BorderRadius.circular(Radii.cardSm),
+          border: Border.all(color: FoxColors.borderSoft),
+          boxShadow: Shadows.soft,
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 4,
+              height: 40,
+              decoration: BoxDecoration(
+                color: style.color,
+                borderRadius: BorderRadius.circular(2),
+                boxShadow: [
+                  BoxShadow(
+                    color: style.color.withValues(alpha: 0.5),
+                    blurRadius: 8,
+                  ),
+                ],
+              ),
             ),
-          ),
-          const SizedBox(width: Gap.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    PlatformBadge(platform: offer.platform, size: 18),
-                    const SizedBox(width: 6),
-                    Text(
-                      offer.platform.label,
+            const SizedBox(width: Gap.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      PlatformBadge(platform: offer.platform, size: 18),
+                      const SizedBox(width: 6),
+                      Text(
+                        offer.platform.label,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: FoxColors.textPrimary,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 3),
+                  Text.rich(
+                    TextSpan(
+                      children: [
+                        TextSpan(
+                          text: '${offer.totalKm.toStringAsFixed(1)} km  ',
+                        ),
+                        TextSpan(
+                          text: '\$${offer.pricePerKm.toStringAsFixed(2)}/km',
+                          style: const TextStyle(
+                            color: FoxColors.textPrimary,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
                       style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: FoxColors.textPrimary,
+                        fontSize: 12,
+                        color: FoxColors.textSecondary,
+                        fontFeatures: [FontFeature.tabularFigures()],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  offer.payout == offer.payout.roundToDouble()
+                      ? '\$${offer.payout.toStringAsFixed(0)}'
+                      : '\$${offer.payout.toStringAsFixed(2)}',
+                  style: const TextStyle(
+                    fontFamily: FoxFonts.display,
+                    fontSize: 16.5,
+                    fontWeight: FontWeight.w600,
+                    color: FoxColors.textPrimary,
+                    fontFeatures: [FontFeature.tabularFigures()],
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Inferred take/pass marker (icon; unknown → nothing).
+                    if (offer.outcome == OfferOutcome.taken) ...[
+                      const Icon(
+                        Icons.check_rounded,
+                        size: 11,
+                        color: VerdictColors.good,
+                      ),
+                      const SizedBox(width: 3),
+                    ] else if (offer.outcome == OfferOutcome.missed) ...[
+                      const Icon(
+                        Icons.close_rounded,
+                        size: 11,
+                        color: FoxColors.textDisabled,
+                      ),
+                      const SizedBox(width: 3),
+                    ],
+                    Text(
+                      time,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: FoxColors.textDisabled,
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 3),
-                Text.rich(
-                  TextSpan(
-                    children: [
-                      TextSpan(text: '${offer.totalKm.toStringAsFixed(1)} km  '),
-                      TextSpan(
-                        text: '\$${offer.pricePerKm.toStringAsFixed(2)}/km',
-                        style: const TextStyle(
-                          color: FoxColors.textPrimary,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ],
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: FoxColors.textSecondary,
-                      fontFeatures: [FontFeature.tabularFigures()],
-                    ),
-                  ),
-                ),
               ],
             ),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                offer.payout == offer.payout.roundToDouble()
-                    ? '\$${offer.payout.toStringAsFixed(0)}'
-                    : '\$${offer.payout.toStringAsFixed(2)}',
-                style: const TextStyle(
-                  fontFamily: FoxFonts.display,
-                  fontSize: 16.5,
-                  fontWeight: FontWeight.w600,
-                  color: FoxColors.textPrimary,
-                  fontFeatures: [FontFeature.tabularFigures()],
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                time,
-                style: const TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: FoxColors.textDisabled,
-                ),
-              ),
-            ],
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -757,18 +1187,18 @@ class _Empty extends StatelessWidget {
           Text(
             filtered
                 ? '$hiddenCount offers outside these filters'
-                : 'No offers yet — go live and drive.',
-            style: const TextStyle(
-                fontSize: 13, color: FoxColors.textDisabled),
+                : 'No offers yet — go live and let the fox hunt 🦊🍕',
+            style: const TextStyle(fontSize: 13, color: FoxColors.textDisabled),
           ),
           if (filtered) ...[
             const SizedBox(height: Gap.sm),
             TextButton(
               onPressed: onShowAll,
-              style:
-                  TextButton.styleFrom(foregroundColor: FoxColors.brandFox),
-              child: const Text('Show all',
-                  style: TextStyle(fontWeight: FontWeight.w700)),
+              style: TextButton.styleFrom(foregroundColor: FoxColors.brandFox),
+              child: const Text(
+                'Show all',
+                style: TextStyle(fontWeight: FontWeight.w700),
+              ),
             ),
           ],
         ],
@@ -809,7 +1239,25 @@ class _StatsCard extends StatelessWidget {
             child: _Stat(
               label: 'OFFERS',
               value: '${s.total}',
-              sub: '${s.good}·${s.ok}·${s.bad}',
+              // Verdict-colored counts instead of the cryptic "2·7·2".
+              subSpan: TextSpan(
+                children: [
+                  TextSpan(
+                    text: '${s.good}',
+                    style: const TextStyle(color: VerdictColors.good),
+                  ),
+                  const TextSpan(text: ' · '),
+                  TextSpan(
+                    text: '${s.ok}',
+                    style: const TextStyle(color: VerdictColors.ok),
+                  ),
+                  const TextSpan(text: ' · '),
+                  TextSpan(
+                    text: '${s.bad}',
+                    style: const TextStyle(color: VerdictColors.bad),
+                  ),
+                ],
+              ),
             ),
           ),
           Expanded(
@@ -844,11 +1292,17 @@ class _StatsCard extends StatelessWidget {
 }
 
 class _Stat extends StatelessWidget {
-  const _Stat({required this.label, required this.value, required this.sub});
+  const _Stat({
+    required this.label,
+    required this.value,
+    this.sub,
+    this.subSpan,
+  }) : assert(sub != null || subSpan != null);
 
   final String label;
   final String value;
-  final String sub;
+  final String? sub;
+  final TextSpan? subSpan;
 
   static bool _isInt(String s) => int.tryParse(s) != null;
   static const _valueStyle = TextStyle(
@@ -883,11 +1337,12 @@ class _Stat extends StatelessWidget {
                 builder: (context, v, _) => Text('$v', style: _valueStyle),
               )
             : Text(value, style: _valueStyle),
-        Text(
-          sub,
+        Text.rich(
+          subSpan ?? TextSpan(text: sub),
           style: const TextStyle(
             fontSize: 10.5,
             color: FoxColors.textSecondary,
+            fontFeatures: [FontFeature.tabularFigures()],
           ),
         ),
       ],

@@ -97,8 +97,7 @@ class CarHero extends StatelessWidget {
   final CarHeroState state;
 
   /// All layer asset basenames — splash uses this to precache.
-  static List<String> get layerNames =>
-      [for (final (name, _) in _layers) name];
+  static List<String> get layerNames => [for (final (name, _) in _layers) name];
 
   // Bottom-to-top compositing order (per asset-set READMEs).
   static const _layers = <(String, double Function(CarHeroState))>[

@@ -39,11 +39,12 @@ class OfferLog extends Notifier<List<OfferSummary>> {
       final prefs = await SharedPreferences.getInstance();
       final raw = prefs.getString(_prefsKey);
       if (raw == null) return;
-      final list = (jsonDecode(raw) as List)
-          .whereType<Map<String, dynamic>>()
-          .map(OfferSummary.fromJson)
-          .toList()
-        ..sort((a, b) => b.seenAt.compareTo(a.seenAt));
+      final list =
+          (jsonDecode(raw) as List)
+              .whereType<Map<String, dynamic>>()
+              .map(OfferSummary.fromJson)
+              .toList()
+            ..sort((a, b) => b.seenAt.compareTo(a.seenAt));
       state = list;
     } catch (e) {
       if (kDebugMode) debugPrint('FoxyCo offer log load skipped: $e');
@@ -73,6 +74,17 @@ class OfferLog extends Notifier<List<OfferSummary>> {
       next = next.where((o) => o.seenAt.isAfter(cutoff)).toList();
     }
     state = next;
+    _save();
+  }
+
+  /// Stamp the inferred take/pass outcome onto the most recent offer (the one
+  /// the pill just showed). No-op on an empty log or if that offer already has
+  /// an outcome — an outcome, once set, is never overwritten.
+  void markLatestOutcome(OfferOutcome outcome) {
+    if (state.isEmpty) return;
+    final latest = state.first;
+    if (latest.outcome != OfferOutcome.unknown) return;
+    state = [latest.withOutcome(outcome), ...state.skip(1)];
     _save();
   }
 

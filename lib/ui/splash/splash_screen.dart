@@ -95,11 +95,17 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   CarHeroState _stateAt(double t) {
-    final fadeIn = const Interval(0.0, 0.27, curve: Curves.easeOut)
-        .transform(t);
+    final fadeIn = const Interval(
+      0.0,
+      0.27,
+      curve: Curves.easeOut,
+    ).transform(t);
     final ignition = const Interval(0.27, 0.55).transform(t);
-    final reveal = const Interval(0.55, 1.0, curve: Curves.easeInOutCubic)
-        .transform(t);
+    final reveal = const Interval(
+      0.55,
+      1.0,
+      curve: Curves.easeInOutCubic,
+    ).transform(t);
     final lights = _flicker(ignition);
 
     // Stealth base fades in, then the reveal crossfade takes over.
@@ -176,7 +182,10 @@ class _SplashCar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final w = math.min(360.0, MediaQuery.of(context).size.width * 0.86);
-    return SizedBox(width: w, child: CarHero(state: state));
+    return SizedBox(
+      width: w,
+      child: CarHero(state: state),
+    );
   }
 }
 

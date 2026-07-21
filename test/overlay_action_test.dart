@@ -18,8 +18,10 @@ void main() {
 
     test('ignores non-action maps (fail safe)', () {
       expect(OverlayAction.fromMap({'kind': 'offer'}), isNull);
-      expect(OverlayAction.fromMap({'kind': 'action', 'action': 'bogus'}),
-          isNull);
+      expect(
+        OverlayAction.fromMap({'kind': 'action', 'action': 'bogus'}),
+        isNull,
+      );
       expect(OverlayAction.fromMap({}), isNull);
     });
   });
@@ -27,8 +29,10 @@ void main() {
   group('message kinds are distinguishable on the shared channel', () {
     test('offer / control / action never collide', () {
       final offer = const OverlayPayload(
-              verdict: Verdict.good, totalKm: 8, payout: 12)
-          .toMap();
+        verdict: Verdict.good,
+        totalKm: 8,
+        payout: 12,
+      ).toMap();
       final control = OverlayControl.paused(true);
       final action = OverlayAction.togglePause.toMap();
 

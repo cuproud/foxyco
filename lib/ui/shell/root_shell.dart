@@ -1,38 +1,45 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../history/history_screen.dart';
 import '../home/home_screen.dart';
 import '../settings/settings_screen.dart';
 import '../theme/tokens.dart';
 
+/// Active tab index — a provider so any screen can deep-link to another tab
+/// (e.g. Home's platform badges → Settings watched-apps).
+final tabIndexProvider = NotifierProvider<TabIndex, int>(TabIndex.new);
+
+class TabIndex extends Notifier<int> {
+  @override
+  int build() => 0;
+
+  void go(int i) => state = i;
+}
+
 /// The app's three tabs behind one floating pill nav (references/*.html
 /// `.bottom-nav`). An [IndexedStack] keeps each tab's scroll + filter state
 /// alive when you switch, matching the mockups' instant tab feel.
-class RootShell extends StatefulWidget {
+class RootShell extends ConsumerWidget {
   const RootShell({super.key});
 
   @override
-  State<RootShell> createState() => _RootShellState();
-}
-
-class _RootShellState extends State<RootShell> {
-  int _index = 0;
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final index = ref.watch(tabIndexProvider);
     return Scaffold(
       // Nav floats OVER the content, so let pages pad their own bottom.
       extendBody: true,
       body: SafeArea(
         bottom: false,
         child: IndexedStack(
-          index: _index,
+          index: index,
           children: const [HomeScreen(), HistoryScreen(), SettingsScreen()],
         ),
       ),
       bottomNavigationBar: _BottomNav(
-        index: _index,
-        onTap: (i) => setState(() => _index = i),
+        index: index,
+        onTap: (i) => ref.read(tabIndexProvider.notifier).go(i),
       ),
     );
   }
@@ -114,7 +121,11 @@ class _BottomNav extends StatelessWidget {
 }
 
 class _NavItem extends StatelessWidget {
-  const _NavItem({required this.dest, required this.active, required this.onTap});
+  const _NavItem({
+    required this.dest,
+    required this.active,
+    required this.onTap,
+  });
 
   final _NavDest dest;
   final bool active;
@@ -123,23 +134,35 @@ class _NavItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = active ? FoxColors.ink : FoxColors.textDisabled;
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: onTap,
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(dest.icon, size: 21, color: active ? FoxColors.brandFox : color),
-          const SizedBox(height: 3),
-          Text(
-            dest.label,
-            style: TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.w700,
-              color: color,
+    return Semantics(
+      button: true,
+      selected: active,
+      label: dest.label,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () {
+          HapticFeedback.selectionClick();
+          onTap();
+        },
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              dest.icon,
+              size: 21,
+              color: active ? FoxColors.brandFox : color,
             ),
-          ),
-        ],
+            const SizedBox(height: 3),
+            Text(
+              dest.label,
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+                color: color,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -75,7 +75,10 @@ class ParserPatterns {
   /// take it — "Accept" (Uber/Lyft) or "Match" (Hopp). Browse maps, home
   /// screens, and "Ride Finder"/"Go Online" screens never show one, so its
   /// ABSENCE is the single strongest "this isn't an offer" signal.
-  static final _acceptAction = RegExp(r'\b(accept|match)\b', caseSensitive: false);
+  static final _acceptAction = RegExp(
+    r'\b(accept|match)\b',
+    caseSensitive: false,
+  );
   static bool hasAcceptAction(List<String> nodeTexts) =>
       nodeTexts.any(_acceptAction.hasMatch);
 
@@ -99,8 +102,10 @@ class ParserPatterns {
   /// Decline/Dismiss (reject). Broader than [_acceptAction] (which gates a
   /// strict parse) because for the overlay's *lifecycle* a lone "Decline" frame
   /// still means the card is up.
-  static final _cardAction =
-      RegExp(r'\b(accept|match|decline|dismiss)\b', caseSensitive: false);
+  static final _cardAction = RegExp(
+    r'\b(accept|match|decline|dismiss)\b',
+    caseSensitive: false,
+  );
 
   /// Cheap "are we STILL looking at an offer card?" probe for the overlay's
   /// pill lifecycle — deliberately loose, NOT the strict parse. Gig apps
@@ -156,7 +161,7 @@ class ParserPatterns {
   /// Shared by Hopp and Lyft, which use the same pickup-first timeline; feed it
   /// `leg.allMatches(joined).toList()`.
   static ({double pickupKm, double pickupMin, double tripKm, double tripMin})?
-      foldLegs(List<RegExpMatch> legs) {
+  foldLegs(List<RegExpMatch> legs) {
     if (legs.length < 2 || legs.length > _maxLegs) return null;
     final pickupMin = double.tryParse(legs.first.group(1)!) ?? 0;
     final pickupKm = double.tryParse(legs.first.group(2)!) ?? 0;
@@ -167,6 +172,11 @@ class ParserPatterns {
       tripKm += double.tryParse(leg.group(2)!) ?? 0;
     }
     if (pickupKm + tripKm <= 0) return null;
-    return (pickupKm: pickupKm, pickupMin: pickupMin, tripKm: tripKm, tripMin: tripMin);
+    return (
+      pickupKm: pickupKm,
+      pickupMin: pickupMin,
+      tripKm: tripKm,
+      tripMin: tripMin,
+    );
   }
 }

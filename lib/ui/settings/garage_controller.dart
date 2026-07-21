@@ -32,13 +32,16 @@ class GarageController extends Notifier<Garage> {
       }
       final legacy = prefs.getString(legacyKey);
       if (legacy == null) return;
-      final profile =
-          DriverProfile.fromJson(jsonDecode(legacy) as Map<String, dynamic>);
+      final profile = DriverProfile.fromJson(
+        jsonDecode(legacy) as Map<String, dynamic>,
+      );
       final migrated = Garage.fromLegacyProfile(profile);
       state = migrated;
       if (migrated.vehicles.isNotEmpty) {
         await _save();
-        ref.read(foxLogProvider).log('garage', 'migrated profile.v1 → garage.v1');
+        ref
+            .read(foxLogProvider)
+            .log('garage', 'migrated profile.v1 → garage.v1');
       }
     } catch (e) {
       // Fail-soft: empty garage, never crash (spec M6 §10).
@@ -74,12 +77,14 @@ class GarageController extends Notifier<Garage> {
   }
 }
 
-final garageProvider =
-    NotifierProvider<GarageController, Garage>(GarageController.new);
+final garageProvider = NotifierProvider<GarageController, Garage>(
+  GarageController.new,
+);
 
 /// The vehicle the hero card + art render. Null → hero hides.
-final activeVehicleProvider =
-    Provider<Vehicle?>((ref) => ref.watch(garageProvider).active);
+final activeVehicleProvider = Provider<Vehicle?>(
+  (ref) => ref.watch(garageProvider).active,
+);
 
 /// Driver name — the person, not the car (spec M6 §4.1). Own key; seeded from
 /// the legacy profile's name on first run so nobody retypes it.
@@ -125,5 +130,6 @@ class DriverNameController extends Notifier<String> {
   }
 }
 
-final driverNameProvider =
-    NotifierProvider<DriverNameController, String>(DriverNameController.new);
+final driverNameProvider = NotifierProvider<DriverNameController, String>(
+  DriverNameController.new,
+);

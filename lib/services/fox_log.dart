@@ -60,10 +60,15 @@ class FoxLog {
       if (file == null) return;
       // Sync write: keeps FoxLog usable under FakeAsync (widget tests) where
       // real async I/O futures never complete. Writes are small + buffered.
-      file.writeAsStringSync('${lines.join('\n')}\n',
-          mode: FileMode.append, flush: true);
+      file.writeAsStringSync(
+        '${lines.join('\n')}\n',
+        mode: FileMode.append,
+        flush: true,
+      );
       if (file.lengthSync() > maxBytes) _rotate(file);
-    } catch (_) {/* fail-soft */}
+    } catch (_) {
+      /* fail-soft */
+    }
   }
 
   void _rotate(File file) {
@@ -71,7 +76,9 @@ class FoxLog {
       final old = File('${file.path}.1');
       if (old.existsSync()) old.deleteSync();
       file.renameSync(old.path);
-    } catch (_) {/* fail-soft */}
+    } catch (_) {
+      /* fail-soft */
+    }
   }
 
   /// Last [maxChars] of the current file (viewer shows the tail).
@@ -98,8 +105,11 @@ class FoxLog {
       if (file.existsSync()) file.deleteSync();
       final old = File('${file.path}.1');
       if (old.existsSync()) old.deleteSync();
-    } catch (_) {/* fail-soft */}
+    } catch (_) {
+      /* fail-soft */
+    }
   }
+
   /// Cancel the pending flush timer and write out whatever is queued.
   /// Called on provider dispose so widget tests don't leak the timer.
   void dispose() {

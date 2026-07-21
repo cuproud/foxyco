@@ -34,6 +34,10 @@ class FoxSettings {
   /// Floating pill size.
   final PillSize pillSize;
 
+  /// Infer taken/missed outcomes from where the app lands after an offer card
+  /// leaves (read-only heuristic). Off = every offer logs as unknown.
+  final bool trackOutcomes;
+
   const FoxSettings({
     required this.thresholds,
     required this.hourThresholds,
@@ -42,6 +46,7 @@ class FoxSettings {
     required this.watchedApps,
     required this.retentionDays,
     required this.pillSize,
+    required this.trackOutcomes,
   });
 
   static const keepForever = 9999;
@@ -61,6 +66,7 @@ class FoxSettings {
     watchedApps: {GigPlatform.uber, GigPlatform.hopp, GigPlatform.lyft},
     retentionDays: 30,
     pillSize: PillSize.small,
+    trackOutcomes: true,
   );
 
   bool watches(GigPlatform p) => watchedApps.contains(p);
@@ -79,6 +85,7 @@ class FoxSettings {
     Set<GigPlatform>? watchedApps,
     int? retentionDays,
     PillSize? pillSize,
+    bool? trackOutcomes,
   }) => FoxSettings(
     thresholds: thresholds ?? this.thresholds,
     hourThresholds: hourThresholds ?? this.hourThresholds,
@@ -87,6 +94,7 @@ class FoxSettings {
     watchedApps: watchedApps ?? this.watchedApps,
     retentionDays: retentionDays ?? this.retentionDays,
     pillSize: pillSize ?? this.pillSize,
+    trackOutcomes: trackOutcomes ?? this.trackOutcomes,
   );
 
   Map<String, dynamic> toJson() => {
@@ -99,6 +107,7 @@ class FoxSettings {
     'watchedApps': watchedApps.map((p) => p.name).toList(),
     'retentionDays': retentionDays,
     'pillSize': pillSize.name,
+    'trackOutcomes': trackOutcomes,
   };
 
   factory FoxSettings.fromJson(Map<String, dynamic> j) {
@@ -109,27 +118,27 @@ class FoxSettings {
         .toSet();
     return FoxSettings(
       thresholds: Thresholds(
-        goodAtOrAbove: (j['good'] as num?)?.toDouble() ??
-            d.thresholds.goodAtOrAbove,
+        goodAtOrAbove:
+            (j['good'] as num?)?.toDouble() ?? d.thresholds.goodAtOrAbove,
         badBelow: (j['bad'] as num?)?.toDouble() ?? d.thresholds.badBelow,
       ),
       hourThresholds: Thresholds(
-        goodAtOrAbove: (j['hourGood'] as num?)?.toDouble() ??
+        goodAtOrAbove:
+            (j['hourGood'] as num?)?.toDouble() ??
             d.hourThresholds.goodAtOrAbove,
-        badBelow: (j['hourBad'] as num?)?.toDouble() ??
-            d.hourThresholds.badBelow,
+        badBelow:
+            (j['hourBad'] as num?)?.toDouble() ?? d.hourThresholds.badBelow,
       ),
-      rateMode: RateMode.values
-          .where((m) => m.name == j['rateMode'])
-          .firstOrNull ??
+      rateMode:
+          RateMode.values.where((m) => m.name == j['rateMode']).firstOrNull ??
           d.rateMode,
       pickupNearKm: (j['pickupNearKm'] as num?)?.toDouble() ?? d.pickupNearKm,
       watchedApps: (apps == null || apps.isEmpty) ? d.watchedApps : apps,
       retentionDays: (j['retentionDays'] as num?)?.toInt() ?? d.retentionDays,
-      pillSize: PillSize.values
-          .where((s) => s.name == j['pillSize'])
-          .firstOrNull ??
+      pillSize:
+          PillSize.values.where((s) => s.name == j['pillSize']).firstOrNull ??
           d.pillSize,
+      trackOutcomes: (j['trackOutcomes'] as bool?) ?? d.trackOutcomes,
     );
   }
 }

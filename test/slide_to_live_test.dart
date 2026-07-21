@@ -17,26 +17,26 @@ class _HarnessState extends State<_Harness> {
 
   @override
   Widget build(BuildContext context) => MaterialApp(
-        home: Scaffold(
-          body: Center(
-            child: SizedBox(
-              width: 320,
-              child: SlideToLive(
-                status: status,
-                onStart: () => setState(() {
-                  starts++;
-                  status = WatchStatus.watching;
-                }),
-                onStop: () => setState(() {
-                  stops++;
-                  status = WatchStatus.stopped;
-                }),
-                onFix: () => fixes++,
-              ),
-            ),
+    home: Scaffold(
+      body: Center(
+        child: SizedBox(
+          width: 320,
+          child: SlideToLive(
+            status: status,
+            onStart: () => setState(() {
+              starts++;
+              status = WatchStatus.watching;
+            }),
+            onStop: () => setState(() {
+              stops++;
+              status = WatchStatus.stopped;
+            }),
+            onFix: () => fixes++,
           ),
         ),
-      );
+      ),
+    ),
+  );
 }
 
 void main() {
@@ -58,7 +58,9 @@ void main() {
     await tester.pumpWidget(_Harness(key: key, initial: WatchStatus.stopped));
     await tester.pump();
     await tester.drag(
-        find.byKey(const ValueKey('slide-thumb')), const Offset(40, 0));
+      find.byKey(const ValueKey('slide-thumb')),
+      const Offset(40, 0),
+    );
     await tester.pumpAndSettle();
     expect(key.currentState!.starts, 0);
   });
@@ -76,28 +78,35 @@ void main() {
     expect(key.currentState!.stops, 1);
   });
 
-  testWidgets('semantic button path works without sliding (a11y)',
-      (tester) async {
+  testWidgets('semantic button path works without sliding (a11y)', (
+    tester,
+  ) async {
     final key = GlobalKey<_HarnessState>();
     await tester.pumpWidget(_Harness(key: key, initial: WatchStatus.stopped));
     await tester.pump();
     final semantics = tester.getSemantics(
-        find.byKey(const ValueKey('slide-to-live-semantics')));
+      find.byKey(const ValueKey('slide-to-live-semantics')),
+    );
     expect(semantics.label, contains('Go live'));
     // Tap-activation path (SemanticsAction.tap wired to onStart).
-    tester.semantics
-        .performAction(find.semantics.byLabel('Go live'), SemanticsAction.tap);
+    tester.semantics.performAction(
+      find.semantics.byLabel('Go live'),
+      SemanticsAction.tap,
+    );
     await tester.pump();
     expect(key.currentState!.starts, 1);
   });
 
-  testWidgets('blocked state routes to onFix via semantics tap',
-      (tester) async {
+  testWidgets('blocked state routes to onFix via semantics tap', (
+    tester,
+  ) async {
     final key = GlobalKey<_HarnessState>();
     await tester.pumpWidget(_Harness(key: key, initial: WatchStatus.blocked));
     await tester.pump();
     tester.semantics.performAction(
-        find.semantics.byLabel('Grant access'), SemanticsAction.tap);
+      find.semantics.byLabel('Grant access'),
+      SemanticsAction.tap,
+    );
     await tester.pump();
     expect(key.currentState!.fixes, 1);
   });

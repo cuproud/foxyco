@@ -26,16 +26,18 @@ void main() {
     expect(RegExp(r'^\d{4}-\d{2}-\d{2}T').hasMatch(content), isTrue);
   });
 
-  test('rotation: exceeding maxBytes rolls to .1 and truncates current',
-      () async {
-    final small = FoxLog(dirResolver: () async => tmp, maxBytes: 200);
-    for (var i = 0; i < 20; i++) {
-      small.log('parse', 'x' * 40);
-      await small.flush();
-    }
-    expect(rolled().existsSync(), isTrue);
-    expect(logFile().lengthSync(), lessThanOrEqualTo(300));
-  });
+  test(
+    'rotation: exceeding maxBytes rolls to .1 and truncates current',
+    () async {
+      final small = FoxLog(dirResolver: () async => tmp, maxBytes: 200);
+      for (var i = 0; i < 20; i++) {
+        small.log('parse', 'x' * 40);
+        await small.flush();
+      }
+      expect(rolled().existsSync(), isTrue);
+      expect(logFile().lengthSync(), lessThanOrEqualTo(300));
+    },
+  );
 
   test('tail returns end of file', () async {
     log.log('overlay', 'first');

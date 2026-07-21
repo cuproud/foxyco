@@ -93,9 +93,9 @@ class _SlideToLiveState extends State<SlideToLive>
   }
 
   VoidCallback _onSpringTick(double from) => () {
-        final t = Motion.spring.transform(_spring.value);
-        if (mounted) setState(() => _drag = from * (1 - t));
-      };
+    final t = Motion.spring.transform(_spring.value);
+    if (mounted) setState(() => _drag = from * (1 - t));
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -105,8 +105,8 @@ class _SlideToLiveState extends State<SlideToLive>
     final label = blocked
         ? 'Grant access'
         : _running
-            ? 'Stop'
-            : 'Go live';
+        ? 'Stop'
+        : 'Go live';
 
     return Semantics(
       key: const ValueKey('slide-to-live-semantics'),
@@ -115,8 +115,8 @@ class _SlideToLiveState extends State<SlideToLive>
       onTap: blocked
           ? widget.onFix
           : _running
-              ? widget.onStop
-              : widget.onStart,
+          ? widget.onStop
+          : widget.onStart,
       child: ExcludeSemantics(
         child: AnimatedSwitcher(
           duration: _reduced ? Duration.zero : Motion.morph,
@@ -150,16 +150,21 @@ class _SlideToLiveState extends State<SlideToLive>
               children: [
                 // Orange fill rising behind the thumb.
                 AnimatedContainer(
-                  duration: (_dragging || _reduced) ? Duration.zero : Motion.fast,
+                  duration: (_dragging || _reduced)
+                      ? Duration.zero
+                      : Motion.fast,
                   width: x + _thumb + 6,
                   height: _height,
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(Radii.pill),
                     gradient: LinearGradient(
                       colors: [
-                        FoxColors.brandFoxDeep
-                            .withValues(alpha: 0.0 + 0.6 * _drag),
-                        FoxColors.brandFox.withValues(alpha: 0.15 + 0.7 * _drag),
+                        FoxColors.brandFoxDeep.withValues(
+                          alpha: 0.0 + 0.6 * _drag,
+                        ),
+                        FoxColors.brandFox.withValues(
+                          alpha: 0.15 + 0.7 * _drag,
+                        ),
                       ],
                     ),
                   ),
@@ -184,27 +189,38 @@ class _SlideToLiveState extends State<SlideToLive>
                   left: 6 + x,
                   child: GestureDetector(
                     key: const ValueKey('slide-thumb'),
-                    onHorizontalDragStart:
-                        blocked ? null : (_) => setState(() => _dragging = true),
+                    onHorizontalDragStart: blocked
+                        ? null
+                        : (_) => setState(() => _dragging = true),
                     onHorizontalDragUpdate: blocked
                         ? null
-                        : (d) => setState(() => _drag =
-                            (_drag + d.delta.dx / travelPx).clamp(0.0, 1.0)),
-                    onHorizontalDragEnd:
-                        blocked ? null : (_) => _release(_drag),
-                    onHorizontalDragCancel:
-                        blocked ? null : () => _release(_drag),
+                        : (d) => setState(
+                            () => _drag = (_drag + d.delta.dx / travelPx).clamp(
+                              0.0,
+                              1.0,
+                            ),
+                          ),
+                    onHorizontalDragEnd: blocked
+                        ? null
+                        : (_) => _release(_drag),
+                    onHorizontalDragCancel: blocked
+                        ? null
+                        : () => _release(_drag),
                     child: Container(
                       width: _thumb,
                       height: _thumb,
                       decoration: BoxDecoration(
-                        color:
-                            blocked ? FoxColors.textDisabled : FoxColors.brandFox,
+                        color: blocked
+                            ? FoxColors.textDisabled
+                            : FoxColors.brandFox,
                         shape: BoxShape.circle,
                         boxShadow: _reduced ? null : Shadows.glow,
                       ),
-                      child: const Icon(Icons.bolt_rounded,
-                          color: Colors.white, size: 24),
+                      child: const Icon(
+                        Icons.bolt_rounded,
+                        color: Colors.white,
+                        size: 24,
+                      ),
                     ),
                   ),
                 ),
@@ -281,8 +297,10 @@ class _SlideToLiveState extends State<SlideToLive>
                   key: const ValueKey('slide-stop-thumb'),
                   onHorizontalDragStart: (_) =>
                       setState(() => _dragging = true),
-                  onHorizontalDragUpdate: (d) => setState(() => _drag =
-                      (_drag - d.delta.dx / travelPx).clamp(0.0, 1.0)),
+                  onHorizontalDragUpdate: (d) => setState(
+                    () =>
+                        _drag = (_drag - d.delta.dx / travelPx).clamp(0.0, 1.0),
+                  ),
                   onHorizontalDragEnd: (_) => _release(_drag),
                   onHorizontalDragCancel: () => _release(_drag),
                   child: Container(
@@ -293,8 +311,11 @@ class _SlideToLiveState extends State<SlideToLive>
                       shape: BoxShape.circle,
                       boxShadow: _reduced ? null : Shadows.glowSoft,
                     ),
-                    child: const Icon(Icons.stop_rounded,
-                        color: Colors.white, size: 22),
+                    child: const Icon(
+                      Icons.stop_rounded,
+                      color: Colors.white,
+                      size: 22,
+                    ),
                   ),
                 ),
               ),
@@ -355,8 +376,9 @@ class _PulsingDotState extends State<_PulsingDot>
               ? null
               : [
                   BoxShadow(
-                    color: FoxColors.brandFox
-                        .withValues(alpha: 0.3 + 0.4 * _c.value),
+                    color: FoxColors.brandFox.withValues(
+                      alpha: 0.3 + 0.4 * _c.value,
+                    ),
                     blurRadius: 6 + 8 * _c.value,
                   ),
                 ],

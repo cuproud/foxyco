@@ -36,10 +36,7 @@ void main() {
   test('vehicleLine skips empty parts cleanly', () {
     expect(
       DriverProfile.empty
-          .copyWith(
-            vehicleMake: 'Toyota',
-            vehicleColor: 0xFFC62828,
-          )
+          .copyWith(vehicleMake: 'Toyota', vehicleColor: 0xFFC62828)
           .vehicleLine,
       'Red Toyota',
     );

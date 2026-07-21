@@ -61,10 +61,7 @@ void main() {
 
   test('best is the highest \$/km offer regardless of verdict', () {
     final best = _o(Verdict.ok, 30, 10, platform: GigPlatform.lyft);
-    final stats = OfferStats.from([
-      _o(Verdict.good, 15, 10),
-      best,
-    ]);
+    final stats = OfferStats.from([_o(Verdict.good, 15, 10), best]);
     expect(stats.best, same(best));
   });
 

@@ -73,6 +73,12 @@ class SettingsController extends Notifier<FoxSettings> {
     RateMode.perHour => state.copyWith(hourThresholds: next),
   });
 
+  /// Apply a whole cut-point pair at once (threshold presets — onboarding and
+  /// the Settings preset chips). Ignores invalid pairs.
+  void applyPreset(Thresholds t) {
+    if (t.isValid) _setActive(t);
+  }
+
   /// Score by $/km or $/hr. Each mode keeps its own cut points.
   void setRateMode(RateMode mode) => _set(state.copyWith(rateMode: mode));
 
@@ -98,6 +104,8 @@ class SettingsController extends Notifier<FoxSettings> {
   void setPillSize(PillSize size) => _set(state.copyWith(pillSize: size));
 
   void reset() => _set(FoxSettings.defaults);
+
+  void setTrackOutcomes(bool on) => _set(state.copyWith(trackOutcomes: on));
 }
 
 final settingsProvider = NotifierProvider<SettingsController, FoxSettings>(

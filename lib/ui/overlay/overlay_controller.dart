@@ -97,7 +97,10 @@ class OverlayController extends Notifier<void> {
     final settings = ref.read(settingsProvider);
     ref
         .read(foxLogProvider)
-        .log('overlay', 'show ${offer.platform.label} \$${offer.payout} $verdict');
+        .log(
+          'overlay',
+          'show ${offer.platform.label} \$${offer.payout} $verdict',
+        );
     return _service.showOffer(
       OverlayPayload(
         verdict: verdict,
@@ -121,9 +124,24 @@ class OverlayController extends Notifier<void> {
   /// A rotating set of fake offers so repeated taps show different verdicts.
   /// Minutes included so the debug flow exercises the $/hr line too.
   static const _samples = <OverlayPayload>[
-    OverlayPayload(verdict: Verdict.good, totalKm: 8.4, payout: 12, totalMinutes: 24),
-    OverlayPayload(verdict: Verdict.ok, totalKm: 6.2, payout: 7.5, totalMinutes: 21),
-    OverlayPayload(verdict: Verdict.bad, totalKm: 11.0, payout: 6, totalMinutes: 33),
+    OverlayPayload(
+      verdict: Verdict.good,
+      totalKm: 8.4,
+      payout: 12,
+      totalMinutes: 24,
+    ),
+    OverlayPayload(
+      verdict: Verdict.ok,
+      totalKm: 6.2,
+      payout: 7.5,
+      totalMinutes: 21,
+    ),
+    OverlayPayload(
+      verdict: Verdict.bad,
+      totalKm: 11.0,
+      payout: 6,
+      totalMinutes: 33,
+    ),
   ];
   int _next = 0;
 

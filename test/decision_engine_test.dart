@@ -18,7 +18,10 @@ void main() {
     });
 
     test('between the cuts ⇒ OK', () {
-      expect(engine.evaluate(1.0, t), Verdict.ok); // badBelow boundary, inclusive
+      expect(
+        engine.evaluate(1.0, t),
+        Verdict.ok,
+      ); // badBelow boundary, inclusive
       expect(engine.evaluate(1.25, t), Verdict.ok);
       expect(engine.evaluate(1.49, t), Verdict.ok);
     });

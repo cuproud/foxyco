@@ -70,8 +70,10 @@ class _VehicleEditorScreenState extends ConsumerState<VehicleEditorScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Delete vehicle?'),
-        content: const Text('It disappears from the garage. '
-            'Offer history is not affected.'),
+        content: const Text(
+          'It disappears from the garage. '
+          'Offer history is not affected.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
@@ -86,9 +88,7 @@ class _VehicleEditorScreenState extends ConsumerState<VehicleEditorScreen> {
       ),
     );
     if (yes == true && mounted) {
-      await ref
-          .read(garageProvider.notifier)
-          .deleteVehicle(widget.initial!.id);
+      await ref.read(garageProvider.notifier).deleteVehicle(widget.initial!.id);
       if (mounted) Navigator.of(context).pop();
     }
   }
@@ -104,8 +104,10 @@ class _VehicleEditorScreenState extends ConsumerState<VehicleEditorScreen> {
             IconButton(
               key: const ValueKey('editor-delete'),
               onPressed: _confirmDelete,
-              icon: const Icon(Icons.delete_outline_rounded,
-                  color: VerdictColors.bad),
+              icon: const Icon(
+                Icons.delete_outline_rounded,
+                color: VerdictColors.bad,
+              ),
             ),
         ],
       ),
@@ -134,53 +136,63 @@ class _VehicleEditorScreenState extends ConsumerState<VehicleEditorScreen> {
               ),
             ),
           ),
-          Row(children: [
-            Expanded(
-              child: TextField(
-                key: const ValueKey('editor-make'),
-                controller: _make,
-                onChanged: (_) => setState(() {}),
-                decoration:
-                    const InputDecoration(labelText: 'Make', isDense: true),
-              ),
-            ),
-            const SizedBox(width: Gap.sm),
-            Expanded(
-              child: TextField(
-                key: const ValueKey('editor-model'),
-                controller: _model,
-                onChanged: (_) => setState(() {}),
-                decoration:
-                    const InputDecoration(labelText: 'Model', isDense: true),
-              ),
-            ),
-          ]),
-          const SizedBox(height: Gap.md),
-          Row(children: [
-            Expanded(
-              child: TextField(
-                key: const ValueKey('editor-year'),
-                controller: _year,
-                onChanged: (_) => setState(() {}),
-                keyboardType: TextInputType.number,
-                decoration: InputDecoration(
-                  labelText: 'Year',
-                  isDense: true,
-                  errorText: _yearOk ? null : '4 digits',
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  key: const ValueKey('editor-make'),
+                  controller: _make,
+                  onChanged: (_) => setState(() {}),
+                  decoration: const InputDecoration(
+                    labelText: 'Make',
+                    isDense: true,
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(width: Gap.sm),
-            Expanded(
-              child: TextField(
-                key: const ValueKey('editor-plate'),
-                controller: _plate,
-                onChanged: (_) => setState(() {}),
-                decoration:
-                    const InputDecoration(labelText: 'Plate', isDense: true),
+              const SizedBox(width: Gap.sm),
+              Expanded(
+                child: TextField(
+                  key: const ValueKey('editor-model'),
+                  controller: _model,
+                  onChanged: (_) => setState(() {}),
+                  decoration: const InputDecoration(
+                    labelText: 'Model',
+                    isDense: true,
+                  ),
+                ),
               ),
-            ),
-          ]),
+            ],
+          ),
+          const SizedBox(height: Gap.md),
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  key: const ValueKey('editor-year'),
+                  controller: _year,
+                  onChanged: (_) => setState(() {}),
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(
+                    labelText: 'Year',
+                    isDense: true,
+                    errorText: _yearOk ? null : '4 digits',
+                  ),
+                ),
+              ),
+              const SizedBox(width: Gap.sm),
+              Expanded(
+                child: TextField(
+                  key: const ValueKey('editor-plate'),
+                  controller: _plate,
+                  onChanged: (_) => setState(() {}),
+                  decoration: const InputDecoration(
+                    labelText: 'Plate',
+                    isDense: true,
+                  ),
+                ),
+              ),
+            ],
+          ),
           const SizedBox(height: Gap.lg),
           Text('COLOR', style: text.labelSmall),
           const SizedBox(height: Gap.sm),

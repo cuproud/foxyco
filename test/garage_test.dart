@@ -3,19 +3,25 @@ import 'package:foxyco/domain/driver_profile.dart';
 import 'package:foxyco/domain/garage.dart';
 
 Vehicle _v(String id, {FuelType fuel = FuelType.gas}) => Vehicle(
-      id: id,
-      make: 'Toyota',
-      model: 'Camry',
-      year: '2022',
-      plate: 'ABC-123',
-      colorValue: 0xFFC62828,
-      bodyType: VehicleType.sedan,
-      fuelType: fuel,
-    );
+  id: id,
+  make: 'Toyota',
+  model: 'Camry',
+  year: '2022',
+  plate: 'ABC-123',
+  colorValue: 0xFFC62828,
+  bodyType: VehicleType.sedan,
+  fuelType: fuel,
+);
 
 void main() {
   test('json round-trip preserves everything', () {
-    final g = Garage(vehicles: [_v('a', fuel: FuelType.ev), _v('b')], activeId: 'b');
+    final g = Garage(
+      vehicles: [
+        _v('a', fuel: FuelType.ev),
+        _v('b'),
+      ],
+      activeId: 'b',
+    );
     final back = Garage.fromJson(g.toJson());
     expect(back.vehicles.length, 2);
     expect(back.activeId, 'b');

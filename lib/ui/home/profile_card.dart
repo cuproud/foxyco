@@ -20,6 +20,15 @@ class ProfileCard extends ConsumerWidget {
     return 'Late shift';
   }
 
+  /// Food emoji per band, appended after the name — the fox eats around the
+  /// clock ("Good evening, Vamsi 🍜").
+  static String snackFor(int hour) {
+    if (hour >= 5 && hour < 12) return '☕';
+    if (hour >= 12 && hour < 17) return '🌮';
+    if (hour >= 17 && hour < 22) return '🍜';
+    return '🍪';
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final name = ref.watch(driverNameProvider).trim();
@@ -36,6 +45,7 @@ class ProfileCard extends ConsumerWidget {
               color: FoxColors.brandFox,
             ),
           ),
+          TextSpan(text: ' ${snackFor(DateTime.now().hour)}'),
         ],
       ),
       // Long names wrap to a second line instead of clipping.
@@ -82,8 +92,10 @@ class _AnimatedEntranceState extends State<_AnimatedEntrance>
     duration: const Duration(milliseconds: 450),
   )..forward();
   late final _fade = CurvedAnimation(parent: _c, curve: Motion.curve);
-  late final _slide =
-      Tween(begin: const Offset(0, 0.08), end: Offset.zero).animate(_fade);
+  late final _slide = Tween(
+    begin: const Offset(0, 0.08),
+    end: Offset.zero,
+  ).animate(_fade);
 
   @override
   void dispose() {
@@ -93,7 +105,7 @@ class _AnimatedEntranceState extends State<_AnimatedEntrance>
 
   @override
   Widget build(BuildContext context) => FadeTransition(
-        opacity: _fade,
-        child: SlideTransition(position: _slide, child: widget.child),
-      );
+    opacity: _fade,
+    child: SlideTransition(position: _slide, child: widget.child),
+  );
 }

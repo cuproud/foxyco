@@ -17,9 +17,9 @@ void main() {
   tearDown(() => tmp.deleteSync(recursive: true));
 
   Widget app() => ProviderScope(
-        overrides: [foxLogProvider.overrideWithValue(log)],
-        child: const MaterialApp(home: LogsScreen()),
-      );
+    overrides: [foxLogProvider.overrideWithValue(log)],
+    child: const MaterialApp(home: LogsScreen()),
+  );
 
   testWidgets('shows log tail', (tester) async {
     log.log('watch', 'hello-line');

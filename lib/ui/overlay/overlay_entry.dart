@@ -70,10 +70,10 @@ class _OverlayRootState extends State<_OverlayRoot> {
   //
   // Per-size boxes (spec M5 §1). Width MUST stay <360dp — see comment above.
   static ({int w, int h}) _pillBoxFor(PillSize size) => switch (size) {
-        PillSize.small => (w: 300, h: 72),
-        PillSize.medium => (w: 324, h: 84),
-        PillSize.large => (w: 348, h: 100),
-      };
+    PillSize.small => (w: 300, h: 72),
+    PillSize.medium => (w: 324, h: 84),
+    PillSize.large => (w: 348, h: 100),
+  };
   static const _bubbleBox = (w: 72, h: 72);
 
   OverlayPayload? _payload;

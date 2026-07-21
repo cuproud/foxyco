@@ -41,9 +41,9 @@ class _LogsScreenState extends ConsumerState<LogsScreen> {
   Future<void> _copy() async {
     await Clipboard.setData(ClipboardData(text: _tail));
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Logs copied to clipboard')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Logs copied to clipboard')));
   }
 
   Future<void> _clear() async {
@@ -96,18 +96,15 @@ class _LogsScreenState extends ConsumerState<LogsScreen> {
       body: !_loaded
           ? const Center(child: CircularProgressIndicator())
           : _tail.isEmpty
-              ? const Center(child: Text('No logs yet'))
-              : SingleChildScrollView(
-                  controller: _scroll,
-                  padding: const EdgeInsets.all(Gap.md),
-                  child: SelectableText(
-                    _tail,
-                    style: const TextStyle(
-                      fontFamily: 'monospace',
-                      fontSize: 11.5,
-                    ),
-                  ),
-                ),
+          ? const Center(child: Text('No logs yet'))
+          : SingleChildScrollView(
+              controller: _scroll,
+              padding: const EdgeInsets.all(Gap.md),
+              child: SelectableText(
+                _tail,
+                style: const TextStyle(fontFamily: 'monospace', fontSize: 11.5),
+              ),
+            ),
     );
   }
 }

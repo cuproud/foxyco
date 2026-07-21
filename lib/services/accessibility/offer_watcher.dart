@@ -61,6 +61,12 @@ class OfferWatcher extends Notifier<Offer?> {
   /// it.
   Timer? _clearTimer;
 
+  /// Outcome inferred from the screen that replaced the card, applied to the
+  /// logged offer when the clear actually fires: browse/home/map → the driver
+  /// passed ([OfferOutcome.missed]); any other screen (in-trip navigation) →
+  /// taken ([OfferOutcome.taken]). Heuristic — see [OfferOutcome].
+  OfferOutcome _pendingOutcome = OfferOutcome.unknown;
+
   /// How long to wait before dropping the pill once the card looks gone. Kept
   /// short: on a browse/home screen the card has DEFINITELY left (offers never
   /// carry browse markers), so we only need to coalesce a frame or two, not
@@ -79,10 +85,13 @@ class OfferWatcher extends Notifier<Offer?> {
 
   @override
   Offer? build() {
-    _sub = _watcher.reads().listen(_onRead, onError: (Object e) {
-      if (kDebugMode) debugPrint('FoxyCo[watch] read error: $e');
-      ref.read(foxLogProvider).log('error', 'read stream: $e');
-    });
+    _sub = _watcher.reads().listen(
+      _onRead,
+      onError: (Object e) {
+        if (kDebugMode) debugPrint('FoxyCo[watch] read error: $e');
+        ref.read(foxLogProvider).log('error', 'read stream: $e');
+      },
+    );
     ref.onDispose(() {
       _sub?.cancel();
       _clearTimer?.cancel();
@@ -108,7 +117,10 @@ class OfferWatcher extends Notifier<Offer?> {
       );
       ref
           .read(foxLogProvider)
-          .log('watch', 'read pkg=${read.packageName} nodes=${read.texts.length}');
+          .log(
+            'watch',
+            'read pkg=${read.packageName} nodes=${read.texts.length}',
+          );
     }
 
     // Respect pause/blocked — don't score while the driver has it off.
@@ -117,7 +129,9 @@ class OfferWatcher extends Notifier<Offer?> {
       return;
     }
 
-    final parser = ref.read(parserRegistryProvider).forPackage(read.packageName);
+    final parser = ref
+        .read(parserRegistryProvider)
+        .forPackage(read.packageName);
     if (parser == null) return; // not an app we read (noise from other apps)
 
     // A watched app sent a frame with ZERO readable text. Uber's offer card is
@@ -125,7 +139,9 @@ class OfferWatcher extends Notifier<Offer?> {
     // 2026-07-18: Hopp/Lyft parse, Uber never does) — count these so Settings'
     // parser health can say "unreadable, needs OCR" instead of a silent blank.
     if (read.texts.isEmpty) {
-      ref.read(parseHealthProvider.notifier).recordTextlessFrame(parser.platform);
+      ref
+          .read(parseHealthProvider.notifier)
+          .recordTextlessFrame(parser.platform);
       return;
     }
 
@@ -171,6 +187,8 @@ class OfferWatcher extends Notifier<Offer?> {
         // pending clear so a run of partials can't age it out.
         _clearTimer?.cancel();
         _clearTimer = null;
+        _pendingOutcome =
+            OfferOutcome.unknown; // card back — verdict was premature
         return;
       }
       // Browse/home screen, or a screen with NO card hallmark at all (e.g. an
@@ -180,9 +198,21 @@ class OfferWatcher extends Notifier<Offer?> {
       if (_clearTimer == null) {
         final shownFor = DateTime.now().difference(_shownAt ?? DateTime.now());
         final floorLeft = minVisible - shownFor;
-        final delay = (!onBrowse && floorLeft > clearGrace) ? floorLeft : clearGrace;
+        final delay = (!onBrowse && floorLeft > clearGrace)
+            ? floorLeft
+            : clearGrace;
+        // Where the app went tells us what the driver did: back to browse/map
+        // means the offer was passed (declined / timed out); any other screen
+        // (in-trip nav) means it was taken. Driver-optional (Settings toggle).
+        _pendingOutcome = !ref.read(settingsProvider).trackOutcomes
+            ? OfferOutcome.unknown
+            : onBrowse
+            ? OfferOutcome.missed
+            : OfferOutcome.taken;
         _clearTimer = Timer(delay, _clearNow);
-        if (kDebugMode) debugPrint('FoxyCo[watch] clear armed (card left, browse=$onBrowse)');
+        if (kDebugMode) {
+          debugPrint('FoxyCo[watch] clear armed (card left, browse=$onBrowse)');
+        }
       }
       return; // fail safe — show nothing rather than a wrong verdict
     }
@@ -191,6 +221,7 @@ class OfferWatcher extends Notifier<Offer?> {
     // on screen, so cancel any pending "offer left" clear.
     _clearTimer?.cancel();
     _clearTimer = null;
+    _pendingOutcome = OfferOutcome.unknown;
 
     // Flicker guard: the same offer card re-fires events constantly. Only push a
     // pill when the offer actually changes; identical re-parses are no-ops.
@@ -203,10 +234,9 @@ class OfferWatcher extends Notifier<Offer?> {
 
     // Score by the driver's chosen rate mode ($/km or $/hr; falls back to
     // $/km when an offer carries no minutes).
-    final verdict = ref.read(decisionEngineProvider).scoreOffer(
-      offer,
-      settings,
-    );
+    final verdict = ref
+        .read(decisionEngineProvider)
+        .scoreOffer(offer, settings);
     if (verdict == Verdict.unknown) return;
 
     _shownKey = key;
@@ -215,8 +245,12 @@ class OfferWatcher extends Notifier<Offer?> {
     // A successful parse also proves this platform's selectors still fit —
     // clears any card-miss streak (Settings "Parser health").
     ref.read(parseHealthProvider.notifier).recordParse(offer.platform);
-    ref.read(foxLogProvider).log(
-        'parse', '${offer.platform.label} \$${offer.payout} ${offer.totalKm}km → $verdict');
+    ref
+        .read(foxLogProvider)
+        .log(
+          'parse',
+          '${offer.platform.label} \$${offer.payout} ${offer.totalKm}km → $verdict',
+        );
     if (kDebugMode) {
       debugPrint(
         'FoxyCo[watch] ${offer.platform.label} \$${offer.payout} '
@@ -226,30 +260,38 @@ class OfferWatcher extends Notifier<Offer?> {
 
     // Log the scored offer — this drives the dashboard tally, "Last offer"
     // ticket, and History. Real data only: demo pills never pass through here.
-    ref.read(offerLogProvider.notifier).record(
-      OfferSummary(
-        platform: offer.platform,
-        verdict: verdict,
-        payout: offer.payout,
-        pickupKm: offer.pickupKm,
-        totalKm: offer.totalKm,
-        totalMinutes: offer.totalMinutes,
-        seenAt: DateTime.now(),
-      ),
-    );
+    ref
+        .read(offerLogProvider.notifier)
+        .record(
+          OfferSummary(
+            platform: offer.platform,
+            verdict: verdict,
+            payout: offer.payout,
+            pickupKm: offer.pickupKm,
+            totalKm: offer.totalKm,
+            totalMinutes: offer.totalMinutes,
+            seenAt: DateTime.now(),
+          ),
+        );
 
     ref.read(overlayControllerProvider.notifier).showFromOffer(offer, verdict);
   }
 
-  /// The offer stayed gone for the whole grace window — really clear now. Forget
-  /// what we showed (so the same offer reappearing shows again) and drop the pill
-  /// back to the bubble.
+  /// The offer stayed gone for the whole grace window — really clear now. Stamp
+  /// the inferred outcome onto the logged offer, forget what we showed (so the
+  /// same offer reappearing shows again) and drop the pill back to the bubble.
   void _clearNow() {
     _clearTimer = null;
     if (_shownKey == null) return;
     _shownKey = null;
     _shownAt = null;
     state = null;
+    final outcome = _pendingOutcome;
+    _pendingOutcome = OfferOutcome.unknown;
+    if (outcome != OfferOutcome.unknown) {
+      ref.read(offerLogProvider.notifier).markLatestOutcome(outcome);
+      ref.read(foxLogProvider).log('outcome', 'offer inferred ${outcome.name}');
+    }
     ref.read(overlayControllerProvider.notifier).clearOffer();
     ref.read(foxLogProvider).log('overlay', 'pill cleared — offer left screen');
     if (kDebugMode) debugPrint('FoxyCo[watch] clear: offer left screen');

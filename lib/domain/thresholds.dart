@@ -11,6 +11,13 @@ class Thresholds {
   /// Sensible starting point for a new driver (docs/UI_DESIGN onboarding).
   static const defaults = Thresholds(goodAtOrAbove: 1.5, badBelow: 1.0);
 
+  /// One-tap $/km starting points, shared by onboarding and Settings.
+  static const presets = [
+    ('Relaxed', Thresholds(goodAtOrAbove: 1.3, badBelow: 0.9)),
+    ('Balanced', defaults),
+    ('Picky', Thresholds(goodAtOrAbove: 1.8, badBelow: 1.2)),
+  ];
+
   /// True when the band is coherent: GOOD cut must sit at or above the BAD cut.
   /// A UI that lets the user cross them should clamp before constructing.
   bool get isValid => goodAtOrAbove >= badBelow;

@@ -1,6 +1,10 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../../domain/decision_engine.dart';
 import '../../domain/fox_settings.dart';
@@ -13,10 +17,12 @@ import '../../domain/verdict.dart';
 import '../../services/offer_log.dart';
 import '../../services/parse_health.dart';
 import '../overlay/verdict_pill.dart';
+import '../theme/platform_badge.dart';
 import '../theme/tokens.dart';
 import '../theme/vehicle_badge.dart';
 import '../theme/verdict_style.dart';
 import 'garage_controller.dart';
+import 'reminder_section.dart';
 import 'settings_controller.dart';
 
 /// Settings — every driver-tunable knob in [FoxSettings]: verdict thresholds
@@ -55,17 +61,26 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final text = Theme.of(context).textTheme;
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(Gap.md, Gap.sm, Gap.md, 100),
+      // 100 clears the floating nav; add the gesture-bar inset like Home does
+      // (fixed 100 clipped the last card on gesture-nav phones).
+      padding: EdgeInsets.fromLTRB(
+        Gap.md,
+        Gap.sm,
+        Gap.md,
+        100 + MediaQuery.of(context).padding.bottom,
+      ),
       children: [
         Row(
           children: [
             Text('Settings', style: text.headlineMedium),
             const Spacer(),
             TextButton(
-              onPressed: controller.reset,
+              onPressed: () => _confirmReset(context, controller),
               style: TextButton.styleFrom(foregroundColor: FoxColors.brandFox),
-              child: const Text('Reset',
-                  style: TextStyle(fontWeight: FontWeight.w700)),
+              child: const Text(
+                'Reset',
+                style: TextStyle(fontWeight: FontWeight.w700),
+              ),
             ),
           ],
         ),
@@ -90,6 +105,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               _SectionLabel('Garage', icon: Icons.garage_outlined),
               SizedBox(height: Gap.sm),
               _GarageList(),
+              SizedBox(height: Gap.lg),
+              _SectionLabel(
+                'Car reminders',
+                icon: Icons.notifications_none_rounded,
+              ),
+              SizedBox(height: Gap.sm),
+              ReminderSection(),
             ],
           ),
         ),
@@ -99,8 +121,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const _SectionLabel('Verdict thresholds',
-                  icon: Icons.tune_rounded),
+              const _SectionLabel(
+                'Verdict thresholds',
+                icon: Icons.tune_rounded,
+              ),
               const SizedBox(height: Gap.sm),
               // One card owns the whole story: what it does, the mode toggle,
               // the band, the two cut sliders (was 3 loose blocks — bulky).
@@ -111,11 +135,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     Text(
                       perHour
                           ? 'Offers are scored by dollars per hour. Set where '
-                              'GOOD and BAD begin.'
+                                'GOOD and BAD begin.'
                           : 'Offers are scored by dollars per kilometre. Set '
-                              'where GOOD and BAD begin.',
-                      style: text.bodyMedium
-                          ?.copyWith(color: FoxColors.textSecondary),
+                                'where GOOD and BAD begin.',
+                      style: text.bodyMedium?.copyWith(
+                        color: FoxColors.textSecondary,
+                      ),
                     ),
                     const SizedBox(height: Gap.md),
                     // Rate mode — each mode keeps its own cut points. Offers
@@ -130,14 +155,28 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         onSelectionChanged: (s) =>
                             controller.setRateMode(s.first),
                         style: SegmentedButton.styleFrom(
+                          // Deep-orange-on-orange was a leftover from the
+                          // cream theme — unreadable on dark. Cream on the
+                          // orange tint reads.
                           selectedBackgroundColor: FoxColors.brandFoxSoft,
-                          selectedForegroundColor: FoxColors.brandFoxDeep,
+                          selectedForegroundColor: FoxColors.cream,
+                          foregroundColor: FoxColors.textSecondary,
                         ),
                       ),
                     ),
                     const SizedBox(height: Gap.md),
+                    // One-tap starting points (same trio as onboarding).
+                    // Only shown in $/km mode — the presets are $/km numbers.
+                    if (!perHour) ...[
+                      _PresetChips(current: t, onPick: controller.applyPreset),
+                      const SizedBox(height: Gap.md),
+                    ],
                     _ThresholdBand(
-                        thresholds: t, min: min, max: max, unit: unit),
+                      thresholds: t,
+                      min: min,
+                      max: max,
+                      unit: unit,
+                    ),
                     const SizedBox(height: Gap.md),
                     _ThresholdSlider(
                       label: 'GOOD at or above',
@@ -168,8 +207,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const _SectionLabel('Live preview',
-                  icon: Icons.visibility_outlined),
+              const _SectionLabel(
+                'Live preview',
+                icon: Icons.visibility_outlined,
+              ),
               const SizedBox(height: Gap.sm),
               _PreviewCard(
                 sample: sample,
@@ -194,8 +235,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const _SectionLabel('Pickup guard',
-                  icon: Icons.near_me_outlined),
+              const _SectionLabel('Pickup guard', icon: Icons.near_me_outlined),
               const SizedBox(height: Gap.sm),
               _Card(
                 child: Column(
@@ -213,8 +253,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     Text(
                       'Pickups under this distance show green on the pill; '
                       'longer dead runs show red.',
-                      style: text.bodyMedium
-                          ?.copyWith(color: FoxColors.textSecondary),
+                      style: text.bodyMedium?.copyWith(
+                        color: FoxColors.textSecondary,
+                      ),
                     ),
                   ],
                 ),
@@ -238,6 +279,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       for (final app in GigPlatform.values) ...[
                         SwitchListTile(
                           contentPadding: EdgeInsets.zero,
+                          // Badge matches History's chips — same identity mark
+                          // everywhere the app name appears.
+                          secondary: PlatformBadge(platform: app, size: 22),
                           title: Text(app.label, style: text.titleMedium),
                           value: settings.watches(app),
                           activeTrackColor: FoxColors.brandFox,
@@ -256,6 +300,55 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         const SizedBox(height: Gap.lg),
         _staggered(
           6,
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const _SectionLabel(
+                'Outcome tracking',
+                icon: Icons.fact_check_outlined,
+              ),
+              const SizedBox(height: Gap.sm),
+              _Card(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Material(
+                      type: MaterialType.transparency,
+                      child: SwitchListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: Text(
+                          'Guess taken / passed',
+                          style: text.titleMedium,
+                        ),
+                        value: settings.trackOutcomes,
+                        activeTrackColor: FoxColors.brandFox,
+                        onChanged: controller.setTrackOutcomes,
+                      ),
+                    ),
+                    const SizedBox(height: Gap.xs),
+                    Text(
+                      'After an offer card disappears, FoxyCo guesses what '
+                      'happened from the screen that replaced it: back to the '
+                      'map means you passed, a pickup screen means you took '
+                      'it. It\'s an estimate — shown as ✓/✕ in History and '
+                      'never 100% certain. FoxyCo only reads the screen; it '
+                      'never taps or accepts anything for you. Turn this off '
+                      'and offers are logged without a taken/passed mark.',
+                      style: text.bodyMedium?.copyWith(
+                        fontSize: 12,
+                        height: 1.45,
+                        color: FoxColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: Gap.lg),
+        _staggered(
+          7,
           Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -307,12 +400,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         ),
         const SizedBox(height: Gap.lg),
         _staggered(
-          7,
+          8,
           Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const _SectionLabel('Parser health',
-                  icon: Icons.monitor_heart_outlined),
+              const _SectionLabel(
+                'Parser health',
+                icon: Icons.monitor_heart_outlined,
+              ),
               const SizedBox(height: Gap.sm),
               _Card(
                 child: Column(
@@ -321,12 +416,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       _HealthRow(
                         app: app,
                         watched: settings.watches(app),
-                        health: ref.watch(parseHealthProvider)[app] ??
+                        health:
+                            ref.watch(parseHealthProvider)[app] ??
                             const PlatformHealth(),
                       ),
                       if (app != GigPlatform.values.last)
-                        const Divider(
-                            color: FoxColors.border, height: Gap.lg),
+                        const Divider(color: FoxColors.border, height: Gap.lg),
                     ],
                   ],
                 ),
@@ -336,15 +431,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 'This session. "Needs update" means offer cards are arriving '
                 'but FoxyCo can\'t read them — the app\'s layout likely '
                 'changed.',
-                style:
-                    text.bodyMedium?.copyWith(color: FoxColors.textSecondary),
+                style: text.bodyMedium?.copyWith(
+                  color: FoxColors.textSecondary,
+                ),
               ),
             ],
           ),
         ),
         const SizedBox(height: Gap.lg),
         _staggered(
-          8,
+          9,
           Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -364,21 +460,37 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       onChanged: (d) {
                         controller.setRetentionDays(d);
                         if (d != FoxSettings.keepForever) {
-                          ref
-                              .read(offerLogProvider.notifier)
-                              .purgeOlderThan(d);
+                          ref.read(offerLogProvider.notifier).purgeOlderThan(d);
                         }
                       },
                     ),
                     const Divider(color: FoxColors.border, height: Gap.xl),
-                    Center(
-                      child: TextButton(
-                        onPressed: () => _confirmClear(context),
-                        style: TextButton.styleFrom(
-                            foregroundColor: VerdictColors.bad),
-                        child: const Text('Clear offer history',
-                            style: TextStyle(fontWeight: FontWeight.w700)),
-                      ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        TextButton.icon(
+                          onPressed: () => _exportCsv(context),
+                          style: TextButton.styleFrom(
+                            foregroundColor: FoxColors.brandFox,
+                          ),
+                          icon: const Icon(Icons.ios_share_rounded, size: 16),
+                          label: const Text(
+                            'Export CSV',
+                            style: TextStyle(fontWeight: FontWeight.w700),
+                          ),
+                        ),
+                        const SizedBox(width: Gap.md),
+                        TextButton(
+                          onPressed: () => _confirmClear(context),
+                          style: TextButton.styleFrom(
+                            foregroundColor: VerdictColors.bad,
+                          ),
+                          child: const Text(
+                            'Clear offer history',
+                            style: TextStyle(fontWeight: FontWeight.w700),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -407,13 +519,92 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
+  /// Share the whole offer log as CSV — the log is capped at 2000 rows, so
+  /// building the string in memory is fine.
+  Future<void> _exportCsv(BuildContext context) async {
+    final offers = ref.read(offerLogProvider);
+    if (offers.isEmpty) {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          const SnackBar(
+            content: Text('No offers to export yet'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      return;
+    }
+    final buf = StringBuffer(
+      'seen_at,app,verdict,fare,total_km,pickup_km,minutes,per_km,per_hour,outcome\n',
+    );
+    for (final o in offers) {
+      buf.writeln(
+        [
+          o.seenAt.toIso8601String(),
+          o.platform.label,
+          o.verdict.name,
+          o.payout.toStringAsFixed(2),
+          o.totalKm.toStringAsFixed(1),
+          o.pickupKm.toStringAsFixed(1),
+          o.totalMinutes.toStringAsFixed(0),
+          o.pricePerKm.toStringAsFixed(2),
+          o.pricePerHour.toStringAsFixed(2),
+          o.outcome.name,
+        ].join(','),
+      );
+    }
+    await SharePlus.instance.share(
+      ShareParams(
+        files: [
+          XFile.fromData(
+            Uint8List.fromList(utf8.encode(buf.toString())),
+            mimeType: 'text/csv',
+            name: 'foxyco_offers.csv',
+          ),
+        ],
+        fileNameOverrides: ['foxyco_offers.csv'],
+      ),
+    );
+  }
+
+  /// Reset wipes every tuned knob (thresholds, apps, pill, retention) — as
+  /// destructive as clear-history, so it gets the same confirm gate.
+  Future<void> _confirmReset(
+    BuildContext context,
+    SettingsController controller,
+  ) async {
+    final yes = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Reset all settings?'),
+        content: const Text(
+          'Thresholds, watched apps, pill size and retention go back to '
+          'defaults. Your offer history is kept.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: VerdictColors.bad),
+            child: const Text('Reset'),
+          ),
+        ],
+      ),
+    );
+    if (yes == true) controller.reset();
+  }
+
   Future<void> _confirmClear(BuildContext context) async {
     final yes = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Clear offer history?'),
         content: const Text(
-            'Every logged offer is deleted. This cannot be undone.'),
+          'Every logged offer is deleted. This cannot be undone.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
@@ -428,6 +619,62 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       ),
     );
     if (yes == true) ref.read(offerLogProvider.notifier).clearAll();
+  }
+}
+
+/// One-tap threshold presets (shared trio with onboarding). Highlights the
+/// preset matching the current cut points; custom slider positions match none.
+class _PresetChips extends StatelessWidget {
+  const _PresetChips({required this.current, required this.onPick});
+
+  final Thresholds current;
+  final ValueChanged<Thresholds> onPick;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        for (final (label, t) in Thresholds.presets) ...[
+          Expanded(
+            child: GestureDetector(
+              onTap: () {
+                HapticFeedback.selectionClick();
+                onPick(t);
+              },
+              child: AnimatedContainer(
+                duration: Motion.base,
+                padding: const EdgeInsets.symmetric(vertical: 9),
+                decoration: BoxDecoration(
+                  color: current == t
+                      ? FoxColors.brandFoxSoft
+                      : FoxColors.bgSurface2,
+                  borderRadius: BorderRadius.circular(Radii.pill),
+                  border: Border.all(
+                    color: current == t
+                        ? FoxColors.brandFox.withValues(alpha: 0.6)
+                        : FoxColors.borderSoft,
+                  ),
+                ),
+                child: Center(
+                  child: Text(
+                    label,
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w700,
+                      color: current == t
+                          ? FoxColors.cream
+                          : FoxColors.textSecondary,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          if ((label, t) != Thresholds.presets.last)
+            const SizedBox(width: Gap.sm),
+        ],
+      ],
+    );
   }
 }
 
@@ -452,16 +699,22 @@ class _ChoiceRow<T> extends StatelessWidget {
         for (final v in values) ...[
           Expanded(
             child: GestureDetector(
-              onTap: () => onChanged(v),
+              onTap: () {
+                HapticFeedback.selectionClick();
+                onChanged(v);
+              },
               child: AnimatedContainer(
                 duration: Motion.base,
                 padding: const EdgeInsets.symmetric(vertical: 9),
                 decoration: BoxDecoration(
-                  color: v == selected ? FoxColors.bgSurface2 : FoxColors.bgSurface,
+                  color: v == selected
+                      ? FoxColors.bgSurface2
+                      : FoxColors.bgSurface,
                   borderRadius: BorderRadius.circular(Radii.pill),
                   border: Border.all(
-                    color:
-                        v == selected ? FoxColors.border : FoxColors.borderSoft,
+                    color: v == selected
+                        ? FoxColors.border
+                        : FoxColors.borderSoft,
                   ),
                 ),
                 child: Center(
@@ -505,16 +758,18 @@ class _HealthRow extends StatelessWidget {
     final (label, color, bg) = !watched
         ? ('Off', FoxColors.textDisabled, FoxColors.bgBase)
         : health.likelyUnreadable
-            // Frames arrive but carry no readable text (canvas/Compose UI) —
-            // a parser update can't fix this; it needs the OCR fallback.
-            ? ('Unreadable · OCR needed', VerdictColors.bad, VerdictColors.badBg)
-            : health.likelyBroken
-                ? ('Needs update', VerdictColors.bad, VerdictColors.badBg)
-                : health.parsed > 0
-                    ? ('OK · ${health.parsed} read', VerdictColors.good,
-                        VerdictColors.goodBg)
-                    : ('No offers yet', FoxColors.textSecondary,
-                        FoxColors.bgBase);
+        // Frames arrive but carry no readable text (canvas/Compose UI) —
+        // a parser update can't fix this; it needs the OCR fallback.
+        ? ('Unreadable · OCR needed', VerdictColors.bad, VerdictColors.badBg)
+        : health.likelyBroken
+        ? ('Needs update', VerdictColors.bad, VerdictColors.badBg)
+        : health.parsed > 0
+        ? (
+            'OK · ${health.parsed} read',
+            VerdictColors.good,
+            VerdictColors.goodBg,
+          )
+        : ('No offers yet', FoxColors.textSecondary, FoxColors.bgBase);
 
     return Opacity(
       opacity: watched ? 1 : 0.55,
@@ -553,7 +808,9 @@ class _Card extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(
-          horizontal: Gap.md, vertical: Gap.sm + Gap.xs),
+        horizontal: Gap.md,
+        vertical: Gap.sm + Gap.xs,
+      ),
       decoration: BoxDecoration(
         color: FoxColors.bgSurface,
         borderRadius: BorderRadius.circular(Radii.cardSm),
@@ -578,8 +835,7 @@ class _SectionLabel extends StatelessWidget {
           Icon(icon, size: 14, color: FoxColors.textDisabled),
           const SizedBox(width: 6),
         ],
-        Text(text.toUpperCase(),
-            style: Theme.of(context).textTheme.labelSmall),
+        Text(text.toUpperCase(), style: Theme.of(context).textTheme.labelSmall),
         const SizedBox(width: Gap.sm + Gap.xs),
         const Expanded(child: Divider(color: FoxColors.border, height: 1)),
       ],
@@ -619,16 +875,19 @@ class _ThresholdBand extends StatelessWidget {
               children: [
                 if (badFlex > 0)
                   Expanded(
-                      flex: badFlex,
-                      child: const ColoredBox(color: VerdictColors.bad)),
+                    flex: badFlex,
+                    child: const ColoredBox(color: VerdictColors.bad),
+                  ),
                 if (okFlex > 0)
                   Expanded(
-                      flex: okFlex,
-                      child: const ColoredBox(color: VerdictColors.ok)),
+                    flex: okFlex,
+                    child: const ColoredBox(color: VerdictColors.ok),
+                  ),
                 if (goodFlex > 0)
                   Expanded(
-                      flex: goodFlex,
-                      child: const ColoredBox(color: VerdictColors.good)),
+                    flex: goodFlex,
+                    child: const ColoredBox(color: VerdictColors.good),
+                  ),
               ],
             ),
           ),
@@ -637,10 +896,27 @@ class _ThresholdBand extends StatelessWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text('\$${min.toStringAsFixed(2)}',
-                style: Theme.of(context).textTheme.labelSmall),
-            Text('\$${max.toStringAsFixed(2)}$unit',
-                style: Theme.of(context).textTheme.labelSmall),
+            Text(
+              '\$${min.toStringAsFixed(2)}',
+              style: Theme.of(context).textTheme.labelSmall,
+            ),
+            // Cut points, so the band and the sliders visibly connect.
+            Text(
+              '\$${thresholds.badBelow.toStringAsFixed(2)}',
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                color: VerdictColors.bad.withValues(alpha: 0.85),
+              ),
+            ),
+            Text(
+              '\$${thresholds.goodAtOrAbove.toStringAsFixed(2)}',
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                color: VerdictColors.good.withValues(alpha: 0.85),
+              ),
+            ),
+            Text(
+              '\$${max.toStringAsFixed(2)}$unit',
+              style: Theme.of(context).textTheme.labelSmall,
+            ),
           ],
         ),
       ],
@@ -742,7 +1018,10 @@ class _PreviewCard extends StatelessWidget {
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 5,
+                ),
                 decoration: BoxDecoration(
                   color: style.bg,
                   borderRadius: BorderRadius.circular(10),
@@ -806,6 +1085,7 @@ class _DriverNameCard extends ConsumerStatefulWidget {
 class _DriverNameCardState extends ConsumerState<_DriverNameCard> {
   late final _name = TextEditingController();
   bool _seeded = false;
+  bool _editing = false;
 
   @override
   void dispose() {
@@ -818,12 +1098,14 @@ class _DriverNameCardState extends ConsumerState<_DriverNameCard> {
     FocusScope.of(context).unfocus();
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
-      ..showSnackBar(const SnackBar(
-        content: Text('Name saved'),
-        duration: Duration(seconds: 2),
-        behavior: SnackBarBehavior.floating,
-      ));
-    setState(() {});
+      ..showSnackBar(
+        const SnackBar(
+          content: Text('Name saved'),
+          duration: Duration(seconds: 2),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    setState(() => _editing = false);
   }
 
   @override
@@ -836,24 +1118,68 @@ class _DriverNameCardState extends ConsumerState<_DriverNameCard> {
     }
     final dirty = _name.text.trim() != saved.trim();
 
-    // The old affordance was a lone check ICON — testers read the field as
-    // "editable all the time, no save" (device feedback 2026-07-18). Now: a
-    // labeled Save button while dirty, keyboard-done also saves, and a
-    // snackbar confirms the write.
+    // Two modes (device feedback 2026-07-20 — a saved name should not look
+    // permanently editable): display row (name + pencil) ↔ edit row
+    // (TextField + Save while dirty). Empty saved name starts in edit mode
+    // so first-run still has an obvious field.
+    if (!_editing && saved.isNotEmpty) {
+      return Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Name',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: FoxColors.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(saved, style: Theme.of(context).textTheme.titleMedium),
+              ],
+            ),
+          ),
+          IconButton(
+            key: const ValueKey('edit-name'),
+            onPressed: () => setState(() {
+              _name.text = saved; // discard any stale draft
+              _editing = true;
+            }),
+            icon: const Icon(
+              Icons.edit_outlined,
+              color: FoxColors.textSecondary,
+              size: 18,
+            ),
+          ),
+        ],
+      );
+    }
+
     return Row(
       children: [
         Expanded(
           child: TextField(
             controller: _name,
+            autofocus: _editing, // pencil tap → keyboard up immediately
             onChanged: (_) => setState(() {}),
             textInputAction: TextInputAction.done,
             // Greeting shows this name — cap it so it can't dominate Home.
             maxLength: 20,
             onSubmitted: (_) {
-              if (_name.text.trim() != saved.trim()) _save();
+              if (_name.text.trim() != saved.trim()) {
+                _save();
+              } else {
+                setState(() => _editing = false);
+              }
             },
             decoration: const InputDecoration(
-                labelText: 'Name', isDense: true, counterText: ''),
+              labelText: 'Name',
+              isDense: true,
+              counterText: '',
+            ),
           ),
         ),
         if (dirty) ...[
@@ -868,7 +1194,9 @@ class _DriverNameCardState extends ConsumerState<_DriverNameCard> {
               // can't sit in this Row next to the field.
               minimumSize: const Size(0, 44),
               padding: const EdgeInsets.symmetric(
-                  horizontal: Gap.md, vertical: 10),
+                horizontal: Gap.md,
+                vertical: 10,
+              ),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(Radii.field),
               ),
@@ -993,7 +1321,9 @@ class _VehicleCard extends StatelessWidget {
                     const SizedBox(height: 3),
                     Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 7, vertical: 2),
+                        horizontal: 7,
+                        vertical: 2,
+                      ),
                       decoration: BoxDecoration(
                         color: FoxColors.bgSurface2,
                         borderRadius: BorderRadius.circular(5),
@@ -1014,12 +1344,18 @@ class _VehicleCard extends StatelessWidget {
               ),
             ),
             if (active)
-              const Icon(Icons.check_circle_rounded,
-                  color: FoxColors.brandFox, size: 20),
+              const Icon(
+                Icons.check_circle_rounded,
+                color: FoxColors.brandFox,
+                size: 20,
+              ),
             IconButton(
               onPressed: onEdit,
-              icon: const Icon(Icons.edit_outlined,
-                  color: FoxColors.textSecondary, size: 18),
+              icon: const Icon(
+                Icons.edit_outlined,
+                color: FoxColors.textSecondary,
+                size: 18,
+              ),
             ),
           ],
         ),
@@ -1038,56 +1374,70 @@ class _PillLegend extends StatelessWidget {
   Widget build(BuildContext context) {
     final text = Theme.of(context).textTheme;
     Widget row(Color dot, String label, String meaning) => Padding(
-          padding: const EdgeInsets.only(top: Gap.xs),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Padding(
-                padding: const EdgeInsets.only(top: 4),
-                child: Container(
-                  width: 8,
-                  height: 8,
-                  decoration:
-                      BoxDecoration(color: dot, shape: BoxShape.circle),
-                ),
-              ),
-              const SizedBox(width: Gap.sm),
-              Expanded(
-                child: Text.rich(
-                  TextSpan(
-                    children: [
-                      TextSpan(
-                        text: '$label — ',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w700,
-                          color: FoxColors.cream,
-                        ),
-                      ),
-                      TextSpan(text: meaning),
-                    ],
-                  ),
-                  style: text.bodyMedium
-                      ?.copyWith(color: FoxColors.textSecondary),
-                ),
-              ),
-            ],
+      padding: const EdgeInsets.only(top: Gap.xs),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Container(
+              width: 8,
+              height: 8,
+              decoration: BoxDecoration(color: dot, shape: BoxShape.circle),
+            ),
           ),
-        );
+          const SizedBox(width: Gap.sm),
+          Expanded(
+            child: Text.rich(
+              TextSpan(
+                children: [
+                  TextSpan(
+                    text: '$label — ',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w700,
+                      color: FoxColors.cream,
+                    ),
+                  ),
+                  TextSpan(text: meaning),
+                ],
+              ),
+              style: text.bodyMedium?.copyWith(color: FoxColors.textSecondary),
+            ),
+          ),
+        ],
+      ),
+    );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('How to read it',
-            style: text.bodyMedium?.copyWith(
-                fontWeight: FontWeight.w700, color: FoxColors.cream)),
-        row(const Color(0xFF39A96C), '\$/km block',
-            'the verdict. Green GOOD, amber OK, red BAD — take it in a glance.'),
-        row(const Color(0xFF5ECD90), 'Green km',
-            'pickup is within your pickup radius (set below).'),
-        row(const Color(0xFFFF8A7E), 'Red km',
-            'pickup is beyond your radius — you drive further for free.'),
-        row(FoxColors.creamDim, '\$/hr',
-            'payout over the full trip time, so long rides don\'t fool you.'),
+        Text(
+          'How to read it',
+          style: text.bodyMedium?.copyWith(
+            fontWeight: FontWeight.w700,
+            color: FoxColors.cream,
+          ),
+        ),
+        row(
+          const Color(0xFF39A96C),
+          '\$/km block',
+          'the verdict. Green GOOD, amber OK, red BAD — take it in a glance.',
+        ),
+        row(
+          const Color(0xFF5ECD90),
+          'Green km',
+          'pickup is within your pickup radius (set below).',
+        ),
+        row(
+          const Color(0xFFFF8A7E),
+          'Red km',
+          'pickup is beyond your radius — you drive further for free.',
+        ),
+        row(
+          FoxColors.creamDim,
+          '\$/hr',
+          'payout over the full trip time, so long rides don\'t fool you.',
+        ),
       ],
     );
   }

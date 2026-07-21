@@ -13,6 +13,10 @@ import 'dashboard_state.dart';
 class DashboardController extends Notifier<DashboardState> {
   StreamSubscription<bool>? _statusSub;
 
+  /// When the current live session started; null while stopped. Read by the
+  /// shift-recap sheet at stop time. Survives pause (pause ≠ end of shift).
+  DateTime? liveSince;
+
   @override
   DashboardState build() {
     // Resilience: the OS pushes accessibility on/off changes (user revoked it
@@ -24,14 +28,21 @@ class DashboardController extends Notifier<DashboardState> {
       _statusSub = ref
           .read(accessibilityWatcherProvider)
           .statusChanges
-          .listen((enabled) {
-        if (kDebugMode) {
-          debugPrint('FoxyCo accessibility service ${enabled ? 'ON' : 'OFF'}');
-        }
-        refreshPermissions();
-      }, onError: (Object e) {
-        if (kDebugMode) debugPrint('FoxyCo statusChanges unavailable: $e');
-      });
+          .listen(
+            (enabled) {
+              if (kDebugMode) {
+                debugPrint(
+                  'FoxyCo accessibility service ${enabled ? 'ON' : 'OFF'}',
+                );
+              }
+              refreshPermissions();
+            },
+            onError: (Object e) {
+              if (kDebugMode) {
+                debugPrint('FoxyCo statusChanges unavailable: $e');
+              }
+            },
+          );
     } catch (e) {
       if (kDebugMode) debugPrint('FoxyCo statusChanges skipped: $e');
     }
@@ -50,21 +61,26 @@ class DashboardController extends Notifier<DashboardState> {
   /// bubble (overlay controller listens on status). No-op while blocked.
   void startMonitoring() {
     if (state.status == WatchStatus.blocked) return;
+    liveSince = DateTime.now();
     state = _with(status: WatchStatus.watching);
     ref.read(foxLogProvider).log('status', 'watch → watching (started)');
     if (kDebugMode) debugPrint('FoxyCo watch status → watching (started)');
   }
 
   /// Full stop: overlay torn down, parse gate closed. Works from watching
-  /// AND paused (pause is a layer on top of running).
-  void stopMonitoring() {
+  /// AND paused (pause is a layer on top of running). Returns when this
+  /// session went live (null if it never did) — the shift recap reads it.
+  DateTime? stopMonitoring() {
     if (state.status == WatchStatus.blocked ||
         state.status == WatchStatus.stopped) {
-      return;
+      return null;
     }
+    final since = liveSince;
+    liveSince = null;
     state = _with(status: WatchStatus.stopped);
     ref.read(foxLogProvider).log('status', 'watch → stopped');
     if (kDebugMode) debugPrint('FoxyCo watch status → stopped');
+    return since;
   }
 
   /// Toggle watching ↔ paused (bubble long-press; Start/Stop is the outer
@@ -90,6 +106,7 @@ class DashboardController extends Notifier<DashboardState> {
         state.status != WatchStatus.paused) {
       return;
     }
+    liveSince = null; // session over — no recap for a bubble-drop stop
     state = _with(status: WatchStatus.stopped);
     ref.read(foxLogProvider).log('status', 'watch → stopped (bubble dropped)');
     if (kDebugMode) {
@@ -111,9 +128,7 @@ class DashboardController extends Notifier<DashboardState> {
       final overlay = await ref
           .read(overlayServiceProvider)
           .isPermissionGranted();
-      final access = await ref
-          .read(accessibilityWatcherProvider)
-          .isEnabled();
+      final access = await ref.read(accessibilityWatcherProvider).isEnabled();
 
       final permissions = PermissionStatus(
         overlayGranted: overlay,
@@ -157,17 +172,17 @@ class DashboardController extends Notifier<DashboardState> {
       }
       await refreshPermissions();
     } catch (e) {
-      if (kDebugMode) debugPrint('FoxyCo requestMissingPermissions skipped: $e');
+      if (kDebugMode) {
+        debugPrint('FoxyCo requestMissingPermissions skipped: $e');
+      }
     }
   }
 
-  DashboardState _with({
-    WatchStatus? status,
-    PermissionStatus? permissions,
-  }) => DashboardState(
-    status: status ?? state.status,
-    permissions: permissions ?? state.permissions,
-  );
+  DashboardState _with({WatchStatus? status, PermissionStatus? permissions}) =>
+      DashboardState(
+        status: status ?? state.status,
+        permissions: permissions ?? state.permissions,
+      );
 }
 
 final dashboardProvider = NotifierProvider<DashboardController, DashboardState>(

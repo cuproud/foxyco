@@ -50,9 +50,11 @@ class DriverProfile {
   /// color only shows alongside real vehicle info: a default swatch on an
   /// otherwise-empty profile isn't a vehicle.
   String get vehicleLine {
-    final vehicle = [vehicleYear, vehicleMake, vehicleModel]
-        .where((s) => s.trim().isNotEmpty)
-        .join(' ');
+    final vehicle = [
+      vehicleYear,
+      vehicleMake,
+      vehicleModel,
+    ].where((s) => s.trim().isNotEmpty).join(' ');
     final desc = vehicle.isEmpty
         ? ''
         : [colorName, vehicle].where((s) => s.isNotEmpty).join(' ');
@@ -71,37 +73,35 @@ class DriverProfile {
     String? licensePlate,
     int? vehicleColor,
     VehicleType? vehicleType,
-  }) =>
-      DriverProfile(
-        name: name ?? this.name,
-        vehicleMake: vehicleMake ?? this.vehicleMake,
-        vehicleModel: vehicleModel ?? this.vehicleModel,
-        vehicleYear: vehicleYear ?? this.vehicleYear,
-        licensePlate: licensePlate ?? this.licensePlate,
-        vehicleColor: vehicleColor ?? this.vehicleColor,
-        vehicleType: vehicleType ?? this.vehicleType,
-      );
+  }) => DriverProfile(
+    name: name ?? this.name,
+    vehicleMake: vehicleMake ?? this.vehicleMake,
+    vehicleModel: vehicleModel ?? this.vehicleModel,
+    vehicleYear: vehicleYear ?? this.vehicleYear,
+    licensePlate: licensePlate ?? this.licensePlate,
+    vehicleColor: vehicleColor ?? this.vehicleColor,
+    vehicleType: vehicleType ?? this.vehicleType,
+  );
 
   Map<String, dynamic> toJson() => {
-        'name': name,
-        'make': vehicleMake,
-        'model': vehicleModel,
-        'year': vehicleYear,
-        'plate': licensePlate,
-        'color': vehicleColor,
-        'type': vehicleType.name,
-      };
+    'name': name,
+    'make': vehicleMake,
+    'model': vehicleModel,
+    'year': vehicleYear,
+    'plate': licensePlate,
+    'color': vehicleColor,
+    'type': vehicleType.name,
+  };
 
   factory DriverProfile.fromJson(Map<String, dynamic> j) => DriverProfile(
-        name: j['name'] is String ? j['name'] as String : '',
-        vehicleMake: j['make'] is String ? j['make'] as String : '',
-        vehicleModel: j['model'] is String ? j['model'] as String : '',
-        vehicleYear: j['year'] is String ? j['year'] as String : '',
-        licensePlate: j['plate'] is String ? j['plate'] as String : '',
-        vehicleColor: j['color'] is int ? j['color'] as int : 0xFFF5F5F5,
-        vehicleType: VehicleType.values
-                .where((t) => t.name == j['type'])
-                .firstOrNull ??
-            VehicleType.sedan,
-      );
+    name: j['name'] is String ? j['name'] as String : '',
+    vehicleMake: j['make'] is String ? j['make'] as String : '',
+    vehicleModel: j['model'] is String ? j['model'] as String : '',
+    vehicleYear: j['year'] is String ? j['year'] as String : '',
+    licensePlate: j['plate'] is String ? j['plate'] as String : '',
+    vehicleColor: j['color'] is int ? j['color'] as int : 0xFFF5F5F5,
+    vehicleType:
+        VehicleType.values.where((t) => t.name == j['type']).firstOrNull ??
+        VehicleType.sedan,
+  );
 }

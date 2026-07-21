@@ -100,27 +100,52 @@ class Shadows {
   const Shadows._();
 
   static List<BoxShadow> get card => [
-    BoxShadow(color: Colors.black.withValues(alpha: 0.30), blurRadius: 12, offset: const Offset(0, 5)),
+    BoxShadow(
+      color: Colors.black.withValues(alpha: 0.30),
+      blurRadius: 12,
+      offset: const Offset(0, 5),
+    ),
   ];
 
   static List<BoxShadow> get soft => [
-    BoxShadow(color: Colors.black.withValues(alpha: 0.20), blurRadius: 3, offset: const Offset(0, 1)),
+    BoxShadow(
+      color: Colors.black.withValues(alpha: 0.20),
+      blurRadius: 3,
+      offset: const Offset(0, 1),
+    ),
   ];
 
   static List<BoxShadow> get hero => [
-    BoxShadow(color: Colors.black.withValues(alpha: 0.45), blurRadius: 26, offset: const Offset(0, 12)),
-    BoxShadow(color: Colors.black.withValues(alpha: 0.25), blurRadius: 44, offset: const Offset(0, 26)),
+    BoxShadow(
+      color: Colors.black.withValues(alpha: 0.45),
+      blurRadius: 26,
+      offset: const Offset(0, 12),
+    ),
+    BoxShadow(
+      color: Colors.black.withValues(alpha: 0.25),
+      blurRadius: 44,
+      offset: const Offset(0, 26),
+    ),
   ];
 
   /// Orange glow behind active/live elements.
   static List<BoxShadow> get glow => [
-    BoxShadow(color: FoxColors.brandFox.withValues(alpha: 0.45), blurRadius: 18),
-    BoxShadow(color: FoxColors.brandFox.withValues(alpha: 0.20), blurRadius: 40),
+    BoxShadow(
+      color: FoxColors.brandFox.withValues(alpha: 0.45),
+      blurRadius: 18,
+    ),
+    BoxShadow(
+      color: FoxColors.brandFox.withValues(alpha: 0.20),
+      blurRadius: 40,
+    ),
   ];
 
   /// Softer orange glow.
   static List<BoxShadow> get glowSoft => [
-    BoxShadow(color: FoxColors.brandFox.withValues(alpha: 0.25), blurRadius: 12),
+    BoxShadow(
+      color: FoxColors.brandFox.withValues(alpha: 0.25),
+      blurRadius: 12,
+    ),
   ];
 }
 

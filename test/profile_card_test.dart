@@ -6,7 +6,6 @@ import 'package:foxyco/domain/garage.dart';
 import 'package:foxyco/ui/home/profile_card.dart';
 import 'package:foxyco/ui/settings/garage_controller.dart';
 
-
 class _FixedGarage extends GarageController {
   _FixedGarage(this._g);
   final Garage _g;
@@ -22,12 +21,12 @@ class _FixedName extends DriverNameController {
 }
 
 Widget _app(String name, Garage g) => ProviderScope(
-      overrides: [
-        garageProvider.overrideWith(() => _FixedGarage(g)),
-        driverNameProvider.overrideWith(() => _FixedName(name)),
-      ],
-      child: const MaterialApp(home: Scaffold(body: ProfileCard())),
-    );
+  overrides: [
+    garageProvider.overrideWith(() => _FixedGarage(g)),
+    driverNameProvider.overrideWith(() => _FixedName(name)),
+  ],
+  child: const MaterialApp(home: Scaffold(body: ProfileCard())),
+);
 
 void main() {
   test('greeting bands: 05/12/17/22 boundaries (spec M6 §3.1)', () {
@@ -45,12 +44,13 @@ void main() {
   testWidgets('no name → no card', (tester) async {
     await tester.pumpWidget(_app('', Garage.empty));
     await tester.pump();
-    
+
     expect(find.textContaining(','), findsNothing);
   });
 
-  testWidgets('name + active vehicle → greeting only (details removed)',
-      (tester) async {
+  testWidgets('name + active vehicle → greeting only (details removed)', (
+    tester,
+  ) async {
     const g = Garage(
       vehicles: [
         Vehicle(
@@ -69,14 +69,13 @@ void main() {
     await tester.pumpWidget(_app('Vamsi', g));
     await tester.pump(const Duration(seconds: 1));
     expect(find.textContaining('Vamsi'), findsOneWidget);
-    
   });
 
-  testWidgets('name but empty garage → greeting shows, no vehicle line',
-      (tester) async {
+  testWidgets('name but empty garage → greeting shows, no vehicle line', (
+    tester,
+  ) async {
     await tester.pumpWidget(_app('Vamsi', Garage.empty));
     await tester.pump(const Duration(seconds: 1));
     expect(find.textContaining('Vamsi'), findsOneWidget);
-    
   });
 }

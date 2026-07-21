@@ -156,6 +156,48 @@ keystore generation + Play Console papers + billing/trial (PLAY_RELEASE.md).
 
 ---
 
+## M10 — Premium polish + driver features (2026-07-20)  ✅
+
+Goal: paid-app finish across every screen + the feature set drivers expect.
+Device verification: MANUAL_TESTS.md rows M10.1–M10.30.
+
+**Defect sweep**
+- [x] Gesture-inset bottom padding on Settings/History (nav no longer clips content)
+- [x] Ticket stat `FittedBox` (no more "11.0 …" ellipsis), $/km toggle contrast,
+      Reset confirm dialog, 48dp touch targets everywhere, first-day trend chip,
+      locale-aware times (12h markets), 7-day filter off-by-one
+
+**Polish**
+- [x] Onboarding: 4 pages — intro → "Set your bar" preset picker (Relaxed /
+      Balanced / Picky, `Thresholds.presets`) → overlay grant → a11y grant;
+      glow-disc icons replace emoji heroes; animated dots; honest final CTA
+- [x] Settings: preset chips on thresholds card, band cut-point labels,
+      PlatformBadge on watched apps, driver name display/edit mode (pencil)
+- [x] Haptics on chips/nav/toggles; `tabIndexProvider` cross-tab jumps
+      (hero platform badges → Settings)
+
+**Features**
+- [x] Offer detail sheet (tap History row / Home ticket): full stat grid +
+      plain-language verdict math (`offer_detail_sheet.dart`)
+- [x] History charts: 24-bin "BY HOUR" bars + "BY APP" stacked verdict bars
+- [x] Shift recap sheet on slide-to-stop (duration, split, best $/km, busiest
+      hour; skipped when 0 offers) — `shift_recap_sheet.dart`
+- [x] CSV export via share sheet (`share_plus`)
+- [x] Outcome inference: taken/missed guessed from the screen replacing the
+      offer card (read-only, strictly-manual intact); optional via Settings
+      "Outcome tracking" toggle (`FoxSettings.trackOutcomes`, default ON);
+      ✓/✕ in History, "Likely taken/passed" in detail sheet, CSV column
+- [x] Car reminders: inspection/insurance/oil/plates/tires/service presets +
+      custom, date + lead time (3d–1mo) + note; Settings section + editor
+      sheet; due/overdue banner on Home (in-app only, no notification
+      permission) — `car_reminder.dart`, `reminder_*.dart`
+- [x] Food-emoji personality in copy spots (greeting snack rotates by shift,
+      empty states, recap title) — never on data rows
+
+**Done when:** analyze clean, tests green (164), debug build green. ✅
+
+---
+
 ## Later (💤 — NOT now, architecture only)
 
 Profit engine (fuel/wear/tax) · ~~auto-accept/decline~~ (**NEVER — product rule 2026-07-16:

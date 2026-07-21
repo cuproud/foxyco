@@ -17,9 +17,7 @@ void main() {
   testWidgets('Home dashboard renders its core sections', (tester) async {
     tall(tester);
     await tester.pumpWidget(
-      const ProviderScope(
-        child: MaterialApp(home: HomeScreen()),
-      ),
+      const ProviderScope(child: MaterialApp(home: HomeScreen())),
     );
 
     // Brand bar + the hero status + today's tally + the last-offer ticket.
@@ -30,15 +28,13 @@ void main() {
     expect(find.text('LAST OFFER'), findsOneWidget);
 
     // Off-device the offer log is empty — the ticket shows its empty state.
-    expect(find.text('No offers yet'), findsOneWidget);
+    expect(find.textContaining('No offers yet'), findsOneWidget);
   });
 
   testWidgets('Go live / Stop toggles monitoring', (tester) async {
     tall(tester);
     await tester.pumpWidget(
-      const ProviderScope(
-        child: MaterialApp(home: HomeScreen()),
-      ),
+      const ProviderScope(child: MaterialApp(home: HomeScreen())),
     );
 
     // Boots stopped with the slide-to-go-live CTA showing.
@@ -47,7 +43,9 @@ void main() {
 
     // Slide the thumb fully right past the commit threshold → onStart.
     await tester.drag(
-        find.byKey(const ValueKey('slide-thumb')), const Offset(1080, 0));
+      find.byKey(const ValueKey('slide-thumb')),
+      const Offset(1080, 0),
+    );
     await tester.pump();
     expect(find.text('On the prowl'), findsOneWidget); // hero status
     // 'Live' now shows in both the brand-bar pill and the slide live bar.
@@ -56,7 +54,9 @@ void main() {
 
     // Slide the stop thumb fully left past the threshold → onStop.
     await tester.drag(
-        find.byKey(const ValueKey('slide-stop-thumb')), const Offset(-1080, 0));
+      find.byKey(const ValueKey('slide-stop-thumb')),
+      const Offset(-1080, 0),
+    );
     await tester.pump();
     expect(find.text('Ready when you are'), findsOneWidget); // fully stopped
     expect(find.text('Slide to go live'), findsOneWidget);

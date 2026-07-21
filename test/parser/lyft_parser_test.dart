@@ -144,8 +144,13 @@ void main() {
     // Above the multi-stop cap → assume a stitched list; fail safe.
     final nodes = [
       '\$11.26 ride',
-      '1 min • 1 km', '2 mins • 2 km', '3 mins • 3 km',
-      '4 mins • 4 km', '5 mins • 5 km', '6 mins • 6 km', '7 mins • 7 km',
+      '1 min • 1 km',
+      '2 mins • 2 km',
+      '3 mins • 3 km',
+      '4 mins • 4 km',
+      '5 mins • 5 km',
+      '6 mins • 6 km',
+      '7 mins • 7 km',
       'Accept',
     ];
     expect(parser.parse(nodes), isNull);

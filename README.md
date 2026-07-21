@@ -6,7 +6,7 @@ whether it's worth taking. Your clever co-driver: spots the good ones, ignores t
 - **Platform:** Android (built with **Flutter** — Dart UI, native Android plugins for the system parts)
 - **Model:** 100% free, offline-first, no login, no cloud, no analytics
 - **Package (placeholder):** `com.foxyco.app` — changeable before first release
-- **Status:** planning / pre-code
+- **Status:** feature-complete for v1 (M10) — device-verified core; Play release prep in `docs/PLAY_RELEASE.md`
 
 > **Why "FoxyCo"?** *Foxy* = clever, quick, good at spotting value. *Co* = your co-driver /
 > companion riding shotgun on every trip. Friendly + trustworthy — the two things a money tool
@@ -31,7 +31,12 @@ One-line PILL shows in the dead zone + draggable BUBBLE always on top
 
 That's the whole MVP. One job, done fast (<300 ms detect→verdict).
 
-**Not in MVP** (architecture leaves room, not built): fuel/wear/depreciation math, net profit,
+**Beyond the MVP (built):** history with filters + hourly / per-app charts, offer detail
+sheet with verdict math, shift recap, optional taken/passed inference (read-only), car
+reminders (inspection/insurance/maintenance dates), CSV export, garage + driver profile,
+$/km or $/hr thresholds with presets.
+
+**Not built** (architecture leaves room): fuel/wear/depreciation math, net profit,
 taxes, mileage tracking, expenses, maps, analytics, AI, more platforms, backups. See
 [`docs/ROADMAP.md`](docs/ROADMAP.md).
 

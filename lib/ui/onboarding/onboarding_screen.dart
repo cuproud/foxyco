@@ -2,16 +2,21 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../domain/thresholds.dart';
 import '../../services/accessibility/accessibility_watcher.dart';
 import '../home/dashboard_controller.dart';
 import '../overlay/overlay_controller.dart';
+import '../settings/settings_controller.dart';
 import '../theme/tokens.dart';
 import 'onboarding_gate.dart';
 
 /// First-run walkthrough (UI_DESIGN §5.1) — earns the two scary permissions
 /// honestly, per Play accessibility policy (AUDIT #1/#2).
 ///
-/// Three swipeable pages: meet FoxyCo → overlay grant → accessibility grant.
+/// Four swipeable pages: meet FoxyCo → pick a threshold preset → overlay
+/// grant → accessibility grant. The preset page personalizes BEFORE the
+/// permission asks, so the driver has seen value first.
+///
 /// The accessibility page carries the full plain-language disclosure: FoxyCo
 /// only READS pay + distance from offer screens to score them — nothing is
 /// sent anywhere and it never taps buttons or acts inside any app (the
@@ -23,6 +28,8 @@ import 'onboarding_gate.dart';
 /// returning from the system settings trip updates the page by itself.
 class OnboardingScreen extends ConsumerStatefulWidget {
   const OnboardingScreen({super.key});
+
+  static const pageCount = 4;
 
   @override
   ConsumerState<OnboardingScreen> createState() => _OnboardingScreenState();
@@ -39,7 +46,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   }
 
   void _next() {
-    if (_page < 2) {
+    if (_page < OnboardingScreen.pageCount - 1) {
       _pages.nextPage(
         duration: const Duration(milliseconds: 250),
         curve: Curves.easeOutCubic,
@@ -67,6 +74,14 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   @override
   Widget build(BuildContext context) {
     final perms = ref.watch(dashboardProvider.select((s) => s.permissions));
+    final last = _page == OnboardingScreen.pageCount - 1;
+    // Honest CTA: finishing without the key grant lands on a blocked Home —
+    // say so instead of promising "smarter driving".
+    final cta = !last
+        ? 'Next'
+        : perms.accessibilityGranted
+        ? 'Start driving smarter'
+        : 'Finish without access';
 
     return Scaffold(
       backgroundColor: FoxColors.bgBase,
@@ -79,16 +94,25 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                 onPageChanged: (i) => setState(() => _page = i),
                 children: [
                   const _Page(
-                    emoji: '🦊',
-                    title: 'Meet FoxyCo',
+                    hero: _FoxHero(),
+                    title: 'Meet FoxyCo 🍪',
                     body:
                         'Your co-driver that reads every ride offer and tells '
                         'you GOOD / OK / BAD in a glance — so you decide '
-                        'faster. FoxyCo only advises; accepting or declining '
-                        'is always your tap, in the driver app.',
+                        'faster and only chase the tasty ones. FoxyCo only '
+                        'advises; accepting or declining is always your tap, '
+                        'in the driver app.',
+                  ),
+                  const _Page(
+                    hero: _GlowIcon(Icons.tune_rounded),
+                    title: 'Set your bar',
+                    body:
+                        'Where does a GOOD offer start for you? Pick a starting '
+                        'point — every number stays tunable in Settings.',
+                    footer: _PresetPicker(),
                   ),
                   _GrantPage(
-                    emoji: '🫧',
+                    hero: const _GlowIcon(Icons.picture_in_picture_alt_rounded),
                     title: 'Draw over other apps',
                     body:
                         'FoxyCo floats a tiny verdict pill over Uber, Lyft and '
@@ -98,7 +122,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                     onGrant: _grantOverlay,
                   ),
                   _GrantPage(
-                    emoji: '👀',
+                    hero: const _GlowIcon(Icons.visibility_rounded),
                     title: 'Read the offer on screen',
                     body:
                         'FoxyCo uses Android\'s accessibility service ONLY to '
@@ -133,7 +157,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                       fontWeight: FontWeight.w700,
                     ),
                   ),
-                  child: Text(_page < 2 ? 'Next' : 'Start driving smarter'),
+                  child: Text(cta),
                 ),
               ),
             ),
@@ -152,16 +176,143 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   }
 }
 
-/// Intro page: mark, headline, body, optional footer (grant button / chip).
+/// Fox head hero for the intro page.
+class _FoxHero extends StatelessWidget {
+  const _FoxHero();
+
+  @override
+  Widget build(BuildContext context) =>
+      Image.asset('assets/branding/foxyco_head.png', width: 96, height: 96);
+}
+
+/// Icon in a glowing orange disc — replaces the emoji heroes, which read
+/// cheap next to the fox mark + Fraunces (premium pass 2026-07-20).
+class _GlowIcon extends StatelessWidget {
+  const _GlowIcon(this.icon);
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 96,
+      height: 96,
+      decoration: BoxDecoration(
+        color: FoxColors.brandFoxSoft,
+        shape: BoxShape.circle,
+        border: Border.all(color: FoxColors.brandFox.withValues(alpha: 0.35)),
+        boxShadow: Shadows.glowSoft,
+      ),
+      child: Icon(icon, size: 44, color: FoxColors.brandFox),
+    );
+  }
+}
+
+/// Threshold preset chips (Relaxed / Balanced / Picky) — applies straight to
+/// [settingsProvider] so the pick IS the setting, no extra save.
+class _PresetPicker extends ConsumerWidget {
+  const _PresetPicker();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final current = ref.watch(settingsProvider).thresholds;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (final (label, t) in Thresholds.presets) ...[
+          _PresetCard(
+            label: label,
+            sub: 'GOOD from \$${t.goodAtOrAbove.toStringAsFixed(2)}/km',
+            selected: current == t,
+            onTap: () => ref.read(settingsProvider.notifier).applyPreset(t),
+          ),
+          if ((label, t) != Thresholds.presets.last)
+            const SizedBox(height: Gap.sm),
+        ],
+      ],
+    );
+  }
+}
+
+class _PresetCard extends StatelessWidget {
+  const _PresetCard({
+    required this.label,
+    required this.sub,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final String sub;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(Radii.cardSm),
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: Motion.base,
+        padding: const EdgeInsets.symmetric(horizontal: Gap.md, vertical: 12),
+        decoration: BoxDecoration(
+          color: selected ? FoxColors.bgSurface2 : FoxColors.bgSurface,
+          borderRadius: BorderRadius.circular(Radii.cardSm),
+          border: Border.all(
+            color: selected ? FoxColors.brandFox : FoxColors.borderSoft,
+            width: selected ? 1.5 : 1,
+          ),
+          boxShadow: selected ? Shadows.glowSoft : null,
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: FoxColors.cream,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    sub,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: FoxColors.textSecondary,
+                      fontFeatures: [FontFeature.tabularFigures()],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (selected)
+              const Icon(
+                Icons.check_circle_rounded,
+                color: FoxColors.brandFox,
+                size: 20,
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Intro page: hero mark, headline, body, optional footer (grant button /
+/// chip / preset picker).
 class _Page extends StatelessWidget {
   const _Page({
-    required this.emoji,
+    required this.hero,
     required this.title,
     required this.body,
     this.footer,
   });
 
-  final String emoji;
+  final Widget hero;
   final String title;
   final String body;
   final Widget? footer;
@@ -169,30 +320,36 @@ class _Page extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final text = Theme.of(context).textTheme;
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: Gap.xl),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          // Real fox head for FoxyCo's own intro page; emoji for the rest.
-          if (emoji == '🦊')
-            Image.asset('assets/branding/foxyco_head.png',
-                width: 96, height: 96)
-          else
-            Text(emoji, style: const TextStyle(fontSize: 64)),
-          const SizedBox(height: Gap.lg),
-          Text(title, style: text.headlineMedium, textAlign: TextAlign.center),
-          const SizedBox(height: Gap.md),
-          Text(
-            body,
-            textAlign: TextAlign.center,
-            style: text.bodyMedium?.copyWith(
-              color: FoxColors.textSecondary,
-              height: 1.5,
+    // Scrollable: preset page + small phones + large font scale would
+    // overflow a fixed Column.
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(
+          horizontal: Gap.xl,
+          vertical: Gap.lg,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            hero,
+            const SizedBox(height: Gap.lg),
+            Text(
+              title,
+              style: text.headlineMedium,
+              textAlign: TextAlign.center,
             ),
-          ),
-          if (footer != null) ...[const SizedBox(height: Gap.lg), footer!],
-        ],
+            const SizedBox(height: Gap.md),
+            Text(
+              body,
+              textAlign: TextAlign.center,
+              style: text.bodyMedium?.copyWith(
+                color: FoxColors.textSecondary,
+                height: 1.5,
+              ),
+            ),
+            if (footer != null) ...[const SizedBox(height: Gap.lg), footer!],
+          ],
+        ),
       ),
     );
   }
@@ -202,7 +359,7 @@ class _Page extends StatelessWidget {
 /// the permission is actually held (state re-checked on app resume).
 class _GrantPage extends StatelessWidget {
   const _GrantPage({
-    required this.emoji,
+    required this.hero,
     required this.title,
     required this.body,
     required this.granted,
@@ -210,7 +367,7 @@ class _GrantPage extends StatelessWidget {
     required this.onGrant,
   });
 
-  final String emoji;
+  final Widget hero;
   final String title;
   final String body;
   final bool granted;
@@ -220,7 +377,7 @@ class _GrantPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return _Page(
-      emoji: emoji,
+      hero: hero,
       title: title,
       body: body,
       footer: granted
@@ -258,6 +415,7 @@ class _GrantPage extends StatelessWidget {
   }
 }
 
+/// Page dots — active dot stretches into a 20px orange pill.
 class _Dots extends StatelessWidget {
   const _Dots({required this.page});
 
@@ -268,13 +426,15 @@ class _Dots extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        for (var i = 0; i < 3; i++)
-          Container(
-            width: 8,
+        for (var i = 0; i < OnboardingScreen.pageCount; i++)
+          AnimatedContainer(
+            duration: Motion.base,
+            curve: Motion.curve,
+            width: i == page ? 20 : 8,
             height: 8,
             margin: const EdgeInsets.symmetric(horizontal: 4),
             decoration: BoxDecoration(
-              shape: BoxShape.circle,
+              borderRadius: BorderRadius.circular(Radii.pill),
               color: i == page ? FoxColors.brandFox : FoxColors.border,
             ),
           ),

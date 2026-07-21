@@ -30,8 +30,7 @@ void main() {
     final saveBtn = find.widgetWithText(FilledButton, 'Save');
     expect(tester.widget<FilledButton>(saveBtn).onPressed, isNull);
 
-    await tester.enterText(
-        find.byKey(const ValueKey('editor-make')), 'Honda');
+    await tester.enterText(find.byKey(const ValueKey('editor-make')), 'Honda');
     await tester.pump();
     expect(tester.widget<FilledButton>(saveBtn).onPressed, isNotNull);
   });
@@ -41,8 +40,7 @@ void main() {
     await tester.pumpWidget(_app(const VehicleEditorScreen()));
     await tester.pump();
 
-    await tester.enterText(
-        find.byKey(const ValueKey('editor-make')), 'Honda');
+    await tester.enterText(find.byKey(const ValueKey('editor-make')), 'Honda');
     await tester.enterText(find.byKey(const ValueKey('editor-year')), '12');
     await tester.pump();
 
@@ -50,24 +48,26 @@ void main() {
     expect(tester.widget<FilledButton>(saveBtn).onPressed, isNull);
   });
 
-  testWidgets('nothing persists until Save, then the vehicle lands active',
-      (tester) async {
+  testWidgets('nothing persists until Save, then the vehicle lands active', (
+    tester,
+  ) async {
     _tall(tester);
     late ProviderContainer container;
     await tester.pumpWidget(
       ProviderScope(
         child: MaterialApp(
-          home: Builder(builder: (context) {
-            container = ProviderScope.containerOf(context);
-            return const VehicleEditorScreen();
-          }),
+          home: Builder(
+            builder: (context) {
+              container = ProviderScope.containerOf(context);
+              return const VehicleEditorScreen();
+            },
+          ),
         ),
       ),
     );
     await tester.pump();
 
-    await tester.enterText(
-        find.byKey(const ValueKey('editor-make')), 'Honda');
+    await tester.enterText(find.byKey(const ValueKey('editor-make')), 'Honda');
     await tester.pump();
     // Draft only — garage untouched before Save (spec M6 §4.3).
     expect(container.read(garageProvider).vehicles, isEmpty);
@@ -78,18 +78,21 @@ void main() {
     expect(container.read(garageProvider).active!.make, 'Honda');
   });
 
-  testWidgets('editing an existing vehicle seeds fields; delete confirms',
-      (tester) async {
+  testWidgets('editing an existing vehicle seeds fields; delete confirms', (
+    tester,
+  ) async {
     _tall(tester);
     const existing = Vehicle(id: 'e1', make: 'Kia', model: 'EV6');
     late ProviderContainer container;
     await tester.pumpWidget(
       ProviderScope(
         child: MaterialApp(
-          home: Builder(builder: (context) {
-            container = ProviderScope.containerOf(context);
-            return const VehicleEditorScreen(initial: existing);
-          }),
+          home: Builder(
+            builder: (context) {
+              container = ProviderScope.containerOf(context);
+              return const VehicleEditorScreen(initial: existing);
+            },
+          ),
         ),
       ),
     );

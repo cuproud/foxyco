@@ -28,8 +28,9 @@ class PlatformBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = _colors[platform] ?? FoxColors.textDisabled;
     // Uber's badge is near-white → dark letter; others take light letter.
-    final letterColor =
-        color.computeLuminance() > 0.5 ? FoxColors.bgBase : Colors.white;
+    final letterColor = color.computeLuminance() > 0.5
+        ? FoxColors.bgBase
+        : Colors.white;
     return Opacity(
       opacity: active ? 1.0 : 0.45,
       child: Container(

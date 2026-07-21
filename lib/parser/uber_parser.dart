@@ -23,14 +23,19 @@ class UberParser implements OfferParser {
   GigPlatform get platform => GigPlatform.uber;
 
   @override
-  String get tunedAgainst => 'Uber Driver 2026.26 (references/Uber.jpg, new (1))';
+  String get tunedAgainst =>
+      'Uber Driver 2026.26 (references/Uber.jpg, new (1))';
 
   // "4 mins (0.8 km) away" / "37 mins (37.0 km) trip". Minutes and km both
   // captured; tolerant of "min"/"mins" and spacing.
-  static final _pickup =
-      RegExp(r'(\d+)\s*mins?\s*\(\s*([\d.]+)\s*km\s*\)\s*away', caseSensitive: false);
-  static final _trip =
-      RegExp(r'(\d+)\s*mins?\s*\(\s*([\d.]+)\s*km\s*\)\s*trip', caseSensitive: false);
+  static final _pickup = RegExp(
+    r'(\d+)\s*mins?\s*\(\s*([\d.]+)\s*km\s*\)\s*away',
+    caseSensitive: false,
+  );
+  static final _trip = RegExp(
+    r'(\d+)\s*mins?\s*\(\s*([\d.]+)\s*km\s*\)\s*trip',
+    caseSensitive: false,
+  );
 
   @override
   Offer? parse(List<String> nodeTexts) {
@@ -53,10 +58,12 @@ class UberParser implements OfferParser {
 
     // Pickup leg is optional — some cards show only the trip. Default to 0 so
     // totalKm/totalMinutes still make sense.
-    final pickupMin =
-        pickup != null ? (double.tryParse(pickup.group(1)!) ?? 0) : 0.0;
-    final pickupKm =
-        pickup != null ? (double.tryParse(pickup.group(2)!) ?? 0) : 0.0;
+    final pickupMin = pickup != null
+        ? (double.tryParse(pickup.group(1)!) ?? 0)
+        : 0.0;
+    final pickupKm = pickup != null
+        ? (double.tryParse(pickup.group(2)!) ?? 0)
+        : 0.0;
 
     return Offer(
       platform: GigPlatform.uber,

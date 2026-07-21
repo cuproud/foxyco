@@ -14,7 +14,12 @@ import '../theme/tokens.dart';
 /// Plain widget, no plugin imports — renders identically in the overlay isolate
 /// and an in-app preview, so it's buildable/eyeballable without a device.
 class VerdictPill extends StatelessWidget {
-  const VerdictPill({super.key, required this.payload, this.size, this.animate = true});
+  const VerdictPill({
+    super.key,
+    required this.payload,
+    this.size,
+    this.animate = true,
+  });
 
   final OverlayPayload payload;
 
@@ -56,123 +61,136 @@ class VerdictPill extends StatelessWidget {
         color: _rateColor,
         animate: animate,
         child: Container(
-        clipBehavior: Clip.antiAlias,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(Radii.pill),
-          // One tight, neutral drop shadow. The old verdict-colored glow +
-          // wide dark blur painted a smeary gradient across the overlay
-          // window box over the map — looked like a dirty halo, not depth.
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x2E141C17),
-              blurRadius: 8,
-              offset: Offset(0, 3),
-            ),
-          ],
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Colored rate block — the $/km headline, verdict-tinted.
-            Container(
-              padding: EdgeInsets.fromLTRB(
-                  m.padH + 1, m.padV, m.padH - 1, m.padV),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [sheenTop, _rateColor],
-                  stops: const [0, 0.7],
+          clipBehavior: Clip.antiAlias,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(Radii.pill),
+            // One tight, neutral drop shadow. The old verdict-colored glow +
+            // wide dark blur painted a smeary gradient across the overlay
+            // window box over the map — looked like a dirty halo, not depth.
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x2E141C17),
+                blurRadius: 8,
+                offset: Offset(0, 3),
+              ),
+            ],
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Colored rate block — the $/km headline, verdict-tinted.
+              Container(
+                padding: EdgeInsets.fromLTRB(
+                  m.padH + 1,
+                  m.padV,
+                  m.padH - 1,
+                  m.padV,
                 ),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.baseline,
-                textBaseline: TextBaseline.alphabetic,
-                children: [
-                  Text(
-                    perKm,
-                    style: TextStyle(
-                      fontFamily: FoxFonts.display,
-                      fontWeight: FontWeight.w700,
-                      fontSize: m.rate + 1,
-                      height: 1,
-                      letterSpacing: -0.2,
-                      color: const Color(0xFF141C17),
-                      fontFeatures: const [FontFeature.tabularFigures()],
-                    ),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [sheenTop, _rateColor],
+                    stops: const [0, 0.7],
                   ),
-                  const SizedBox(width: 3),
-                  Text(
-                    '/km',
-                    style: TextStyle(
-                      // Explicit family: the overlay isolate's MaterialApp has
-                      // no theme, so an unset family fell back to Roboto and
-                      // clashed with the Fraunces figure next to it.
-                      fontFamily: FoxFonts.sans,
-                      fontWeight: FontWeight.w600,
-                      fontSize: m.unit,
-                      letterSpacing: 0.2,
-                      color: const Color(0xFF141C17).withValues(alpha: 0.62),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            // Dark info block — trip km + $/hr.
-            Container(
-              padding:
-                  EdgeInsets.symmetric(horizontal: m.padH, vertical: m.padV),
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [Color(0xFF203026), Color(0xFF141C17), Color(0xFF0C1310)],
-                  stops: [0, 0.55, 1],
                 ),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    '${payload.totalKm.toStringAsFixed(1)} km',
-                    style: TextStyle(
-                      fontFamily: FoxFonts.sans,
-                      fontWeight: FontWeight.w700,
-                      fontSize: m.sub,
-                      // Pickup-near signal (references/*pill* "color only, no
-                      // new element"): pickup at/under the driver's cutoff
-                      // paints the km green, over paints it red. No pickup
-                      // info → default cream.
-                      color: switch (payload.pickupIsNear) {
-                        true => const Color(0xFF5ECD90),
-                        false => const Color(0xFFFF8A7E),
-                        null => FoxColors.creamDim,
-                      },
-                      fontFeatures: const [FontFeature.tabularFigures()],
-                    ),
-                  ),
-                  if (payload.pricePerHour > 0) ...[
-                    SizedBox(width: m.gap),
-                    Container(
-                        width: 1, height: m.sub, color: const Color(0x52F4EFE1)),
-                    SizedBox(width: m.gap),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.baseline,
+                  textBaseline: TextBaseline.alphabetic,
+                  children: [
                     Text(
-                      '\$${payload.pricePerHour.toStringAsFixed(0)}/hr',
+                      perKm,
+                      style: TextStyle(
+                        fontFamily: FoxFonts.display,
+                        fontWeight: FontWeight.w700,
+                        fontSize: m.rate + 1,
+                        height: 1,
+                        letterSpacing: -0.2,
+                        color: const Color(0xFF141C17),
+                        fontFeatures: const [FontFeature.tabularFigures()],
+                      ),
+                    ),
+                    const SizedBox(width: 3),
+                    Text(
+                      '/km',
+                      style: TextStyle(
+                        // Explicit family: the overlay isolate's MaterialApp has
+                        // no theme, so an unset family fell back to Roboto and
+                        // clashed with the Fraunces figure next to it.
+                        fontFamily: FoxFonts.sans,
+                        fontWeight: FontWeight.w600,
+                        fontSize: m.unit,
+                        letterSpacing: 0.2,
+                        color: const Color(0xFF141C17).withValues(alpha: 0.62),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // Dark info block — trip km + $/hr.
+              Container(
+                padding: EdgeInsets.symmetric(
+                  horizontal: m.padH,
+                  vertical: m.padV,
+                ),
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      Color(0xFF203026),
+                      Color(0xFF141C17),
+                      Color(0xFF0C1310),
+                    ],
+                    stops: [0, 0.55, 1],
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      '${payload.totalKm.toStringAsFixed(1)} km',
                       style: TextStyle(
                         fontFamily: FoxFonts.sans,
                         fontWeight: FontWeight.w700,
                         fontSize: m.sub,
-                        color: FoxColors.creamDim,
+                        // Pickup-near signal (references/*pill* "color only, no
+                        // new element"): pickup at/under the driver's cutoff
+                        // paints the km green, over paints it red. No pickup
+                        // info → default cream.
+                        color: switch (payload.pickupIsNear) {
+                          true => const Color(0xFF5ECD90),
+                          false => const Color(0xFFFF8A7E),
+                          null => FoxColors.creamDim,
+                        },
                         fontFeatures: const [FontFeature.tabularFigures()],
                       ),
                     ),
+                    if (payload.pricePerHour > 0) ...[
+                      SizedBox(width: m.gap),
+                      Container(
+                        width: 1,
+                        height: m.sub,
+                        color: const Color(0x52F4EFE1),
+                      ),
+                      SizedBox(width: m.gap),
+                      Text(
+                        '\$${payload.pricePerHour.toStringAsFixed(0)}/hr',
+                        style: TextStyle(
+                          fontFamily: FoxFonts.sans,
+                          fontWeight: FontWeight.w700,
+                          fontSize: m.sub,
+                          color: FoxColors.creamDim,
+                          fontFeatures: const [FontFeature.tabularFigures()],
+                        ),
+                      ),
+                    ],
                   ],
-                ],
+                ),
               ),
-            ),
-          ],
-        ),
+            ],
+          ),
         ),
       ),
     );
@@ -180,11 +198,29 @@ class VerdictPill extends StatelessWidget {
 
   static _PillMetrics _metrics(PillSize size) => switch (size) {
     PillSize.small => const _PillMetrics(
-        padH: 16, padV: 11, gap: 8, rate: 20, unit: 11, sub: 13.5),
+      padH: 16,
+      padV: 11,
+      gap: 8,
+      rate: 20,
+      unit: 11,
+      sub: 13.5,
+    ),
     PillSize.medium => const _PillMetrics(
-        padH: 18, padV: 12, gap: 10, rate: 22, unit: 12, sub: 15),
+      padH: 18,
+      padV: 12,
+      gap: 10,
+      rate: 22,
+      unit: 12,
+      sub: 15,
+    ),
     PillSize.large => const _PillMetrics(
-        padH: 22, padV: 15, gap: 12, rate: 27, unit: 14, sub: 18),
+      padH: 22,
+      padV: 15,
+      gap: 12,
+      rate: 27,
+      unit: 14,
+      sub: 18,
+    ),
   };
 }
 
@@ -210,8 +246,11 @@ class _PillMetrics {
 /// strokes. Honors reduced motion by freezing the orbit (static tinted ring
 /// keeps the color signal).
 class _PlasmaBorder extends StatefulWidget {
-  const _PlasmaBorder(
-      {required this.color, required this.animate, required this.child});
+  const _PlasmaBorder({
+    required this.color,
+    required this.animate,
+    required this.child,
+  });
   final Color color;
   final bool animate;
   final Widget child;
@@ -252,10 +291,7 @@ class _PlasmaBorderState extends State<_PlasmaBorder>
       child: AnimatedBuilder(
         animation: _c,
         builder: (context, child) => CustomPaint(
-          foregroundPainter: _PlasmaPainter(
-            color: widget.color,
-            t: _c.value,
-          ),
+          foregroundPainter: _PlasmaPainter(color: widget.color, t: _c.value),
           child: child,
         ),
         child: Padding(
@@ -327,6 +363,5 @@ class _PlasmaPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_PlasmaPainter old) =>
-      old.t != t || old.color != color;
+  bool shouldRepaint(_PlasmaPainter old) => old.t != t || old.color != color;
 }

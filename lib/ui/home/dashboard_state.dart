@@ -46,8 +46,5 @@ class DashboardState {
   final WatchStatus status;
   final PermissionStatus permissions;
 
-  const DashboardState({
-    required this.status,
-    required this.permissions,
-  });
+  const DashboardState({required this.status, required this.permissions});
 }

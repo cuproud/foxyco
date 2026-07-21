@@ -358,3 +358,55 @@ _Last updated: 2026-07-19 (M7 rows: Uber Match/Accept parsing, pill visibility o
 | M9.8 | Brand bar + onboarding + empty ticket | Full fox head (ears, no disc, no stray dots); floating bubble still round disc | [ ] |
 
 _Last updated: 2026-07-20 (M9: layered car hero on splash + home)._
+
+---
+
+## M10 — Premium polish pass (2026-07-20)
+
+> Batches 1–3: gesture-inset padding, Reset confirm, presets, hourly chart,
+> offer detail sheet, shift recap, CSV export, 4-page onboarding.
+
+| # | How | PASS bar | Status |
+|---|-----|----------|--------|
+| M10.1 | Settings + History, scroll to very bottom on a gesture-nav phone | Last card/text fully visible above the floating nav (nothing clipped) | [ ] |
+| M10.2 | Home last-offer ticket with a 2-digit distance (e.g. 11.0 km) | Number scales down to fit — never "11.0 …" ellipsis | [ ] |
+| M10.3 | Settings → $/km-$/hr toggle | Selected segment text is CREAM on orange tint (readable), not dark red | [ ] |
+| M10.4 | Settings → Reset (top right) | Confirm dialog appears; Cancel keeps settings; Reset restores defaults | [ ] |
+| M10.5 | First day of use (no yesterday data) | Hero trend chip reads "first day", not "+N vs yesterday" | [ ] |
+| M10.6 | Device set to 12-hour clock | Ticket + History times show "6:48 PM" style, not 18:48 | [ ] |
+| M10.7 | History → tap any offer row (also Home ticket) | Bottom sheet: verdict, big fare, per-km/hr, pickup/trip/ride cells, plain-language verdict math line | [ ] |
+| M10.8 | Settings → Verdict thresholds ($/km mode) | Relaxed / Balanced / Picky chips; tap moves both sliders; band shows colored cut-point labels | [ ] |
+| M10.9 | History with offers | "BY HOUR" 24-bar chart under stats; peak bar solid orange with count label; sparse 12A/6A/12P/6P axis | [ ] |
+| M10.10 | Go live, let ≥1 offer arrive, slide to stop | Shift recap sheet: duration, offers scored, good/ok/bad pills, best $/km, busiest hour | [ ] |
+| M10.11 | Slide to stop with 0 offers seen | NO recap sheet (silent stop) | [ ] |
+| M10.12 | Settings → History → Export CSV | Android share sheet with foxyco_offers.csv; opens with correct header + rows | [ ] |
+| M10.13 | Fresh install → onboarding | 4 pages: fox intro → Set your bar (3 preset cards, tap selects) → overlay grant → accessibility grant; active dot stretches to a pill | [ ] |
+| M10.14 | Onboarding last page WITHOUT accessibility granted | CTA reads "Finish without access", not "Start driving smarter" | [ ] |
+| M10.15 | Home hero → tap the U/L/H platform badges | Jumps to Settings tab | [ ] |
+| M10.16 | Tap filters/chips/nav across the app | Subtle haptic tick on each selection | [ ] |
+| M10.17 | History stats card | OFFERS sub-line shows counts in verdict colors (green·amber·red), not plain "2·7·2" | [ ] |
+| M10.18 | History → 7 Days filter at day boundary | Includes today + 6 prior days only (8th day excluded) | [ ] |
+
+_Last updated: 2026-07-20 (M10: premium polish batches 1–3)._
+
+### M10 addendum — outcome inference (2026-07-20)
+
+| # | How | PASS bar | Status |
+|---|-----|----------|--------|
+| M10.19 | Let an offer expire / decline it (app returns to map) | History row shows small ✕ by the time; detail sheet says "Likely passed" | [ ] |
+| M10.20 | Accept an offer (app goes to pickup navigation) | History row shows green ✓; detail sheet says "Likely taken" | [ ] |
+| M10.21 | While card is up, switch away to FoxyCo then back | No outcome stamped (stays unmarked) — heuristic must not guess | [ ] |
+| M10.22 | Export CSV after M10.19/20 | outcome column present: taken / missed / unknown | [ ] |
+
+### M10 addendum 2 — outcome toggle, reminders, emojis (2026-07-20)
+
+| # | How | PASS bar | Status |
+|---|-----|----------|--------|
+| M10.23 | Settings → Outcome tracking | "Guess taken / passed" switch ON by default + explainer note underneath | [ ] |
+| M10.24 | Toggle outcome tracking OFF, run an offer past | Offer logs with NO ✓/✕ mark (unknown) | [ ] |
+| M10.25 | Settings → Car reminders → Add reminder | Sheet: preset chips (inspection/insurance/oil/plates/tires/service), title field, date picker, lead chips (3d/1w/2w/1mo), note field; Save disabled until title+date | [ ] |
+| M10.26 | Save "Safety inspection" dated ~2 weeks out, lead 1 month | Row shows icon + date + amber "in 14d" pill; Home shows amber banner "Safety inspection in 14 days"; banner tap jumps to Settings | [ ] |
+| M10.27 | Edit reminder → Delete (trash) | Row gone; Home banner gone | [ ] |
+| M10.28 | Set reminder date to yesterday | Red "1d overdue" pill + red Home banner | [ ] |
+| M10.29 | Kill + reopen app | Reminders persist | [ ] |
+| M10.30 | Home greeting across day parts | Snack emoji rotates: ☕ morning, 🌮 afternoon, 🍜 evening, 🍪 late shift | [ ] |

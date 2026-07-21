@@ -29,8 +29,11 @@ class PlatformHealth {
   /// can't fix that; only a screen-capture + OCR fallback can.
   final int textlessFrames;
 
-  const PlatformHealth(
-      {this.parsed = 0, this.cardMisses = 0, this.textlessFrames = 0});
+  const PlatformHealth({
+    this.parsed = 0,
+    this.cardMisses = 0,
+    this.textlessFrames = 0,
+  });
 
   /// Enough card-like frames to be sure offers are arriving, yet not one
   /// parsed → the selectors are likely stale for this app's current layout.
@@ -88,5 +91,5 @@ class ParseHealth extends Notifier<Map<GigPlatform, PlatformHealth>> {
 
 final parseHealthProvider =
     NotifierProvider<ParseHealth, Map<GigPlatform, PlatformHealth>>(
-  ParseHealth.new,
-);
+      ParseHealth.new,
+    );

@@ -87,20 +87,24 @@ void main() {
     expect(container.read(garageProvider).active, isNull);
   });
 
-  test('driver name: loads foxyco.driver.v1, falls back to legacy name', () async {
-    SharedPreferences.setMockInitialValues({
-      GarageController.legacyKey:
-          jsonEncode(const DriverProfile(name: 'Vamsi').toJson()),
-    });
-    final container = ProviderContainer();
-    addTearDown(container.dispose);
-    container.read(driverNameProvider);
-    await _settle();
-    expect(container.read(driverNameProvider), 'Vamsi');
-    // Seeded into its own key so the legacy blob is never needed again.
-    final prefs = await SharedPreferences.getInstance();
-    expect(prefs.getString(DriverNameController.prefsKey), 'Vamsi');
-  });
+  test(
+    'driver name: loads foxyco.driver.v1, falls back to legacy name',
+    () async {
+      SharedPreferences.setMockInitialValues({
+        GarageController.legacyKey: jsonEncode(
+          const DriverProfile(name: 'Vamsi').toJson(),
+        ),
+      });
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      container.read(driverNameProvider);
+      await _settle();
+      expect(container.read(driverNameProvider), 'Vamsi');
+      // Seeded into its own key so the legacy blob is never needed again.
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getString(DriverNameController.prefsKey), 'Vamsi');
+    },
+  );
 
   test('setName persists', () async {
     SharedPreferences.setMockInitialValues({});

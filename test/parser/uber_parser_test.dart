@@ -65,7 +65,11 @@ void main() {
   test('returns null without an Accept affordance (contract)', () {
     // Distances + pay present but no takeable action — treat as not-an-offer.
     expect(
-      parser.parse(['\$10.55', '4 mins (0.8 km) away', '15 mins (4.3 km) trip']),
+      parser.parse([
+        '\$10.55',
+        '4 mins (0.8 km) away',
+        '15 mins (4.3 km) trip',
+      ]),
       isNull,
     );
   });
@@ -101,13 +105,22 @@ void main() {
     // window, and the MAP subtree comes first, so its Quest banner ("$20 extra
     // for 30 trips") precedes the card's payout in node order.
     final nodes = [
-      'Home', '8%', 'Search for places',
-      'Quest', '\$20 extra for 30 trips', '1/30',
-      'Unlock Platinum', '482 / 900 pts',
-      'UberX', 'Exclusive',
-      '\$4.06', '4.98',
-      '7 mins (2.9 km) away', '347 Kingsdale Ave, North York',
-      '4 mins (1.4 km) trip', '2901 Bayview Ave, Toronto',
+      'Home',
+      '8%',
+      'Search for places',
+      'Quest',
+      '\$20 extra for 30 trips',
+      '1/30',
+      'Unlock Platinum',
+      '482 / 900 pts',
+      'UberX',
+      'Exclusive',
+      '\$4.06',
+      '4.98',
+      '7 mins (2.9 km) away',
+      '347 Kingsdale Ave, North York',
+      '4 mins (1.4 km) trip',
+      '2901 Bayview Ave, Toronto',
       'Accept',
     ];
     final offer = parser.parse(nodes)!;
@@ -119,9 +132,13 @@ void main() {
   test('real device: Trip Radar stacked card uses Match, not Accept', () {
     // uiautomator win_8.xml 2026-07-19 — busy-period Radar card.
     final offer = parser.parse([
-      'UberX', '\$6.80', '5.00',
-      '7 mins (2.8 km) away', 'Subway',
-      '12 mins (5.0 km) trip', '81 Glendora Ave',
+      'UberX',
+      '\$6.80',
+      '5.00',
+      '7 mins (2.8 km) away',
+      'Subway',
+      '12 mins (5.0 km) trip',
+      '81 Glendora Ave',
       'Match',
     ])!;
     expect(offer.payout, 6.80);

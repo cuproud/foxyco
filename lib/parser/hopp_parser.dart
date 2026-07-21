@@ -26,7 +26,8 @@ class HoppParser implements OfferParser {
   GigPlatform get platform => GigPlatform.hopp;
 
   @override
-  String get tunedAgainst => 'Hopp Driver 2026.07 (references/Hopp.jpg, new (2))';
+  String get tunedAgainst =>
+      'Hopp Driver 2026.07 (references/Hopp.jpg, new (2))';
 
   // Net-pay marker. Hopp prints "(NET, tax included)" beside the payout.
   static final _net = RegExp(r'\bnet\b|tax\s*included', caseSensitive: false);

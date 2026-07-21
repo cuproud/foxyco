@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:foxyco/router.dart';
 import 'package:foxyco/ui/onboarding/onboarding_screen.dart';
+import 'package:foxyco/ui/settings/settings_controller.dart';
 
 void main() {
   Widget app({required bool showOnboarding}) => ProviderScope(
@@ -16,7 +17,7 @@ void main() {
     await tester.pumpWidget(app(showOnboarding: true));
 
     expect(find.byType(OnboardingScreen), findsOneWidget);
-    expect(find.text('Meet FoxyCo'), findsOneWidget);
+    expect(find.textContaining('Meet FoxyCo'), findsOneWidget);
     expect(find.text('Next'), findsOneWidget);
     expect(find.text('Skip for now'), findsOneWidget);
   });
@@ -29,18 +30,35 @@ void main() {
     expect(find.text('FoxyCo'), findsOneWidget); // Home brand bar
   });
 
-  testWidgets('Next walks the 3 pages; grant state shows; '
+  testWidgets('Next walks the 4 pages; preset applies; grant state shows; '
       'last page CTA exits to Home', (tester) async {
-    await tester.pumpWidget(app(showOnboarding: true));
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp.router(
+          routerConfig: createRouter(showOnboarding: true),
+        ),
+      ),
+    );
 
-    // Page 2 — overlay grant. Off-device the dashboard defaults both grants
+    // Page 2 — threshold preset. Tapping Picky writes straight to settings.
+    await tester.tap(find.text('Next'));
+    await tester.pumpAndSettle();
+    expect(find.text('Set your bar'), findsOneWidget);
+    await tester.tap(find.text('Picky'));
+    await tester.pumpAndSettle();
+    expect(container.read(settingsProvider).thresholds.goodAtOrAbove, 1.8);
+
+    // Page 3 — overlay grant. Off-device the dashboard defaults both grants
     // to true (plugin channels absent), so the page shows the granted chip.
     await tester.tap(find.text('Next'));
     await tester.pumpAndSettle();
     expect(find.text('Draw over other apps'), findsOneWidget);
     expect(find.text('✅ Granted'), findsOneWidget);
 
-    // Page 3 — accessibility grant, with the plain-language disclosure.
+    // Page 4 — accessibility grant, with the plain-language disclosure.
     await tester.tap(find.text('Next'));
     await tester.pumpAndSettle();
     expect(find.text('Read the offer on screen'), findsOneWidget);

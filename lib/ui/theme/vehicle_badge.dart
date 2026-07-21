@@ -23,13 +23,13 @@ class VehicleBadge extends StatelessWidget {
   final double size;
 
   static IconData iconFor(VehicleType t) => switch (t) {
-        VehicleType.sedan => Icons.directions_car_rounded,
-        VehicleType.suv => Icons.directions_car_filled_rounded,
-        VehicleType.hatchback => Icons.time_to_leave_rounded,
-        VehicleType.pickup => Icons.local_shipping_rounded,
-        VehicleType.van => Icons.airport_shuttle_rounded,
-        VehicleType.motorbike => Icons.two_wheeler_rounded,
-      };
+    VehicleType.sedan => Icons.directions_car_rounded,
+    VehicleType.suv => Icons.directions_car_filled_rounded,
+    VehicleType.hatchback => Icons.time_to_leave_rounded,
+    VehicleType.pickup => Icons.local_shipping_rounded,
+    VehicleType.van => Icons.airport_shuttle_rounded,
+    VehicleType.motorbike => Icons.two_wheeler_rounded,
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -52,19 +52,20 @@ class VehicleBadge extends StatelessWidget {
         ),
         if (fuelType != FuelType.gas)
           Positioned(
-            right: -3,
-            bottom: -3,
+            right: -4,
+            bottom: -4,
             child: Container(
-              padding: const EdgeInsets.all(2.5),
-              decoration: const BoxDecoration(
+              padding: const EdgeInsets.all(3),
+              decoration: BoxDecoration(
                 color: FoxColors.bgSurface,
                 shape: BoxShape.circle,
+                border: Border.all(color: FoxColors.border),
               ),
               child: Icon(
                 fuelType == FuelType.ev
                     ? Icons.bolt_rounded
                     : Icons.recycling_rounded,
-                size: size * 0.28,
+                size: size * 0.32,
                 color: VerdictColors.good,
               ),
             ),

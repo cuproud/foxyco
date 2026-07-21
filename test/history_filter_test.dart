@@ -15,17 +15,17 @@ class _FixedLog extends OfferLog {
 }
 
 OfferSummary _offer(DateTime seenAt) => OfferSummary(
-      platform: GigPlatform.uber,
-      verdict: Verdict.good,
-      payout: 20,
-      totalKm: 10,
-      seenAt: seenAt,
-    );
+  platform: GigPlatform.uber,
+  verdict: Verdict.good,
+  payout: 20,
+  totalKm: 10,
+  seenAt: seenAt,
+);
 
 Widget _app(List<OfferSummary> offers) => ProviderScope(
-      overrides: [offerLogProvider.overrideWith(() => _FixedLog(offers))],
-      child: const MaterialApp(home: Scaffold(body: HistoryScreen())),
-    );
+  overrides: [offerLogProvider.overrideWith(() => _FixedLog(offers))],
+  child: const MaterialApp(home: Scaffold(body: HistoryScreen())),
+);
 
 void main() {
   test('headerLabel names the filtered range (spec M6 §5.1)', () {
@@ -37,26 +37,31 @@ void main() {
   });
 
   testWidgets(
-      'the 22-offers-empty-list bug: yesterday-only offers on Today filter '
-      'show filtered count 0 + smart empty state', (tester) async {
-    final yesterday = DateTime.now().subtract(const Duration(days: 1));
-    final offers = List.generate(22, (_) => _offer(yesterday));
-    await tester.pumpWidget(_app(offers));
-    await tester.pumpAndSettle();
-    // Header: filtered count, NOT all-time 22.
-    expect(find.text('0 today'), findsOneWidget);
-    expect(find.text('22 offers'), findsNothing); // old broken header
-    // Smart empty state names the hidden offers + offers a reset.
-    expect(find.textContaining('22 offers outside these filters'),
-        findsOneWidget);
-    await tester.tap(find.text('Show all'));
-    await tester.pumpAndSettle();
-    expect(find.text('22 all time'), findsOneWidget);
-    expect(find.textContaining('outside these filters'), findsNothing);
-  });
+    'the 22-offers-empty-list bug: yesterday-only offers on Today filter '
+    'show filtered count 0 + smart empty state',
+    (tester) async {
+      final yesterday = DateTime.now().subtract(const Duration(days: 1));
+      final offers = List.generate(22, (_) => _offer(yesterday));
+      await tester.pumpWidget(_app(offers));
+      await tester.pumpAndSettle();
+      // Header: filtered count, NOT all-time 22.
+      expect(find.text('0 today'), findsOneWidget);
+      expect(find.text('22 offers'), findsNothing); // old broken header
+      // Smart empty state names the hidden offers + offers a reset.
+      expect(
+        find.textContaining('22 offers outside these filters'),
+        findsOneWidget,
+      );
+      await tester.tap(find.text('Show all'));
+      await tester.pumpAndSettle();
+      expect(find.text('22 all time'), findsOneWidget);
+      expect(find.textContaining('outside these filters'), findsNothing);
+    },
+  );
 
-  testWidgets('truly empty log shows plain empty state, no Show all',
-      (tester) async {
+  testWidgets('truly empty log shows plain empty state, no Show all', (
+    tester,
+  ) async {
     await tester.pumpWidget(_app(const []));
     await tester.pumpAndSettle();
     expect(find.text('Show all'), findsNothing);

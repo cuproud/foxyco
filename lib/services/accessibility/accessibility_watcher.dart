@@ -39,7 +39,6 @@ class AccessibilityWatcher {
   /// How long the screen must settle before we parse (AUDIT #4 debounce).
   final Duration debounce;
 
-
   /// Is the accessibility service enabled for FoxyCo right now?
   Future<bool> isEnabled() =>
       FlutterAccessibilityService.isAccessibilityPermissionEnabled();
@@ -90,28 +89,27 @@ class AccessibilityWatcher {
     if (kDebugMode) {
       debugPrint('FoxyCo[watch] reads() subscribing to accessStream');
     }
-    final sub = FlutterAccessibilityService.accessStream.listen(
-      (event) {
-        if (kDebugMode) {
-          debugPrint('FoxyCo[watch] RAW event pkg=${event.packageName} '
-              'sub=${event.subNodes?.length}');
-        }
-        pending = event;
-        // TRAILING THROTTLE, not a reset-on-every-event debounce. A live offer
-        // screen (Uber's map panning, a countdown ticking) fires content-change
-        // events far faster than `debounce`; a debounce that cancels its timer on
-        // each event NEVER settles, so `flush` never runs and ZERO reads are ever
-        // emitted — the app looked dead on exactly the screens that matter. By
-        // arming the timer only when one isn't already pending (and never
-        // cancelling it), we guarantee a flush of the latest frame at least once
-        // per `debounce`, whether or not events keep streaming.
-        debounceTimer ??= Timer(debounce, () {
-          debounceTimer = null;
-          flush();
-        });
-      },
-      onError: controller.addError,
-    );
+    final sub = FlutterAccessibilityService.accessStream.listen((event) {
+      if (kDebugMode) {
+        debugPrint(
+          'FoxyCo[watch] RAW event pkg=${event.packageName} '
+          'sub=${event.subNodes?.length}',
+        );
+      }
+      pending = event;
+      // TRAILING THROTTLE, not a reset-on-every-event debounce. A live offer
+      // screen (Uber's map panning, a countdown ticking) fires content-change
+      // events far faster than `debounce`; a debounce that cancels its timer on
+      // each event NEVER settles, so `flush` never runs and ZERO reads are ever
+      // emitted — the app looked dead on exactly the screens that matter. By
+      // arming the timer only when one isn't already pending (and never
+      // cancelling it), we guarantee a flush of the latest frame at least once
+      // per `debounce`, whether or not events keep streaming.
+      debounceTimer ??= Timer(debounce, () {
+        debounceTimer = null;
+        flush();
+      });
+    }, onError: controller.addError);
 
     controller.onCancel = () {
       debounceTimer?.cancel();
