@@ -138,4 +138,40 @@ void main() {
     expect(find.textContaining('Inspection due?'), findsNothing);
     expect(find.text('Safety inspection'), findsOneWidget);
   });
+
+  testWidgets('shows 3 soonest, expands to all', (tester) async {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+    final ctl = container.read(reminderProvider.notifier);
+    for (var i = 1; i <= 5; i++) {
+      ctl.add(
+        r(
+          id: 'R$i',
+          title: 'R$i',
+          date: DateTime.now().add(Duration(days: i)),
+        ),
+      );
+    }
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(
+          theme: AppTheme.dark,
+          home: const Scaffold(
+            body: SingleChildScrollView(child: ReminderSection()),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('R1'), findsOneWidget);
+    expect(find.text('R3'), findsOneWidget);
+    expect(find.text('R4'), findsNothing);
+    await tester.tap(find.text('Show all (5)'));
+    await tester.pumpAndSettle();
+    expect(find.text('R5'), findsOneWidget);
+    await tester.tap(find.text('Show less'));
+    await tester.pumpAndSettle();
+    expect(find.text('R4'), findsNothing);
+  });
 }

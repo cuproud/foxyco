@@ -10,13 +10,22 @@ import 'reminder_controller.dart';
 /// (inspection, insurance, oil change…) with a days-left countdown, plus an
 /// add button. Tap a row to edit, trash to delete. All in-app — no
 /// notification permission; due items surface as a Home banner.
-class ReminderSection extends ConsumerWidget {
+class ReminderSection extends ConsumerStatefulWidget {
   const ReminderSection({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ReminderSection> createState() => _ReminderSectionState();
+}
+
+class _ReminderSectionState extends ConsumerState<ReminderSection> {
+  bool _showAll = false;
+
+  @override
+  Widget build(BuildContext context) {
     final reminders = ref.watch(reminderProvider);
     final text = Theme.of(context).textTheme;
+    const cap = 3;
+    final visible = _showAll ? reminders : reminders.take(cap).toList();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -32,11 +41,25 @@ class ReminderSection extends ConsumerWidget {
               ),
             )
           else
-            for (final r in reminders) ...[
+            for (final r in visible) ...[
               _ReminderRow(reminder: r),
-              if (r != reminders.last)
+              if (r != visible.last)
                 const Divider(color: FoxColors.border, height: Gap.md),
             ],
+          if (reminders.length > cap)
+            TextButton(
+              onPressed: () => setState(() => _showAll = !_showAll),
+              style: TextButton.styleFrom(
+                foregroundColor: FoxColors.textSecondary,
+                textStyle: const TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              child: Text(
+                _showAll ? 'Show less' : 'Show all (${reminders.length})',
+              ),
+            ),
           const SizedBox(height: Gap.sm + Gap.xs),
           OutlinedButton.icon(
             onPressed: () => showReminderEditor(context, ref),
