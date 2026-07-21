@@ -96,7 +96,7 @@ class _ShiftRecapSheet extends StatelessWidget {
               const Spacer(),
               Text(
                 _durationLabel(duration),
-                style: const TextStyle(
+                style: TextStyle(
                   fontFamily: FoxFonts.display,
                   fontSize: 18,
                   fontWeight: FontWeight.w600,
@@ -113,7 +113,7 @@ class _ShiftRecapSheet extends StatelessWidget {
               children: [
                 TextSpan(
                   text: '${s.total}',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontFamily: FoxFonts.display,
                     fontSize: 44,
                     height: 1.0,
@@ -222,7 +222,7 @@ class _ShiftRecapSheet extends StatelessWidget {
             child: Text(
               value,
               maxLines: 1,
-              style: const TextStyle(
+              style: TextStyle(
                 fontFamily: FoxFonts.display,
                 fontSize: 16,
                 fontWeight: FontWeight.w600,

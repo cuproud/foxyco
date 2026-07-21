@@ -9,7 +9,9 @@ import 'ui/home/dashboard_controller.dart';
 import 'ui/onboarding/onboarding_gate.dart';
 import 'ui/overlay/overlay_controller.dart';
 import 'ui/overlay/overlay_entry.dart';
+import 'ui/settings/settings_controller.dart';
 import 'ui/theme/app_theme.dart';
+import 'ui/theme/tokens.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -91,6 +93,13 @@ class _FoxyCoAppState extends ConsumerState<FoxyCoApp>
 
   @override
   Widget build(BuildContext context) {
+    // Money-font pick lives in settings; poking the static before the theme
+    // builds means every `fontFamily: FoxFonts.display` call site follows on
+    // the rebuild this watch triggers.
+    final moneyFont = ref.watch(
+      settingsProvider.select((s) => s.moneyFont),
+    );
+    FoxFonts.display = moneyFont.family;
     return MaterialApp.router(
       title: 'FoxyCo',
       debugShowCheckedModeBanner: false,

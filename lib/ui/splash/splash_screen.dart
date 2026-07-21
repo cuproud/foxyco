@@ -198,7 +198,7 @@ class _Wordmark extends StatelessWidget {
   Widget build(BuildContext context) {
     return Opacity(
       opacity: opacity.clamp(0.0, 1.0),
-      child: const Text(
+      child: Text(
         'FoxyCo',
         style: TextStyle(
           fontFamily: FoxFonts.display,

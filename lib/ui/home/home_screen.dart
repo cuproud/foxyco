@@ -409,7 +409,7 @@ class _Hero extends StatelessWidget {
                     curve: Motion.curve,
                     builder: (context, value, _) => Text(
                       '$value',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontFamily: FoxFonts.display,
                         fontSize: 46,
                         height: 1.0,
@@ -996,7 +996,7 @@ class _TicketStat extends StatelessWidget {
             child: Text(
               value,
               maxLines: 1,
-              style: const TextStyle(
+              style: TextStyle(
                 fontFamily: FoxFonts.display,
                 fontSize: 18,
                 fontWeight: FontWeight.w600,

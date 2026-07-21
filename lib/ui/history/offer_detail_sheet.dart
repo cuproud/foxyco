@@ -124,7 +124,7 @@ class _OfferDetailSheet extends ConsumerWidget {
           // Big fare.
           Text(
             '\$${o.payout.toStringAsFixed(2)}',
-            style: const TextStyle(
+            style: TextStyle(
               fontFamily: FoxFonts.display,
               fontSize: 40,
               height: 1.0,
@@ -223,7 +223,7 @@ class _OfferDetailSheet extends ConsumerWidget {
             child: Text(
               value,
               maxLines: 1,
-              style: const TextStyle(
+              style: TextStyle(
                 fontFamily: FoxFonts.display,
                 fontSize: 16,
                 fontWeight: FontWeight.w600,

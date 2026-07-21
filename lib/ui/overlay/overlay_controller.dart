@@ -110,6 +110,7 @@ class OverlayController extends Notifier<void> {
         pickupKm: offer.pickupKm,
         pickupNearKm: settings.pickupNearKm,
         size: settings.pillSize,
+        moneyFont: settings.moneyFont,
       ),
     );
   }

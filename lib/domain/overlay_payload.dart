@@ -1,3 +1,4 @@
+import 'money_font.dart';
 import 'verdict.dart';
 
 /// Pill display sizes the driver can cycle (docs/OVERLAY — resizable S/M/L).
@@ -24,6 +25,11 @@ class OverlayPayload {
   /// the km stat green; over → red. 0 disables the coloring.
   final double pickupNearKm;
 
+  /// Typeface for the pill's money numbers (Settings → Appearance). Carried in
+  /// the payload because the overlay isolate can't read SharedPreferences from
+  /// the main isolate's provider.
+  final MoneyFont moneyFont;
+
   const OverlayPayload({
     required this.verdict,
     required this.totalKm,
@@ -32,6 +38,7 @@ class OverlayPayload {
     this.size = PillSize.medium,
     this.pickupKm = 0,
     this.pickupNearKm = 0,
+    this.moneyFont = MoneyFont.inter,
   });
 
   double get pricePerKm => totalKm > 0 ? payout / totalKm : 0;
@@ -60,6 +67,7 @@ class OverlayPayload {
     'size': size.name,
     'pickupKm': pickupKm,
     'pickupNearKm': pickupNearKm,
+    'moneyFont': moneyFont.name,
   };
 
   /// Rebuild from a `shareData` map on the overlay side. Fails safe: unknown or
@@ -79,5 +87,6 @@ class OverlayPayload {
     ),
     pickupKm: (map['pickupKm'] as num?)?.toDouble() ?? 0,
     pickupNearKm: (map['pickupNearKm'] as num?)?.toDouble() ?? 0,
+    moneyFont: MoneyFont.fromName(map['moneyFont'] as String?),
   );
 }

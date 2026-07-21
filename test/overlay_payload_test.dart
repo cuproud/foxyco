@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:foxyco/domain/money_font.dart';
 import 'package:foxyco/domain/overlay_payload.dart';
 import 'package:foxyco/domain/verdict.dart';
 
@@ -58,6 +59,22 @@ void main() {
     test('pricePerKm guards divide-by-zero', () {
       const p = OverlayPayload(verdict: Verdict.unknown, totalKm: 0, payout: 5);
       expect(p.pricePerKm, 0);
+    });
+
+    test('moneyFont round-trips through shareData map', () {
+      const p = OverlayPayload(
+        verdict: Verdict.good,
+        totalKm: 5,
+        payout: 10,
+        moneyFont: MoneyFont.spaceGrotesk,
+      );
+      expect(OverlayPayload.fromMap(p.toMap()).moneyFont, MoneyFont.spaceGrotesk);
+    });
+
+    test('moneyFont missing from map falls back to inter', () {
+      const p = OverlayPayload(verdict: Verdict.good, totalKm: 5, payout: 10);
+      final m = p.toMap()..remove('moneyFont');
+      expect(OverlayPayload.fromMap(m).moneyFont, MoneyFont.inter);
     });
   });
 }

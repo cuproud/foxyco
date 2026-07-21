@@ -539,7 +539,7 @@ class _TopCard extends StatelessWidget {
                     child: Text(
                       '\$$minFare',
                       textAlign: TextAlign.center,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontFamily: FoxFonts.display,
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
@@ -1115,7 +1115,7 @@ class _OfferRow extends StatelessWidget {
                   offer.payout == offer.payout.roundToDouble()
                       ? '\$${offer.payout.toStringAsFixed(0)}'
                       : '\$${offer.payout.toStringAsFixed(2)}',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontFamily: FoxFonts.display,
                     fontSize: 16.5,
                     fontWeight: FontWeight.w600,
@@ -1305,7 +1305,7 @@ class _Stat extends StatelessWidget {
   final TextSpan? subSpan;
 
   static bool _isInt(String s) => int.tryParse(s) != null;
-  static const _valueStyle = TextStyle(
+  static final _valueStyle = TextStyle(
     fontFamily: FoxFonts.display,
     fontSize: 17,
     fontWeight: FontWeight.w600,

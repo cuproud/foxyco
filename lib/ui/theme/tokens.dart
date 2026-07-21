@@ -7,10 +7,13 @@ import 'package:flutter/material.dart';
 /// orange accent, and three fixed verdict colors. Fraunces (serif) carries the
 /// big money numbers; Inter carries everything else.
 
-/// Type families. Fraunces = display/serif numbers, Inter = UI text.
+/// Type families. [display] carries the big money numbers and is driver-picked
+/// (Settings → Appearance, [MoneyFont]); main.dart / the overlay isolate set it
+/// before each theme build, so per-widget `fontFamily: FoxFonts.display`
+/// call sites follow without edits. Inter carries everything else.
 class FoxFonts {
   const FoxFonts._();
-  static const display = 'Fraunces';
+  static String display = 'Inter';
   static const sans = 'Inter';
 }
 

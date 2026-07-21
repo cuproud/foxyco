@@ -112,6 +112,7 @@ class _OverlayRootState extends State<_OverlayRoot> {
 
     if (data['kind'] == 'offer') {
       final payload = OverlayPayload.fromMap(data);
+      FoxFonts.display = payload.moneyFont.family;
       setState(() => _payload = payload);
       _resize(_pillBoxFor(payload.size), centerX: true); // centered pill
       _dismissTimer?.cancel();
