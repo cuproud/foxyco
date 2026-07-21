@@ -145,8 +145,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           _SettingsGroup(
             title: 'Verdict thresholds',
             icon: Icons.tune_rounded,
-            summary:
-                'GOOD ≥ \$${t.goodAtOrAbove.toStringAsFixed(2)}$unit',
+            summary: 'GOOD ≥ \$${t.goodAtOrAbove.toStringAsFixed(2)}$unit',
             open: _open == 2,
             onTap: () => _toggle(2),
             child: Column(
@@ -172,8 +171,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         ButtonSegment(value: m, label: Text(m.label)),
                     ],
                     selected: {settings.rateMode},
-                    onSelectionChanged: (s) =>
-                        controller.setRateMode(s.first),
+                    onSelectionChanged: (s) => controller.setRateMode(s.first),
                     style: SegmentedButton.styleFrom(
                       // Deep-orange-on-orange was a leftover from the
                       // cream theme — unreadable on dark. Cream on the
@@ -191,12 +189,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   _PresetChips(current: t, onPick: controller.applyPreset),
                   const SizedBox(height: Gap.md),
                 ],
-                _ThresholdBand(
-                  thresholds: t,
-                  min: min,
-                  max: max,
-                  unit: unit,
-                ),
+                _ThresholdBand(thresholds: t, min: min, max: max, unit: unit),
                 const SizedBox(height: Gap.md),
                 _ThresholdSlider(
                   label: 'GOOD at or above',
@@ -282,8 +275,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           _SettingsGroup(
             title: 'Watched apps',
             icon: Icons.apps_rounded,
-            summary:
-                settings.watchedApps.map((a) => a.label).join(' · '),
+            summary: settings.watchedApps.map((a) => a.label).join(' · '),
             open: _open == 5,
             onTap: () => _toggle(5),
             child: Material(
@@ -448,10 +440,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                             const PlatformHealth(),
                       ),
                       if (app != GigPlatform.values.last)
-                        const Divider(
-                          color: FoxColors.border,
-                          height: Gap.lg,
-                        ),
+                        const Divider(color: FoxColors.border, height: Gap.lg),
                     ],
                   ],
                 ),
@@ -1126,57 +1115,54 @@ class _PreviewCard extends StatelessWidget {
         Row(
           children: [
             Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 12,
-                vertical: 5,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
               decoration: BoxDecoration(
                 color: style.bg,
                 borderRadius: BorderRadius.circular(10),
               ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(style.icon, color: style.color, size: 20),
-                    const SizedBox(width: Gap.sm),
-                    Text(
-                      style.label,
-                      style: text.titleLarge?.copyWith(color: style.color),
-                    ),
-                  ],
-                ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(style.icon, color: style.color, size: 20),
+                  const SizedBox(width: Gap.sm),
+                  Text(
+                    style.label,
+                    style: text.titleLarge?.copyWith(color: style.color),
+                  ),
+                ],
               ),
-              const Spacer(),
-              Text(
-                '\$${sample.toStringAsFixed(2)}$unit',
-                style: text.titleMedium?.copyWith(
-                  fontFeatures: const [FontFeature.tabularFigures()],
-                ),
+            ),
+            const Spacer(),
+            Text(
+              '\$${sample.toStringAsFixed(2)}$unit',
+              style: text.titleMedium?.copyWith(
+                fontFeatures: const [FontFeature.tabularFigures()],
               ),
-            ],
-          ),
-          const SizedBox(height: Gap.xs),
-          Text(
-            'A sample offer at this rate',
-            style: text.bodyMedium?.copyWith(color: FoxColors.textSecondary),
-          ),
-          SliderTheme(
-            data: SliderTheme.of(context).copyWith(
-              activeTrackColor: style.color,
-              thumbColor: style.color,
-              overlayColor: style.color.withValues(alpha: 0.15),
-              inactiveTrackColor: FoxColors.border,
             ),
-            child: Slider(
-              value: sample,
-              min: min,
-              max: max,
-              divisions: ((max - min) / 0.05).round(),
-              onChanged: onChanged,
-            ),
+          ],
+        ),
+        const SizedBox(height: Gap.xs),
+        Text(
+          'A sample offer at this rate',
+          style: text.bodyMedium?.copyWith(color: FoxColors.textSecondary),
+        ),
+        SliderTheme(
+          data: SliderTheme.of(context).copyWith(
+            activeTrackColor: style.color,
+            thumbColor: style.color,
+            overlayColor: style.color.withValues(alpha: 0.15),
+            inactiveTrackColor: FoxColors.border,
           ),
-        ],
-      );
+          child: Slider(
+            value: sample,
+            min: min,
+            max: max,
+            divisions: ((max - min) / 0.05).round(),
+            onChanged: onChanged,
+          ),
+        ),
+      ],
+    );
   }
 }
 
