@@ -1081,6 +1081,20 @@ class _OfferRow extends StatelessWidget {
                           color: FoxColors.textPrimary,
                         ),
                       ),
+                      if (offer.category != null) ...[
+                        const SizedBox(width: 6),
+                        Flexible(
+                          child: Text(
+                            offer.category!,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: FoxColors.textSecondary,
+                            ),
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                   const SizedBox(height: 3),

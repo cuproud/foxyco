@@ -8,6 +8,7 @@ import 'package:share_plus/share_plus.dart';
 
 import '../../domain/decision_engine.dart';
 import '../../domain/fox_settings.dart';
+import '../../domain/driver_profile.dart';
 import '../../domain/garage.dart';
 import '../../domain/money_font.dart';
 import '../../domain/overlay_payload.dart' show OverlayPayload, PillSize;
@@ -44,6 +45,24 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   static const _minHr = 10.0;
   static const _maxHr = 60.0;
   static const _engine = DecisionEngine();
+
+  /// Per-group accent hues (index-matched to the accordion order) — flat
+  /// same-orange tiles read boring (device 2026-07-21). Muted, on-dark-safe;
+  /// green/red stay reserved for verdicts except the thresholds group, whose
+  /// whole point is the verdict band.
+  static const _accents = [
+    FoxColors.brandFox, // 0 Driver — brand orange
+    Color(0xFFE8B44F), // 1 Garage — amber
+    VerdictColors.good, // 2 Verdict thresholds — the band's green
+    Color(0xFF5EC2CD), // 3 Live preview — teal
+    Color(0xFF4FA3E8), // 4 Pickup guard — blue
+    Color(0xFFB48AE8), // 5 Watched apps — violet
+    Color(0xFFEF7BA8), // 6 Outcome tracking — rose
+    Color(0xFFD08954), // 7 Pill size — copper
+    Color(0xFFC8C87A), // 8 Appearance — olive gold
+    Color(0xFF6ABF9E), // 9 Parser health — mint
+    Color(0xFF9AA7B8), // 10 History — slate
+  ];
 
   /// Live-preview sample rate, one per mode so flipping modes lands on a
   /// sensible sample instead of an out-of-range one.
@@ -101,6 +120,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             icon: Icons.person_outline_rounded,
             summary: driverName.isNotEmpty ? driverName : 'Set your name',
             open: _open == 0,
+            accent: _accents[0],
             onTap: () => _toggle(0),
             child: const _DriverNameCard(),
           ),
@@ -117,6 +137,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 '${reminders.length} reminder'
                 '${reminders.length == 1 ? '' : 's'}',
             open: _open == 1,
+            accent: _accents[1],
             onTap: () => _toggle(1),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -148,6 +169,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             icon: Icons.tune_rounded,
             summary: 'GOOD ≥ \$${t.goodAtOrAbove.toStringAsFixed(2)}$unit',
             open: _open == 2,
+            accent: _accents[2],
             onTap: () => _toggle(2),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -221,6 +243,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             icon: Icons.visibility_outlined,
             summary: 'Try a sample rate',
             open: _open == 3,
+            accent: _accents[3],
             onTap: () => _toggle(3),
             child: _PreviewCard(
               sample: sample,
@@ -246,6 +269,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             icon: Icons.near_me_outlined,
             summary: 'Near ≤ ${settings.pickupNearKm.toStringAsFixed(1)} km',
             open: _open == 4,
+            accent: _accents[4],
             onTap: () => _toggle(4),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -278,6 +302,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             icon: Icons.apps_rounded,
             summary: settings.watchedApps.map((a) => a.label).join(' · '),
             open: _open == 5,
+            accent: _accents[5],
             onTap: () => _toggle(5),
             child: Material(
               type: MaterialType.transparency,
@@ -310,6 +335,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             icon: Icons.fact_check_outlined,
             summary: settings.trackOutcomes ? 'On' : 'Off',
             open: _open == 6,
+            accent: _accents[6],
             onTap: () => _toggle(6),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -358,6 +384,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               PillSize.large => 'Large',
             },
             open: _open == 7,
+            accent: _accents[7],
             onTap: () => _toggle(7),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -389,6 +416,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         totalMinutes: 24,
                         pickupKm: 2.1,
                         pickupNearKm: 3,
+                        hourGoodAt: 30,
+                        hourBadBelow: 20,
                       ),
                       size: settings.pillSize,
                       // Static ring in preview: the orbit loop would keep the
@@ -413,6 +442,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             icon: Icons.text_fields_rounded,
             summary: settings.moneyFont.label,
             open: _open == 8,
+            accent: _accents[8],
             onTap: () => _toggle(8),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -446,6 +476,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             icon: Icons.monitor_heart_outlined,
             summary: 'This session',
             open: _open == 9,
+            accent: _accents[9],
             onTap: () => _toggle(9),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -488,6 +519,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ? 'Keep forever'
                 : 'Keep ${settings.retentionDays} days',
             open: _open == 10,
+            accent: _accents[10],
             onTap: () => _toggle(10),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -927,6 +959,7 @@ class _SettingsGroup extends StatelessWidget {
     required this.open,
     required this.onTap,
     required this.child,
+    this.accent = FoxColors.brandFox,
   });
 
   final String title;
@@ -936,17 +969,35 @@ class _SettingsGroup extends StatelessWidget {
   final VoidCallback onTap;
   final Widget child;
 
+  /// Per-group hue (flat tiles read boring, device 2026-07-21): tints the icon
+  /// chip always, and the border + glow while open.
+  final Color accent;
+
   @override
   Widget build(BuildContext context) {
     final text = Theme.of(context).textTheme;
-    return Container(
+    return AnimatedContainer(
+      duration: Motion.base,
       decoration: BoxDecoration(
-        color: FoxColors.bgSurface,
+        // Subtle top sheen over the flat surface so cards read as lit panels.
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            Color.lerp(FoxColors.bgSurface, FoxColors.cream, 0.045)!,
+            FoxColors.bgSurface,
+          ],
+          stops: const [0, 0.45],
+        ),
         borderRadius: BorderRadius.circular(Radii.card),
         border: Border.all(
-          color: open ? FoxColors.border : FoxColors.borderSoft,
+          color: open ? accent.withValues(alpha: 0.45) : FoxColors.borderSoft,
         ),
-        boxShadow: Shadows.card,
+        boxShadow: [
+          ...Shadows.card,
+          if (open)
+            BoxShadow(color: accent.withValues(alpha: 0.18), blurRadius: 16),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -961,21 +1012,29 @@ class _SettingsGroup extends StatelessWidget {
               padding: const EdgeInsets.all(Gap.md),
               child: Row(
                 children: [
-                  Container(
+                  AnimatedContainer(
+                    duration: Motion.base,
                     width: 34,
                     height: 34,
                     decoration: BoxDecoration(
-                      color: open
-                          ? FoxColors.brandFoxSoft
-                          : FoxColors.bgSurface2,
+                      color: accent.withValues(alpha: open ? 0.28 : 0.14),
                       borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: accent.withValues(alpha: open ? 0.55 : 0.25),
+                      ),
+                      boxShadow: open
+                          ? [
+                              BoxShadow(
+                                color: accent.withValues(alpha: 0.35),
+                                blurRadius: 10,
+                              ),
+                            ]
+                          : null,
                     ),
                     child: Icon(
                       icon,
                       size: 18,
-                      color: open
-                          ? FoxColors.brandFox
-                          : FoxColors.textSecondary,
+                      color: Color.lerp(accent, FoxColors.cream, 0.25),
                     ),
                   ),
                   const SizedBox(width: Gap.md),
@@ -1458,7 +1517,9 @@ class _GarageList extends ConsumerWidget {
   }
 }
 
-/// One vehicle row: art thumbnail, title + plate chip, active tick, edit icon.
+/// One vehicle card: a big body illustration (~45% of the card) beside the
+/// title + plate + active state. Tap sets active; **long-press edits** (no more
+/// corner edit icon / check tick — the border and "Active" pill carry state).
 class _VehicleCard extends StatelessWidget {
   const _VehicleCard({
     required this.vehicle,
@@ -1474,81 +1535,117 @@ class _VehicleCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(Radii.cardSm),
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(Gap.sm + Gap.xs),
-        decoration: BoxDecoration(
-          color: FoxColors.bgSurface,
-          borderRadius: BorderRadius.circular(Radii.cardSm),
-          border: Border.all(
-            color: active ? FoxColors.brandFox : FoxColors.borderSoft,
-            width: active ? 1.5 : 1,
-          ),
-          boxShadow: active ? Shadows.glowSoft : Shadows.soft,
-        ),
-        child: Row(
-          children: [
-            VehicleBadge(
-              bodyType: vehicle.bodyType,
-              color: Color(vehicle.colorValue),
-              fuelType: vehicle.fuelType,
+    return Semantics(
+      button: true,
+      label: '${vehicle.title.isEmpty ? 'Unnamed vehicle' : vehicle.title}'
+          '${active ? ', active' : ''}. Tap to activate, long-press to edit.',
+      child: InkWell(
+        borderRadius: BorderRadius.circular(Radii.cardSm),
+        onTap: onTap,
+        onLongPress: onEdit,
+        child: Container(
+          padding: const EdgeInsets.all(Gap.md),
+          decoration: BoxDecoration(
+            color: FoxColors.bgSurface,
+            borderRadius: BorderRadius.circular(Radii.cardSm),
+            border: Border.all(
+              color: active ? FoxColors.brandFox : FoxColors.borderSoft,
+              width: active ? 1.5 : 1,
             ),
-            const SizedBox(width: Gap.md),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    vehicle.title.isEmpty ? 'Unnamed vehicle' : vehicle.title,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                      color: FoxColors.textPrimary,
-                    ),
+            boxShadow: active ? Shadows.glowSoft : Shadows.soft,
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              // Art fills ~45% of the card width; a 1.4:1 box keeps landscape
+              // bodies wide while leaving portrait ones (bikes) room to breathe.
+              Expanded(
+                flex: 45,
+                child: AspectRatio(
+                  aspectRatio: 1.4,
+                  child: VehicleBadge(
+                    bodyType: vehicle.bodyType,
+                    color: Color(vehicle.colorValue),
+                    fuelType: vehicle.fuelType,
                   ),
-                  if (vehicle.plate.trim().isNotEmpty) ...[
-                    const SizedBox(height: 3),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 7,
-                        vertical: 2,
+                ),
+              ),
+              const SizedBox(width: Gap.md),
+              Expanded(
+                flex: 55,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      vehicle.title.isEmpty ? 'Unnamed vehicle' : vehicle.title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        height: 1.15,
+                        color: FoxColors.textPrimary,
                       ),
-                      decoration: BoxDecoration(
-                        color: FoxColors.bgSurface2,
-                        borderRadius: BorderRadius.circular(5),
-                        border: Border.all(color: FoxColors.border),
+                    ),
+                    Text(
+                      vehicle.bodyType.label,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: FoxColors.textSecondary,
                       ),
-                      child: Text(
-                        vehicle.plate,
-                        style: const TextStyle(
-                          fontSize: 10.5,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 0.8,
-                          color: FoxColors.textSecondary,
+                    ),
+                    if (vehicle.plate.trim().isNotEmpty) ...[
+                      const SizedBox(height: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 7,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: FoxColors.bgSurface2,
+                          borderRadius: BorderRadius.circular(5),
+                          border: Border.all(color: FoxColors.border),
+                        ),
+                        child: Text(
+                          vehicle.plate,
+                          style: const TextStyle(
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 0.8,
+                            color: FoxColors.textSecondary,
+                          ),
                         ),
                       ),
-                    ),
+                    ],
+                    if (active) ...[
+                      const SizedBox(height: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 3,
+                        ),
+                        decoration: BoxDecoration(
+                          color: FoxColors.brandFox.withValues(alpha: 0.14),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: const Text(
+                          'Active',
+                          style: TextStyle(
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.6,
+                            color: FoxColors.brandFox,
+                          ),
+                        ),
+                      ),
+                    ],
                   ],
-                ],
+                ),
               ),
-            ),
-            if (active)
-              const Icon(
-                Icons.check_circle_rounded,
-                color: FoxColors.brandFox,
-                size: 20,
-              ),
-            IconButton(
-              onPressed: onEdit,
-              icon: const Icon(
-                Icons.edit_outlined,
-                color: FoxColors.textSecondary,
-                size: 18,
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

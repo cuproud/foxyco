@@ -24,6 +24,10 @@ class OfferSummary {
   final DateTime seenAt;
   final OfferOutcome outcome; // inferred take/pass — see [OfferOutcome]
 
+  /// Product tier / ride type ("UberX", "Comfort", "Radar match", …) or null.
+  /// Display only — see [Offer.category].
+  final String? category;
+
   const OfferSummary({
     required this.platform,
     required this.verdict,
@@ -33,6 +37,7 @@ class OfferSummary {
     this.pickupKm = 0,
     this.totalMinutes = 0,
     this.outcome = OfferOutcome.unknown,
+    this.category,
   });
 
   double get pricePerKm => totalKm > 0 ? payout / totalKm : 0;
@@ -49,6 +54,7 @@ class OfferSummary {
     totalMinutes: totalMinutes,
     seenAt: seenAt,
     outcome: o,
+    category: category,
   );
 
   Map<String, dynamic> toJson() => {
@@ -60,6 +66,7 @@ class OfferSummary {
     'totalMinutes': totalMinutes,
     'seenAt': seenAt.millisecondsSinceEpoch,
     'outcome': outcome.name,
+    if (category != null) 'category': category,
   };
 
   factory OfferSummary.fromJson(Map<String, dynamic> j) => OfferSummary(
@@ -80,5 +87,6 @@ class OfferSummary {
     outcome:
         OfferOutcome.values.where((o) => o.name == j['outcome']).firstOrNull ??
         OfferOutcome.unknown,
+    category: j['category'] is String ? j['category'] as String : null,
   );
 }

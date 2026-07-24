@@ -25,6 +25,12 @@ class OverlayPayload {
   /// the km stat green; over → red. 0 disables the coloring.
   final double pickupNearKm;
 
+  /// The driver's $/hr cut points (Settings → thresholds, per-hour pair).
+  /// The pill tints the $/hr stat green/amber/red by these; 0 disables the
+  /// coloring (stat stays cream).
+  final double hourGoodAt;
+  final double hourBadBelow;
+
   /// Typeface for the pill's money numbers (Settings → Appearance). Carried in
   /// the payload because the overlay isolate can't read SharedPreferences from
   /// the main isolate's provider.
@@ -38,6 +44,8 @@ class OverlayPayload {
     this.size = PillSize.medium,
     this.pickupKm = 0,
     this.pickupNearKm = 0,
+    this.hourGoodAt = 0,
+    this.hourBadBelow = 0,
     this.moneyFont = MoneyFont.inter,
   });
 
@@ -54,6 +62,15 @@ class OverlayPayload {
     return pickupKm <= pickupNearKm;
   }
 
+  /// The $/hr stat's verdict by the driver's per-hour cut points. Null means
+  /// "no signal" (no parsed time or no cut points) → default cream.
+  Verdict? get hourVerdict {
+    if (pricePerHour <= 0 || hourGoodAt <= 0) return null;
+    if (pricePerHour >= hourGoodAt) return Verdict.good;
+    if (pricePerHour < hourBadBelow) return Verdict.bad;
+    return Verdict.ok;
+  }
+
   /// Serialize to a primitive map for `shareData`. Enums go across as their
   /// stable `name` string — never the index, which can shift if we reorder.
   /// Tagged `kind: 'offer'` so the overlay can tell offers apart from control
@@ -67,6 +84,8 @@ class OverlayPayload {
     'size': size.name,
     'pickupKm': pickupKm,
     'pickupNearKm': pickupNearKm,
+    'hourGoodAt': hourGoodAt,
+    'hourBadBelow': hourBadBelow,
     'moneyFont': moneyFont.name,
   };
 
@@ -87,6 +106,8 @@ class OverlayPayload {
     ),
     pickupKm: (map['pickupKm'] as num?)?.toDouble() ?? 0,
     pickupNearKm: (map['pickupNearKm'] as num?)?.toDouble() ?? 0,
+    hourGoodAt: (map['hourGoodAt'] as num?)?.toDouble() ?? 0,
+    hourBadBelow: (map['hourBadBelow'] as num?)?.toDouble() ?? 0,
     moneyFont: MoneyFont.fromName(map['moneyFont'] as String?),
   );
 }

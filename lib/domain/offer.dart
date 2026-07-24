@@ -20,6 +20,12 @@ class Offer {
   final double pickupMinutes;
   final double dropoffMinutes;
   final bool payIsNet; // Hopp = true (net), Uber = false (gross)
+
+  /// Product tier / ride type as read off the card ("UberX", "Comfort",
+  /// "Share", "Radar match", …), or null when the parser can't tell. Display
+  /// only — never feeds the verdict. See [UberParser].
+  final String? category;
+
   final String? rawText;
 
   const Offer({
@@ -30,6 +36,7 @@ class Offer {
     this.pickupMinutes = 0,
     this.dropoffMinutes = 0,
     this.payIsNet = false,
+    this.category,
     this.rawText,
   });
 

@@ -102,6 +102,8 @@ flutter:
     - assets/branding/foxyco_bubble.png
     - assets/branding/foxyco_head.png
     - assets/car/
+    # Foxy garage thumbnails, one illustration per body type (art set 2026-07-23).
+    - assets/vehicles/
 
   # Fraunces (serif display — big money numbers) + Inter (UI). Variable TTFs:
   # Flutter maps FontWeight to the wght axis, so one asset per family covers all.

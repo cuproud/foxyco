@@ -181,7 +181,15 @@ class VerdictPill extends StatelessWidget {
                           fontFamily: FoxFonts.sans,
                           fontWeight: FontWeight.w700,
                           fontSize: m.sub,
-                          color: FoxColors.creamDim,
+                          // $/hr tinted by the driver's per-hour cut points
+                          // (same "color only, no new element" rule as the
+                          // pickup km). No cut points / no time → cream.
+                          color: switch (payload.hourVerdict) {
+                            Verdict.good => const Color(0xFF5ECD90),
+                            Verdict.ok => const Color(0xFFF2C464),
+                            Verdict.bad => const Color(0xFFFF8A7E),
+                            _ => FoxColors.creamDim,
+                          },
                           fontFeatures: const [FontFeature.tabularFigures()],
                         ),
                       ),

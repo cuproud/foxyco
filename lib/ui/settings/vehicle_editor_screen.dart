@@ -127,12 +127,14 @@ class _VehicleEditorScreenState extends ConsumerState<VehicleEditorScreen> {
               borderRadius: BorderRadius.circular(Radii.card),
               border: Border.all(color: FoxColors.borderSoft),
             ),
-            child: Center(
+            // Big art filling the card — a 1.7:1 box so wide bodies span it and
+            // the vehicle reads large (autocropped PNGs leave no dead margin).
+            child: AspectRatio(
+              aspectRatio: 1.7,
               child: VehicleBadge(
                 bodyType: _body,
                 color: Color(_color),
                 fuelType: _fuel,
-                size: 72,
               ),
             ),
           ),
@@ -196,44 +198,55 @@ class _VehicleEditorScreenState extends ConsumerState<VehicleEditorScreen> {
           const SizedBox(height: Gap.lg),
           Text('COLOR', style: text.labelSmall),
           const SizedBox(height: Gap.sm),
-          Wrap(
-            spacing: Gap.sm,
-            runSpacing: Gap.sm,
-            children: [
+          DropdownButtonFormField<int>(
+            key: const ValueKey('editor-color'),
+            initialValue: DriverProfile.palette.containsKey(_color)
+                ? _color
+                : null,
+            isExpanded: true,
+            // Cap the menu so a long list scrolls instead of covering Save.
+            menuMaxHeight: 320,
+            decoration: const InputDecoration(isDense: true),
+            items: [
               for (final entry in DriverProfile.palette.entries)
-                GestureDetector(
-                  onTap: () => setState(() => _color = entry.key),
-                  child: Container(
-                    width: 34,
-                    height: 34,
-                    decoration: BoxDecoration(
-                      color: Color(entry.key),
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        width: _color == entry.key ? 3 : 1,
-                        color: _color == entry.key
-                            ? FoxColors.brandFox
-                            : FoxColors.border,
+                DropdownMenuItem(
+                  value: entry.key,
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 22,
+                        height: 22,
+                        decoration: BoxDecoration(
+                          color: Color(entry.key),
+                          shape: BoxShape.circle,
+                          border: Border.all(color: FoxColors.border),
+                        ),
                       ),
-                    ),
+                      const SizedBox(width: Gap.sm),
+                      Text(entry.value),
+                    ],
                   ),
                 ),
             ],
+            onChanged: (v) => setState(() => _color = v ?? _color),
           ),
           const SizedBox(height: Gap.lg),
           Text('BODY', style: text.labelSmall),
           const SizedBox(height: Gap.sm),
-          Wrap(
-            spacing: Gap.sm,
-            runSpacing: Gap.xs,
-            children: [
+          DropdownButtonFormField<VehicleType>(
+            key: const ValueKey('editor-body'),
+            initialValue: _body,
+            isExpanded: true,
+            menuMaxHeight: 320,
+            decoration: const InputDecoration(isDense: true),
+            items: [
+              // motorbike is legacy (superseded by bike); only offer it when a
+              // pre-existing vehicle already uses it.
               for (final t in VehicleType.values)
-                ChoiceChip(
-                  label: Text(t.name),
-                  selected: _body == t,
-                  onSelected: (_) => setState(() => _body = t),
-                ),
+                if (t != VehicleType.motorbike || _body == VehicleType.motorbike)
+                  DropdownMenuItem(value: t, child: Text(t.label)),
             ],
+            onChanged: (v) => setState(() => _body = v ?? _body),
           ),
           const SizedBox(height: Gap.lg),
           Text('FUEL', style: text.labelSmall),

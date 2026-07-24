@@ -3,8 +3,11 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../domain/session_summary.dart';
 import '../../services/accessibility/accessibility_watcher.dart';
 import '../../services/fox_log.dart';
+import '../../services/offer_log.dart';
+import '../../services/session_log.dart';
 import '../overlay/overlay_controller.dart';
 import 'dashboard_state.dart';
 
@@ -77,10 +80,27 @@ class DashboardController extends Notifier<DashboardState> {
     }
     final since = liveSince;
     liveSince = null;
+    _recordSession(since);
     state = _with(status: WatchStatus.stopped);
     ref.read(foxLogProvider).log('status', 'watch → stopped');
     if (kDebugMode) debugPrint('FoxyCo watch status → stopped');
     return since;
+  }
+
+  /// Roll the just-ended session into the session log (Home "Last session"
+  /// card). Both stop paths — slide-stop and bubble-drop — funnel through
+  /// here, so the card never misses a session the recap sheet would skip.
+  void _recordSession(DateTime? since) {
+    if (since == null) return;
+    ref
+        .read(sessionLogProvider.notifier)
+        .record(
+          SessionSummary.from(
+            startedAt: since,
+            endedAt: DateTime.now(),
+            offers: ref.read(offerLogProvider),
+          ),
+        );
   }
 
   /// Toggle watching ↔ paused (bubble long-press; Start/Stop is the outer
@@ -106,7 +126,9 @@ class DashboardController extends Notifier<DashboardState> {
         state.status != WatchStatus.paused) {
       return;
     }
+    final since = liveSince;
     liveSince = null; // session over — no recap for a bubble-drop stop
+    _recordSession(since); // …but it still counts as a session
     state = _with(status: WatchStatus.stopped);
     ref.read(foxLogProvider).log('status', 'watch → stopped (bubble dropped)');
     if (kDebugMode) {

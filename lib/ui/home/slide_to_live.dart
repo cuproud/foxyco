@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -184,6 +186,21 @@ class _SlideToLiveState extends State<SlideToLive>
                     ),
                   ),
                 ),
+                // Glassy chevrons drift toward the right end to advertise the
+                // slide (design 2026-07-23). Sit right-of-centre, behind the
+                // thumb; fade out as the fill rises so they don't fight it.
+                if (!blocked)
+                  Positioned(
+                    right: _thumb,
+                    top: 0,
+                    bottom: 0,
+                    child: Center(
+                      child: _MarchingChevrons(
+                        reduced: _reduced,
+                        opacity: (1 - _drag * 2).clamp(0.0, 1.0) * 0.9,
+                      ),
+                    ),
+                  ),
                 // Thumb.
                 Positioned(
                   left: 6 + x,
@@ -291,6 +308,21 @@ class _SlideToLiveState extends State<SlideToLive>
                   ],
                 ),
               ),
+              // Left-pointing train just left of the thumb — the mirror of the
+              // go-live cue: "pull this way to stop". Fades out as the fill
+              // recedes with the drag.
+              Positioned(
+                right: _thumb + 8,
+                top: 0,
+                bottom: 0,
+                child: Center(
+                  child: _MarchingChevrons(
+                    reduced: _reduced,
+                    reverse: true,
+                    opacity: (1 - _drag * 2).clamp(0.0, 1.0) * 0.9,
+                  ),
+                ),
+              ),
               Positioned(
                 left: 6 + (travelPx - x),
                 child: GestureDetector(
@@ -323,6 +355,117 @@ class _SlideToLiveState extends State<SlideToLive>
           ),
         );
       },
+    );
+  }
+}
+
+/// A short marching train of orange chevrons — the "slide this way" cue. Each
+/// chevron drifts across a fixed band and fades in/out (sin easing) so the row
+/// reads as continuous motion, not three jumping glyphs. Points right on the
+/// go-live track and left on the stop bar ([reverse]). Renders nothing under
+/// reduced motion.
+class _MarchingChevrons extends StatefulWidget {
+  const _MarchingChevrons({
+    required this.reduced,
+    required this.opacity,
+    this.reverse = false,
+  });
+
+  final bool reduced;
+  final double opacity; // outer fade (driven by drag)
+  final bool reverse; // true → point/march left (stop bar)
+
+  static const _iconSize = 30.0;
+  static const _weight = 2.0; // overlapped stroke → bolder glyph
+
+  @override
+  State<_MarchingChevrons> createState() => _MarchingChevronsState();
+}
+
+class _MarchingChevronsState extends State<_MarchingChevrons>
+    with SingleTickerProviderStateMixin {
+  static const _count = 3;
+  static const _step = 20.0; // px between chevrons / travel per cycle
+  late final AnimationController _c = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1500),
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    if (!widget.reduced) _c.repeat();
+  }
+
+  @override
+  void didUpdateWidget(_MarchingChevrons old) {
+    super.didUpdateWidget(old);
+    if (widget.reduced && _c.isAnimating) _c.stop();
+    if (!widget.reduced && !_c.isAnimating) _c.repeat();
+  }
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (widget.reduced || widget.opacity <= 0) return const SizedBox.shrink();
+    final band = _step * _count;
+    return IgnorePointer(
+      child: Opacity(
+        opacity: widget.opacity,
+        child: AnimatedBuilder(
+          animation: _c,
+          builder: (context, _) => SizedBox(
+            width: band,
+            height: _MarchingChevrons._iconSize,
+            child: Stack(
+              alignment: Alignment.centerLeft,
+              children: [
+                for (var i = 0; i < _count; i++)
+                  () {
+                    // Fractional progress of chevron i, wrapping 0..1. On the
+                    // stop bar the train marches the other way.
+                    final f = (_c.value + i / _count) % 1.0;
+                    final pos = widget.reverse ? (1 - f) * band : f * band;
+                    return Positioned(
+                      left: pos,
+                      child: Opacity(
+                        // Fade in then out across the band (glassy trail).
+                        opacity: math.sin(f * math.pi).clamp(0.0, 1.0),
+                        // Two stacked glyphs, the back one thicker, fake a
+                        // bold weight the icon font doesn't otherwise expose.
+                        child: Stack(
+                          children: [
+                            Icon(
+                              widget.reverse
+                                  ? Icons.chevron_left_rounded
+                                  : Icons.chevron_right_rounded,
+                              size:
+                                  _MarchingChevrons._iconSize +
+                                  _MarchingChevrons._weight,
+                              color: FoxColors.brandFoxDeep,
+                            ),
+                            Icon(
+                              widget.reverse
+                                  ? Icons.chevron_left_rounded
+                                  : Icons.chevron_right_rounded,
+                              size: _MarchingChevrons._iconSize,
+                              color: FoxColors.brandFox,
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }(),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

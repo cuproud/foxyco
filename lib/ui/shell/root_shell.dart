@@ -46,15 +46,18 @@ class RootShell extends ConsumerWidget {
 }
 
 class _NavDest {
-  final IconData icon;
+  final IconData active; // filled glyph when selected
+  final IconData inactive; // outline glyph otherwise
   final String label;
-  const _NavDest(this.icon, this.label);
+  const _NavDest(this.active, this.inactive, this.label);
 }
 
+// Filled-when-active pairs; History uses the receipt glyph to echo the app's
+// "receipt" hero metaphor rather than a generic clock.
 const _dests = [
-  _NavDest(Icons.home_outlined, 'Home'),
-  _NavDest(Icons.history, 'History'),
-  _NavDest(Icons.settings_outlined, 'Settings'),
+  _NavDest(Icons.home_rounded, Icons.home_outlined, 'Home'),
+  _NavDest(Icons.receipt_long_rounded, Icons.receipt_long_outlined, 'History'),
+  _NavDest(Icons.settings_rounded, Icons.settings_outlined, 'Settings'),
 ];
 
 /// Floating cream pill with a sliding cream indicator behind the active tab.
@@ -75,7 +78,10 @@ class _BottomNav extends StatelessWidget {
           decoration: BoxDecoration(
             color: FoxColors.bgSurface,
             borderRadius: BorderRadius.circular(Radii.pill),
-            border: Border.all(color: FoxColors.borderSoft),
+            // Stronger ring + hero shadow so the bar floats clearly above the
+            // page underneath (was blending into scrolled content, device
+            // 2026-07-23). borderSoft was too faint against cream cards.
+            border: Border.all(color: FoxColors.border, width: 1.5),
             boxShadow: Shadows.hero,
           ),
           padding: const EdgeInsets.all(6),
@@ -147,10 +153,15 @@ class _NavItem extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              dest.icon,
-              size: 21,
-              color: active ? FoxColors.brandFox : color,
+            AnimatedScale(
+              scale: active ? 1.0 : 0.9,
+              duration: Motion.base,
+              curve: Curves.easeOutBack,
+              child: Icon(
+                active ? dest.active : dest.inactive,
+                size: 23,
+                color: active ? FoxColors.brandFox : color,
+              ),
             ),
             const SizedBox(height: 3),
             Text(

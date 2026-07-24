@@ -271,6 +271,7 @@ class OfferWatcher extends Notifier<Offer?> {
             totalKm: offer.totalKm,
             totalMinutes: offer.totalMinutes,
             seenAt: DateTime.now(),
+            category: offer.category,
           ),
         );
 

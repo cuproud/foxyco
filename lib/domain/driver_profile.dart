@@ -1,5 +1,54 @@
-/// Vehicle body style — picks the hero-card silhouette (spec M5 §3).
-enum VehicleType { sedan, suv, hatchback, pickup, van, motorbike }
+/// Vehicle body style — picks the garage art (spec M5 §3, art set 2026-07-23).
+/// Order here is the dropdown order in the vehicle editor. [motorbike] is kept
+/// for back-compat with pre-2026-07-23 saved garages; new UI offers [bike].
+enum VehicleType {
+  sedan,
+  suv,
+  suvComfort,
+  hatchback,
+  pickup,
+  van,
+  evVan,
+  premium,
+  offRoad,
+  ev,
+  bike,
+  eBike,
+  eScooter,
+  motorbike,
+}
+
+/// Human label + garage art asset for each body style. One source of truth for
+/// the editor dropdown and [VehicleBadge]; [motorbike] reuses the bike art.
+extension VehicleTypeArt on VehicleType {
+  String get label => switch (this) {
+    VehicleType.sedan => 'Sedan',
+    VehicleType.suv => 'SUV',
+    VehicleType.suvComfort => 'SUV Comfort',
+    VehicleType.hatchback => 'Hatchback',
+    VehicleType.pickup => 'Pickup',
+    VehicleType.van => 'Van',
+    VehicleType.evVan => 'EV Van',
+    VehicleType.premium => 'Premium',
+    VehicleType.offRoad => 'Off-road',
+    VehicleType.ev => 'EV',
+    VehicleType.bike => 'Bike',
+    VehicleType.eBike => 'E-bike',
+    VehicleType.eScooter => 'E-scooter',
+    VehicleType.motorbike => 'Motorbike',
+  };
+
+  /// File under assets/vehicles/ (no path, no extension).
+  String get assetName => switch (this) {
+    VehicleType.suvComfort => 'suv_comfort',
+    VehicleType.evVan => 'ev_van',
+    VehicleType.offRoad => 'off_road',
+    VehicleType.eBike => 'e_bike',
+    VehicleType.eScooter => 'e_scooter',
+    VehicleType.motorbike => 'bike',
+    _ => name,
+  };
+}
 
 /// The driver's profile (spec M5 §3). Pure Dart — color is an ARGB int so
 /// `domain/` stays Flutter-free; UI wraps it in `Color(...)`.

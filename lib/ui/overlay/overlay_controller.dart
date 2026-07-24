@@ -109,6 +109,8 @@ class OverlayController extends Notifier<void> {
         totalMinutes: offer.totalMinutes,
         pickupKm: offer.pickupKm,
         pickupNearKm: settings.pickupNearKm,
+        hourGoodAt: settings.hourThresholds.goodAtOrAbove,
+        hourBadBelow: settings.hourThresholds.badBelow,
         size: settings.pillSize,
         moneyFont: settings.moneyFont,
       ),
@@ -130,18 +132,24 @@ class OverlayController extends Notifier<void> {
       totalKm: 8.4,
       payout: 12,
       totalMinutes: 24,
+      hourGoodAt: 30,
+      hourBadBelow: 20,
     ),
     OverlayPayload(
       verdict: Verdict.ok,
       totalKm: 6.2,
       payout: 7.5,
       totalMinutes: 21,
+      hourGoodAt: 30,
+      hourBadBelow: 20,
     ),
     OverlayPayload(
       verdict: Verdict.bad,
       totalKm: 11.0,
       payout: 6,
       totalMinutes: 33,
+      hourGoodAt: 30,
+      hourBadBelow: 20,
     ),
   ];
   int _next = 0;

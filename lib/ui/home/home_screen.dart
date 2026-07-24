@@ -5,10 +5,10 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/car_reminder.dart';
-import '../../domain/offer_summary.dart';
 import '../../domain/platform.dart';
+import '../../domain/session_summary.dart';
 import '../../services/offer_log.dart';
-import '../history/offer_detail_sheet.dart';
+import '../../services/session_log.dart';
 import '../overlay/overlay_controller.dart';
 import '../settings/reminder_controller.dart';
 import '../settings/settings_controller.dart';
@@ -16,7 +16,6 @@ import '../shell/root_shell.dart';
 import '../theme/car_hero.dart';
 import '../theme/platform_badge.dart';
 import '../theme/tokens.dart';
-import '../theme/verdict_style.dart';
 import 'dashboard_controller.dart';
 import 'dashboard_state.dart';
 import 'profile_card.dart';
@@ -101,9 +100,9 @@ class HomeScreen extends ConsumerWidget {
           ),
           const SizedBox(height: Gap.lg),
         ],
-        const _Padded(child: _SectionLabel('Last offer')),
+        const _Padded(child: _SectionLabel('Last session')),
         const SizedBox(height: Gap.sm + Gap.xs),
-        _Padded(child: _Ticket(offer: ref.watch(lastOfferProvider))),
+        _Padded(child: _SessionCard(session: ref.watch(lastSessionProvider))),
         const SizedBox(height: Gap.md),
         Center(
           child: TextButton(
@@ -247,14 +246,18 @@ class _LivePill extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Container(
-            width: 7,
-            height: 7,
-            decoration: BoxDecoration(
-              color: paused ? FoxColors.textDisabled : VerdictColors.good,
-              shape: BoxShape.circle,
-            ),
-          ),
+          // Live → the dot breathes (glow + gentle scale) so the header reads
+          // as "actively watching" at a glance; Off → a static disabled dot.
+          paused
+              ? Container(
+                  width: 7,
+                  height: 7,
+                  decoration: const BoxDecoration(
+                    color: FoxColors.textDisabled,
+                    shape: BoxShape.circle,
+                  ),
+                )
+              : const _BreathingDot(color: VerdictColors.good, size: 7),
           const SizedBox(width: 6),
           Text(
             paused ? 'Off' : 'Live',
@@ -267,6 +270,68 @@ class _LivePill extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// A softly breathing status dot: a slow glow-pulse + gentle scale on a loop,
+/// signalling "online / alive". Static under reduced motion.
+class _BreathingDot extends StatefulWidget {
+  const _BreathingDot({required this.color, this.size = 7});
+  final Color color;
+  final double size;
+
+  @override
+  State<_BreathingDot> createState() => _BreathingDotState();
+}
+
+class _BreathingDotState extends State<_BreathingDot>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1600),
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    _c.repeat(reverse: true); // build() stops it if reduced motion is on
+  }
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final reduced = MediaQuery.of(context).disableAnimations;
+    if (reduced && _c.isAnimating) _c.stop();
+    return AnimatedBuilder(
+      animation: _c,
+      builder: (context, _) {
+        final t = reduced ? 0.0 : _c.value;
+        return Transform.scale(
+          scale: 1 + 0.18 * t,
+          child: Container(
+            width: widget.size,
+            height: widget.size,
+            decoration: BoxDecoration(
+              color: widget.color,
+              shape: BoxShape.circle,
+              boxShadow: reduced
+                  ? null
+                  : [
+                      BoxShadow(
+                        color: widget.color.withValues(alpha: 0.3 + 0.45 * t),
+                        blurRadius: 4 + 7 * t,
+                      ),
+                    ],
+            ),
+          ),
+        );
+      },
     );
   }
 }
@@ -829,244 +894,226 @@ class _SectionLabel extends StatelessWidget {
   }
 }
 
-/// The last offer as a torn ticket: verdict badge + app + time up top, a
-/// perforated divider, then distance / fare / $-per-km along the bottom.
-class _Ticket extends StatelessWidget {
-  const _Ticket({required this.offer});
-  final OfferSummary? offer;
+/// The last completed watch session (replaced the "Last offer" ticket,
+/// device 2026-07-21): how long the watcher ran, when, how many offers it
+/// scored, and their good/ok/bad split as a proportion bar. Counts + words sit
+/// under the bar so the verdict colors are never the only signal.
+class _SessionCard extends StatelessWidget {
+  const _SessionCard({required this.session});
+  final SessionSummary? session;
+
+  static String _durationLabel(Duration d) {
+    final h = d.inHours;
+    final m = d.inMinutes % 60;
+    if (h == 0) return '${m}m';
+    return '${h}h ${m}m';
+  }
 
   @override
   Widget build(BuildContext context) {
-    if (offer == null) return const _EmptyTicket();
+    final s = session;
+    if (s == null) return const _EmptySession();
 
-    final o = offer!;
-    final style = VerdictStyle.of(o.verdict);
-    // Locale-aware (12h markets see "6:48 PM", not hardcoded 24h).
-    final time = MaterialLocalizations.of(context).formatTimeOfDay(
-      TimeOfDay.fromDateTime(o.seenAt),
-      alwaysUse24HourFormat: MediaQuery.of(context).alwaysUse24HourFormat,
-    );
-    final fare = o.payout == o.payout.roundToDouble()
-        ? '\$${o.payout.toStringAsFixed(0)}'
-        : '\$${o.payout.toStringAsFixed(2)}';
+    final text = Theme.of(context).textTheme;
+    // Locale-aware times (12h markets see "6:48 PM", not hardcoded 24h).
+    String clock(DateTime t) =>
+        MaterialLocalizations.of(context).formatTimeOfDay(
+          TimeOfDay.fromDateTime(t),
+          alwaysUse24HourFormat: MediaQuery.of(context).alwaysUse24HourFormat,
+        );
+    final now = DateTime.now();
+    final sameDay =
+        s.endedAt.year == now.year &&
+        s.endedAt.month == now.month &&
+        s.endedAt.day == now.day;
+    final when =
+        '${sameDay ? '' : '${MaterialLocalizations.of(context).formatShortDate(s.endedAt)} · '}'
+        '${clock(s.startedAt)} – ${clock(s.endedAt)}';
 
-    return InkWell(
-      borderRadius: BorderRadius.circular(Radii.card),
-      onTap: () => showOfferDetail(context, o),
-      child: Container(
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [FoxColors.inkSoft, FoxColors.ink],
-          ),
-          borderRadius: BorderRadius.circular(Radii.card),
-          border: Border.all(color: FoxColors.borderSoft),
-          boxShadow: Shadows.card,
+    return Container(
+      padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [FoxColors.inkSoft, FoxColors.ink],
         ),
-        child: Column(
+        borderRadius: BorderRadius.circular(Radii.card),
+        border: Border.all(color: FoxColors.borderSoft),
+        boxShadow: Shadows.card,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                Icons.timer_outlined,
+                size: 15,
+                color: FoxColors.textSecondary,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                _durationLabel(s.duration),
+                style: TextStyle(
+                  fontFamily: FoxFonts.display,
+                  fontSize: 17,
+                  fontWeight: FontWeight.w600,
+                  color: FoxColors.cream,
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                ),
+              ),
+              const Text(
+                '  on watch',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: FoxColors.textSecondary,
+                ),
+              ),
+              const Spacer(),
+              Text(
+                when,
+                style: const TextStyle(
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w600,
+                  color: FoxColors.textDisabled,
+                  fontFeatures: [FontFeature.tabularFigures()],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: Gap.sm + Gap.xs),
+          Text.rich(
+            TextSpan(
+              children: [
+                TextSpan(
+                  text: '${s.total}',
+                  style: TextStyle(
+                    fontFamily: FoxFonts.display,
+                    fontSize: 36,
+                    height: 1.0,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: -1,
+                    color: FoxColors.cream,
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                  ),
+                ),
+                TextSpan(
+                  text: s.total == 1 ? '  offer scored' : '  offers scored',
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: FoxColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (s.total == 0) ...[
+            const SizedBox(height: Gap.xs),
+            Text(
+              'Quiet one — nothing came in while the watcher ran.',
+              style: text.bodyMedium?.copyWith(color: FoxColors.textSecondary),
+            ),
+          ] else ...[
+            const SizedBox(height: Gap.sm + Gap.xs),
+            _VerdictBar(good: s.good, ok: s.ok, bad: s.bad),
+            const SizedBox(height: Gap.sm + Gap.xs),
+            Row(
+              children: [
+                _legend(VerdictColors.good, s.good, 'good'),
+                const SizedBox(width: Gap.md),
+                _legend(VerdictColors.ok, s.ok, 'ok'),
+                const SizedBox(width: Gap.md),
+                _legend(VerdictColors.bad, s.bad, 'bad'),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _legend(Color color, int count, String label) => Opacity(
+    // Zero-count entries stay for a stable legend, just receded.
+    opacity: count == 0 ? 0.45 : 1,
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 8,
+          height: 8,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        ),
+        const SizedBox(width: 6),
+        Text.rich(
+          TextSpan(
+            children: [
+              TextSpan(
+                text: '$count ',
+                style: const TextStyle(
+                  color: FoxColors.cream,
+                  fontWeight: FontWeight.w700,
+                  fontFeatures: [FontFeature.tabularFigures()],
+                ),
+              ),
+              TextSpan(
+                text: label,
+                style: TextStyle(color: color.withValues(alpha: 0.9)),
+              ),
+            ],
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+/// Good/ok/bad proportion bar — flex-widths by count, 2 px gaps so segments
+/// never touch, rounded outer corners. Colors repeat the legend right below,
+/// so the bar itself can stay label-free.
+class _VerdictBar extends StatelessWidget {
+  const _VerdictBar({required this.good, required this.ok, required this.bad});
+  final int good;
+  final int ok;
+  final int bad;
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(Radii.pill),
+      child: SizedBox(
+        height: 12,
+        child: Row(
           children: [
-            // Top: verdict badge + app + time. A verdict-colored spine runs
-            // down the left edge.
-            IntrinsicHeight(
-              child: Row(
-                children: [
-                  Container(
-                    width: 4,
-                    margin: const EdgeInsets.symmetric(vertical: 14),
-                    decoration: BoxDecoration(
-                      color: style.color,
-                      borderRadius: const BorderRadius.horizontal(
-                        right: Radius.circular(3),
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: style.color.withValues(alpha: 0.55),
-                          blurRadius: 10,
-                        ),
-                      ],
-                    ),
-                  ),
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(18, 18, 18, 14),
-                      child: Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 4.5,
-                            ),
-                            decoration: BoxDecoration(
-                              color: style.bg,
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Text(
-                              style.label == '—' ? '—' : _title(style.label),
-                              style: TextStyle(
-                                fontFamily: FoxFonts.display,
-                                fontSize: 14.5,
-                                fontWeight: FontWeight.w600,
-                                color: style.color,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: Gap.sm + Gap.xs),
-                          Text(
-                            o.platform.label,
-                            style: const TextStyle(
-                              fontSize: 13.5,
-                              fontWeight: FontWeight.w700,
-                              color: FoxColors.textSecondary,
-                            ),
-                          ),
-                          const Spacer(),
-                          Text(
-                            time,
-                            style: const TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: FoxColors.textDisabled,
-                              fontFeatures: [FontFeature.tabularFigures()],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
+            if (good > 0)
+              Expanded(
+                flex: good,
+                child: const ColoredBox(color: VerdictColors.good),
               ),
-            ),
-            const _Perforation(),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(18, 14, 18, 16),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: _TicketStat(
-                      '${o.totalKm.toStringAsFixed(1)} km',
-                      'DISTANCE',
-                    ),
-                  ),
-                  const SizedBox(width: Gap.sm),
-                  Expanded(child: _TicketStat(fare, 'FARE')),
-                  const SizedBox(width: Gap.sm),
-                  Expanded(
-                    child: _TicketStat(
-                      '\$${o.pricePerKm.toStringAsFixed(2)}',
-                      'PER KM',
-                    ),
-                  ),
-                ],
+            if (good > 0 && (ok > 0 || bad > 0)) const SizedBox(width: 2),
+            if (ok > 0)
+              Expanded(
+                flex: ok,
+                child: const ColoredBox(color: VerdictColors.ok),
               ),
-            ),
+            if (ok > 0 && bad > 0) const SizedBox(width: 2),
+            if (bad > 0)
+              Expanded(
+                flex: bad,
+                child: const ColoredBox(color: VerdictColors.bad),
+              ),
           ],
         ),
       ),
     );
   }
-
-  static String _title(String upper) =>
-      upper[0] + upper.substring(1).toLowerCase();
 }
 
-class _TicketStat extends StatelessWidget {
-  const _TicketStat(this.value, this.label);
-  final String value;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    // Tinted well matching the pill's stat rows — value on top, label under.
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: FoxColors.bgSurface2.withValues(alpha: 0.55),
-        borderRadius: BorderRadius.circular(Radii.field),
-        border: Border.all(color: FoxColors.borderSoft),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // scaleDown, not ellipsis: "11.0 …" on the distance well looked
-          // broken (device 2026-07-20).
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            alignment: Alignment.centerLeft,
-            child: Text(
-              value,
-              maxLines: 1,
-              style: TextStyle(
-                fontFamily: FoxFonts.display,
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-                color: FoxColors.textPrimary,
-                fontFeatures: [FontFeature.tabularFigures()],
-              ),
-            ),
-          ),
-          const SizedBox(height: 3),
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 0.7,
-              color: FoxColors.textDisabled,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Dashed perforation with notch cut-outs on each side — the torn-ticket seam.
-class _Perforation extends StatelessWidget {
-  const _Perforation();
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 20,
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 21),
-            child: LayoutBuilder(
-              builder: (context, c) => Row(
-                children: List.generate(
-                  (c.maxWidth / 10).floor(),
-                  (_) => Container(
-                    width: 5,
-                    height: 2,
-                    margin: const EdgeInsets.symmetric(horizontal: 2.5),
-                    color: FoxColors.border,
-                  ),
-                ),
-              ),
-            ),
-          ),
-          Positioned(left: -10, child: _notch()),
-          Positioned(right: -10, child: _notch()),
-        ],
-      ),
-    );
-  }
-
-  Widget _notch() => Container(
-    width: 20,
-    height: 20,
-    decoration: const BoxDecoration(
-      color: FoxColors.bgBase,
-      shape: BoxShape.circle,
-    ),
-  );
-}
-
-class _EmptyTicket extends StatelessWidget {
-  const _EmptyTicket();
+class _EmptySession extends StatelessWidget {
+  const _EmptySession();
 
   @override
   Widget build(BuildContext context) {
@@ -1083,10 +1130,10 @@ class _EmptyTicket extends StatelessWidget {
         children: [
           Image.asset('assets/branding/foxyco_head.png', width: 64, height: 64),
           const SizedBox(height: Gap.sm),
-          Text('No offers yet 🍪', style: text.titleMedium),
+          Text('No sessions yet 🍪', style: text.titleMedium),
           const SizedBox(height: Gap.xs),
           Text(
-            "Open Uber or Hopp and drive — I'll sniff out the tasty ones.",
+            "Slide to go live — I'll recap the shift here when you stop.",
             textAlign: TextAlign.center,
             style: text.bodyMedium?.copyWith(color: FoxColors.textSecondary),
           ),

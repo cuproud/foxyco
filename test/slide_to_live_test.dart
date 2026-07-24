@@ -61,7 +61,11 @@ void main() {
       find.byKey(const ValueKey('slide-thumb')),
       const Offset(40, 0),
     );
-    await tester.pumpAndSettle();
+    // The track's marching chevrons pulse forever, so pumpAndSettle can't
+    // settle — a bounded pump past the spring-back stands in (same reason the
+    // start/stop tests above avoid pumpAndSettle).
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
     expect(key.currentState!.starts, 0);
   });
 

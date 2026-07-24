@@ -108,6 +108,20 @@ class _OfferDetailSheet extends ConsumerWidget {
                   color: FoxColors.textPrimary,
                 ),
               ),
+              if (o.category != null) ...[
+                const SizedBox(width: 6),
+                Flexible(
+                  child: Text(
+                    o.category!,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w600,
+                      color: FoxColors.textSecondary,
+                    ),
+                  ),
+                ),
+              ],
               const Spacer(),
               Text(
                 time,

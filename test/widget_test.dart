@@ -20,15 +20,15 @@ void main() {
       const ProviderScope(child: MaterialApp(home: HomeScreen())),
     );
 
-    // Brand bar + the hero status + today's tally + the last-offer ticket.
+    // Brand bar + the hero status + today's tally + the last-session card.
     // Boot lands stopped (spec M5 §4): monitoring waits for an explicit start.
     expect(find.text('FoxyCo'), findsOneWidget);
     expect(find.text('Ready when you are'), findsOneWidget);
     expect(find.textContaining('offers seen'), findsOneWidget);
-    expect(find.text('LAST OFFER'), findsOneWidget);
+    expect(find.text('LAST SESSION'), findsOneWidget);
 
-    // Off-device the offer log is empty — the ticket shows its empty state.
-    expect(find.textContaining('No offers yet'), findsOneWidget);
+    // Off-device the session log is empty — the card shows its empty state.
+    expect(find.textContaining('No sessions yet'), findsOneWidget);
   });
 
   testWidgets('Go live / Stop toggles monitoring', (tester) async {
