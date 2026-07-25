@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../../domain/app_skin.dart';
 import '../../domain/decision_engine.dart';
 import '../../domain/fox_settings.dart';
 import '../../domain/driver_profile.dart';
@@ -20,17 +21,19 @@ import '../../services/offer_log.dart';
 import '../../services/parse_health.dart';
 import '../overlay/verdict_pill.dart';
 import '../theme/platform_badge.dart';
+import '../theme/step_button.dart';
 import '../theme/tokens.dart';
 import '../theme/vehicle_badge.dart';
 import '../theme/verdict_style.dart';
+import 'about_content.dart';
 import 'garage_controller.dart';
 import 'reminder_controller.dart';
 import 'reminder_section.dart';
 import 'settings_controller.dart';
 
 /// Settings — every driver-tunable knob in [FoxSettings]: verdict thresholds
-/// (with live preview), pickup-distance guard, watched apps, pill size, and
-/// history retention / clear. Styled to the cream/paper direction.
+/// (with live preview), pickup-distance guard, watched apps, pill size, theme +
+/// money font, and history retention / clear.
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
 
@@ -47,21 +50,24 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   static const _engine = DecisionEngine();
 
   /// Per-group accent hues (index-matched to the accordion order) — flat
-  /// same-orange tiles read boring (device 2026-07-21). Muted, on-dark-safe;
-  /// green/red stay reserved for verdicts except the thresholds group, whose
-  /// whole point is the verdict band.
-  static const _accents = [
+  /// same-orange tiles read boring (device 2026-07-21). Muted; green/red stay
+  /// reserved for verdicts except the thresholds group, whose whole point is
+  /// the verdict band.
+  ///
+  /// A getter, not a `const` list: the verdict green below is theme-varying, so
+  /// the list has to be rebuilt after a palette switch.
+  static List<Color> get _accents => [
     FoxColors.brandFox, // 0 Driver — brand orange
-    Color(0xFFE8B44F), // 1 Garage — amber
+    const Color(0xFFE8B44F), // 1 Garage — amber
     VerdictColors.good, // 2 Verdict thresholds — the band's green
-    Color(0xFF5EC2CD), // 3 Live preview — teal
-    Color(0xFF4FA3E8), // 4 Pickup guard — blue
-    Color(0xFFB48AE8), // 5 Watched apps — violet
-    Color(0xFFEF7BA8), // 6 Outcome tracking — rose
-    Color(0xFFD08954), // 7 Pill size — copper
-    Color(0xFFC8C87A), // 8 Appearance — olive gold
-    Color(0xFF6ABF9E), // 9 Parser health — mint
-    Color(0xFF9AA7B8), // 10 History — slate
+    const Color(0xFF5EC2CD), // 3 Live preview — teal
+    const Color(0xFF4FA3E8), // 4 Pickup guard — blue
+    const Color(0xFFB48AE8), // 5 Watched apps — violet
+    const Color(0xFFEF7BA8), // 6 Outcome tracking — rose
+    const Color(0xFFD08954), // 7 Pill size — copper
+    const Color(0xFFC8C87A), // 8 Appearance — olive gold
+    const Color(0xFF6ABF9E), // 9 Parser health — mint
+    const Color(0xFF9AA7B8), // 10 History — slate
   ];
 
   /// Live-preview sample rate, one per mode so flipping modes lands on a
@@ -146,7 +152,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 const SizedBox(height: Gap.lg),
                 Row(
                   children: [
-                    const Icon(
+                    Icon(
                       Icons.notifications_none_rounded,
                       size: 14,
                       color: FoxColors.textDisabled,
@@ -200,7 +206,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       // cream theme — unreadable on dark. Cream on the
                       // orange tint reads.
                       selectedBackgroundColor: FoxColors.brandFoxSoft,
-                      selectedForegroundColor: FoxColors.cream,
+                      selectedForegroundColor: FoxColors.textPrimary,
                       foregroundColor: FoxColors.textSecondary,
                     ),
                   ),
@@ -320,7 +326,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       onChanged: (_) => controller.toggleApp(app),
                     ),
                     if (app != GigPlatform.values.last)
-                      const Divider(color: FoxColors.border, height: 1),
+                      Divider(color: FoxColors.border, height: 1),
                   ],
                 ],
               ),
@@ -440,13 +446,41 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           _SettingsGroup(
             title: 'Appearance',
             icon: Icons.text_fields_rounded,
-            summary: settings.moneyFont.label,
+            summary: '${settings.skin.label} · ${settings.moneyFont.label}',
             open: _open == 8,
             accent: _accents[8],
             onTap: () => _toggle(8),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                Text(
+                  'Theme',
+                  style: text.titleSmall?.copyWith(
+                    color: FoxColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: Gap.sm),
+                _ChoiceRow<AppSkin>(
+                  values: AppSkin.values,
+                  selected: settings.skin,
+                  labelOf: (s) => s.label,
+                  onChanged: controller.setSkin,
+                ),
+                const SizedBox(height: Gap.sm),
+                Text(
+                  settings.skin.blurb,
+                  style: text.bodySmall?.copyWith(
+                    color: FoxColors.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: Gap.lg),
+                Text(
+                  'Money numbers',
+                  style: text.titleSmall?.copyWith(
+                    color: FoxColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: Gap.sm),
                 Text(
                   'Typeface for the big money numbers — pill, home and '
                   'history.',
@@ -492,7 +526,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                             const PlatformHealth(),
                       ),
                       if (app != GigPlatform.values.last)
-                        const Divider(color: FoxColors.border, height: Gap.lg),
+                        Divider(color: FoxColors.border, height: Gap.lg),
                     ],
                   ],
                 ),
@@ -538,7 +572,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     }
                   },
                 ),
-                const Divider(color: FoxColors.border, height: Gap.xl),
+                Divider(color: FoxColors.border, height: Gap.xl),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -570,6 +604,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
           ),
         ),
+        const SizedBox(height: Gap.sm),
+        // Last row, and a plain link rather than an accordion — About is a page
+        // of prose, not a group of knobs.
+        _staggered(11, const _AboutRow()),
       ],
     );
   }
@@ -696,6 +734,71 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
 /// One-tap threshold presets (shared trio with onboarding). Highlights the
 /// preset matching the current cut points; custom slider positions match none.
+/// Settings' last row: a link out to [AboutScreen]. Shaped like a collapsed
+/// [_SettingsGroup] header so it sits in the stack without looking bolted on,
+/// but it navigates instead of expanding.
+class _AboutRow extends StatelessWidget {
+  const _AboutRow();
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: FoxColors.bgSurface,
+      borderRadius: BorderRadius.circular(Radii.card),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(Radii.card),
+        onTap: () => context.push('/about'),
+        child: Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: Gap.md,
+            vertical: Gap.md,
+          ),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(Radii.card),
+            border: Border.all(color: FoxColors.borderSoft),
+          ),
+          child: Row(
+            children: [
+              const Icon(
+                Icons.info_outline_rounded,
+                size: 20,
+                color: Color(0xFF9AA7B8),
+              ),
+              const SizedBox(width: Gap.sm + Gap.xs),
+              Expanded(
+                child: Text(
+                  'About & help',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: FoxColors.textPrimary,
+                  ),
+                ),
+              ),
+              Text(
+                aboutVersion,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: FoxColors.textDisabled,
+                ),
+              ),
+              const SizedBox(width: Gap.xs),
+              Icon(
+                Icons.chevron_right_rounded,
+                size: 20,
+                color: FoxColors.textDisabled,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _PresetChips extends StatelessWidget {
   const _PresetChips({required this.current, required this.onPick});
 
@@ -734,7 +837,7 @@ class _PresetChips extends StatelessWidget {
                       fontSize: 12.5,
                       fontWeight: FontWeight.w700,
                       color: current == t
-                          ? FoxColors.cream
+                          ? FoxColors.textPrimary
                           : FoxColors.textSecondary,
                     ),
                   ),
@@ -795,8 +898,11 @@ class _ChoiceRow<T> extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 12.5,
                       fontWeight: FontWeight.w700,
+                      // textPrimary, not cream: this row sits on page chrome,
+                      // which flips with the theme (cream would vanish on
+                      // paper).
                       color: v == selected
-                          ? FoxColors.cream
+                          ? FoxColors.textPrimary
                           : FoxColors.textSecondary,
                     ),
                   ),
@@ -922,14 +1028,16 @@ class _FontChoiceCard extends StatelessWidget {
                       fontSize: 26,
                       fontWeight: FontWeight.w600,
                       letterSpacing: -0.5,
-                      color: FoxColors.cream,
+                      // Page token: this chip sits on bgSurface2, not on a
+                      // gradient card.
+                      color: FoxColors.textPrimary,
                       fontFeatures: const [FontFeature.tabularFigures()],
                     ),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     font.label,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 11.5,
                       fontWeight: FontWeight.w600,
                       color: FoxColors.textSecondary,
@@ -1049,7 +1157,7 @@ class _SettingsGroup extends StatelessWidget {
                             summary,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 11.5,
                               color: FoxColors.textSecondary,
                             ),
@@ -1063,7 +1171,7 @@ class _SettingsGroup extends StatelessWidget {
                     turns: open ? 0.5 : 0,
                     duration: Motion.base,
                     curve: Motion.curve,
-                    child: const Icon(
+                    child: Icon(
                       Icons.keyboard_arrow_down_rounded,
                       color: FoxColors.textSecondary,
                       size: 20,
@@ -1131,17 +1239,17 @@ class _ThresholdBand extends StatelessWidget {
                 if (badFlex > 0)
                   Expanded(
                     flex: badFlex,
-                    child: const ColoredBox(color: VerdictColors.bad),
+                    child: ColoredBox(color: VerdictColors.bad),
                   ),
                 if (okFlex > 0)
                   Expanded(
                     flex: okFlex,
-                    child: const ColoredBox(color: VerdictColors.ok),
+                    child: ColoredBox(color: VerdictColors.ok),
                   ),
                 if (goodFlex > 0)
                   Expanded(
                     flex: goodFlex,
-                    child: const ColoredBox(color: VerdictColors.good),
+                    child: ColoredBox(color: VerdictColors.good),
                   ),
               ],
             ),
@@ -1200,6 +1308,18 @@ class _ThresholdSlider extends StatelessWidget {
   /// Empty = dollars ('$1.50'); otherwise suffixed ('2.0 km').
   final String unit;
 
+  /// One nudge of the −/+ buttons. Matches the slider's own division size for
+  /// money; km reads in tenths, so a 5c-equivalent step would take forever.
+  double get _step => unit.isEmpty ? 0.05 : 0.1;
+
+  /// Round to the step so repeated nudges can't drift off it in binary float
+  /// ($1.3500000000000002 formats fine but never equals a division).
+  void _nudge(int dir) {
+    final next = ((value + dir * _step) / _step).round() * _step;
+    final clamped = next.clamp(min, max);
+    if (clamped != value) onChanged(clamped);
+  }
+
   @override
   Widget build(BuildContext context) {
     final text = Theme.of(context).textTheme;
@@ -1223,20 +1343,38 @@ class _ThresholdSlider extends StatelessWidget {
             ),
           ],
         ),
-        SliderTheme(
-          data: SliderTheme.of(context).copyWith(
-            activeTrackColor: color,
-            thumbColor: color,
-            overlayColor: color.withValues(alpha: 0.15),
-            inactiveTrackColor: FoxColors.border,
-          ),
-          child: Slider(
-            value: value,
-            min: min,
-            max: max,
-            divisions: ((max - min) / 0.05).round(),
-            onChanged: onChanged,
-          ),
+        // Slider for the ballpark, −/+ to land on an exact number — dragging to
+        // a specific $1.35 is fiddly at this track width (device 2026-07-25).
+        Row(
+          children: [
+            StepButton(
+              glyph: '−',
+              onTap: value > min ? () => _nudge(-1) : null,
+              semanticLabel: 'Decrease $label',
+            ),
+            Expanded(
+              child: SliderTheme(
+                data: SliderTheme.of(context).copyWith(
+                  activeTrackColor: color,
+                  thumbColor: color,
+                  overlayColor: color.withValues(alpha: 0.15),
+                  inactiveTrackColor: FoxColors.border,
+                ),
+                child: Slider(
+                  value: value,
+                  min: min,
+                  max: max,
+                  divisions: ((max - min) / 0.05).round(),
+                  onChanged: onChanged,
+                ),
+              ),
+            ),
+            StepButton(
+              glyph: '+',
+              onTap: value < max ? () => _nudge(1) : null,
+              semanticLabel: 'Increase $label',
+            ),
+          ],
         ),
       ],
     );
@@ -1379,7 +1517,7 @@ class _DriverNameCardState extends ConsumerState<_DriverNameCard> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'Name',
                   style: TextStyle(
                     fontSize: 11,
@@ -1398,7 +1536,7 @@ class _DriverNameCardState extends ConsumerState<_DriverNameCard> {
               _name.text = saved; // discard any stale draft
               _editing = true;
             }),
-            icon: const Icon(
+            icon: Icon(
               Icons.edit_outlined,
               color: FoxColors.textSecondary,
               size: 18,
@@ -1581,7 +1719,7 @@ class _VehicleCard extends StatelessWidget {
                       vehicle.title.isEmpty ? 'Unnamed vehicle' : vehicle.title,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w700,
                         height: 1.15,
@@ -1590,7 +1728,7 @@ class _VehicleCard extends StatelessWidget {
                     ),
                     Text(
                       vehicle.bodyType.label,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
                         color: FoxColors.textSecondary,
@@ -1610,7 +1748,7 @@ class _VehicleCard extends StatelessWidget {
                         ),
                         child: Text(
                           vehicle.plate,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 10.5,
                             fontWeight: FontWeight.w700,
                             letterSpacing: 0.8,
@@ -1671,7 +1809,14 @@ class _PillLegend extends StatelessWidget {
             child: Container(
               width: 8,
               height: 8,
-              decoration: BoxDecoration(color: dot, shape: BoxShape.circle),
+              decoration: BoxDecoration(
+                color: dot,
+                shape: BoxShape.circle,
+                // Hairline so the pale swatches (the cream $/hr one) still read
+                // on a white card — these quote the pill's fixed colors and
+                // can't follow the theme.
+                border: Border.all(color: FoxColors.border),
+              ),
             ),
           ),
           const SizedBox(width: Gap.sm),
@@ -1681,9 +1826,9 @@ class _PillLegend extends StatelessWidget {
                 children: [
                   TextSpan(
                     text: '$label — ',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontWeight: FontWeight.w700,
-                      color: FoxColors.cream,
+                      color: FoxColors.textPrimary,
                     ),
                   ),
                   TextSpan(text: meaning),
@@ -1703,7 +1848,7 @@ class _PillLegend extends StatelessWidget {
           'How to read it',
           style: text.bodyMedium?.copyWith(
             fontWeight: FontWeight.w700,
-            color: FoxColors.cream,
+            color: FoxColors.textPrimary,
           ),
         ),
         row(
@@ -1722,7 +1867,8 @@ class _PillLegend extends StatelessWidget {
           'pickup is beyond your radius — you drive further for free.',
         ),
         row(
-          FoxColors.creamDim,
+          // The pill's own dim cream, const like the swatches above it.
+          FoxColors.creamConst.withValues(alpha: 0.78),
           '\$/hr',
           'payout over the full trip time, so long rides don\'t fool you.',
         ),

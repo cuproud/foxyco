@@ -14,8 +14,13 @@
 #     ./scripts/build.sh debug           # debug APK
 #     ./scripts/build.sh release         # release APK (explicit)
 #     ./scripts/build.sh split           # per-ABI release APKs (smaller)
+#     ./scripts/build.sh aab             # Play App Bundle (.aab, smallest per device)
 #     ./scripts/build.sh --bump          # bump build number (+N) first, then build
 #     ./scripts/build.sh release --bump  # combine freely
+#
+# For the Play Store upload use `aab` — Google re-splits it per device, so
+# installs land ~25MB instead of the ~60MB universal APK. Use `split` for
+# hand-installing a smaller APK on your own phone.
 #
 # --bump increments the "+N" build code in pubspec.yaml (1.0.0+3 -> 1.0.0+4)
 # BEFORE building, so the new number shows up in the APK name and inside the app.
@@ -31,17 +36,25 @@ cd "$ROOT"
 # --- parse args (order-independent) -------------------------------------------
 MODE="release"      # debug | release
 SPLIT=""            # "split" -> --split-per-abi
+BUNDLE=0            # 1 -> build .aab (Play App Bundle) instead of APK
 BUMP=0              # 1 -> increment build number first
 for arg in "$@"; do
   case "$arg" in
     debug|release) MODE="$arg" ;;
     split)         SPLIT="split" ;;
+    aab)           BUNDLE=1 ;;
     --bump|-b)     BUMP=1 ;;
     *) echo "✗ unknown arg: $arg" >&2
-       echo "  valid: debug | release | split | --bump" >&2
+       echo "  valid: debug | release | split | aab | --bump" >&2
        exit 2 ;;
   esac
 done
+
+# App Bundles are always release, and per-ABI splitting is Play's job.
+if [[ "$BUNDLE" == "1" ]]; then
+  MODE="release"
+  SPLIT=""
+fi
 
 # --- optionally bump the build number in pubspec.yaml -------------------------
 if [[ "$BUMP" == "1" ]]; then
@@ -75,6 +88,18 @@ echo "▶ FoxyCo build: $MODE${SPLIT:+ ($SPLIT)}  →  $LABEL"
 # it bare makes Flutter treat it as a target file ("Target file release not found").
 BUILD_ARGS=("--$MODE")
 [[ "$SPLIT" == "split" ]] && BUILD_ARGS+=("--split-per-abi")
+
+if [[ "$BUNDLE" == "1" ]]; then
+  flutter build appbundle --release
+  src="$ROOT/build/app/outputs/bundle/release/app-release.aab"
+  dest="$DIST/FoxyCo-${LABEL}.aab"
+  cp "$src" "$dest"
+  echo "  ✓ $(basename "$dest")  ($(du -h "$dest" | cut -f1))"
+  echo ""
+  echo "Done — App Bundle in: $DIST"
+  echo "Upload this .aab to the Play Console (Google re-splits it per device)."
+  exit 0
+fi
 
 flutter build apk "${BUILD_ARGS[@]}"
 

@@ -428,4 +428,45 @@ _Last updated: 2026-07-20 (M10: premium polish batches 1–3)._
 | M11.4 | Garage with vehicles of each body type | Silhouette matches type (sedan/SUV/hatch/pickup/van/bike) at row size; color tint + EV badge intact | [ ] |
 | M11.5 | Car reminders with 5+ saved | List shows 3 rows + **"Show all (5)"**; expand/collapse toggles the rest; group summary count is correct | [ ] |
 
-_Last updated: 2026-07-21 (M11: settings accordion, money-font picker, garage silhouettes, reminder cap-3)._
+---
+
+## M12 — polish pass + light theme (2026-07-25)
+
+> Full-width glass go-live cue; card overflow audit; garage art sizing; About
+> screen; bubble no longer lingers outside the gig apps; last-session recap
+> card; and a light ("paper") theme selectable in Settings → Appearance.
+
+| # | How | PASS bar | Status |
+|---|-----|----------|--------|
+| M12.1 | Home → drag the go-live cue right, slowly | Full-width glass track; thumb follows the finger 1:1; releasing before the end springs back with no state change; past the end it goes live once (no double-fire) | [ ] |
+| M12.2 | Settings → Garage → edit a vehicle, save | Editor reopens with the saved values (no blanked fields); silhouette + tint match the saved body type at both row and editor size | [ ] |
+| M12.3 | Settings → About | Version, build, the credits/legal copy and every link render; back returns to Settings with the same group still open | [ ] |
+| M12.4 | Go live, catch one offer, then leave the gig app (Home / recents / another app) | Pill clears within a second of leaving; it does NOT reappear on the launcher or in unrelated apps | [ ] |
+| M12.5 | End a shift, then reopen the app the next calendar day | Last-session card still shows yesterday's totals (survives the day boundary) and is labelled as the previous session, not today | [ ] |
+| M12.6 | Settings → Appearance → Theme = **Light**, then walk outside in daylight | Cream paper chrome, ink text legible in glare, every screen (Home / History / Settings / Logs / sheets) flips — no cream-on-cream or black-on-black text anywhere | [ ] |
+| M12.7 | In Light, look at the Home car | Car sits in a **rounded dark showroom panel** with the cards' radius + shadow — a deliberate frame, not a gray halo with hard edges | [ ] |
+| M12.8 | In Light, trigger an offer | Overlay pill stays **dark** (it lives in its own isolate and floats over other apps) — verdict colors and $ figures unchanged | [ ] |
+| M12.12 | In Light, every card: Home receipt, Last session, History stats, **Top offers**, offer detail sheet, shift recap, vehicle editor preview | Card interiors are **white/near-white with ink text** — no dark receipt cards marooned on cream paper. Verdict hues go to their deeper tier so GOOD/OK/BAD still read as text | [ ] |
+| M12.13 | In Light, Settings → Appearance | All three **$24.50** font samples are readable (they were cream-on-cream); the selected one on its orange tint too | [ ] |
+| M12.14 | In Light, Home top-left | **"Good morning, Vamsi"** is visible (was invisible — cream on cream) | [ ] |
+| M12.15 | Both themes, bottom nav | Active tab is an inverted chip: dark fill + light label in Light, cream fill + dark label in Dark. Never same-on-same | [ ] |
+| M12.16 | Both themes, Settings → Pill size → "How to read it" | All four legend swatches visible, including the pale cream **$/hr** dot (it has a hairline so it survives a white card) | [ ] |
+| M12.17 | Settings → Verdict thresholds | Each slider has **−/+** buttons flanking it; one tap moves 5c ($ mode) or 0.1 (km); they dim out at each end of the range and land on exact values | [ ] |
+| M12.18 | Settings → Garage → cycle Body through all 13 types | Every vehicle renders at a **similar visual size** — the Jeep/EV/Premium/bike no longer float small in the card (their art had 37-62% dead canvas). Two-wheelers still read smaller than a van | [ ] |
+| M12.19 | Home, before dragging | Slide track is a recessed well in the card; label is high-contrast; the chevron train is clearly visible and marches right (was faint smudges). The gleam sweeping the track is a warm orange wash — **no gray/metallic smear** | [ ] |
+| M12.20 | In Light, Home segment bar + History "BY APP" bars | Segments are clean **green / amber / red**, not olive-and-maroon — solid fills keep the bright tier in both themes | [ ] |
+| M12.21 | In Light, Home "14 good / 47 ok / 56 bad" chips | Each word is legible on its tinted well — these carry text, so they take the deeper tier (the bright tier washed out once the card went white) | [ ] |
+| M12.22 | Both themes, anywhere an Uber offer shows (Home dots, History rows, detail sheet, pill) | Uber roundel is **near-white with a dark U** in Dark and **near-black with a white U** in Light — never a pale disc with an invisible letter. Lyft pink / Hopp blue unchanged in both | [ ] |
+| M12.23 | In Light, the Home car panel | Reads as an **object floating on the page**, not a hole punched in it: `#111416` interior (lighter than the page-dark), 1px white hairline, layered shadow, and a soft spotlight on the floor under the car catching its lower body edges | [ ] |
+| M12.24 | Both themes, any screen with cards | Cards have **two-stage depth** — a tight contact shadow at the edge plus a wide soft ambient one. No single gray halo ring | [ ] |
+| M12.25 | Both themes, scroll any page slowly | Page background is a faint top-to-bottom wash (brighter at the top), not a flat fill. Should be almost subliminal — if you can clearly *see* a gradient it's too strong | [ ] |
+| M12.26 | Home segment bar + History "BY APP" bars | Three separated rounded lozenges in a track, each top-lit — not one solid saturated stripe. Home bar is 11dp, History 10dp | [ ] |
+| M12.27 | Home "47 ok" chip, both themes | Label is full-strength amber (was dimmed 10%), clearly readable against its tinted well | [ ] |
+| M12.28 | Switch Light→Dark→Light from Settings, then go to Home **without scrolling** | Greeting, and every other label, is in the NEW palette immediately — no text left painted in the old theme's color. (Tab scroll positions reset on a switch; that's expected) | [ ] |
+| M12.29 | Theme = Auto, flip system dark mode while sitting on Home | Same: the whole page repaints at once, no stale text | [ ] |
+| M12.30 | Home → Last session card | Timer icon is vertically centred against the **4h 16m** digits, not riding above them | [ ] |
+| M12.9 | Theme = **Auto**, flip the phone's system dark mode | App follows immediately, no restart | [ ] |
+| M12.10 | Pick Light, kill + reopen the app | Still Light. Launch stays on the dark stage the whole way in — native window, car splash, wordmark all one green-black surface with NO cream flash — and only Home arrives in paper | [ ] |
+| M12.11 | Same in Dark | Identical launch: no cream flash at any point (the old launch window was still cream from before the app went dark) | [ ] |
+
+_Last updated: 2026-07-25 (M12: polish pass + light theme)._

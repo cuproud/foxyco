@@ -135,7 +135,11 @@ class _SplashScreenState extends State<SplashScreen>
     final reduced = MediaQuery.of(context).disableAnimations;
 
     return Scaffold(
-      backgroundColor: FoxColors.bgBase,
+      // Pinned to the dark stage in BOTH themes (not FoxColors.bgBase): the
+      // wordmark is cream, the car art is lit for black, and the native launch
+      // window behind it is one fixed color — following the light palette here
+      // would flash cream-then-black on the way in.
+      backgroundColor: FoxPalette.dark.bgBase,
       body: reduced
           ? const Center(
               child: Column(
@@ -204,7 +208,9 @@ class _Wordmark extends StatelessWidget {
           fontFamily: FoxFonts.display,
           fontSize: 42,
           fontWeight: FontWeight.w700,
-          color: FoxColors.cream,
+          // creamConst: the splash stage is pinned dark in both themes, so the
+          // wordmark can't follow the varying on-card token.
+          color: FoxColors.creamConst,
           letterSpacing: -1,
         ),
       ),

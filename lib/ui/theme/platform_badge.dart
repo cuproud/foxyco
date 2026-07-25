@@ -18,7 +18,8 @@ class PlatformBadge extends StatelessWidget {
   final double size;
   final bool active;
 
-  static const _colors = <GigPlatform, Color>{
+  /// A getter, not a const map: Uber's roundel flips with the theme.
+  static Map<GigPlatform, Color> get _colors => {
     GigPlatform.uber: FoxColors.uber,
     GigPlatform.lyft: FoxColors.lyft,
     GigPlatform.hopp: FoxColors.hopp,
@@ -27,9 +28,11 @@ class PlatformBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = _colors[platform] ?? FoxColors.textDisabled;
-    // Uber's badge is near-white → dark letter; others take light letter.
+    // Contrast against the ROUNDEL, not the page: bgBase resolved to cream in
+    // light mode, which put a white letter on Uber's near-white badge (device
+    // 2026-07-25). Near-black rather than pure black to match Uber's brand.
     final letterColor = color.computeLuminance() > 0.5
-        ? FoxColors.bgBase
+        ? const Color(0xFF111111)
         : Colors.white;
     return Opacity(
       opacity: active ? 1.0 : 0.45,

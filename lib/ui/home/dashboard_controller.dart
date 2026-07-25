@@ -90,17 +90,22 @@ class DashboardController extends Notifier<DashboardState> {
   /// Roll the just-ended session into the session log (Home "Last session"
   /// card). Both stop paths — slide-stop and bubble-drop — funnel through
   /// here, so the card never misses a session the recap sheet would skip.
+  ///
+  /// A mis-slide is dropped rather than recorded ([SessionSummary.isTrivial]):
+  /// going live and stopping within the minute, with nothing seen, buried a
+  /// real 3h shift under an empty "0m" card on device 2026-07-24.
   void _recordSession(DateTime? since) {
     if (since == null) return;
-    ref
-        .read(sessionLogProvider.notifier)
-        .record(
-          SessionSummary.from(
-            startedAt: since,
-            endedAt: DateTime.now(),
-            offers: ref.read(offerLogProvider),
-          ),
-        );
+    final session = SessionSummary.from(
+      startedAt: since,
+      endedAt: DateTime.now(),
+      offers: ref.read(offerLogProvider),
+    );
+    if (session.isTrivial) {
+      ref.read(foxLogProvider).log('status', 'session skipped (trivial)');
+      return;
+    }
+    ref.read(sessionLogProvider.notifier).record(session);
   }
 
   /// Toggle watching ↔ paused (bubble long-press; Start/Stop is the outer

@@ -165,8 +165,10 @@ class OverlayController extends Notifier<void> {
     _next++;
     await _service.showOffer(sample);
     // Demo only: no real offer will "leave the screen" to clear this, so
-    // auto-retract after a few seconds instead of leaving the pill stuck
-    // until the 45 s safety timer. And because showOffer had to bring the
+    // auto-retract after a few seconds instead of leaving the pill stuck.
+    // (A real pill is cleared either by the card leaving or by
+    // OfferWatcher.idleTimeout; neither fires for a demo.) And because showOffer
+    // had to bring the
     // overlay WINDOW up to draw the pill, an offline demo must tear the
     // whole window down again — otherwise a "watching" bubble lingers while
     // the dashboard says stopped (device 2026-07-18). Online, only the pill

@@ -104,7 +104,7 @@ class _VehicleEditorScreenState extends ConsumerState<VehicleEditorScreen> {
             IconButton(
               key: const ValueKey('editor-delete'),
               onPressed: _confirmDelete,
-              icon: const Icon(
+              icon: Icon(
                 Icons.delete_outline_rounded,
                 color: VerdictColors.bad,
               ),
@@ -119,7 +119,7 @@ class _VehicleEditorScreenState extends ConsumerState<VehicleEditorScreen> {
             margin: const EdgeInsets.symmetric(vertical: Gap.lg),
             padding: const EdgeInsets.all(Gap.lg),
             decoration: BoxDecoration(
-              gradient: const LinearGradient(
+              gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [FoxColors.inkSoft, FoxColors.ink],

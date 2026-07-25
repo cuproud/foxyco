@@ -163,7 +163,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
             ),
             TextButton(
               onPressed: _finish,
-              child: const Text(
+              child: Text(
                 'Skip for now',
                 style: TextStyle(color: FoxColors.textSecondary),
               ),
@@ -271,16 +271,18 @@ class _PresetCard extends StatelessWidget {
                 children: [
                   Text(
                     label,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w700,
-                      color: FoxColors.cream,
+                      // Page token: this card is bgSurface/bgSurface2, not a
+                      // gradient card.
+                      color: FoxColors.textPrimary,
                     ),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     sub,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 12,
                       color: FoxColors.textSecondary,
                       fontFeatures: [FontFeature.tabularFigures()],
@@ -390,7 +392,7 @@ class _GrantPage extends StatelessWidget {
                 color: VerdictColors.goodBg,
                 borderRadius: BorderRadius.circular(Radii.pill),
               ),
-              child: const Text(
+              child: Text(
                 '✅ Granted',
                 style: TextStyle(
                   color: VerdictColors.good,

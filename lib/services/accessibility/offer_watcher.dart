@@ -83,6 +83,28 @@ class OfferWatcher extends Notifier<Offer?> {
   @visibleForTesting
   static Duration minVisible = const Duration(seconds: 5);
 
+  /// How long the watched apps may stay SILENT before we assume the driver left
+  /// them and drop the pill.
+  ///
+  /// The accessibility service is package-scoped in res/xml (AUDIT #1 Play
+  /// review, AUDIT #4 battery), so the moment any other app is foregrounded
+  /// Android delivers us nothing at all — [_onRead] stops firing, the normal
+  /// "card left the screen" path never arms, and the pill sat there forever
+  /// (device 2026-07-24: pill shown from a background gig app never closed).
+  /// Silence is the only signal a scoped service gets, so we time it.
+  ///
+  /// Not a max lifetime: any frame from a watched app resets it. Inside Uber /
+  /// Hopp / Lyft the event stream machine-guns (that's why [AccessibilityWatcher]
+  /// debounces at all), so a card the driver is still reading keeps the pill up
+  /// indefinitely. Mutable so tests can shrink it, and so this stays one number
+  /// to retune if a real card ever goes this long without emitting a frame.
+  @visibleForTesting
+  static Duration idleTimeout = const Duration(seconds: 7);
+
+  /// Fires [idleTimeout] after the last frame from a watched app. Armed only
+  /// while a pill is up; cancelled with it.
+  Timer? _idleTimer;
+
   @override
   Offer? build() {
     _sub = _watcher.reads().listen(
@@ -95,8 +117,23 @@ class OfferWatcher extends Notifier<Offer?> {
     ref.onDispose(() {
       _sub?.cancel();
       _clearTimer?.cancel();
+      _idleTimer?.cancel();
     });
     return null;
+  }
+
+  /// A watched app just sent a frame — the driver is still in it, so restart the
+  /// silence clock. No-op while no pill is up; there is nothing to time out.
+  void _touchIdle() {
+    _idleTimer?.cancel();
+    if (_shownKey == null) return;
+    _idleTimer = Timer(idleTimeout, () {
+      if (kDebugMode) {
+        debugPrint('FoxyCo[watch] clear: watched apps silent, driver left');
+      }
+      ref.read(foxLogProvider).log('overlay', 'pill cleared — left gig app');
+      _clearNow();
+    });
   }
 
   AccessibilityWatcher get _watcher => ref.read(accessibilityWatcherProvider);
@@ -133,6 +170,10 @@ class OfferWatcher extends Notifier<Offer?> {
         .read(parserRegistryProvider)
         .forPackage(read.packageName);
     if (parser == null) return; // not an app we read (noise from other apps)
+
+    // Proof of life from a watched app, whatever the frame turns out to hold.
+    // Restart the silence clock before any of the parse branches below return.
+    _touchIdle();
 
     // A watched app sent a frame with ZERO readable text. Uber's offer card is
     // suspected to render on canvas/Compose with no a11y text (device
@@ -241,6 +282,7 @@ class OfferWatcher extends Notifier<Offer?> {
 
     _shownKey = key;
     _shownAt = DateTime.now();
+    _touchIdle(); // pill is up now — start the silence clock
     state = offer; // expose the latest parsed offer (debug / future tally)
     // A successful parse also proves this platform's selectors still fit —
     // clears any card-miss streak (Settings "Parser health").
@@ -283,6 +325,8 @@ class OfferWatcher extends Notifier<Offer?> {
   /// same offer reappearing shows again) and drop the pill back to the bubble.
   void _clearNow() {
     _clearTimer = null;
+    _idleTimer?.cancel();
+    _idleTimer = null;
     if (_shownKey == null) return;
     _shownKey = null;
     _shownAt = null;

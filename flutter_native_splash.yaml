@@ -1,12 +1,17 @@
-# Launch screen — the window the OS paints while the engine boots. Cream to
-# match the app's first frame (FoxColors.bgBase) so launch feels like one
-# continuous surface, with the fox coin mark centered.
+# Launch screen — the window the OS paints while the engine boots. The deep
+# green-black stage (FoxPalette.dark.bgBase), matching the Dart splash that
+# takes over from it, with the fox coin mark centered.
+#
+# ONE fixed color in both themes: the OS picks this before Dart runs, so it
+# can't know the driver's skin. The Dart splash is pinned dark to match, and
+# the palette only takes over at Home — otherwise light-theme launch would
+# flash from here to cream and back.
 # Regenerate: dart run flutter_native_splash:create
 flutter_native_splash:
-  color: "#F6F3EA"
+  color: "#0C1210"
   image: assets/branding/splash_mark.png
   android_12:
-    color: "#F6F3EA"
+    color: "#0C1210"
     image: assets/branding/splash_mark_a12.png
   android: true
   ios: false

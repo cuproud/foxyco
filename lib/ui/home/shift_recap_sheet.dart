@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../domain/offer_stats.dart';
 import '../../domain/offer_summary.dart';
 import '../theme/tokens.dart';
+import 'recap_widgets.dart';
 
 /// End-of-shift recap, shown when the driver slides to stop. Rolls up the
 /// offers seen since going live: duration, count, split, best $/km, busiest
@@ -32,19 +33,6 @@ class _ShiftRecapSheet extends StatelessWidget {
   final OfferStats stats;
   final Duration duration;
 
-  static String _durationLabel(Duration d) {
-    final h = d.inHours;
-    final m = d.inMinutes % 60;
-    if (h == 0) return '${m}m';
-    return '${h}h ${m}m';
-  }
-
-  static String _hourLabel(int h) {
-    final ampm = h < 12 ? 'AM' : 'PM';
-    final display = h % 12 == 0 ? 12 : h % 12;
-    return '$display $ampm';
-  }
-
   @override
   Widget build(BuildContext context) {
     final s = stats;
@@ -57,7 +45,7 @@ class _ShiftRecapSheet extends StatelessWidget {
         Gap.lg + MediaQuery.of(context).padding.bottom,
       ),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
+        gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [FoxColors.inkSoft, FoxColors.ink],
@@ -89,13 +77,17 @@ class _ShiftRecapSheet extends StatelessWidget {
                 height: 28,
               ),
               const SizedBox(width: Gap.sm + Gap.xs),
-              Text(
-                'Shift recap 🌮',
-                style: Theme.of(context).textTheme.titleLarge,
+              Expanded(
+                child: Text(
+                  'Shift recap 🌮',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
               ),
-              const Spacer(),
+              const SizedBox(width: Gap.sm),
               Text(
-                _durationLabel(duration),
+                durationLabel(duration),
                 style: TextStyle(
                   fontFamily: FoxFonts.display,
                   fontSize: 18,
@@ -123,7 +115,7 @@ class _ShiftRecapSheet extends StatelessWidget {
                     fontFeatures: [FontFeature.tabularFigures()],
                   ),
                 ),
-                const TextSpan(
+                TextSpan(
                   text: '  offers scored',
                   style: TextStyle(
                     fontSize: 13,
@@ -136,35 +128,27 @@ class _ShiftRecapSheet extends StatelessWidget {
           ),
           const SizedBox(height: Gap.sm + Gap.xs),
           // Verdict split, colored.
-          Row(
-            children: [
-              _pill(VerdictColors.good, s.good, 'good'),
-              const SizedBox(width: Gap.sm),
-              _pill(VerdictColors.ok, s.ok, 'ok'),
-              const SizedBox(width: Gap.sm),
-              _pill(VerdictColors.bad, s.bad, 'bad'),
-            ],
-          ),
+          VerdictSplitPills(good: s.good, ok: s.ok, bad: s.bad),
           const SizedBox(height: Gap.md),
           Row(
             children: [
-              _cell(
-                s.best != null && s.best!.pricePerKm > 0
+              StatTile(
+                value: s.best != null && s.best!.pricePerKm > 0
                     ? '\$${s.best!.pricePerKm.toStringAsFixed(2)}'
                     : '—',
-                'BEST \$/KM',
+                label: 'BEST \$/KM',
               ),
               const SizedBox(width: Gap.sm),
-              _cell(
-                s.goodAvgPerKm > 0
+              StatTile(
+                value: s.goodAvgPerKm > 0
                     ? '\$${s.goodAvgPerKm.toStringAsFixed(2)}'
                     : '—',
-                'GOOD AVG',
+                label: 'GOOD AVG',
               ),
               const SizedBox(width: Gap.sm),
-              _cell(
-                s.busiestHour != null ? _hourLabel(s.busiestHour!) : '—',
-                'BUSIEST',
+              StatTile(
+                value: s.busiestHour != null ? hourLabel(s.busiestHour!) : '—',
+                label: 'BUSIEST',
               ),
             ],
           ),
@@ -173,76 +157,4 @@ class _ShiftRecapSheet extends StatelessWidget {
     );
   }
 
-  Widget _pill(Color color, int count, String label) => Expanded(
-    child: Container(
-      padding: const EdgeInsets.symmetric(vertical: 7),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(Radii.pill),
-        border: Border.all(color: color.withValues(alpha: 0.28)),
-      ),
-      child: Center(
-        child: Text.rich(
-          TextSpan(
-            children: [
-              TextSpan(
-                text: '$count',
-                style: const TextStyle(
-                  color: FoxColors.cream,
-                  fontWeight: FontWeight.w700,
-                  fontFeatures: [FontFeature.tabularFigures()],
-                ),
-              ),
-              TextSpan(
-                text: ' $label',
-                style: TextStyle(color: color.withValues(alpha: 0.9)),
-              ),
-            ],
-            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-          ),
-        ),
-      ),
-    ),
-  );
-
-  Widget _cell(String value, String label) => Expanded(
-    child: Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: FoxColors.bgSurface2.withValues(alpha: 0.55),
-        borderRadius: BorderRadius.circular(Radii.field),
-        border: Border.all(color: FoxColors.borderSoft),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            alignment: Alignment.centerLeft,
-            child: Text(
-              value,
-              maxLines: 1,
-              style: TextStyle(
-                fontFamily: FoxFonts.display,
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: FoxColors.textPrimary,
-                fontFeatures: [FontFeature.tabularFigures()],
-              ),
-            ),
-          ),
-          const SizedBox(height: 3),
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: 9.5,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 0.7,
-              color: FoxColors.textDisabled,
-            ),
-          ),
-        ],
-      ),
-    ),
-  );
 }

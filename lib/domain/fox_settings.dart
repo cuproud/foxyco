@@ -1,3 +1,4 @@
+import 'app_skin.dart';
 import 'money_font.dart';
 import 'overlay_payload.dart' show PillSize;
 import 'platform.dart';
@@ -42,6 +43,9 @@ class FoxSettings {
   /// Typeface for the big money numbers, picked in Settings → Appearance.
   final MoneyFont moneyFont;
 
+  /// Light or dark palette, picked in Settings → Appearance.
+  final AppSkin skin;
+
   const FoxSettings({
     required this.thresholds,
     required this.hourThresholds,
@@ -52,6 +56,7 @@ class FoxSettings {
     required this.pillSize,
     required this.trackOutcomes,
     this.moneyFont = MoneyFont.inter,
+    this.skin = AppSkin.dark,
   });
 
   static const keepForever = 9999;
@@ -73,6 +78,7 @@ class FoxSettings {
     pillSize: PillSize.small,
     trackOutcomes: true,
     moneyFont: MoneyFont.inter,
+    skin: AppSkin.dark,
   );
 
   bool watches(GigPlatform p) => watchedApps.contains(p);
@@ -93,6 +99,7 @@ class FoxSettings {
     PillSize? pillSize,
     bool? trackOutcomes,
     MoneyFont? moneyFont,
+    AppSkin? skin,
   }) => FoxSettings(
     thresholds: thresholds ?? this.thresholds,
     hourThresholds: hourThresholds ?? this.hourThresholds,
@@ -103,6 +110,7 @@ class FoxSettings {
     pillSize: pillSize ?? this.pillSize,
     trackOutcomes: trackOutcomes ?? this.trackOutcomes,
     moneyFont: moneyFont ?? this.moneyFont,
+    skin: skin ?? this.skin,
   );
 
   Map<String, dynamic> toJson() => {
@@ -117,6 +125,7 @@ class FoxSettings {
     'pillSize': pillSize.name,
     'trackOutcomes': trackOutcomes,
     'moneyFont': moneyFont.name,
+    'skin': skin.name,
   };
 
   factory FoxSettings.fromJson(Map<String, dynamic> j) {
@@ -149,6 +158,7 @@ class FoxSettings {
           d.pillSize,
       trackOutcomes: (j['trackOutcomes'] as bool?) ?? d.trackOutcomes,
       moneyFont: MoneyFont.fromName(j['moneyFont'] as String?),
+    skin: AppSkin.fromName(j['skin'] as String?),
     );
   }
 }

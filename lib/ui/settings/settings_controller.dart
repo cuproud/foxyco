@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../domain/app_skin.dart';
 import '../../domain/fox_settings.dart';
 import '../../domain/money_font.dart';
 import '../../domain/overlay_payload.dart' show PillSize;
@@ -109,6 +110,8 @@ class SettingsController extends Notifier<FoxSettings> {
   void setTrackOutcomes(bool on) => _set(state.copyWith(trackOutcomes: on));
 
   void setMoneyFont(MoneyFont font) => _set(state.copyWith(moneyFont: font));
+
+  void setSkin(AppSkin skin) => _set(state.copyWith(skin: skin));
 }
 
 final settingsProvider = NotifierProvider<SettingsController, FoxSettings>(

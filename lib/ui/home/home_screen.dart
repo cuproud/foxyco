@@ -19,6 +19,7 @@ import '../theme/tokens.dart';
 import 'dashboard_controller.dart';
 import 'dashboard_state.dart';
 import 'profile_card.dart';
+import 'recap_widgets.dart';
 import 'shift_recap_sheet.dart';
 import 'slide_to_live.dart';
 
@@ -56,9 +57,13 @@ class HomeScreen extends ConsumerWidget {
         // Hidden (zero-height, incl. its own bottom pad) until a name is set.
         const _Padded(child: ProfileCard()),
         // The car sits on the page itself, full-bleed above the receipt card
-        // (references/car/foxyco_hero_home (1).html) — not boxed inside it.
+        // (references/car/foxyco_hero_home (1).html) — not boxed inside it,
+        // except in light mode where it gets a showroom panel. Gap.md above and
+        // below in BOTH themes: at Gap.sm the greeting and the receipt card
+        // crowded it (device 2026-07-25).
+        const SizedBox(height: Gap.md),
         _CarStage(online: state.status == WatchStatus.watching),
-        const SizedBox(height: Gap.sm),
+        const SizedBox(height: Gap.md),
         _Padded(
           child: _Hero(
             status: state.status,
@@ -171,7 +176,7 @@ class _ReminderBanner extends StatelessWidget {
                 '${reminder.note.isEmpty ? '' : ' — ${reminder.note}'}',
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 12.5,
                   fontWeight: FontWeight.w600,
                   height: 1.35,
@@ -180,7 +185,7 @@ class _ReminderBanner extends StatelessWidget {
               ),
             ),
             const SizedBox(width: Gap.sm),
-            const Icon(
+            Icon(
               Icons.chevron_right_rounded,
               size: 18,
               color: FoxColors.textSecondary,
@@ -252,12 +257,12 @@ class _LivePill extends StatelessWidget {
               ? Container(
                   width: 7,
                   height: 7,
-                  decoration: const BoxDecoration(
+                  decoration: BoxDecoration(
                     color: FoxColors.textDisabled,
                     shape: BoxShape.circle,
                   ),
                 )
-              : const _BreathingDot(color: VerdictColors.good, size: 7),
+              : _BreathingDot(color: VerdictColors.good, size: 7),
           const SizedBox(width: 6),
           Text(
             paused ? 'Off' : 'Live',
@@ -380,7 +385,7 @@ class _Hero extends StatelessWidget {
         Gap.md + Gap.xs,
       ),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
+        gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [FoxColors.inkSoft, FoxColors.ink],
@@ -425,15 +430,21 @@ class _Hero extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: Gap.sm),
-              Text(
-                statusText,
-                style: const TextStyle(
-                  fontSize: 13.5,
-                  fontWeight: FontWeight.w600,
-                  color: FoxColors.creamDim,
+              // Bounded: "Ready when you are" plus three app badges overran a
+              // 320 dp card at large text scales (overflow audit 2026-07-25).
+              Expanded(
+                child: Text(
+                  statusText,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w600,
+                    color: FoxColors.creamDim,
+                  ),
                 ),
               ),
-              const Spacer(),
+              const SizedBox(width: Gap.sm),
               // Tap the badges → Settings (watched-apps live there); they
               // were dead decorative pixels before.
               GestureDetector(
@@ -538,7 +549,7 @@ class _TrendChip extends StatelessWidget {
           borderRadius: BorderRadius.circular(Radii.cardSm),
           border: Border.all(color: FoxColors.borderSoft),
         ),
-        child: const Text(
+        child: Text(
           'first day',
           style: TextStyle(
             fontSize: 10.5,
@@ -591,7 +602,7 @@ class _TrendChip extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 2),
-          const Text(
+          Text(
             'vs yesterday',
             style: TextStyle(
               fontSize: 9.5,
@@ -679,17 +690,81 @@ class _CarStageState extends State<_CarStage>
             interiorGlow: base.interiorGlow,
             reflection: base.reflection,
           );
-          // Crop the canvas' empty top/bottom bands (~80% height keeps some
-          // air around the car without pushing slide-to-live off-screen).
+          // Crop the canvas' empty top/bottom bands (~88% height) without
+          // pushing slide-to-live off-screen. 0.8 was too tight once the car
+          // gained a frame — roof and shadow sat right on the edges (device
+          // 2026-07-25: "tightly packed").
           // Car pixels span 98% of the canvas width — inset slightly so the
           // nose/tail don't kiss the screen edges (ref mock has margin).
-          return ClipRect(
+          final cropped = ClipRect(
             child: Align(
-              alignment: const Alignment(0, -0.2),
-              heightFactor: 0.8,
+              alignment: const Alignment(0, -0.15),
+              heightFactor: 0.88,
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: Gap.md),
                 child: CarHero(state: state),
+              ),
+            ),
+          );
+          // Dark mode: the car is full-bleed on the black stage, no frame.
+          //
+          // Light mode: the art is a black car lit by glows authored for that
+          // black stage, so it can't sit on cream — it needs its own dark
+          // ground. Rather than hide that with a fade (device 2026-07-25: reads
+          // as a gray blob with hard edges), make it deliberate — a rounded
+          // showroom panel using the same radius and shadow as the cards.
+          if (FoxColors.palette.brightness != Brightness.light) return cropped;
+          const radius = BorderRadius.all(Radius.circular(Radii.hero));
+          return Padding(
+            padding: const EdgeInsets.symmetric(horizontal: Gap.md),
+            child: Container(
+              decoration: BoxDecoration(
+                // Literal darks, NOT the card tokens — those flip to white in
+                // light mode, which is the whole problem here. #111416 is a
+                // notch lighter than the page-dark it replaced: a true near-
+                // black panel read as a hole punched in the page rather than an
+                // object on it (device 2026-07-25).
+                gradient: const LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [Color(0xFF191D20), Color(0xFF111416)],
+                ),
+                borderRadius: radius,
+                boxShadow: Shadows.hero,
+              ),
+              // foregroundDecoration, so the hairline paints OVER the clipped
+              // child — a border on the background decoration gets covered by
+              // it at the same radius. White, not FoxColors.border: the panel
+              // interior is dark whatever the page is doing.
+              foregroundDecoration: BoxDecoration(
+                borderRadius: radius,
+                border: Border.all(
+                  color: Colors.white.withValues(alpha: 0.06),
+                ),
+              ),
+              child: ClipRRect(
+                borderRadius: radius,
+                child: Stack(
+                  fit: StackFit.passthrough,
+                  children: [
+                    // Spotlight on the panel floor, under where the car sits.
+                    // Without it the car is a black shape on a black rectangle;
+                    // with it the body edges catch a rim and it reads as
+                    // standing on a surface rather than pasted onto one.
+                    const Positioned.fill(
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          gradient: RadialGradient(
+                            center: Alignment(0, 0.45),
+                            radius: 0.9,
+                            colors: [Color(0x1AFFFFFF), Color(0x00FFFFFF)],
+                          ),
+                        ),
+                      ),
+                    ),
+                    cropped,
+                  ],
+                ),
               ),
             ),
           );
@@ -709,31 +784,57 @@ class _SegBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final total = tally.good + tally.ok + tally.bad;
     final reduced = MediaQuery.of(context).disableAnimations;
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(Radii.pill),
-      child: Container(
-        height: 16,
-        color: FoxColors.cream.withValues(alpha: 0.08),
-        child: total == 0
-            ? null // empty tally -> track shows through (spec M6 §3.3)
-            : LayoutBuilder(
-                builder: (context, c) => Row(
+    // 11dp, not 16, with the segments separated rather than butted together:
+    // three saturated blocks in one unbroken slab read as a heavy stripe across
+    // the card (device 2026-07-25: "colors are too thick"). Each segment gets
+    // its own rounded pill and a top-lit gradient, so the row reads as three
+    // lozenges resting in a track instead of one painted band.
+    return Container(
+      height: 11,
+      decoration: BoxDecoration(
+        color: FoxColors.cream.withValues(alpha: 0.07),
+        borderRadius: BorderRadius.circular(Radii.pill),
+      ),
+      padding: const EdgeInsets.all(1.5),
+      child: total == 0
+          ? null // empty tally -> track shows through (spec M6 §3.3)
+          : LayoutBuilder(
+              builder: (context, c) {
+                final segs =
+                    [
+                      (tally.good, VerdictColors.goodFill),
+                      (tally.ok, VerdictColors.okFill),
+                      (tally.bad, VerdictColors.badFill),
+                    ].where((s) => s.$1 > 0).toList();
+                return Row(
                   children: [
-                    for (final (count, color) in [
-                      (tally.good, VerdictColors.good),
-                      (tally.ok, VerdictColors.ok),
-                      (tally.bad, VerdictColors.bad),
-                    ])
+                    for (final (i, (count, color)) in segs.indexed) ...[
+                      if (i > 0) const SizedBox(width: 2),
                       AnimatedContainer(
                         duration: reduced ? Duration.zero : Motion.base,
                         curve: Motion.curve,
-                        width: c.maxWidth * count / total,
-                        color: color,
+                        width:
+                            (c.maxWidth - 3 - 2 * (segs.length - 1)) *
+                            count /
+                            total,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(Radii.pill),
+                          // Lit from above, like everything else on the page.
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              Color.lerp(color, Colors.white, 0.18)!,
+                              color,
+                            ],
+                          ),
+                        ),
                       ),
+                    ],
                   ],
-                ),
-              ),
-      ),
+                );
+              },
+            ),
     );
   }
 }
@@ -749,12 +850,12 @@ class _SegLegend extends StatelessWidget {
     return Row(
       children: [
         Expanded(
-          child: _LegendItem(VerdictColors.goodOnDark, tally.good, 'good'),
+          child: _LegendItem(VerdictColors.good, tally.good, 'good'),
         ),
         const SizedBox(width: Gap.sm),
-        Expanded(child: _LegendItem(VerdictColors.okOnDark, tally.ok, 'ok')),
+        Expanded(child: _LegendItem(VerdictColors.ok, tally.ok, 'ok')),
         const SizedBox(width: Gap.sm),
-        Expanded(child: _LegendItem(VerdictColors.badOnDark, tally.bad, 'bad')),
+        Expanded(child: _LegendItem(VerdictColors.bad, tally.bad, 'bad')),
       ],
     );
   }
@@ -796,7 +897,7 @@ class _LegendItem extends StatelessWidget {
               children: [
                 TextSpan(
                   text: '$count',
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: FoxColors.cream,
                     fontWeight: FontWeight.w700,
                     fontFeatures: [FontFeature.tabularFigures()],
@@ -804,7 +905,10 @@ class _LegendItem extends StatelessWidget {
                 ),
                 TextSpan(
                   text: ' $label',
-                  style: TextStyle(color: color.withValues(alpha: 0.9)),
+                  // Full strength: at 0.9 the amber "ok" label read as faded
+                  // (device 2026-07-25), and it's the weakest of the three
+                  // hues to begin with — it can't afford a 10% haircut.
+                  style: TextStyle(color: color),
                 ),
               ],
               style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
@@ -833,7 +937,7 @@ class _AccessAlert extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const Icon(
+          Icon(
             Icons.warning_amber_rounded,
             color: VerdictColors.bad,
             size: 22,
@@ -841,7 +945,7 @@ class _AccessAlert extends StatelessWidget {
           const SizedBox(width: Gap.sm + Gap.xs),
           Expanded(
             child: Text.rich(
-              const TextSpan(
+              TextSpan(
                 children: [
                   TextSpan(
                     text: 'Accessibility off. ',
@@ -888,26 +992,25 @@ class _SectionLabel extends StatelessWidget {
       children: [
         Text(text.toUpperCase(), style: Theme.of(context).textTheme.labelSmall),
         const SizedBox(width: Gap.sm + Gap.xs),
-        const Expanded(child: Divider(color: FoxColors.border, height: 1)),
+        Expanded(child: Divider(color: FoxColors.border, height: 1)),
       ],
     );
   }
 }
 
 /// The last completed watch session (replaced the "Last offer" ticket,
-/// device 2026-07-21): how long the watcher ran, when, how many offers it
-/// scored, and their good/ok/bad split as a proportion bar. Counts + words sit
-/// under the bar so the verdict colors are never the only signal.
+/// device 2026-07-21). Rebuilt on the shift-recap sheet's layout (device
+/// 2026-07-24: "why can't the card look like the recap?") — a header row that
+/// dates the session, the offer count, the verdict split, then the same three
+/// stat tiles. The shared pieces live in [recap_widgets] so card and sheet
+/// can't drift.
+///
+/// The date is spelled out for EVERY session, today's included. It used to be
+/// dropped on a same-day session, which read as "this is current" the morning
+/// after a night shift.
 class _SessionCard extends StatelessWidget {
   const _SessionCard({required this.session});
   final SessionSummary? session;
-
-  static String _durationLabel(Duration d) {
-    final h = d.inHours;
-    final m = d.inMinutes % 60;
-    if (h == 0) return '${m}m';
-    return '${h}h ${m}m';
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -915,25 +1018,25 @@ class _SessionCard extends StatelessWidget {
     if (s == null) return const _EmptySession();
 
     final text = Theme.of(context).textTheme;
+    final l10n = MaterialLocalizations.of(context);
     // Locale-aware times (12h markets see "6:48 PM", not hardcoded 24h).
-    String clock(DateTime t) =>
-        MaterialLocalizations.of(context).formatTimeOfDay(
-          TimeOfDay.fromDateTime(t),
-          alwaysUse24HourFormat: MediaQuery.of(context).alwaysUse24HourFormat,
-        );
+    String clock(DateTime t) => l10n.formatTimeOfDay(
+      TimeOfDay.fromDateTime(t),
+      alwaysUse24HourFormat: MediaQuery.of(context).alwaysUse24HourFormat,
+    );
     final now = DateTime.now();
-    final sameDay =
-        s.endedAt.year == now.year &&
-        s.endedAt.month == now.month &&
-        s.endedAt.day == now.day;
-    final when =
-        '${sameDay ? '' : '${MaterialLocalizations.of(context).formatShortDate(s.endedAt)} · '}'
-        '${clock(s.startedAt)} – ${clock(s.endedAt)}';
+    final endedDay = DateUtils.dateOnly(s.endedAt);
+    final daysAgo = DateUtils.dateOnly(now).difference(endedDay).inDays;
+    final day = switch (daysAgo) {
+      0 => 'Today',
+      1 => 'Yesterday',
+      _ => l10n.formatShortDate(s.endedAt),
+    };
 
     return Container(
       padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
+        gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [FoxColors.inkSoft, FoxColors.ink],
@@ -945,45 +1048,70 @@ class _SessionCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Day + clock range on the left, time-on-watch on the right. Both
+          // sides are bounded: the old version let an unbounded date string
+          // run straight out of the card (device 2026-07-25).
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Icon(
-                Icons.timer_outlined,
-                size: 15,
-                color: FoxColors.textSecondary,
-              ),
-              const SizedBox(width: 6),
-              Text(
-                _durationLabel(s.duration),
-                style: TextStyle(
-                  fontFamily: FoxFonts.display,
-                  fontSize: 17,
-                  fontWeight: FontWeight.w600,
-                  color: FoxColors.cream,
-                  fontFeatures: const [FontFeature.tabularFigures()],
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      day,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: FoxColors.cream,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '${clock(s.startedAt)} – ${clock(s.endedAt)}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w600,
+                        color: FoxColors.textDisabled,
+                        fontFeatures: [FontFeature.tabularFigures()],
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              const Text(
-                '  on watch',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: FoxColors.textSecondary,
-                ),
-              ),
-              const Spacer(),
-              Text(
-                when,
-                style: const TextStyle(
-                  fontSize: 11.5,
-                  fontWeight: FontWeight.w600,
-                  color: FoxColors.textDisabled,
-                  fontFeatures: [FontFeature.tabularFigures()],
-                ),
+              const SizedBox(width: Gap.sm),
+              // Own Row so the icon centers against the digits. Inheriting the
+              // outer row's CrossAxisAlignment.start top-aligned a 15px icon
+              // box with a 17px text box, which left the icon riding high
+              // (device 2026-07-25).
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.timer_outlined,
+                    size: 15,
+                    color: FoxColors.textSecondary,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    durationLabel(s.duration),
+                    style: TextStyle(
+                      fontFamily: FoxFonts.display,
+                      fontSize: 17,
+                      fontWeight: FontWeight.w600,
+                      color: FoxColors.cream,
+                      fontFeatures: const [FontFeature.tabularFigures()],
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
-          const SizedBox(height: Gap.sm + Gap.xs),
+          const SizedBox(height: Gap.md),
           Text.rich(
             TextSpan(
               children: [
@@ -1001,7 +1129,7 @@ class _SessionCard extends StatelessWidget {
                 ),
                 TextSpan(
                   text: s.total == 1 ? '  offer scored' : '  offers scored',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
                     color: FoxColors.textSecondary,
@@ -1018,95 +1146,32 @@ class _SessionCard extends StatelessWidget {
             ),
           ] else ...[
             const SizedBox(height: Gap.sm + Gap.xs),
-            _VerdictBar(good: s.good, ok: s.ok, bad: s.bad),
+            VerdictSplitPills(good: s.good, ok: s.ok, bad: s.bad),
             const SizedBox(height: Gap.sm + Gap.xs),
             Row(
               children: [
-                _legend(VerdictColors.good, s.good, 'good'),
-                const SizedBox(width: Gap.md),
-                _legend(VerdictColors.ok, s.ok, 'ok'),
-                const SizedBox(width: Gap.md),
-                _legend(VerdictColors.bad, s.bad, 'bad'),
+                StatTile(
+                  value: s.bestPerKm > 0
+                      ? '\$${s.bestPerKm.toStringAsFixed(2)}'
+                      : '—',
+                  label: 'BEST \$/KM',
+                ),
+                const SizedBox(width: Gap.sm),
+                StatTile(
+                  value: s.goodAvgPerKm > 0
+                      ? '\$${s.goodAvgPerKm.toStringAsFixed(2)}'
+                      : '—',
+                  label: 'GOOD AVG',
+                ),
+                const SizedBox(width: Gap.sm),
+                StatTile(
+                  value: s.busiestHour != null ? hourLabel(s.busiestHour!) : '—',
+                  label: 'BUSIEST',
+                ),
               ],
             ),
           ],
         ],
-      ),
-    );
-  }
-
-  Widget _legend(Color color, int count, String label) => Opacity(
-    // Zero-count entries stay for a stable legend, just receded.
-    opacity: count == 0 ? 0.45 : 1,
-    child: Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          width: 8,
-          height: 8,
-          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-        ),
-        const SizedBox(width: 6),
-        Text.rich(
-          TextSpan(
-            children: [
-              TextSpan(
-                text: '$count ',
-                style: const TextStyle(
-                  color: FoxColors.cream,
-                  fontWeight: FontWeight.w700,
-                  fontFeatures: [FontFeature.tabularFigures()],
-                ),
-              ),
-              TextSpan(
-                text: label,
-                style: TextStyle(color: color.withValues(alpha: 0.9)),
-              ),
-            ],
-            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-          ),
-        ),
-      ],
-    ),
-  );
-}
-
-/// Good/ok/bad proportion bar — flex-widths by count, 2 px gaps so segments
-/// never touch, rounded outer corners. Colors repeat the legend right below,
-/// so the bar itself can stay label-free.
-class _VerdictBar extends StatelessWidget {
-  const _VerdictBar({required this.good, required this.ok, required this.bad});
-  final int good;
-  final int ok;
-  final int bad;
-
-  @override
-  Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(Radii.pill),
-      child: SizedBox(
-        height: 12,
-        child: Row(
-          children: [
-            if (good > 0)
-              Expanded(
-                flex: good,
-                child: const ColoredBox(color: VerdictColors.good),
-              ),
-            if (good > 0 && (ok > 0 || bad > 0)) const SizedBox(width: 2),
-            if (ok > 0)
-              Expanded(
-                flex: ok,
-                child: const ColoredBox(color: VerdictColors.ok),
-              ),
-            if (ok > 0 && bad > 0) const SizedBox(width: 2),
-            if (bad > 0)
-              Expanded(
-                flex: bad,
-                child: const ColoredBox(color: VerdictColors.bad),
-              ),
-          ],
-        ),
       ),
     );
   }

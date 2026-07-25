@@ -44,7 +44,7 @@ class _OfferDetailSheet extends ConsumerWidget {
         Gap.lg + MediaQuery.of(context).padding.bottom,
       ),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
+        gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [FoxColors.inkSoft, FoxColors.ink],
@@ -102,7 +102,7 @@ class _OfferDetailSheet extends ConsumerWidget {
               const SizedBox(width: 6),
               Text(
                 o.platform.label,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w700,
                   color: FoxColors.textPrimary,
@@ -114,7 +114,7 @@ class _OfferDetailSheet extends ConsumerWidget {
                   child: Text(
                     o.category!,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 12.5,
                       fontWeight: FontWeight.w600,
                       color: FoxColors.textSecondary,
@@ -125,7 +125,7 @@ class _OfferDetailSheet extends ConsumerWidget {
               const Spacer(),
               Text(
                 time,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 12.5,
                   fontWeight: FontWeight.w600,
                   color: FoxColors.textSecondary,
@@ -206,7 +206,7 @@ class _OfferDetailSheet extends ConsumerWidget {
                   o.outcome == OfferOutcome.taken
                       ? 'Likely taken'
                       : 'Likely passed',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
                     color: FoxColors.textSecondary,
@@ -249,7 +249,7 @@ class _OfferDetailSheet extends ConsumerWidget {
           const SizedBox(height: 3),
           Text(
             label,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 9.5,
               fontWeight: FontWeight.w700,
               letterSpacing: 0.7,
@@ -311,7 +311,7 @@ class _VerdictMath extends StatelessWidget {
           Expanded(
             child: Text(
               text,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 12.5,
                 height: 1.4,
                 fontWeight: FontWeight.w600,

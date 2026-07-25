@@ -38,6 +38,9 @@ class VerdictPill extends StatelessWidget {
   static const _bad = Color(0xFFE56458);
   static const _unknown = Color(0xFF8895A7);
 
+  /// Sub-label cream. Const because the pill body is dark in both themes.
+  static const _dimCream = Color(0xC6F4EFE1);
+
   Color get _rateColor => switch (payload.verdict) {
     Verdict.good => _good,
     Verdict.ok => _ok,
@@ -162,7 +165,11 @@ class VerdictPill extends StatelessWidget {
                         color: switch (payload.pickupIsNear) {
                           true => const Color(0xFF5ECD90),
                           false => const Color(0xFFFF8A7E),
-                          null => FoxColors.creamDim,
+                          // creamConst, not creamDim: the pill is dark in BOTH
+                          // themes (it floats over other apps), and the varying
+                          // token would go ink here when Settings renders the
+                          // sample pill in light mode.
+                          null => _dimCream,
                         },
                         fontFeatures: const [FontFeature.tabularFigures()],
                       ),
@@ -188,7 +195,7 @@ class VerdictPill extends StatelessWidget {
                             Verdict.good => const Color(0xFF5ECD90),
                             Verdict.ok => const Color(0xFFF2C464),
                             Verdict.bad => const Color(0xFFFF8A7E),
-                            _ => FoxColors.creamDim,
+                            _ => _dimCream,
                           },
                           fontFeatures: const [FontFeature.tabularFigures()],
                         ),

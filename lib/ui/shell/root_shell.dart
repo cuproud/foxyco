@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../history/history_screen.dart';
 import '../home/home_screen.dart';
+import '../settings/settings_controller.dart';
 import '../settings/settings_screen.dart';
 import '../theme/tokens.dart';
 
@@ -27,14 +28,56 @@ class RootShell extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final index = ref.watch(tabIndexProvider);
+
+    // Palette tokens are plain statics ([FoxColors]), not an InheritedWidget,
+    // so changing them signals NOTHING to the element tree — a widget that
+    // isn't rebuilt for some other reason keeps painting the colors it baked in
+    // at its last build. That is invisible while the app has one theme and
+    // becomes a stale-color bug the moment it has two: switching to dark left
+    // Home's greeting drawn in light-mode ink on the dark page, and only
+    // scrolling it out of the ListView's cache and back fixed it (device
+    // 2026-07-25).
+    //
+    // So make the switch an explicit teardown: watch both inputs that can
+    // change the resolved palette, and key the pages on them. A change discards
+    // the three tab subtrees and rebuilds them against the new statics. Costs
+    // the tabs' scroll offsets on a theme switch, which is a fair price and
+    // roughly what a user expects from one.
+    final skin = ref.watch(settingsProvider.select((s) => s.skin));
+    final platformDark =
+        MediaQuery.platformBrightnessOf(context) == Brightness.dark;
+    final paletteKey = ValueKey('$skin-$platformDark');
+
     return Scaffold(
       // Nav floats OVER the content, so let pages pad their own bottom.
       extendBody: true,
-      body: SafeArea(
-        bottom: false,
-        child: IndexedStack(
-          index: index,
-          children: const [HomeScreen(), HistoryScreen(), SettingsScreen()],
+      // Ambient wash over the scaffold's flat fill: light falls from above, so
+      // the top of the page is a touch brighter than the bottom. Barely
+      // perceptible on its own — it's what stops the cards' shadows from
+      // sitting on a dead backdrop (device 2026-07-25: "everything is flat").
+      // Painted as a body overlay rather than by making the Scaffold
+      // transparent, which would flash black behind the floating nav.
+      body: DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Color.lerp(FoxColors.bgBase, FoxColors.bgSurface, 0.55)!,
+              FoxColors.bgBase,
+            ],
+            stops: const [0, 0.45],
+          ),
+        ),
+        child: SafeArea(
+          bottom: false,
+          child: KeyedSubtree(
+            key: paletteKey,
+            child: IndexedStack(
+              index: index,
+              children: const [HomeScreen(), HistoryScreen(), SettingsScreen()],
+            ),
+          ),
         ),
       ),
       bottomNavigationBar: _BottomNav(
@@ -99,7 +142,11 @@ class _BottomNav extends StatelessWidget {
                     width: slot,
                     child: Container(
                       decoration: BoxDecoration(
-                        color: FoxColors.cream,
+                        // Inverted chip: the fill is the page's TEXT color and
+                        // the active label is the page's surface (see
+                        // _NavItem). The two have to stay a matched pair or the
+                        // active tab goes unreadable on a theme switch.
+                        color: FoxColors.textPrimary,
                         borderRadius: BorderRadius.circular(Radii.pill),
                       ),
                     ),
@@ -139,7 +186,8 @@ class _NavItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = active ? FoxColors.ink : FoxColors.textDisabled;
+    // Active = the surface color, ON the textPrimary-filled indicator above.
+    final color = active ? FoxColors.bgSurface : FoxColors.textDisabled;
     return Semantics(
       button: true,
       selected: active,

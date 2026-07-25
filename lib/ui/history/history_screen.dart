@@ -8,6 +8,7 @@ import '../../domain/platform.dart';
 import '../../domain/verdict.dart';
 import '../../services/offer_log.dart';
 import '../theme/platform_badge.dart';
+import '../theme/step_button.dart';
 import '../theme/tokens.dart';
 import '../theme/verdict_style.dart';
 import 'offer_detail_sheet.dart';
@@ -98,7 +99,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
             const Spacer(),
             Text(
               HistoryScreen.headerLabel(filtered.length, _range),
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 12.5,
                 fontWeight: FontWeight.w600,
                 color: FoxColors.textDisabled,
@@ -308,7 +309,7 @@ class _RangeControl extends StatelessWidget {
                               fontSize: 12.5,
                               fontWeight: FontWeight.w700,
                               color: r == value
-                                  ? FoxColors.cream
+                                  ? FoxColors.textPrimary
                                   : FoxColors.textSecondary,
                             ),
                           ),
@@ -376,7 +377,7 @@ class _AppChips extends StatelessWidget {
               style: TextStyle(
                 fontSize: 12.5,
                 fontWeight: FontWeight.w700,
-                color: active ? FoxColors.cream : FoxColors.textSecondary,
+                color: active ? FoxColors.textPrimary : FoxColors.textSecondary,
               ),
             ),
           ],
@@ -439,7 +440,7 @@ class _VerdictChips extends StatelessWidget {
               style: TextStyle(
                 fontSize: 12.5,
                 fontWeight: FontWeight.w700,
-                color: active ? FoxColors.cream : FoxColors.textSecondary,
+                color: active ? FoxColors.textPrimary : FoxColors.textSecondary,
               ),
             ),
           ],
@@ -470,7 +471,7 @@ class _TopCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(Gap.md + Gap.xs),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
+        gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [FoxColors.inkSoft, FoxColors.ink],
@@ -493,7 +494,7 @@ class _TopCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       'Top offers only',
                       style: TextStyle(
                         fontSize: 15,
@@ -533,7 +534,11 @@ class _TopCard extends StatelessWidget {
                     ),
                   ),
                   const Spacer(),
-                  _StepBtn('–', () => onFare(-5)),
+                  StepButton(
+                    glyph: '−',
+                    onTap: () => onFare(-5),
+                    semanticLabel: 'Decrease minimum fare',
+                  ),
                   SizedBox(
                     width: 46,
                     child: Text(
@@ -548,7 +553,11 @@ class _TopCard extends StatelessWidget {
                       ),
                     ),
                   ),
-                  _StepBtn('+', () => onFare(5)),
+                  StepButton(
+                    glyph: '+',
+                    onTap: () => onFare(5),
+                    semanticLabel: 'Increase minimum fare',
+                  ),
                 ],
               ),
             ),
@@ -560,7 +569,7 @@ class _TopCard extends StatelessWidget {
               children: [
                 TextSpan(
                   text: '$matchCount',
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: FoxColors.cream,
                     fontWeight: FontWeight.w700,
                   ),
@@ -633,46 +642,6 @@ class _Switch extends StatelessWidget {
                     ],
                   ),
                 ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _StepBtn extends StatelessWidget {
-  const _StepBtn(this.glyph, this.onTap);
-  final String glyph;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    // 48dp hit area around the 30dp visual (a11y minimum).
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: SizedBox(
-        width: 48,
-        height: 48,
-        child: Center(
-          child: Container(
-            width: 30,
-            height: 30,
-            decoration: BoxDecoration(
-              color: FoxColors.cream.withValues(alpha: 0.08),
-              shape: BoxShape.circle,
-              border: Border.all(color: FoxColors.cream.withValues(alpha: 0.2)),
-            ),
-            alignment: Alignment.center,
-            child: Text(
-              glyph,
-              style: const TextStyle(
-                color: FoxColors.cream,
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-                height: 1,
               ),
             ),
           ),
@@ -782,7 +751,7 @@ class _HourlyChart extends StatelessWidget {
                         child: Text(
                           '$peak',
                           textAlign: TextAlign.center,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 10.5,
                             fontWeight: FontWeight.w700,
                             color: FoxColors.cream,
@@ -810,7 +779,7 @@ class _HourlyChart extends StatelessWidget {
                   flex: flex,
                   child: Text(
                     label,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 9.5,
                       fontWeight: FontWeight.w600,
                       letterSpacing: 0.3,
@@ -886,9 +855,9 @@ class _AppVerdictChart extends StatelessWidget {
               const Spacer(),
               // Tiny legend: dot + word per verdict.
               for (final (c, l) in [
-                (VerdictColors.good, 'good'),
-                (VerdictColors.ok, 'ok'),
-                (VerdictColors.bad, 'bad'),
+                (VerdictColors.goodFill, 'good'),
+                (VerdictColors.okFill, 'ok'),
+                (VerdictColors.badFill, 'bad'),
               ]) ...[
                 Container(
                   width: 6,
@@ -899,7 +868,7 @@ class _AppVerdictChart extends StatelessWidget {
                 const SizedBox(width: 3),
                 Text(
                   l,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 9.5,
                     fontWeight: FontWeight.w600,
                     color: FoxColors.textSecondary,
@@ -941,7 +910,7 @@ class _AppVerdictChart extends StatelessWidget {
                   p.label,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 11.5,
                     fontWeight: FontWeight.w700,
                     color: FoxColors.textPrimary,
@@ -956,32 +925,40 @@ class _AppVerdictChart extends StatelessWidget {
           child: FractionallySizedBox(
             alignment: Alignment.centerLeft,
             widthFactor: total / maxTotal,
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(Radii.pill),
-              child: SizedBox(
-                height: 14,
-                child: Builder(
-                  builder: (context) {
-                    final segs = [
-                      (good, VerdictColors.good),
-                      (ok, VerdictColors.ok),
-                      (bad, VerdictColors.bad),
-                    ].where((s) => s.$1 > 0).toList();
-                    return Row(
-                      children: [
-                        // 2px surface gaps between segments.
-                        for (final (i, (count, color)) in segs.indexed)
-                          Expanded(
-                            flex: count,
-                            child: Container(
-                              margin: EdgeInsets.only(left: i == 0 ? 0 : 2),
-                              color: color,
+            // Matches the Home segment bar: 10dp lozenges rather than one 14dp
+            // slab of saturated color (device 2026-07-25: "too thick").
+            child: SizedBox(
+              height: 10,
+              child: Builder(
+                builder: (context) {
+                  final segs = [
+                    (good, VerdictColors.goodFill),
+                    (ok, VerdictColors.okFill),
+                    (bad, VerdictColors.badFill),
+                  ].where((s) => s.$1 > 0).toList();
+                  return Row(
+                    children: [
+                      for (final (i, (count, color)) in segs.indexed)
+                        Expanded(
+                          flex: count,
+                          child: Container(
+                            margin: EdgeInsets.only(left: i == 0 ? 0 : 2),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(Radii.pill),
+                              gradient: LinearGradient(
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                                colors: [
+                                  Color.lerp(color, Colors.white, 0.18)!,
+                                  color,
+                                ],
+                              ),
                             ),
                           ),
-                      ],
-                    );
-                  },
-                ),
+                        ),
+                    ],
+                  );
+                },
               ),
             ),
           ),
@@ -992,7 +969,7 @@ class _AppVerdictChart extends StatelessWidget {
           child: Text(
             '$total',
             textAlign: TextAlign.right,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 11.5,
               fontWeight: FontWeight.w700,
               color: FoxColors.cream,
@@ -1018,7 +995,7 @@ class _DateHeader extends StatelessWidget {
           style: Theme.of(context).textTheme.labelSmall,
         ),
         const SizedBox(width: Gap.sm + Gap.xs),
-        const Expanded(child: Divider(color: FoxColors.border, height: 1)),
+        Expanded(child: Divider(color: FoxColors.border, height: 1)),
       ],
     );
   }
@@ -1075,7 +1052,7 @@ class _OfferRow extends StatelessWidget {
                       const SizedBox(width: 6),
                       Text(
                         offer.platform.label,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w700,
                           color: FoxColors.textPrimary,
@@ -1087,7 +1064,7 @@ class _OfferRow extends StatelessWidget {
                           child: Text(
                             offer.category!,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
                               color: FoxColors.textSecondary,
@@ -1106,13 +1083,13 @@ class _OfferRow extends StatelessWidget {
                         ),
                         TextSpan(
                           text: '\$${offer.pricePerKm.toStringAsFixed(2)}/km',
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: FoxColors.textPrimary,
                             fontWeight: FontWeight.w700,
                           ),
                         ),
                       ],
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 12,
                         color: FoxColors.textSecondary,
                         fontFeatures: [FontFeature.tabularFigures()],
@@ -1143,14 +1120,14 @@ class _OfferRow extends StatelessWidget {
                   children: [
                     // Inferred take/pass marker (icon; unknown → nothing).
                     if (offer.outcome == OfferOutcome.taken) ...[
-                      const Icon(
+                      Icon(
                         Icons.check_rounded,
                         size: 11,
                         color: VerdictColors.good,
                       ),
                       const SizedBox(width: 3),
                     ] else if (offer.outcome == OfferOutcome.missed) ...[
-                      const Icon(
+                      Icon(
                         Icons.close_rounded,
                         size: 11,
                         color: FoxColors.textDisabled,
@@ -1159,7 +1136,7 @@ class _OfferRow extends StatelessWidget {
                     ],
                     Text(
                       time,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
                         color: FoxColors.textDisabled,
@@ -1202,7 +1179,7 @@ class _Empty extends StatelessWidget {
             filtered
                 ? '$hiddenCount offers outside these filters'
                 : 'No offers yet — go live and let the fox hunt 🦊🍕',
-            style: const TextStyle(fontSize: 13, color: FoxColors.textDisabled),
+            style: TextStyle(fontSize: 13, color: FoxColors.textDisabled),
           ),
           if (filtered) ...[
             const SizedBox(height: Gap.sm),
@@ -1258,17 +1235,17 @@ class _StatsCard extends StatelessWidget {
                 children: [
                   TextSpan(
                     text: '${s.good}',
-                    style: const TextStyle(color: VerdictColors.good),
+                    style: TextStyle(color: VerdictColors.good),
                   ),
                   const TextSpan(text: ' · '),
                   TextSpan(
                     text: '${s.ok}',
-                    style: const TextStyle(color: VerdictColors.ok),
+                    style: TextStyle(color: VerdictColors.ok),
                   ),
                   const TextSpan(text: ' · '),
                   TextSpan(
                     text: '${s.bad}',
-                    style: const TextStyle(color: VerdictColors.bad),
+                    style: TextStyle(color: VerdictColors.bad),
                   ),
                 ],
               ),
@@ -1333,7 +1310,7 @@ class _Stat extends StatelessWidget {
       children: [
         Text(
           label,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 10,
             fontWeight: FontWeight.w700,
             letterSpacing: 0.8,
@@ -1353,7 +1330,7 @@ class _Stat extends StatelessWidget {
             : Text(value, style: _valueStyle),
         Text.rich(
           subSpan ?? TextSpan(text: sub),
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 10.5,
             color: FoxColors.textSecondary,
             fontFeatures: [FontFeature.tabularFigures()],

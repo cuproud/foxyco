@@ -44,7 +44,7 @@ class _ReminderSectionState extends ConsumerState<ReminderSection> {
           for (final r in visible) ...[
             _ReminderRow(reminder: r),
             if (r != visible.last)
-              const Divider(color: FoxColors.border, height: Gap.md),
+              Divider(color: FoxColors.border, height: Gap.md),
           ],
         if (reminders.length > cap)
           TextButton(
@@ -134,7 +134,7 @@ class _ReminderRow extends ConsumerWidget {
                     r.note.isEmpty ? dateLabel : '$dateLabel · ${r.note}',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 11.5,
                       color: FoxColors.textSecondary,
                     ),
@@ -323,7 +323,7 @@ class _ReminderEditorState extends ConsumerState<_ReminderEditor> {
                   foregroundColor: _date == null
                       ? FoxColors.textSecondary
                       : FoxColors.cream,
-                  side: const BorderSide(color: FoxColors.border),
+                  side: BorderSide(color: FoxColors.border),
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(Radii.field),
@@ -465,7 +465,7 @@ class _PresetChip extends StatelessWidget {
               Icon(
                 icon,
                 size: 14,
-                color: selected ? FoxColors.cream : FoxColors.textSecondary,
+                color: selected ? FoxColors.textPrimary : FoxColors.textSecondary,
               ),
               const SizedBox(width: 5),
             ],
@@ -474,7 +474,7 @@ class _PresetChip extends StatelessWidget {
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
-                color: selected ? FoxColors.cream : FoxColors.textSecondary,
+                color: selected ? FoxColors.textPrimary : FoxColors.textSecondary,
               ),
             ),
           ],

@@ -15,7 +15,8 @@ import 'tokens.dart';
 /// bounded [SizedBox] to control its footprint). When the parent is unbounded,
 /// it falls back to a square [size]×[size] box. Body aspect ratios vary widely
 /// (a pickup is ~2.5:1, a scooter ~0.7:1), so [BoxFit.contain] does the fitting
-/// rather than any hardcoded box shape.
+/// rather than any hardcoded box shape — scaled down for the two-wheelers by
+/// [_massFraction] so a scooter doesn't render as tall as a van.
 class VehicleBadge extends StatelessWidget {
   const VehicleBadge({
     super.key,
@@ -33,6 +34,27 @@ class VehicleBadge extends StatelessWidget {
   /// bound the widget. Ignored for the fill when the parent IS bounded.
   final double size;
 
+  /// How much of the parent box the art is allowed to occupy.
+  ///
+  /// Most art is a wide side profile (~2.4:1), so `contain` binds on width and
+  /// every one lands at a similar on-screen size. Some renders aren't: the
+  /// two-wheelers are ~1.1:1 (a standing scooter ~0.66:1) and the off-road /
+  /// premium art is a 3/4 view at ~1.2–1.7:1. For those `contain` binds on
+  /// HEIGHT instead, so they render full-box-height — a scooter came out taller
+  /// than a van (device 2026-07-24). Shrinking their box restores the size order
+  /// without touching the art.
+  ///
+  /// Calibration knob, tuned by eye at the editor's 1.7:1 preview — the numbers
+  /// track each asset's real aspect ratio, so re-check them if the art set is
+  /// re-rendered. They hold at badge sizes since the scale is proportional.
+  static double _massFraction(VehicleType t) => switch (t) {
+    VehicleType.bike || VehicleType.motorbike || VehicleType.eBike => 0.72,
+    VehicleType.eScooter => 0.62,
+    // 3/4-view renders: taller than a side profile, but not 40% taller.
+    VehicleType.offRoad || VehicleType.premium => 0.85,
+    _ => 1.0,
+  };
+
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
@@ -44,10 +66,14 @@ class VehicleBadge extends StatelessWidget {
           clipBehavior: Clip.none,
           children: [
             Positioned.fill(
-              child: Image.asset(
-                'assets/vehicles/${bodyType.assetName}.png',
-                fit: BoxFit.contain,
-                filterQuality: FilterQuality.medium,
+              child: FractionallySizedBox(
+                widthFactor: _massFraction(bodyType),
+                heightFactor: _massFraction(bodyType),
+                child: Image.asset(
+                  'assets/vehicles/${bodyType.assetName}.png',
+                  fit: BoxFit.contain,
+                  filterQuality: FilterQuality.medium,
+                ),
               ),
             ),
             if (fuelType != FuelType.gas)

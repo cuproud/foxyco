@@ -51,13 +51,16 @@ class ProfileCard extends ConsumerWidget {
       // Long names wrap to a second line instead of clipping.
       maxLines: 2,
       overflow: TextOverflow.ellipsis,
-      style: const TextStyle(
+      style: TextStyle(
         fontFamily: FoxFonts.sans,
         fontSize: 19,
         height: 1.3,
         fontWeight: FontWeight.w500,
         letterSpacing: -0.2,
-        color: FoxColors.creamDim,
+        // Page token: the greeting sits straight on the page above the car, not
+        // on a card. As creamDim it was cream-on-cream in light mode (device
+        // 2026-07-25: "Good morning" was invisible).
+        color: FoxColors.textPrimary,
       ),
     );
 

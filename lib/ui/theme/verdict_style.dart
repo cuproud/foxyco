@@ -25,30 +25,30 @@ class VerdictStyle {
 
   static VerdictStyle of(Verdict v) => switch (v) {
     // ● filled = GOOD, ◐ half = OK, ○ ring = BAD, ? = unknown
-    Verdict.good => const VerdictStyle._(
+    Verdict.good => VerdictStyle._(
       VerdictColors.good,
       VerdictColors.goodOnDark,
       VerdictColors.goodBg,
       Icons.circle,
       'GOOD',
     ),
-    Verdict.ok => const VerdictStyle._(
+    Verdict.ok => VerdictStyle._(
       VerdictColors.ok,
       VerdictColors.okOnDark,
       VerdictColors.okBg,
       Icons.contrast,
       'OK',
     ),
-    Verdict.bad => const VerdictStyle._(
+    Verdict.bad => VerdictStyle._(
       VerdictColors.bad,
       VerdictColors.badOnDark,
       VerdictColors.badBg,
       Icons.circle_outlined,
       'BAD',
     ),
-    Verdict.unknown => const VerdictStyle._(
+    Verdict.unknown => VerdictStyle._(
       VerdictColors.unknown,
-      VerdictColors.unknown,
+      VerdictColors.unknownOnDark,
       FoxColors.borderSoft,
       Icons.help_outline,
       '—',

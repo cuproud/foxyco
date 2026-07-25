@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'domain/app_skin.dart';
 import 'router.dart';
 import 'services/accessibility/offer_watcher.dart';
 import 'ui/home/dashboard_controller.dart';
@@ -98,10 +99,30 @@ class _FoxyCoAppState extends ConsumerState<FoxyCoApp>
     // the rebuild this watch triggers.
     final moneyFont = ref.watch(settingsProvider.select((s) => s.moneyFont));
     FoxFonts.display = moneyFont.family;
+    // Same deal for the palette: AppTheme.of() applies it to FoxColors before
+    // building, so the static token call sites across the app follow the switch
+    // on the rebuild this watch triggers. Building BOTH themes here would leave
+    // whichever ran last applied, so only the active one is built.
+    final skin = ref.watch(settingsProvider.select((s) => s.skin));
+    final mode = switch (skin) {
+      AppSkin.dark => ThemeMode.dark,
+      AppSkin.light => ThemeMode.light,
+      AppSkin.system => ThemeMode.system,
+    };
+    final systemDark =
+        MediaQuery.platformBrightnessOf(context) == Brightness.dark;
+    final active = switch (mode) {
+      ThemeMode.dark => FoxPalette.dark,
+      ThemeMode.light => FoxPalette.light,
+      ThemeMode.system => systemDark ? FoxPalette.dark : FoxPalette.light,
+    };
+    final theme = AppTheme.of(active);
     return MaterialApp.router(
       title: 'FoxyCo',
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.dark,
+      theme: theme,
+      darkTheme: theme,
+      themeMode: mode,
       routerConfig: _router,
     );
   }

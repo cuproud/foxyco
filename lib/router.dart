@@ -2,6 +2,7 @@ import 'package:go_router/go_router.dart';
 
 import 'domain/garage.dart';
 import 'ui/onboarding/onboarding_screen.dart';
+import 'ui/settings/about_screen.dart';
 import 'ui/settings/vehicle_editor_screen.dart';
 import 'ui/shell/root_shell.dart';
 import 'ui/splash/splash_screen.dart';
@@ -32,5 +33,6 @@ GoRouter createRouter({
       builder: (context, state) =>
           VehicleEditorScreen(initial: state.extra as Vehicle?),
     ),
+    GoRoute(path: '/about', builder: (context, state) => const AboutScreen()),
   ],
 );

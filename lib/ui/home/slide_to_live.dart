@@ -143,9 +143,15 @@ class _SlideToLiveState extends State<SlideToLive>
           child: Container(
             height: _height,
             decoration: BoxDecoration(
-              color: FoxColors.bgSurface2,
+              // A well cut into the CARD, so it stays recessed whichever way
+              // the theme goes — the page tokens (bgSurface2/border) read as a
+              // pale slab sitting on top of the card instead (device
+              // 2026-07-25: "washed out").
+              color: FoxColors.cream.withValues(alpha: 0.08),
               borderRadius: BorderRadius.circular(Radii.pill),
-              border: Border.all(color: FoxColors.border),
+              border: Border.all(
+                color: FoxColors.cream.withValues(alpha: 0.18),
+              ),
             ),
             child: Stack(
               alignment: Alignment.centerLeft,
@@ -171,36 +177,45 @@ class _SlideToLiveState extends State<SlideToLive>
                     ),
                   ),
                 ),
+                // Glass cue spanning the WHOLE track (design 2026-07-25 — the
+                // old 60 px chevron band hid in the last inch of the card and
+                // read as a detail, not an invitation). A cream sheen sweeps
+                // the full width, with the chevron train marching across it.
+                // Both sit UNDER the label and fade as the fill rises.
+                if (!blocked) ...[
+                  Positioned.fill(
+                    child: _GlassSweep(
+                      reduced: _reduced,
+                      opacity: (1 - _drag * 2).clamp(0.0, 1.0),
+                    ),
+                  ),
+                  Positioned.fill(
+                    child: _MarchingChevrons(
+                      reduced: _reduced,
+                      // 0.85, not 0.55: at 0.55 the train read as smudges and
+                      // the "drag me" cue didn't land (device 2026-07-25).
+                      opacity: (1 - _drag * 2).clamp(0.0, 1.0) * 0.85,
+                      inset: _thumb + 12,
+                    ),
+                  ),
+                ],
                 // Label fades as the fill passes it.
                 Center(
                   child: Opacity(
                     opacity: (1 - _drag * 2).clamp(0.0, 1.0),
                     child: Text(
                       blocked ? 'Grant access to go live' : 'Slide to go live',
-                      style: const TextStyle(
-                        fontSize: 13.5,
+                      style: TextStyle(
+                        fontSize: 14,
                         fontWeight: FontWeight.w700,
                         letterSpacing: 0.3,
-                        color: FoxColors.textSecondary,
+                        // On-card token: textSecondary is the PAGE's, and it
+                        // washed out against the track (device 2026-07-25).
+                        color: FoxColors.creamDim,
                       ),
                     ),
                   ),
                 ),
-                // Glassy chevrons drift toward the right end to advertise the
-                // slide (design 2026-07-23). Sit right-of-centre, behind the
-                // thumb; fade out as the fill rises so they don't fight it.
-                if (!blocked)
-                  Positioned(
-                    right: _thumb,
-                    top: 0,
-                    bottom: 0,
-                    child: Center(
-                      child: _MarchingChevrons(
-                        reduced: _reduced,
-                        opacity: (1 - _drag * 2).clamp(0.0, 1.0) * 0.9,
-                      ),
-                    ),
-                  ),
                 // Thumb.
                 Positioned(
                   left: 6 + x,
@@ -283,7 +298,7 @@ class _SlideToLiveState extends State<SlideToLive>
                     const SizedBox(width: Gap.sm),
                     Text(
                       paused ? 'Paused' : 'Live',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 13.5,
                         fontWeight: FontWeight.w700,
                         color: FoxColors.cream,
@@ -293,7 +308,7 @@ class _SlideToLiveState extends State<SlideToLive>
                     Flexible(
                       child: Opacity(
                         opacity: (1 - _drag * 2).clamp(0.0, 1.0),
-                        child: const Text(
+                        child: Text(
                           '· slide back to stop',
                           maxLines: 1,
                           overflow: TextOverflow.clip,
@@ -308,19 +323,16 @@ class _SlideToLiveState extends State<SlideToLive>
                   ],
                 ),
               ),
-              // Left-pointing train just left of the thumb — the mirror of the
-              // go-live cue: "pull this way to stop". Fades out as the fill
-              // recedes with the drag.
-              Positioned(
-                right: _thumb + 8,
-                top: 0,
-                bottom: 0,
-                child: Center(
-                  child: _MarchingChevrons(
-                    reduced: _reduced,
-                    reverse: true,
-                    opacity: (1 - _drag * 2).clamp(0.0, 1.0) * 0.9,
-                  ),
+              // Left-pointing train across the track — the mirror of the
+              // go-live cue: "pull this way to stop". Inset on the LEFT here
+              // so it clears the "Live · slide back to stop" label. Fades out
+              // as the fill recedes with the drag.
+              Positioned.fill(
+                child: _MarchingChevrons(
+                  reduced: _reduced,
+                  reverse: true,
+                  opacity: (1 - _drag * 2).clamp(0.0, 1.0) * 0.55,
+                  inset: _thumb + 12,
                 ),
               ),
               Positioned(
@@ -359,24 +371,121 @@ class _SlideToLiveState extends State<SlideToLive>
   }
 }
 
-/// A short marching train of orange chevrons — the "slide this way" cue. Each
-/// chevron drifts across a fixed band and fades in/out (sin easing) so the row
-/// reads as continuous motion, not three jumping glyphs. Points right on the
-/// go-live track and left on the stop bar ([reverse]). Renders nothing under
-/// reduced motion.
+/// A translucent cream sheen sweeping the full width of the track — the "this
+/// whole thing is draggable" cue. Deliberately faint: it should register as
+/// glass catching the light, not as a second control fighting the orange fill.
+/// Renders nothing under reduced motion.
+class _GlassSweep extends StatefulWidget {
+  const _GlassSweep({required this.reduced, required this.opacity});
+
+  final bool reduced;
+  final double opacity; // outer fade (driven by drag)
+
+  @override
+  State<_GlassSweep> createState() => _GlassSweepState();
+}
+
+class _GlassSweepState extends State<_GlassSweep>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1800),
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    if (!widget.reduced) _c.repeat();
+  }
+
+  @override
+  void didUpdateWidget(_GlassSweep old) {
+    super.didUpdateWidget(old);
+    if (widget.reduced && _c.isAnimating) _c.stop();
+    if (!widget.reduced && !_c.isAnimating) _c.repeat();
+  }
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (widget.reduced || widget.opacity <= 0) return const SizedBox.shrink();
+    return IgnorePointer(
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(Radii.pill),
+        child: LayoutBuilder(
+          builder: (context, c) {
+            // The band is wider than half the track, so the sheen reads as one
+            // long pass rather than a small blob crossing.
+            final bandWidth = c.maxWidth * 0.55;
+            return AnimatedBuilder(
+              animation: _c,
+              builder: (context, _) => Stack(
+                children: [
+                  Positioned(
+                    // Travel from fully off the left edge to fully off the
+                    // right, so there's no pop-in at either end.
+                    left: -bandWidth + _c.value * (c.maxWidth + bandWidth),
+                    top: 0,
+                    bottom: 0,
+                    width: bandWidth,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        // Orange, not cream. A gleam has to be brighter than
+                        // what it sweeps, and the cream token now resolves to
+                        // ink in light mode — which painted a gray smear across
+                        // the track (device 2026-07-25). The brand orange is
+                        // the one color that reads as light on the dark well
+                        // AND as warmth on the pale one, and it reinforces the
+                        // chevrons instead of fighting them.
+                        gradient: LinearGradient(
+                          colors: [
+                            FoxColors.brandFox.withValues(alpha: 0),
+                            FoxColors.brandFox.withValues(
+                              alpha: 0.14 * widget.opacity,
+                            ),
+                            FoxColors.brandFox.withValues(alpha: 0),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+/// A marching train of orange chevrons — the "slide this way" cue. Chevrons
+/// drift across the full width of the track (minus [inset] at each end so they
+/// clear the thumb and the label) and fade in/out on a sin easing, so the row
+/// reads as continuous motion rather than a handful of jumping glyphs. Points
+/// right on the go-live track and left on the stop bar ([reverse]). Renders
+/// nothing under reduced motion.
 class _MarchingChevrons extends StatefulWidget {
   const _MarchingChevrons({
     required this.reduced,
     required this.opacity,
+    required this.inset,
     this.reverse = false,
   });
 
   final bool reduced;
   final double opacity; // outer fade (driven by drag)
+  final double inset; // px kept clear at each end (thumb / label)
   final bool reverse; // true → point/march left (stop bar)
 
-  static const _iconSize = 30.0;
+  static const _iconSize = 26.0;
   static const _weight = 2.0; // overlapped stroke → bolder glyph
+  static const _spacing = 44.0; // target px between chevrons
 
   @override
   State<_MarchingChevrons> createState() => _MarchingChevronsState();
@@ -384,11 +493,9 @@ class _MarchingChevrons extends StatefulWidget {
 
 class _MarchingChevronsState extends State<_MarchingChevrons>
     with SingleTickerProviderStateMixin {
-  static const _count = 3;
-  static const _step = 20.0; // px between chevrons / travel per cycle
   late final AnimationController _c = AnimationController(
     vsync: this,
-    duration: const Duration(milliseconds: 1500),
+    duration: const Duration(milliseconds: 2200),
   );
 
   @override
@@ -413,57 +520,75 @@ class _MarchingChevronsState extends State<_MarchingChevrons>
   @override
   Widget build(BuildContext context) {
     if (widget.reduced || widget.opacity <= 0) return const SizedBox.shrink();
-    final band = _step * _count;
     return IgnorePointer(
       child: Opacity(
         opacity: widget.opacity,
-        child: AnimatedBuilder(
-          animation: _c,
-          builder: (context, _) => SizedBox(
-            width: band,
-            height: _MarchingChevrons._iconSize,
-            child: Stack(
-              alignment: Alignment.centerLeft,
-              children: [
-                for (var i = 0; i < _count; i++)
-                  () {
-                    // Fractional progress of chevron i, wrapping 0..1. On the
-                    // stop bar the train marches the other way.
-                    final f = (_c.value + i / _count) % 1.0;
-                    final pos = widget.reverse ? (1 - f) * band : f * band;
-                    return Positioned(
-                      left: pos,
-                      child: Opacity(
-                        // Fade in then out across the band (glassy trail).
-                        opacity: math.sin(f * math.pi).clamp(0.0, 1.0),
-                        // Two stacked glyphs, the back one thicker, fake a
-                        // bold weight the icon font doesn't otherwise expose.
-                        child: Stack(
-                          children: [
-                            Icon(
-                              widget.reverse
-                                  ? Icons.chevron_left_rounded
-                                  : Icons.chevron_right_rounded,
-                              size:
-                                  _MarchingChevrons._iconSize +
-                                  _MarchingChevrons._weight,
-                              color: FoxColors.brandFoxDeep,
+        child: LayoutBuilder(
+          builder: (context, c) {
+            final band = (c.maxWidth - widget.inset * 2).clamp(
+              _MarchingChevrons._spacing,
+              double.infinity,
+            );
+            // One chevron per _spacing of track, so the train covers the whole
+            // width on any screen instead of bunching at one end.
+            final count = (band / _MarchingChevrons._spacing).round().clamp(
+              2,
+              12,
+            );
+            return AnimatedBuilder(
+              animation: _c,
+              builder: (context, _) => Stack(
+                children: [
+                  for (var i = 0; i < count; i++)
+                    () {
+                      // Fractional progress of chevron i, wrapping 0..1. On the
+                      // stop bar the train marches the other way.
+                      final f = (_c.value + i / count) % 1.0;
+                      final pos = widget.reverse ? (1 - f) * band : f * band;
+                      return Positioned(
+                        left: widget.inset + pos,
+                        top: 0,
+                        bottom: 0,
+                        child: Center(
+                          child: Opacity(
+                            // Fade in then out across the band (glassy trail),
+                            // but floored: an unfloored sine leaves most of the
+                            // train near zero at any instant, so the direction
+                            // never reads (device 2026-07-25).
+                            opacity: (0.35 + 0.65 * math.sin(f * math.pi)).clamp(
+                              0.0,
+                              1.0,
                             ),
-                            Icon(
-                              widget.reverse
-                                  ? Icons.chevron_left_rounded
-                                  : Icons.chevron_right_rounded,
-                              size: _MarchingChevrons._iconSize,
-                              color: FoxColors.brandFox,
+                            // Two stacked glyphs, the back one thicker, fake a
+                            // bold weight the icon font doesn't otherwise expose.
+                            child: Stack(
+                              children: [
+                                Icon(
+                                  widget.reverse
+                                      ? Icons.chevron_left_rounded
+                                      : Icons.chevron_right_rounded,
+                                  size:
+                                      _MarchingChevrons._iconSize +
+                                      _MarchingChevrons._weight,
+                                  color: FoxColors.brandFoxDeep,
+                                ),
+                                Icon(
+                                  widget.reverse
+                                      ? Icons.chevron_left_rounded
+                                      : Icons.chevron_right_rounded,
+                                  size: _MarchingChevrons._iconSize,
+                                  color: FoxColors.brandFox,
+                                ),
+                              ],
                             ),
-                          ],
+                          ),
                         ),
-                      ),
-                    );
-                  }(),
-              ],
-            ),
-          ),
+                      );
+                    }(),
+                ],
+              ),
+            );
+          },
         ),
       ),
     );
