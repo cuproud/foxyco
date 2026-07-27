@@ -1,0 +1,14 @@
+{
+  "asset": "Foxy Car V1",
+  "version": "1.0",
+  "canvas": {
+    "width": 4096,
+    "height": 2731,
+    "mode": "RGBA"
+  },
+  "layer_order": [
+    "02 theme glow/shadow (bottom)",
+    "01 exact car core (top)"
+  ],
+  "usage": "Use 03 composite directly, or layer 02 behind 01. Preserve aspect ratio and use contain; do not crop."
+}

@@ -1,170 +1,65 @@
 import 'package:flutter/material.dart';
 
-import 'tokens.dart';
-
-/// Layered photographic car hero (references/car/foxyco_hero_home (1).html).
+/// The Foxy showroom car (brand art set `foxy_car_assets_v1`, 2026-07-26).
 ///
-/// All PNGs in assets/car/ share one 1536×1024 canvas and are pre-aligned —
-/// compositing is a plain [Stack] of full-bleed images with per-layer opacity.
-/// [CarHeroState] holds one opacity per layer; splash and home drive it from
-/// their own animations and [CarHeroState.lerp] crossfades between presets.
-class CarHeroState {
-  const CarHeroState({
-    this.shadow = 0,
-    this.stealthBacklight = 0,
-    this.fogRear = 0,
-    this.carStealth = 0,
-    this.fogFront = 0,
-    this.rimLight = 0,
-    this.headlightBeams = 0,
-    this.revealBacklight = 0,
-    this.groundGlow = 0,
-    this.carReveal = 0,
-    this.bodyAccent = 0,
-    this.grilleLights = 0,
-    this.headlightsSharp = 0,
-    this.interiorGlow = 0,
-    this.reflection = 0,
-  });
-
-  final double shadow;
-  final double stealthBacklight;
-  final double fogRear;
-  final double carStealth;
-  final double fogFront;
-  final double rimLight;
-  final double headlightBeams;
-  final double revealBacklight;
-  final double groundGlow;
-  final double carReveal;
-  final double bodyAccent;
-  final double grilleLights;
-  final double headlightsSharp;
-  final double interiorGlow;
-  final double reflection;
-
-  /// Dark parked car: body + a whisper of fog + faint red backlight, lights
-  /// off. Fog kept low — at full strength its canvas-filling haze reads as a
-  /// grey box against the page (device 2026-07-20).
-  static const stealth = CarHeroState(
-    shadow: 1,
-    stealthBacklight: 0.35,
-    fogRear: 0.35,
-    carStealth: 1,
-    fogFront: 0.25,
-    rimLight: 0.35,
-    reflection: 0.10,
-  );
-
-  /// Full showroom reveal: color body, lights on, glows blooming. Headlight
-  /// hot-core held just under full — at 1.0 it blows out to a white blob on
-  /// device (feedback 2026-07-20).
-  static const reveal = CarHeroState(
-    shadow: 1,
-    carReveal: 1,
-    revealBacklight: 1,
-    groundGlow: 1,
-    bodyAccent: 1,
-    grilleLights: 0.9,
-    headlightsSharp: 0.75,
-    interiorGlow: 0.85,
-    reflection: 0.28,
-  );
-
-  static CarHeroState lerp(CarHeroState a, CarHeroState b, double t) {
-    double l(double x, double y) => x + (y - x) * t;
-    return CarHeroState(
-      shadow: l(a.shadow, b.shadow),
-      stealthBacklight: l(a.stealthBacklight, b.stealthBacklight),
-      fogRear: l(a.fogRear, b.fogRear),
-      carStealth: l(a.carStealth, b.carStealth),
-      fogFront: l(a.fogFront, b.fogFront),
-      rimLight: l(a.rimLight, b.rimLight),
-      headlightBeams: l(a.headlightBeams, b.headlightBeams),
-      revealBacklight: l(a.revealBacklight, b.revealBacklight),
-      groundGlow: l(a.groundGlow, b.groundGlow),
-      carReveal: l(a.carReveal, b.carReveal),
-      bodyAccent: l(a.bodyAccent, b.bodyAccent),
-      grilleLights: l(a.grilleLights, b.grilleLights),
-      headlightsSharp: l(a.headlightsSharp, b.headlightsSharp),
-      interiorGlow: l(a.interiorGlow, b.interiorGlow),
-      reflection: l(a.reflection, b.reflection),
-    );
-  }
-}
-
+/// Two pre-aligned PNGs on one 1536×1024 canvas: the car/fox core, and a
+/// per-theme glow/shadow layer BEHIND it. The core is byte-identical between
+/// themes, so only the back layer switches.
+///
+/// The art has no lights-off variant, so [glow] is the whole animated story —
+/// it carries the offline→live "the car wakes up" beat that the old 15-layer
+/// stealth→reveal crossfade used to.
 class CarHero extends StatelessWidget {
-  const CarHero({super.key, required this.state});
+  const CarHero({super.key, required this.glow, required this.onDark});
 
-  final CarHeroState state;
+  /// Back-layer opacity, 0..1. Home lerps it on going live; splash flickers it
+  /// on like a cold start.
+  final double glow;
+
+  /// Which back layer: the dark theme's warm glow, or the light theme's plain
+  /// shadow. Not read from the palette — the splash is pinned to the dark stage
+  /// in both themes.
+  final bool onDark;
+
+  /// Shared canvas aspect of every layer.
+  static const canvas = 1536 / 1024;
+
+  /// The car body on its own — [HeroStage] uses it as the reflection-sweep mask.
+  static const coreAsset = 'assets/car/$_core.png';
+
+  static const _core = 'foxy_car_core';
+  static const _glowDark = 'foxy_car_glow_dark';
+  static const _shadowLight = 'foxy_car_shadow_light';
 
   /// All layer asset basenames — splash uses this to precache.
-  static List<String> get layerNames => [for (final (name, _) in _layers) name];
-
-  // Bottom-to-top compositing order (per asset-set READMEs).
-  static const _layers = <(String, double Function(CarHeroState))>[
-    ('stealth_backlight', _sBacklight),
-    ('reveal_backlight', _rBacklight),
-    ('ground_color_glow', _ground),
-    ('stealth_fog_rear', _fogRear),
-    ('car_shadow', _shadow),
-    ('car_reflection', _reflection),
-    ('car_stealth', _carStealth),
-    ('car_reveal', _carReveal),
-    ('body_accent_glow', _bodyAccent),
-    ('stealth_fog_front', _fogFront),
-    ('outline_rim_light', _rim),
-    ('headlight_beams', _beams),
-    ('grille_lights', _grille),
-    ('headlights_sharp', _sharp),
-    ('interior_glow', _interior),
-  ];
-
-  static double _sBacklight(CarHeroState s) => s.stealthBacklight;
-  static double _rBacklight(CarHeroState s) => s.revealBacklight;
-  static double _ground(CarHeroState s) => s.groundGlow;
-  static double _fogRear(CarHeroState s) => s.fogRear;
-  static double _shadow(CarHeroState s) => s.shadow;
-  static double _reflection(CarHeroState s) => s.reflection;
-  static double _carStealth(CarHeroState s) => s.carStealth;
-  static double _carReveal(CarHeroState s) => s.carReveal;
-  static double _bodyAccent(CarHeroState s) => s.bodyAccent;
-  static double _fogFront(CarHeroState s) => s.fogFront;
-  static double _rim(CarHeroState s) => s.rimLight;
-  static double _beams(CarHeroState s) => s.headlightBeams;
-  static double _grille(CarHeroState s) => s.grilleLights;
-  static double _sharp(CarHeroState s) => s.headlightsSharp;
-  static double _interior(CarHeroState s) => s.interiorGlow;
+  static const layerNames = [_core, _glowDark, _shadowLight];
 
   @override
   Widget build(BuildContext context) {
-    // Decorative — 15 stacked images are noise to screen readers.
+    // Decorative — stacked images are noise to screen readers.
     return ExcludeSemantics(
       child: AspectRatio(
-        aspectRatio: 1536 / 1024,
+        aspectRatio: canvas,
         child: LayoutBuilder(
           builder: (context, c) {
-            // Decode once at display resolution — full 1536px RGBA × 15
-            // layers would hold ~90MB; at card width it's a fraction of that.
+            // Decode at display resolution, not the asset's 1536 px.
             final cacheW =
                 (c.maxWidth * MediaQuery.of(context).devicePixelRatio).round();
+            Widget layer(String name, double opacity) => Image.asset(
+              'assets/car/$name.png',
+              fit: BoxFit.contain,
+              cacheWidth: cacheW,
+              gaplessPlayback: true,
+              // Image's own opacity paints with alpha directly — an Opacity
+              // widget here would saveLayer every frame of the tween.
+              opacity: AlwaysStoppedAnimation(opacity.clamp(0.0, 1.0)),
+            );
             return Stack(
               fit: StackFit.expand,
               children: [
-                for (final (name, opacityOf) in _layers)
-                  if (opacityOf(state) > 0.004)
-                    Image.asset(
-                      'assets/car/$name.png',
-                      fit: BoxFit.contain,
-                      cacheWidth: cacheW,
-                      gaplessPlayback: true,
-                      // Image's own opacity paints with alpha directly — an
-                      // Opacity widget here would saveLayer per layer per
-                      // frame (15 layers = real GPU cost on low-end).
-                      opacity: AlwaysStoppedAnimation(
-                        opacityOf(state).clamp(0.0, 1.0),
-                      ),
-                    ),
+                if (glow > 0.004)
+                  layer(onDark ? _glowDark : _shadowLight, glow),
+                layer(_core, 1),
               ],
             );
           },

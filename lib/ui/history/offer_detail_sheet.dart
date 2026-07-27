@@ -17,6 +17,13 @@ void showOfferDetail(BuildContext context, OfferSummary offer) {
   showModalBottomSheet<void>(
     context: context,
     backgroundColor: Colors.transparent,
+    // Scroll-controlled: the default sheet caps at 9/16 of the screen and this
+    // card is taller than that at large text scales, so the top of the content
+    // was being cut off (device 2026-07-26).
+    isScrollControlled: true,
+    constraints: BoxConstraints(
+      maxHeight: MediaQuery.sizeOf(context).height * 0.9,
+    ),
     builder: (_) => _OfferDetailSheet(offer: offer),
   );
 }
@@ -37,12 +44,7 @@ class _OfferDetailSheet extends ConsumerWidget {
 
     return Container(
       margin: const EdgeInsets.all(Gap.sm),
-      padding: EdgeInsets.fromLTRB(
-        Gap.lg,
-        Gap.md,
-        Gap.lg,
-        Gap.lg + MediaQuery.of(context).padding.bottom,
-      ),
+      clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
@@ -55,10 +57,10 @@ class _OfferDetailSheet extends ConsumerWidget {
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Grab handle.
-          Center(
+          // Grab handle, outside the scroll view so it stays put.
+          Padding(
+            padding: const EdgeInsets.only(top: Gap.md, bottom: Gap.xs),
             child: Container(
               width: 36,
               height: 4,
@@ -68,153 +70,198 @@ class _OfferDetailSheet extends ConsumerWidget {
               ),
             ),
           ),
-          const SizedBox(height: Gap.md),
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 5,
-                ),
-                decoration: BoxDecoration(
-                  color: style.bg,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(style.icon, color: style.color, size: 16),
-                    const SizedBox(width: 6),
-                    Text(
-                      style.label,
+          Flexible(
+            child: SingleChildScrollView(
+              padding: EdgeInsets.fromLTRB(
+                Gap.lg,
+                Gap.sm,
+                Gap.lg,
+                Gap.lg + MediaQuery.of(context).padding.bottom,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Header: verdict, who it came from, when. The pill + platform
+                  // group scales down together rather than pushing the time off
+                  // the card at large text scales; the ride category used to be
+                  // crammed in here too and came out as "Ube…", so it has its
+                  // own line under the fare now (device 2026-07-26).
+                  Row(
+                    children: [
+                      Flexible(
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerLeft,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 5,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: style.bg,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      style.icon,
+                                      color: style.color,
+                                      size: 16,
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      style.label,
+                                      style: TextStyle(
+                                        fontFamily: FoxFonts.display,
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w600,
+                                        color: style.color,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: Gap.sm + Gap.xs),
+                              PlatformBadge(platform: o.platform, size: 20),
+                              const SizedBox(width: 6),
+                              Text(
+                                o.platform.label,
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w700,
+                                  color: FoxColors.textPrimary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: Gap.sm),
+                      Text(
+                        time,
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w600,
+                          color: FoxColors.textSecondary,
+                          fontFeatures: [FontFeature.tabularFigures()],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: Gap.md),
+                  // Big fare. scaleDown so a four-figure fare — or a 2× text
+                  // scale — shrinks instead of running off the card.
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      '\$${o.payout.toStringAsFixed(2)}',
+                      maxLines: 1,
                       style: TextStyle(
                         fontFamily: FoxFonts.display,
-                        fontSize: 15,
+                        fontSize: 40,
+                        // 1.0 shaved the display font's ascenders.
+                        height: 1.1,
                         fontWeight: FontWeight.w600,
-                        color: style.color,
+                        letterSpacing: -1,
+                        color: FoxColors.cream,
+                        fontFeatures: [FontFeature.tabularFigures()],
                       ),
                     ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: Gap.sm + Gap.xs),
-              PlatformBadge(platform: o.platform, size: 20),
-              const SizedBox(width: 6),
-              Text(
-                o.platform.label,
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                  color: FoxColors.textPrimary,
-                ),
-              ),
-              if (o.category != null) ...[
-                const SizedBox(width: 6),
-                Flexible(
-                  child: Text(
-                    o.category!,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.w600,
-                      color: FoxColors.textSecondary,
+                  ),
+                  if (o.category != null)
+                    Text(
+                      o.category!,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: FoxColors.textSecondary,
+                      ),
                     ),
+                  const SizedBox(height: Gap.md),
+                  // Stat grid: everything parsed. Unknowns (0) show an em-dash.
+                  Row(
+                    children: [
+                      _cell('\$${o.pricePerKm.toStringAsFixed(2)}', 'PER KM'),
+                      const SizedBox(width: Gap.sm),
+                      _cell(
+                        o.pricePerHour > 0
+                            ? '\$${o.pricePerHour.toStringAsFixed(0)}'
+                            : '—',
+                        'PER HOUR',
+                      ),
+                      const SizedBox(width: Gap.sm),
+                      _cell('${o.totalKm.toStringAsFixed(1)} km', 'TOTAL'),
+                    ],
                   ),
-                ),
-              ],
-              const Spacer(),
-              Text(
-                time,
-                style: TextStyle(
-                  fontSize: 12.5,
-                  fontWeight: FontWeight.w600,
-                  color: FoxColors.textSecondary,
-                  fontFeatures: [FontFeature.tabularFigures()],
-                ),
+                  const SizedBox(height: Gap.sm),
+                  Row(
+                    children: [
+                      _cell(
+                        o.pickupKm > 0
+                            ? '${o.pickupKm.toStringAsFixed(1)} km'
+                            : '—',
+                        'PICKUP',
+                      ),
+                      const SizedBox(width: Gap.sm),
+                      _cell(
+                        o.totalMinutes > 0
+                            ? '${o.totalMinutes.round()} min'
+                            : '—',
+                        'TRIP TIME',
+                      ),
+                      const SizedBox(width: Gap.sm),
+                      _cell(
+                        o.pickupKm > 0 && o.totalKm > o.pickupKm
+                            ? '${(o.totalKm - o.pickupKm).toStringAsFixed(1)} km'
+                            : '—',
+                        'RIDE',
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: Gap.md),
+                  _VerdictMath(offer: o, settings: settings),
+                  // Inferred take/pass — an estimate, not ground truth.
+                  if (o.outcome != OfferOutcome.unknown) ...[
+                    const SizedBox(height: Gap.sm),
+                    Row(
+                      children: [
+                        Icon(
+                          o.outcome == OfferOutcome.taken
+                              ? Icons.check_circle_outline_rounded
+                              : Icons.highlight_off_rounded,
+                          size: 15,
+                          color: o.outcome == OfferOutcome.taken
+                              ? VerdictColors.good
+                              : FoxColors.textSecondary,
+                        ),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            o.outcome == OfferOutcome.taken
+                                ? 'Likely taken'
+                                : 'Likely passed',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: FoxColors.textSecondary,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ],
               ),
-            ],
-          ),
-          const SizedBox(height: Gap.md),
-          // Big fare.
-          Text(
-            '\$${o.payout.toStringAsFixed(2)}',
-            style: TextStyle(
-              fontFamily: FoxFonts.display,
-              fontSize: 40,
-              height: 1.0,
-              fontWeight: FontWeight.w600,
-              letterSpacing: -1,
-              color: FoxColors.cream,
-              fontFeatures: [FontFeature.tabularFigures()],
             ),
           ),
-          const SizedBox(height: Gap.md),
-          // Stat grid: everything parsed. Unknowns (0) show an em-dash.
-          Row(
-            children: [
-              _cell('\$${o.pricePerKm.toStringAsFixed(2)}', 'PER KM'),
-              const SizedBox(width: Gap.sm),
-              _cell(
-                o.pricePerHour > 0
-                    ? '\$${o.pricePerHour.toStringAsFixed(0)}'
-                    : '—',
-                'PER HOUR',
-              ),
-              const SizedBox(width: Gap.sm),
-              _cell('${o.totalKm.toStringAsFixed(1)} km', 'TOTAL'),
-            ],
-          ),
-          const SizedBox(height: Gap.sm),
-          Row(
-            children: [
-              _cell(
-                o.pickupKm > 0 ? '${o.pickupKm.toStringAsFixed(1)} km' : '—',
-                'PICKUP',
-              ),
-              const SizedBox(width: Gap.sm),
-              _cell(
-                o.totalMinutes > 0 ? '${o.totalMinutes.round()} min' : '—',
-                'TRIP TIME',
-              ),
-              const SizedBox(width: Gap.sm),
-              _cell(
-                o.pickupKm > 0 && o.totalKm > o.pickupKm
-                    ? '${(o.totalKm - o.pickupKm).toStringAsFixed(1)} km'
-                    : '—',
-                'RIDE',
-              ),
-            ],
-          ),
-          const SizedBox(height: Gap.md),
-          _VerdictMath(offer: o, settings: settings),
-          // Inferred take/pass — presented as an estimate, not ground truth.
-          if (o.outcome != OfferOutcome.unknown) ...[
-            const SizedBox(height: Gap.sm),
-            Row(
-              children: [
-                Icon(
-                  o.outcome == OfferOutcome.taken
-                      ? Icons.check_circle_outline_rounded
-                      : Icons.highlight_off_rounded,
-                  size: 15,
-                  color: o.outcome == OfferOutcome.taken
-                      ? VerdictColors.good
-                      : FoxColors.textSecondary,
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  o.outcome == OfferOutcome.taken
-                      ? 'Likely taken'
-                      : 'Likely passed',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: FoxColors.textSecondary,
-                  ),
-                ),
-              ],
-            ),
-          ],
         ],
       ),
     );

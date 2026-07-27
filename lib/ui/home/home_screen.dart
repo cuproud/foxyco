@@ -1,4 +1,4 @@
-import 'dart:math' as math;
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -14,7 +14,9 @@ import '../settings/reminder_controller.dart';
 import '../settings/settings_controller.dart';
 import '../shell/root_shell.dart';
 import '../theme/car_hero.dart';
+import '../theme/hero_stage.dart';
 import '../theme/platform_badge.dart';
+import '../theme/section_label.dart';
 import '../theme/tokens.dart';
 import 'dashboard_controller.dart';
 import 'dashboard_state.dart';
@@ -62,6 +64,12 @@ class HomeScreen extends ConsumerWidget {
         // below in BOTH themes: at Gap.sm the greeting and the receipt card
         // crowded it (device 2026-07-25).
         const SizedBox(height: Gap.md),
+        // Status + clock ride ABOVE the car, on the page. The ref mock floats
+        // them inside the panel; on device that only works when the panel is a
+        // frame you can overlay — the car is full-bleed in dark mode, so they'd
+        // sit on the paint (user 2026-07-25).
+        _Padded(child: _CarStatusBar(status: state.status)),
+        const SizedBox(height: Gap.sm + Gap.xs),
         _CarStage(online: state.status == WatchStatus.watching),
         const SizedBox(height: Gap.md),
         _Padded(
@@ -85,7 +93,11 @@ class HomeScreen extends ConsumerWidget {
               );
             },
             onFix: controller.requestMissingPermissions,
-            onOpenSettings: () => ref.read(tabIndexProvider.notifier).go(2),
+            // Section 5 is "Watched apps" — the badges' own settings. Landing
+            // on Settings with it still collapsed and off-screen isn't a jump,
+            // it's a hint.
+            onOpenSettings: () =>
+                ref.read(tabIndexProvider.notifier).go(2, section: 5),
           ),
         ),
         const SizedBox(height: Gap.lg),
@@ -95,19 +107,28 @@ class HomeScreen extends ConsumerWidget {
           ),
           const SizedBox(height: Gap.lg),
         ],
-        // Car reminder inside its lead window — tap through to Settings.
+        // Car reminder inside its lead window — tap through to Settings' Garage
+        // group (section 1), where the reminders themselves live.
         if (ref.watch(dueRemindersProvider).isNotEmpty) ...[
           _Padded(
             child: _ReminderBanner(
               reminder: ref.watch(dueRemindersProvider).first,
-              onTap: () => ref.read(tabIndexProvider.notifier).go(2),
+              onTap: () =>
+                  ref.read(tabIndexProvider.notifier).go(2, section: 1),
             ),
           ),
           const SizedBox(height: Gap.lg),
         ],
-        const _Padded(child: _SectionLabel('Last session')),
+        const _Padded(child: SectionLabel('Last session')),
         const SizedBox(height: Gap.sm + Gap.xs),
-        _Padded(child: _SessionCard(session: ref.watch(lastSessionProvider))),
+        // Tap through to History — the card summarises offers the driver has no
+        // other way to reach from Home.
+        _Padded(
+          child: _SessionCard(
+            session: ref.watch(lastSessionProvider),
+            onTap: () => ref.read(tabIndexProvider.notifier).go(1),
+          ),
+        ),
         const SizedBox(height: Gap.md),
         Center(
           child: TextButton(
@@ -210,12 +231,15 @@ class _Padded extends StatelessWidget {
 }
 
 /// Brand mark + name + a Live/Paused status pill.
-class _BrandBar extends ConsumerWidget {
+class _BrandBar extends StatelessWidget {
   const _BrandBar();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final paused = ref.watch(dashboardProvider).status != WatchStatus.watching;
+  Widget build(BuildContext context) {
+    // Wordmark only. The Live/Off pill that used to sit on the right is gone
+    // (user 2026-07-25) — the status chip above the car says the same thing in
+    // full, and the slide bar below it is the control. Three copies of "Live"
+    // in one viewport was two too many.
     return Row(
       children: [
         // Full fox head in-app; the round disc PNG is the floating bubble's
@@ -223,58 +247,7 @@ class _BrandBar extends ConsumerWidget {
         Image.asset('assets/branding/foxyco_head.png', width: 32, height: 32),
         const SizedBox(width: Gap.sm + Gap.xs),
         Text('FoxyCo', style: Theme.of(context).textTheme.titleLarge),
-        const Spacer(),
-        _LivePill(paused: paused),
       ],
-    );
-  }
-}
-
-class _LivePill extends StatelessWidget {
-  const _LivePill({required this.paused});
-  final bool paused;
-
-  @override
-  Widget build(BuildContext context) {
-    // Off state must stay on a DARK chip: cream text/dot on a cream pill was
-    // invisible — the header showed a blank white capsule (device 2026-07-18).
-    final color = paused ? FoxColors.textSecondary : VerdictColors.good;
-    final bg = paused ? FoxColors.bgSurface2 : VerdictColors.goodBg;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(Radii.pill),
-        border: paused ? Border.all(color: FoxColors.border) : null,
-        boxShadow: Shadows.soft,
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Live → the dot breathes (glow + gentle scale) so the header reads
-          // as "actively watching" at a glance; Off → a static disabled dot.
-          paused
-              ? Container(
-                  width: 7,
-                  height: 7,
-                  decoration: BoxDecoration(
-                    color: FoxColors.textDisabled,
-                    shape: BoxShape.circle,
-                  ),
-                )
-              : _BreathingDot(color: VerdictColors.good, size: 7),
-          const SizedBox(width: 6),
-          Text(
-            paused ? 'Off' : 'Live',
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 0.2,
-              color: color,
-            ),
-          ),
-        ],
-      ),
     );
   }
 }
@@ -617,156 +590,236 @@ class _TrendChip extends StatelessWidget {
   }
 }
 
-/// The showroom car on the home page (references/car/foxyco_hero_home (1).html).
-/// Live → full reveal, lights on; off → stealth, lights dim. The crossfade is
-/// a 600ms tween; on top runs one idle loop — a 3.2s glow pulse. Car body
-/// stays FIXED (no float — device feedback 2026-07-20). Pulse skipped under
-/// reduced motion.
-class _CarStage extends StatefulWidget {
-  const _CarStage({required this.online});
-  final bool online;
+/// Live-status chip + clock, on the page directly above the showroom card.
+///
+/// The ref mock puts both inside the card's top corners; here they sit above it
+/// (user 2026-07-25) so the card holds nothing but the car in either theme. The
+/// header keeps its own Live/Off pill — this one names the state in full
+/// ("Live Status / Offline") the way the mock does.
+class _CarStatusBar extends StatefulWidget {
+  const _CarStatusBar({required this.status});
+  final WatchStatus status;
 
   @override
-  State<_CarStage> createState() => _CarStageState();
+  State<_CarStatusBar> createState() => _CarStatusBarState();
 }
 
-class _CarStageState extends State<_CarStage>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _idle; // 0..1 looping, drives float + pulse
+class _CarStatusBarState extends State<_CarStatusBar> {
+  Timer? _tick;
+  DateTime _now = DateTime.now();
 
   @override
   void initState() {
     super.initState();
-    _idle = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 6),
-    );
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted && !MediaQuery.of(context).disableAnimations) {
-        _idle.repeat();
-      }
+    _schedule();
+  }
+
+  /// Wake on the minute BOUNDARY, not every 60 s from mount — a fixed period
+  /// drifts up to a minute out of step with the phone's own clock, which is the
+  /// one the driver compares it against.
+  void _schedule() {
+    final now = DateTime.now();
+    final next = DateTime(
+      now.year,
+      now.month,
+      now.day,
+      now.hour,
+      now.minute,
+    ).add(const Duration(minutes: 1));
+    _tick = Timer(next.difference(now), () {
+      if (!mounted) return;
+      setState(() => _now = DateTime.now());
+      _schedule();
     });
   }
 
   @override
   void dispose() {
-    _idle.dispose();
+    _tick?.cancel();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final reduced = MediaQuery.of(context).disableAnimations;
-    return TweenAnimationBuilder<double>(
-      tween: Tween(begin: 0, end: widget.online ? 1.0 : 0.0),
-      duration: reduced ? Duration.zero : const Duration(milliseconds: 600),
-      curve: Curves.easeInOut,
-      builder: (context, lit, _) => AnimatedBuilder(
-        animation: _idle,
-        builder: (context, _) {
-          final t = _idle.value;
-          // Pulse: ~2 cycles per 6s loop (≈3s, matching the mock's 3.2s
-          // glowpulse), scaling the glows only — car body stays fixed.
-          final pulse = reduced ? 1.0 : 0.85 + 0.15 * math.sin(4 * math.pi * t);
-          final base = CarHeroState.lerp(
-            CarHeroState.stealth,
-            CarHeroState.reveal,
-            lit,
-          );
-          final state = CarHeroState(
-            shadow: base.shadow,
-            stealthBacklight: base.stealthBacklight * pulse,
-            fogRear: base.fogRear,
-            carStealth: base.carStealth,
-            fogFront: base.fogFront,
-            rimLight: base.rimLight,
-            headlightBeams: base.headlightBeams,
-            revealBacklight: base.revealBacklight * pulse,
-            groundGlow: base.groundGlow * pulse,
-            carReveal: base.carReveal,
-            bodyAccent: base.bodyAccent,
-            grilleLights: base.grilleLights,
-            headlightsSharp: base.headlightsSharp,
-            interiorGlow: base.interiorGlow,
-            reflection: base.reflection,
-          );
-          // Crop the canvas' empty top/bottom bands (~88% height) without
-          // pushing slide-to-live off-screen. 0.8 was too tight once the car
-          // gained a frame — roof and shadow sat right on the edges (device
-          // 2026-07-25: "tightly packed").
-          // Car pixels span 98% of the canvas width — inset slightly so the
-          // nose/tail don't kiss the screen edges (ref mock has margin).
-          final cropped = ClipRect(
-            child: Align(
-              alignment: const Alignment(0, -0.15),
-              heightFactor: 0.88,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: Gap.md),
-                child: CarHero(state: state),
-              ),
-            ),
-          );
-          // Dark mode: the car is full-bleed on the black stage, no frame.
-          //
-          // Light mode: the art is a black car lit by glows authored for that
-          // black stage, so it can't sit on cream — it needs its own dark
-          // ground. Rather than hide that with a fade (device 2026-07-25: reads
-          // as a gray blob with hard edges), make it deliberate — a rounded
-          // showroom panel using the same radius and shadow as the cards.
-          if (FoxColors.palette.brightness != Brightness.light) return cropped;
-          const radius = BorderRadius.all(Radius.circular(Radii.hero));
-          return Padding(
-            padding: const EdgeInsets.symmetric(horizontal: Gap.md),
-            child: Container(
-              decoration: BoxDecoration(
-                // Literal darks, NOT the card tokens — those flip to white in
-                // light mode, which is the whole problem here. #111416 is a
-                // notch lighter than the page-dark it replaced: a true near-
-                // black panel read as a hole punched in the page rather than an
-                // object on it (device 2026-07-25).
-                gradient: const LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [Color(0xFF191D20), Color(0xFF111416)],
-                ),
-                borderRadius: radius,
-                boxShadow: Shadows.hero,
-              ),
-              // foregroundDecoration, so the hairline paints OVER the clipped
-              // child — a border on the background decoration gets covered by
-              // it at the same radius. White, not FoxColors.border: the panel
-              // interior is dark whatever the page is doing.
-              foregroundDecoration: BoxDecoration(
-                borderRadius: radius,
-                border: Border.all(
-                  color: Colors.white.withValues(alpha: 0.06),
-                ),
-              ),
-              child: ClipRRect(
-                borderRadius: radius,
-                child: Stack(
-                  fit: StackFit.passthrough,
-                  children: [
-                    // Spotlight on the panel floor, under where the car sits.
-                    // Without it the car is a black shape on a black rectangle;
-                    // with it the body edges catch a rim and it reads as
-                    // standing on a surface rather than pasted onto one.
-                    const Positioned.fill(
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          gradient: RadialGradient(
-                            center: Alignment(0, 0.45),
-                            radius: 0.9,
-                            colors: [Color(0x1AFFFFFF), Color(0x00FFFFFF)],
-                          ),
-                        ),
+    final l10n = MaterialLocalizations.of(context);
+    final online = widget.status == WatchStatus.watching;
+    final label = switch (widget.status) {
+      WatchStatus.watching => 'Live',
+      WatchStatus.paused => 'Paused',
+      WatchStatus.stopped => 'Offline',
+      WatchStatus.blocked => 'Access needed',
+    };
+    // Sun by day, moon after dark — the mock's weather glyph, driven by the
+    // same clock rather than a forecast we don't have.
+    final day = _now.hour >= 6 && _now.hour < 19;
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: FoxColors.bgSurface2.withValues(alpha: 0.55),
+            borderRadius: BorderRadius.circular(Radii.cardSm),
+            border: Border.all(color: FoxColors.borderSoft),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              online
+                  ? _BreathingDot(color: VerdictColors.good, size: 7)
+                  : Container(
+                      width: 7,
+                      height: 7,
+                      decoration: BoxDecoration(
+                        color: FoxColors.textDisabled,
+                        shape: BoxShape.circle,
                       ),
                     ),
-                    cropped,
-                  ],
+              const SizedBox(width: Gap.sm),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Live Status',
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.1,
+                      color: FoxColors.textPrimary,
+                    ),
+                  ),
+                  Text(
+                    label,
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: online
+                          ? VerdictColors.good
+                          : FoxColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        const Spacer(),
+        Icon(
+          day ? Icons.wb_sunny_rounded : Icons.nightlight_round,
+          size: 18,
+          color: day ? VerdictColors.okFill : FoxColors.textSecondary,
+        ),
+        const SizedBox(width: Gap.sm),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              l10n.formatTimeOfDay(
+                TimeOfDay.fromDateTime(_now),
+                alwaysUse24HourFormat: MediaQuery.of(
+                  context,
+                ).alwaysUse24HourFormat,
+              ),
+              style: TextStyle(
+                fontSize: 13.5,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.1,
+                color: FoxColors.textPrimary,
+                fontFeatures: const [FontFeature.tabularFigures()],
+              ),
+            ),
+            Text(
+              l10n.formatMediumDate(_now),
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: FoxColors.textSecondary,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+/// The showroom car on the home page (Foxy brand art, 2026-07-26).
+/// Live → the glow behind the car blooms; off → it sits at a quarter strength.
+/// The crossfade is a 600ms tween. Car body stays FIXED (no float — device
+/// feedback 2026-07-20); the stage owns every ambient loop.
+class _CarStage extends StatelessWidget {
+  const _CarStage({required this.online});
+  final bool online;
+
+  /// Glow opacity offline. Not 0 — the layer carries the contact shadow too, so
+  /// at zero the car floats.
+  static const _glowOff = 0.25;
+
+  /// Same crop for the car AND its sweep mask: the two have to land on the same
+  /// pixels. Shows the 0.10–0.92 band of the canvas: the empty top is cropped, and so
+  /// is the dead strip under the wheels, which is what used to leave the car
+  /// hovering mid-card (device 2026-07-26). Alignment y is solved from the
+  /// band: top = (1 + y) / 2 * (1 − heightFactor) = 0.10.
+  static Widget _framed(Widget layer) => ClipRect(
+    child: Align(
+      alignment: const Alignment(0, 0.111),
+      heightFactor: 0.82,
+      child: layer,
+    ),
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    final reduced = MediaQuery.of(context).disableAnimations;
+    final light = FoxColors.palette.brightness == Brightness.light;
+    // Decode the sweep mask at display width, not the asset's 1536 px.
+    final maskW =
+        (MediaQuery.sizeOf(context).width *
+                MediaQuery.devicePixelRatioOf(context))
+            .round();
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: Gap.md),
+      child: TweenAnimationBuilder<double>(
+        tween: Tween(begin: 0, end: online ? 1.0 : 0.0),
+        duration: reduced ? Duration.zero : const Duration(milliseconds: 600),
+        curve: Curves.easeInOut,
+        builder: (context, lit, _) {
+          // Light theme's back layer is a plain shadow, not a glow: fading it up
+          // would read as the shadow arriving, not the car lighting up. There it
+          // stays put and the stage's warm border + halo below carry the live
+          // tell on their own.
+          // ponytail: one animated value. If light mode ends up needing its own
+          // car-level cue, that's a second art layer, not more code here.
+          final glow = light ? 1.0 : _glowOff + (1 - _glowOff) * lit;
+          return HeroStage(
+            // Live: a warm edge + halo, the same power-on cue the receipt card
+            // below picks up.
+            borderColor: online
+                ? FoxColors.brandFox.withValues(alpha: 0.30)
+                : null,
+            extraShadows: online
+                ? [
+                    BoxShadow(
+                      color: FoxColors.brandFox.withValues(alpha: 0.10),
+                      blurRadius: 32,
+                      spreadRadius: 2,
+                    ),
+                  ]
+                : null,
+            silhouette: _framed(
+              AspectRatio(
+                aspectRatio: CarHero.canvas,
+                child: Image.asset(
+                  CarHero.coreAsset,
+                  fit: BoxFit.contain,
+                  cacheWidth: maskW,
                 ),
               ),
             ),
+            child: _framed(CarHero(glow: glow, onDark: !light)),
           );
         },
       ),
@@ -800,12 +853,11 @@ class _SegBar extends StatelessWidget {
           ? null // empty tally -> track shows through (spec M6 §3.3)
           : LayoutBuilder(
               builder: (context, c) {
-                final segs =
-                    [
-                      (tally.good, VerdictColors.goodFill),
-                      (tally.ok, VerdictColors.okFill),
-                      (tally.bad, VerdictColors.badFill),
-                    ].where((s) => s.$1 > 0).toList();
+                final segs = [
+                  (tally.good, VerdictColors.goodFill),
+                  (tally.ok, VerdictColors.okFill),
+                  (tally.bad, VerdictColors.badFill),
+                ].where((s) => s.$1 > 0).toList();
                 return Row(
                   children: [
                     for (final (i, (count, color)) in segs.indexed) ...[
@@ -849,9 +901,7 @@ class _SegLegend extends StatelessWidget {
     // verdict-tinted like the mock's Good/Okay/Bad chips.
     return Row(
       children: [
-        Expanded(
-          child: _LegendItem(VerdictColors.good, tally.good, 'good'),
-        ),
+        Expanded(child: _LegendItem(VerdictColors.good, tally.good, 'good')),
         const SizedBox(width: Gap.sm),
         Expanded(child: _LegendItem(VerdictColors.ok, tally.ok, 'ok')),
         const SizedBox(width: Gap.sm),
@@ -937,11 +987,7 @@ class _AccessAlert extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Icon(
-            Icons.warning_amber_rounded,
-            color: VerdictColors.bad,
-            size: 22,
-          ),
+          Icon(Icons.warning_amber_rounded, color: VerdictColors.bad, size: 22),
           const SizedBox(width: Gap.sm + Gap.xs),
           Expanded(
             child: Text.rich(
@@ -982,22 +1028,6 @@ class _AccessAlert extends StatelessWidget {
   }
 }
 
-class _SectionLabel extends StatelessWidget {
-  const _SectionLabel(this.text);
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Text(text.toUpperCase(), style: Theme.of(context).textTheme.labelSmall),
-        const SizedBox(width: Gap.sm + Gap.xs),
-        Expanded(child: Divider(color: FoxColors.border, height: 1)),
-      ],
-    );
-  }
-}
-
 /// The last completed watch session (replaced the "Last offer" ticket,
 /// device 2026-07-21). Rebuilt on the shift-recap sheet's layout (device
 /// 2026-07-24: "why can't the card look like the recap?") — a header row that
@@ -1009,12 +1039,15 @@ class _SectionLabel extends StatelessWidget {
 /// dropped on a same-day session, which read as "this is current" the morning
 /// after a night shift.
 class _SessionCard extends StatelessWidget {
-  const _SessionCard({required this.session});
+  const _SessionCard({required this.session, required this.onTap});
   final SessionSummary? session;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final s = session;
+    // Nothing to show yet → nothing to open; the empty card's own copy points
+    // at the slide instead.
     if (s == null) return const _EmptySession();
 
     final text = Theme.of(context).textTheme;
@@ -1033,145 +1066,162 @@ class _SessionCard extends StatelessWidget {
       _ => l10n.formatShortDate(s.endedAt),
     };
 
-    return Container(
-      padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [FoxColors.inkSoft, FoxColors.ink],
-        ),
-        borderRadius: BorderRadius.circular(Radii.card),
-        border: Border.all(color: FoxColors.borderSoft),
-        boxShadow: Shadows.card,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Day + clock range on the left, time-on-watch on the right. Both
-          // sides are bounded: the old version let an unbounded date string
-          // run straight out of the card (device 2026-07-25).
-          Row(
+    // GestureDetector, not InkWell: the card paints its own gradient, which
+    // would sit on top of the ripple anyway.
+    return Semantics(
+      button: true,
+      hint: 'Open History',
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () {
+          HapticFeedback.selectionClick();
+          onTap();
+        },
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [FoxColors.inkSoft, FoxColors.ink],
+            ),
+            borderRadius: BorderRadius.circular(Radii.card),
+            border: Border.all(color: FoxColors.borderSoft),
+            boxShadow: Shadows.card,
+          ),
+          child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+              // Day + clock range on the left, time-on-watch on the right. Both
+              // sides are bounded: the old version let an unbounded date string
+              // run straight out of the card (device 2026-07-25).
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          day,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: FoxColors.cream,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          '${clock(s.startedAt)} – ${clock(s.endedAt)}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w600,
+                            color: FoxColors.textDisabled,
+                            fontFeatures: [FontFeature.tabularFigures()],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: Gap.sm),
+                  // Own Row so the icon centers against the digits. Inheriting the
+                  // outer row's CrossAxisAlignment.start top-aligned a 15px icon
+                  // box with a 17px text box, which left the icon riding high
+                  // (device 2026-07-25).
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.timer_outlined,
+                        size: 15,
+                        color: FoxColors.textSecondary,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        durationLabel(s.duration),
+                        style: TextStyle(
+                          fontFamily: FoxFonts.display,
+                          fontSize: 17,
+                          fontWeight: FontWeight.w600,
+                          color: FoxColors.cream,
+                          fontFeatures: const [FontFeature.tabularFigures()],
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              const SizedBox(height: Gap.md),
+              Text.rich(
+                TextSpan(
                   children: [
-                    Text(
-                      day,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                    TextSpan(
+                      text: '${s.total}',
                       style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
+                        fontFamily: FoxFonts.display,
+                        fontSize: 36,
+                        height: 1.0,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: -1,
                         color: FoxColors.cream,
+                        fontFeatures: const [FontFeature.tabularFigures()],
                       ),
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      '${clock(s.startedAt)} – ${clock(s.endedAt)}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                    TextSpan(
+                      text: s.total == 1 ? '  offer scored' : '  offers scored',
                       style: TextStyle(
-                        fontSize: 11.5,
+                        fontSize: 13,
                         fontWeight: FontWeight.w600,
-                        color: FoxColors.textDisabled,
-                        fontFeatures: [FontFeature.tabularFigures()],
+                        color: FoxColors.textSecondary,
                       ),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(width: Gap.sm),
-              // Own Row so the icon centers against the digits. Inheriting the
-              // outer row's CrossAxisAlignment.start top-aligned a 15px icon
-              // box with a 17px text box, which left the icon riding high
-              // (device 2026-07-25).
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.timer_outlined,
-                    size: 15,
+              if (s.total == 0) ...[
+                const SizedBox(height: Gap.xs),
+                Text(
+                  'Quiet one — nothing came in while the watcher ran.',
+                  style: text.bodyMedium?.copyWith(
                     color: FoxColors.textSecondary,
                   ),
-                  const SizedBox(width: 6),
-                  Text(
-                    durationLabel(s.duration),
-                    style: TextStyle(
-                      fontFamily: FoxFonts.display,
-                      fontSize: 17,
-                      fontWeight: FontWeight.w600,
-                      color: FoxColors.cream,
-                      fontFeatures: const [FontFeature.tabularFigures()],
+                ),
+              ] else ...[
+                const SizedBox(height: Gap.sm + Gap.xs),
+                VerdictSplitPills(good: s.good, ok: s.ok, bad: s.bad),
+                const SizedBox(height: Gap.sm + Gap.xs),
+                Row(
+                  children: [
+                    StatTile(
+                      value: s.bestPerKm > 0
+                          ? '\$${s.bestPerKm.toStringAsFixed(2)}'
+                          : '—',
+                      label: 'BEST \$/KM',
                     ),
-                  ),
-                ],
-              ),
+                    const SizedBox(width: Gap.sm),
+                    StatTile(
+                      value: s.goodAvgPerKm > 0
+                          ? '\$${s.goodAvgPerKm.toStringAsFixed(2)}'
+                          : '—',
+                      label: 'GOOD AVG',
+                    ),
+                    const SizedBox(width: Gap.sm),
+                    StatTile(
+                      value: s.busiestHour != null
+                          ? hourLabel(s.busiestHour!)
+                          : '—',
+                      label: 'BUSIEST',
+                    ),
+                  ],
+                ),
+              ],
             ],
           ),
-          const SizedBox(height: Gap.md),
-          Text.rich(
-            TextSpan(
-              children: [
-                TextSpan(
-                  text: '${s.total}',
-                  style: TextStyle(
-                    fontFamily: FoxFonts.display,
-                    fontSize: 36,
-                    height: 1.0,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: -1,
-                    color: FoxColors.cream,
-                    fontFeatures: const [FontFeature.tabularFigures()],
-                  ),
-                ),
-                TextSpan(
-                  text: s.total == 1 ? '  offer scored' : '  offers scored',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: FoxColors.textSecondary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          if (s.total == 0) ...[
-            const SizedBox(height: Gap.xs),
-            Text(
-              'Quiet one — nothing came in while the watcher ran.',
-              style: text.bodyMedium?.copyWith(color: FoxColors.textSecondary),
-            ),
-          ] else ...[
-            const SizedBox(height: Gap.sm + Gap.xs),
-            VerdictSplitPills(good: s.good, ok: s.ok, bad: s.bad),
-            const SizedBox(height: Gap.sm + Gap.xs),
-            Row(
-              children: [
-                StatTile(
-                  value: s.bestPerKm > 0
-                      ? '\$${s.bestPerKm.toStringAsFixed(2)}'
-                      : '—',
-                  label: 'BEST \$/KM',
-                ),
-                const SizedBox(width: Gap.sm),
-                StatTile(
-                  value: s.goodAvgPerKm > 0
-                      ? '\$${s.goodAvgPerKm.toStringAsFixed(2)}'
-                      : '—',
-                  label: 'GOOD AVG',
-                ),
-                const SizedBox(width: Gap.sm),
-                StatTile(
-                  value: s.busiestHour != null ? hourLabel(s.busiestHour!) : '—',
-                  label: 'BUSIEST',
-                ),
-              ],
-            ),
-          ],
-        ],
+        ),
       ),
     );
   }
@@ -1193,7 +1243,9 @@ class _EmptySession extends StatelessWidget {
       ),
       child: Column(
         children: [
-          Image.asset('assets/branding/foxyco_head.png', width: 64, height: 64),
+          // Foxy asleep on the grass: a landscape crop, so width only — forcing
+          // it square would squash the fox.
+          Image.asset('assets/branding/foxy_sleeping.png', width: 132),
           const SizedBox(height: Gap.sm),
           Text('No sessions yet 🍪', style: text.titleMedium),
           const SizedBox(height: Gap.xs),

@@ -35,8 +35,10 @@ void main() {
   ) async {
     await tester.pumpWidget(_app());
 
-    // First frame: the FoxyCo wordmark is on the splash, shell not yet.
-    expect(find.text('FoxyCo'), findsOneWidget);
+    // First frame: the FoxyCo wordmark is on the splash, shell not yet. It's the
+    // logo image now, and it starts at opacity 0 — which drops it out of the
+    // semantics tree — so match the key, not the label.
+    expect(find.byKey(const Key('splash-wordmark')), findsOneWidget);
     expect(find.text('SHELL'), findsNothing);
 
     // Let the drive-in run past its 1.8s controller; splash force-navigates.

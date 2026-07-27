@@ -63,10 +63,33 @@ class OfferLog extends Notifier<List<OfferSummary>> {
     }
   }
 
+  /// How long the same card stays "the offer we already logged". Covers a full
+  /// flicker cycle (clear grace + a re-parse) with room to spare, while staying
+  /// short enough that a genuinely new offer can't be swallowed — it would have
+  /// to match platform, payout, both distances, duration AND tier, to the cent
+  /// and the metre, inside two minutes.
+  static const dedupeWindow = Duration(minutes: 2);
+
   /// Append a freshly scored offer (newest first) and persist. Retention is
   /// enforced here too — cheap, and it means old entries age out as new ones
   /// arrive without a startup purge racing the async settings load.
   void record(OfferSummary offer) {
+    // Same card, twice. OfferWatcher clears `_shownKey` whenever a frame stops
+    // looking like the card (a partial read, a half-rendered tree), so a card
+    // that flickers and comes back parses as brand new and lands here a second
+    // time — two identical rows a second apart, and every stat downstream
+    // (tally, $/km average, busiest hour) counting one offer as two. Device
+    // 2026-07-26: two "Uber Share · $10.19 · 11.7 km · 2:49 PM" rows.
+    //
+    // Guarding here rather than in the watcher on purpose: re-showing the PILL
+    // for a card that came back is correct, and this is the one sink every
+    // caller of the log routes through.
+    final last = state.firstOrNull;
+    if (last != null &&
+        last.sameCardAs(offer) &&
+        offer.seenAt.difference(last.seenAt).abs() < dedupeWindow) {
+      return;
+    }
     var next = [offer, ...state.take(maxEntries - 1)];
     final days = ref.read(settingsProvider).retentionDays;
     if (days != FoxSettings.keepForever) {

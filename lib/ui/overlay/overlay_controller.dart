@@ -7,10 +7,12 @@ import '../../domain/overlay_action.dart';
 import '../../domain/overlay_payload.dart';
 import '../../domain/verdict.dart';
 import '../../services/fox_log.dart';
+import '../../services/offer_log.dart';
 import '../../services/overlay_service.dart';
 import '../home/dashboard_controller.dart';
 import '../home/dashboard_state.dart';
 import '../settings/settings_controller.dart';
+import '../shell/root_shell.dart';
 
 /// DI seam for the overlay plugin wrapper, so widgets/tests depend on the
 /// interface, not the plugin. Overridden in tests with a fake.
@@ -30,6 +32,11 @@ final overlayServiceProvider = Provider<OverlayService>(
 ///      dashboard never disagree.
 class OverlayController extends Notifier<void> {
   StreamSubscription<OverlayAction>? _actionSub;
+
+  /// True while a REAL offer pill is on the bubble (demo pills excluded — they
+  /// never reach the offer log, so there'd be nothing to open). Decides whether
+  /// a bubble tap deep-links to that offer or just foregrounds the app.
+  bool _pillUp = false;
 
   @override
   void build() {
@@ -62,7 +69,7 @@ class OverlayController extends Notifier<void> {
         // Off in any flavor: tear the overlay down completely — no lingering
         // bubble. Going online again re-creates it. (Driver asked for a clean
         // on/off, not a dimmed bubble that sits there.)
-        await _service.hide();
+        await hide();
     }
   }
 
@@ -75,10 +82,15 @@ class OverlayController extends Notifier<void> {
         // == no bubble), so there's nothing else to do here.
         ref.read(dashboardProvider.notifier).togglePause();
       case OverlayAction.openApp:
-        // Tapping the bubble brings FoxyCo forward. Android reroutes to the
-        // launcher activity via the plugin's tap intent; nothing to do here
-        // yet beyond leaving the hook in place for deep-linking later.
-        break;
+        // Tapping the bubble brings FoxyCo forward — Android reroutes to the
+        // launcher activity via the plugin's tap intent. If a pill is up the
+        // driver is asking about THAT offer, so land on it instead of dumping
+        // them on Home to go hunt for it. The pill's offer is always the newest
+        // log entry: OfferWatcher records it immediately before showing it.
+        final log = ref.read(offerLogProvider);
+        if (!_pillUp || log.isEmpty) break;
+        ref.read(tabIndexProvider.notifier).go(1);
+        ref.read(pendingOfferProvider.notifier).set(log.first);
       case OverlayAction.stopWatching:
         // Bubble dragged into the bottom drop zone. Native already closed the
         // window; flip the dashboard so it doesn't keep showing "Watching"
@@ -94,6 +106,7 @@ class OverlayController extends Notifier<void> {
   /// ($/hr), the pickup split + the driver's near-pickup cutoff (km coloring),
   /// and the driver's chosen pill size.
   Future<void> showFromOffer(Offer offer, Verdict verdict) {
+    _pillUp = true;
     final settings = ref.read(settingsProvider);
     ref
         .read(foxLogProvider)
@@ -122,7 +135,10 @@ class OverlayController extends Notifier<void> {
   /// stays up in its bubble state — only the pill content drops. The pipeline
   /// calls this when a watched app is foregrounded but the screen no longer
   /// parses as an offer, so a stale verdict never sits over a browse map.
-  Future<void> clearOffer() => _service.clearPill();
+  Future<void> clearOffer() {
+    _pillUp = false;
+    return _service.clearPill();
+  }
 
   /// A rotating set of fake offers so repeated taps show different verdicts.
   /// Minutes included so the debug flow exercises the $/hr line too.
@@ -184,7 +200,10 @@ class OverlayController extends Notifier<void> {
     return true;
   }
 
-  Future<void> hide() => _service.hide();
+  Future<void> hide() {
+    _pillUp = false;
+    return _service.hide();
+  }
 }
 
 final overlayControllerProvider = NotifierProvider<OverlayController, void>(

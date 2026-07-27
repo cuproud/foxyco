@@ -18,29 +18,21 @@ class AboutScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(Gap.md, Gap.sm, Gap.md, Gap.xl),
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
+          // The wordmark IS the name — no icon-plus-"FoxyCo" pair beside it.
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Image.asset(
-                'assets/branding/foxyco_head.png',
-                width: 40,
-                height: 40,
+                'assets/branding/foxyco_logo.png',
+                width: 156,
+                semanticLabel: 'FoxyCo',
               ),
-              const SizedBox(width: Gap.sm + Gap.xs),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('FoxyCo', style: text.titleLarge),
-                    Text(
-                      aboutVersion,
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: FoxColors.textDisabled,
-                      ),
-                    ),
-                  ],
+              Text(
+                aboutVersion,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: FoxColors.textDisabled,
                 ),
               ),
             ],

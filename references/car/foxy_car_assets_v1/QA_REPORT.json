@@ -1,0 +1,40 @@
+{
+  "asset": "Foxy Car V1",
+  "source_dimensions": [
+    1536,
+    1024
+  ],
+  "output_dimensions": [
+    4096,
+    2731
+  ],
+  "format": "RGBA PNG",
+  "4k_width_pass": true,
+  "transparent_corners_pass": true,
+  "strong_alpha_bbox": [
+    614,
+    296,
+    3785,
+    2217
+  ],
+  "padding_pixels": {
+    "left": 614,
+    "top": 296,
+    "right": 311,
+    "bottom": 514
+  },
+  "padding_pass": true,
+  "core_identical_across_themes": true,
+  "visual_checks": {
+    "complete_front_and_rear": true,
+    "front_wheel_complete": true,
+    "rear_wheel_complete": true,
+    "hood_logo_visible": true,
+    "front_wheel_logo_visible": true,
+    "rear_wheel_logo_visible": true,
+    "steering_logo_visible": true,
+    "fox_and_tail_complete": true
+  },
+  "consistency_note": "Both themes use the exact same approved 4K core. Only the separate behind-car effect layer differs.",
+  "quality_note": "Alpha-safe upscale from approved 1536x1024 render to 4096x2731. No regeneration was used."
+}

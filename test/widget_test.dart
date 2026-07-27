@@ -48,8 +48,10 @@ void main() {
     );
     await tester.pump();
     expect(find.text('On the prowl'), findsOneWidget); // hero status
-    // 'Live' now shows in both the brand-bar pill and the slide live bar.
+    // 'Live' shows in the above-car status chip and the slide live bar — the
+    // brand-bar pill is gone (2026-07-25).
     expect(find.text('Live'), findsNWidgets(2));
+    expect(find.text('Live Status'), findsOneWidget);
     expect(find.byKey(const ValueKey('slide-stop-thumb')), findsOneWidget);
 
     // Slide the stop thumb fully left past the threshold → onStop.
@@ -60,6 +62,8 @@ void main() {
     await tester.pump();
     expect(find.text('Ready when you are'), findsOneWidget); // fully stopped
     expect(find.text('Slide to go live'), findsOneWidget);
-    expect(find.text('Off'), findsOneWidget); // brand-bar live pill
+    // The brand-bar pill is gone; the above-car chip carries the state now.
+    expect(find.text('Off'), findsNothing);
+    expect(find.text('Offline'), findsOneWidget);
   });
 }

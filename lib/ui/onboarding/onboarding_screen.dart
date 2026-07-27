@@ -6,6 +6,7 @@ import '../../domain/thresholds.dart';
 import '../../services/accessibility/accessibility_watcher.dart';
 import '../home/dashboard_controller.dart';
 import '../overlay/overlay_controller.dart';
+import '../settings/garage_controller.dart';
 import '../settings/settings_controller.dart';
 import '../theme/tokens.dart';
 import 'onboarding_gate.dart';
@@ -37,11 +38,13 @@ class OnboardingScreen extends ConsumerStatefulWidget {
 
 class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   final _pages = PageController();
+  final _name = TextEditingController();
   int _page = 0;
 
   @override
   void dispose() {
     _pages.dispose();
+    _name.dispose();
     super.dispose();
   }
 
@@ -56,9 +59,18 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     }
   }
 
-  void _finish() {
-    OnboardingGate.markDone();
-    context.go('/');
+  /// Both exits (CTA and skip) land here, so the name is saved whichever way
+  /// the driver leaves — once, on the way out, rather than a prefs write per
+  /// keystroke.
+  Future<void> _finish() async {
+    final name = _name.text.trim();
+    if (name.isNotEmpty) {
+      await ref.read(driverNameProvider.notifier).setName(name);
+    }
+    // Awaited: the write used to race the navigation, so a process death in
+    // that window replayed the whole wizard on next launch.
+    await OnboardingGate.markDone();
+    if (mounted) context.go('/');
   }
 
   Future<void> _grantOverlay() async {
@@ -93,8 +105,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                 controller: _pages,
                 onPageChanged: (i) => setState(() => _page = i),
                 children: [
-                  const _Page(
-                    hero: _FoxHero(),
+                  _Page(
+                    hero: const _FoxHero(),
                     title: 'Meet FoxyCo 🍪',
                     body:
                         'Your co-driver that reads every ride offer and tells '
@@ -102,6 +114,11 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                         'faster and only chase the tasty ones. FoxyCo only '
                         'advises; accepting or declining is always your tap, '
                         'in the driver app.',
+                    // Asked here, on the introductions page. Without it the
+                    // greeting on Home never appears — ProfileCard hides itself
+                    // on an empty name, so first-run Home had no greeting at
+                    // all until the driver found Settings → Garage.
+                    footer: _NameField(controller: _name),
                   ),
                   const _Page(
                     hero: _GlowIcon(Icons.tune_rounded),
@@ -161,13 +178,18 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                 ),
               ),
             ),
-            TextButton(
-              onPressed: _finish,
-              child: Text(
-                'Skip for now',
-                style: TextStyle(color: FoxColors.textSecondary),
-              ),
-            ),
+            // Not on the last page: the CTA there is already "Finish without
+            // access", so a skip link under it is the same button twice.
+            if (!last)
+              TextButton(
+                onPressed: _finish,
+                child: Text(
+                  'Skip for now',
+                  style: TextStyle(color: FoxColors.textSecondary),
+                ),
+              )
+            else
+              const SizedBox(height: 48), // hold the CTA's position steady
             const SizedBox(height: Gap.sm),
           ],
         ),
@@ -383,20 +405,28 @@ class _GrantPage extends StatelessWidget {
       title: title,
       body: body,
       footer: granted
-          ? Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: Gap.md,
-                vertical: Gap.sm,
-              ),
-              decoration: BoxDecoration(
-                color: VerdictColors.goodBg,
-                borderRadius: BorderRadius.circular(Radii.pill),
-              ),
-              child: Text(
-                '✅ Granted',
-                style: TextStyle(
-                  color: VerdictColors.good,
-                  fontWeight: FontWeight.w700,
+          // liveRegion: the chip replaces the grant button when the driver
+          // comes back from system settings. Sighted users see the swap; a
+          // screen-reader user got no confirmation at all that the grant they
+          // just made landed — on the accessibility page, of all places.
+          ? Semantics(
+              liveRegion: true,
+              label: '$title granted',
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: Gap.md,
+                  vertical: Gap.sm,
+                ),
+                decoration: BoxDecoration(
+                  color: VerdictColors.goodBg,
+                  borderRadius: BorderRadius.circular(Radii.pill),
+                ),
+                child: Text(
+                  '✅ Granted',
+                  style: TextStyle(
+                    color: VerdictColors.good,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
             )
@@ -425,22 +455,75 @@ class _Dots extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        for (var i = 0; i < OnboardingScreen.pageCount; i++)
-          AnimatedContainer(
-            duration: Motion.base,
-            curve: Motion.curve,
-            width: i == page ? 20 : 8,
-            height: 8,
-            margin: const EdgeInsets.symmetric(horizontal: 4),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(Radii.pill),
-              color: i == page ? FoxColors.brandFox : FoxColors.border,
+    // Decorative: to a screen reader these are four unlabeled boxes between
+    // the page body and the CTA. Position is announced by the PageView itself.
+    return ExcludeSemantics(
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          for (var i = 0; i < OnboardingScreen.pageCount; i++)
+            AnimatedContainer(
+              duration: Motion.base,
+              curve: Motion.curve,
+              width: i == page ? 20 : 8,
+              height: 8,
+              margin: const EdgeInsets.symmetric(horizontal: 4),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(Radii.pill),
+                color: i == page ? FoxColors.brandFox : FoxColors.border,
+              ),
             ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Optional "what should I call you?" field on the intro page.
+///
+/// Optional on purpose — a required field on page 1 of a first run is a wall.
+/// The value is read once by [_OnboardingScreenState._finish]; the controller
+/// lives up there so it survives page swipes.
+class _NameField extends StatelessWidget {
+  const _NameField({required this.controller});
+
+  final TextEditingController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 320),
+      child: TextField(
+        controller: controller,
+        textAlign: TextAlign.center,
+        textCapitalization: TextCapitalization.words,
+        textInputAction: TextInputAction.done,
+        maxLength: 24,
+        style: TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.w600,
+          color: FoxColors.textPrimary,
+        ),
+        decoration: InputDecoration(
+          counterText: '', // the 24-cap is a guard, not a target
+          labelText: 'What should I call you?',
+          hintText: 'Your name (optional)',
+          filled: true,
+          fillColor: FoxColors.bgSurface,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(Radii.field),
+            borderSide: BorderSide(color: FoxColors.border),
           ),
-      ],
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(Radii.field),
+            borderSide: BorderSide(color: FoxColors.border),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(Radii.field),
+            borderSide: const BorderSide(color: FoxColors.brandFox),
+          ),
+        ),
+      ),
     );
   }
 }

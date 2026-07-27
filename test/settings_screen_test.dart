@@ -212,6 +212,41 @@ void main() {
     expect(find.text('Keep offers for'), findsOneWidget);
   });
 
+  testWidgets('groups are filed under named bands, in band order', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1080, 4200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(_host());
+    await tester.pumpAndSettle();
+
+    // Eleven groups in one flat stack was the complaint; five bands answer it.
+    for (final band in const [
+      'YOU & YOUR CAR',
+      'SCORING',
+      'WATCHING',
+      'LOOK & FEEL',
+      'YOUR DATA',
+    ]) {
+      expect(find.text(band), findsOneWidget, reason: band);
+    }
+
+    // Vertical order is the contract — a band header must sit above every group
+    // it claims. Parser health is the one that moved (it was stranded down by
+    // History); assert it now reads inside the Watching band.
+    double y(String label) => tester.getTopLeft(find.text(label)).dy;
+    expect(y('YOU & YOUR CAR'), lessThan(y('Driver')));
+    expect(y('SCORING'), lessThan(y('Verdict thresholds')));
+    expect(y('WATCHING'), lessThan(y('Watched apps')));
+    expect(y('Watched apps'), lessThan(y('Parser health')));
+    expect(y('Parser health'), lessThan(y('Outcome tracking')));
+    expect(y('LOOK & FEEL'), greaterThan(y('Outcome tracking')));
+    expect(y('YOUR DATA'), lessThan(y('History')));
+    expect(y('History'), lessThan(y('Logs')));
+  });
+
   test('controller clamps GOOD above BAD (band stays coherent)', () {
     final container = ProviderContainer();
     addTearDown(container.dispose);

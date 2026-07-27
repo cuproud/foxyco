@@ -457,7 +457,7 @@ _Last updated: 2026-07-20 (M10: premium polish batches 1–3)._
 | M12.20 | In Light, Home segment bar + History "BY APP" bars | Segments are clean **green / amber / red**, not olive-and-maroon — solid fills keep the bright tier in both themes | [ ] |
 | M12.21 | In Light, Home "14 good / 47 ok / 56 bad" chips | Each word is legible on its tinted well — these carry text, so they take the deeper tier (the bright tier washed out once the card went white) | [ ] |
 | M12.22 | Both themes, anywhere an Uber offer shows (Home dots, History rows, detail sheet, pill) | Uber roundel is **near-white with a dark U** in Dark and **near-black with a white U** in Light — never a pale disc with an invisible letter. Lyft pink / Hopp blue unchanged in both | [ ] |
-| M12.23 | In Light, the Home car panel | Reads as an **object floating on the page**, not a hole punched in it: `#111416` interior (lighter than the page-dark), 1px white hairline, layered shadow, and a soft spotlight on the floor under the car catching its lower body edges | [ ] |
+| M12.23 | ~~In Light, the Home car panel~~ | ~~Dark `#111416` panel with a spotlight floor~~ — **superseded by M12.31**: the light-mode panel is now white | — |
 | M12.24 | Both themes, any screen with cards | Cards have **two-stage depth** — a tight contact shadow at the edge plus a wide soft ambient one. No single gray halo ring | [ ] |
 | M12.25 | Both themes, scroll any page slowly | Page background is a faint top-to-bottom wash (brighter at the top), not a flat fill. Should be almost subliminal — if you can clearly *see* a gradient it's too strong | [ ] |
 | M12.26 | Home segment bar + History "BY APP" bars | Three separated rounded lozenges in a track, each top-lit — not one solid saturated stripe. Home bar is 11dp, History 10dp | [ ] |
@@ -465,8 +465,107 @@ _Last updated: 2026-07-20 (M10: premium polish batches 1–3)._
 | M12.28 | Switch Light→Dark→Light from Settings, then go to Home **without scrolling** | Greeting, and every other label, is in the NEW palette immediately — no text left painted in the old theme's color. (Tab scroll positions reset on a switch; that's expected) | [ ] |
 | M12.29 | Theme = Auto, flip system dark mode while sitting on Home | Same: the whole page repaints at once, no stale text | [ ] |
 | M12.30 | Home → Last session card | Timer icon is vertically centred against the **4h 16m** digits, not riding above them | [ ] |
+| M12.31 | In **Light**, Home car card | A **white** showroom card (same gradient/radius/shadow as the receipt card below), with a soft cream ellipse behind the car — NOT the old dark panel. The black body reads crisply; no grey fog haze, no red bloom, no floor reflection | [ ] |
+| M12.32 | In Light, slide to go live and watch the car card | Card edge picks up the warm orange border + glow (matching the receipt card); car lights, grille and body accent come on; still no fog/backlight haze on the white | [ ] |
+| M12.33 | In **Dark**, Home car | Unchanged — full-bleed on the page with every glow layer, no frame | [ ] |
+| M12.34 | Both themes, the row directly above the car card | Left: a chip with a dot + **Live Status** over **Offline/Live/Paused/Access needed**. Right: sun (06–19) or moon glyph + **time** over **date**. Nothing sits on top of the car | [ ] |
+| M12.35 | Sit on Home across a minute boundary (e.g. 8:44 → 8:45) | The clock flips **at the boundary**, matching the phone's own clock — not up to a minute late | [ ] |
+| M12.36 | Phone set to 24-hour time, then to 12-hour | The above-car clock follows the phone's format (`20:45` vs `8:45 PM`) | [ ] |
+| M12.37 | Home header, live and off | Fox head + **FoxyCo** only — no Live/Off pill on the right. State is readable from the above-car chip and the slide bar | [ ] |
+| M12.38 | Bottom nav, both themes | Active tab sits on a **brand-orange** pill with a soft orange glow; its icon **and** label are deep green-black ink, both clearly legible. Inactive tabs unchanged | [ ] |
+| M12.39 | Bottom nav, tap between tabs | The orange pill slides; no frame where the icon vanishes (orange-on-orange) mid-slide | [ ] |
+| M12.40 | Home slide bar, off state | Chevrons march the track but **dissolve around "Slide to go live"** — no chevron crossing the words. Same when font scale is set to max | [ ] |
+| M12.41 | Home slide bar, live state | Same: the left-marching train clears "Live · slide back to stop" and only runs in the open stretch toward the thumb | [ ] |
+| M12.42 | **Dark**, Home car | Now a framed stage, not full-bleed: `#13171B→#1C2127` card, 1px white hairline, a wide ambient ellipse behind the car, a glowing amber **platform ring** on the wheel line with a warm pool inside it, and a dark contact shadow under the body | [ ] |
+| M12.43 | ⚠️ **Ring alignment**, both themes | The ring sits ON the wheel-contact line — not cutting the tyres, not floating below them. If it's off, tune `HeroStageMetrics.groundY` (0.84) — it's the one value that can't be derived | [ ] |
+| M12.44 | Watch the car for ~10 s, both themes | Body drifts **±2 px** over 4 s; the contact shadow tightens slightly as it rises; the ring glow breathes 0.15→0.35 on the same 4 s; the ambient ellipse breathes on a slower 6 s. Nothing bounces or shimmers | [ ] |
+| M12.45 | Watch for ~20 s | Roughly every 8 s a soft highlight crosses the bodywork over ~1 s. It must stay **on the paint** — if any of it slides across empty card, the sweep mask is misaligned with the car | [ ] |
+| M12.46 | In Light, the whole stage | Same composition at half strength: cool-white ambient, softer amber ring, lighter contact shadow. Card is still white and still matches the receipt card | [ ] |
+| M12.47 | Settings → Accessibility → Remove animations ON, Home | Car is dead still: no float, no ring pulse, no ambient breath, **no sweep** | [ ] |
+| M12.48 | Scroll Home hard up and down for ~30 s | No jank — the stage should hold 60 fps (car is behind a RepaintBoundary; only the glow layers repaint) | [ ] |
+| M12.49 | Fresh install → wizard page 1 | A **"What should I call you?"** field under the intro copy. Keyboard does NOT pop by itself. Leaving it empty and continuing still works | [ ] |
+| M12.50 | Type a name, swipe through to the end, finish | Home greets you by name immediately (`Late shift, <name> 🍪`) — no trip to Settings → Garage. Settings → Garage shows the same name | [ ] |
+| M12.51 | Type a name, then **Skip for now** on page 1 | Same: the name is saved on the way out either exit | [ ] |
+| M12.52 | Type `  spaces  ` around a name | Saved trimmed; capped at 24 characters | [ ] |
+| M12.53 | Wizard last page | Only ONE exit button — the CTA ("Start driving smarter" / "Finish without access"). No "Skip for now" underneath it, and the CTA doesn't jump position between pages | [ ] |
+| M12.54 | Finish the wizard, then force-stop the app immediately and relaunch | Boots to Home, **not** back into the wizard (the onboarded flag is now written before navigation) | [ ] |
+| M12.55 | TalkBack on, walk the wizard | Page dots are silent (decorative). After granting a permission and returning, the **"✅ Granted"** state is announced instead of silently swapping in | [ ] |
 | M12.9 | Theme = **Auto**, flip the phone's system dark mode | App follows immediately, no restart | [ ] |
 | M12.10 | Pick Light, kill + reopen the app | Still Light. Launch stays on the dark stage the whole way in — native window, car splash, wordmark all one green-black surface with NO cream flash — and only Home arrives in paper | [ ] |
 | M12.11 | Same in Dark | Identical launch: no cream flash at any point (the old launch window was still cream from before the app went dark) | [ ] |
 
-_Last updated: 2026-07-25 (M12: polish pass + light theme)._
+_Last updated: 2026-07-25 (M12: polish pass + light theme; white car card + above-car status/clock)._
+
+## M13 — Navigation flow
+
+| # | Step | Expect | Pass |
+|---|------|--------|------|
+| M13.1 | On **History**, press system back (gesture or button) | Lands on **Home**, app still open. Press back again → app goes to background | [ ] |
+| M13.2 | Same from **Settings** | Same: back = Home first, only then out | [ ] |
+| M13.3 | On Home, press back straight away | Leaves the app immediately (no extra tap swallowed) | [ ] |
+| M13.4 | Home hero, tap the **app badges** on the status row | Settings opens with **Watched apps** already expanded and scrolled into view — not the top of the list with Driver open | [ ] |
+| M13.5 | With a reminder due, tap the **amber reminder banner** | Settings opens with **Garage** expanded and scrolled into view | [ ] |
+| M13.6 | After M13.4, tap the Settings tab by hand | The accordion is left exactly as you had it — the deep link fires once, not every visit | [ ] |
+| M13.7 | Home → **Last session** card (needs one finished shift) | Tapping it switches to **History**. The empty "No sessions yet" card is NOT tappable | [ ] |
+| M13.8 | Scroll any tab down, then tap **that same tab** in the nav | Scrolls back to the top with an animation. Tapping a different tab still just switches | [ ] |
+| M13.9 | Scroll Home down, switch to History, come back | Home is still where you left it (re-tap only fires on the active tab) | [ ] |
+| M13.10 | Settings, scroll to the bottom | Two link rows: **About & help** (`1.0.0 (build 2)`) and **Logs** (`Watcher record`) | [ ] |
+| M13.11 | Tap **Logs** | The log tail opens with copy + clear actions — the screen About's "Settings → Logs" line has always pointed at | [ ] |
+| M13.12 | Go live, let a real offer pill appear, then **tap the bubble** | App comes forward on **History** with that offer's detail sheet already open | [ ] |
+| M13.13 | Let the pill clear (offer leaves the screen), then tap the bubble | App comes forward on whatever tab you left it on — no stale sheet | [ ] |
+| M13.14 | Tap the bubble after **Show a demo pill** | Same: no sheet (demo pills are never logged, so there's nothing to open) | [ ] |
+
+## M14 — Settings structure
+
+| # | Step | Expect | Pass |
+|---|------|--------|------|
+| M14.1 | Open Settings and scroll top to bottom | Groups sit under **five** small-caps bands with a hairline rule: **You & your car**, **Scoring**, **Watching**, **Look & feel**, **Your data**. No group is orphaned between bands | [ ] |
+| M14.2 | The **Watching** band | Three groups in this order: Watched apps → Parser health → Outcome tracking. Parser health no longer sits down by History | [ ] |
+| M14.3 | Tap a group open, then another | Still single-open — the first collapses. Band headers don't move except by the height the accordion gives back | [ ] |
+| M14.4 | Open Settings fresh and watch the entrance | The first six groups fade+slide in one after another; everything below appears already in place. Nothing lands out of order or jitters | [ ] |
+| M14.5 | Accessibility → Remove animations ON, open Settings | Every group is in place on the first frame; band rules render normally | [ ] |
+| M14.6 | Home → tap the app badges (M13.4) | Still lands on Watched apps, now under the **Watching** rule | [ ] |
+| M14.7 | Compare the band rules against Home's "LAST SESSION" and History's date headers | Identical treatment — same small-caps weight, same gap, same hairline (all three now come from one widget) | [ ] |
+
+## M15 — 2026-07-26 device bugs
+
+| # | Step | Expect | Pass |
+|---|------|--------|------|
+| M15.1 | Go live; let a real pill show and clear; repeat 5× | Bubble stays a clean circle throughout — **no grey square** behind it at any point. This resize cycle is what used to break it | [ ] |
+| M15.2 | Between cycles, drag the bubble to the left edge, then the right | Still clean, both edges; pill still centres and the bubble returns to the edge you left it on | [ ] |
+| M15.3 | Same check on the pill itself | No grey box behind the verdict pill either | [ ] |
+| M15.4 | Mid-session, switch to History, scroll down, then tap the bubble | FoxyCo comes forward **on History, still scrolled** — not a fresh Home. Losing your place was the "it crashed" report | [ ] |
+| M15.5 | Take ~10 real offers, open History | No two adjacent rows identical (same app, tier, fare, distance, minute). Was two `Uber Share $10.19 · 11.7 km · 2:49 PM` rows | [ ] |
+| M15.6 | Compare Home's today tally against the History row count | Match. The duplicate rows were double-counting the tally, good-average $/km, busiest hour and the by-hour chart | [ ] |
+| M15.7 | Two genuinely different offers seconds apart (e.g. $10.19 and $10.20) | Both logged — the de-dupe compares fare, both distances, duration and tier, not just timing | [ ] |
+
+## M16 — Foxy brand art
+
+The 15-layer stock car is gone. One Foxy car (core + a per-theme glow/shadow
+layer behind it), the gold `logo 3d` wordmark, and the sleeping fox.
+
+| # | Step | Expect | Pass |
+|---|------|--------|------|
+| M16.1 | Cold-start the app and watch the splash | Car **and** gold wordmark fade up together over the first ~660 ms, then the glow flares on with two flickers. The wordmark is on screen for the rest of the splash — it never blinks in right before Home. No cream flash, no layer pop-in (M12.10/M12.11 still hold) | [ ] |
+| M16.2 | Land on Home, **offline** | The same car sits on the stage. Glow behind it is low but present — the car has a shadow, it does not float | [ ] |
+| M16.3 | Slide to go live | Over ~600 ms the glow behind the car blooms to full and the card edge warms. This is the whole offline→live tell now | [ ] |
+| M16.4 | Look under the car on Home | **No ring, no line, no platform edge** — only a soft warm pool of light under the tyres. If any hard horizontal line shows across the card, the ring came back | [ ] |
+| M16.5 | Check the car's framing in the card | Car sits low in the card, wheels near the bottom (~87%) with no dead gap under it. Nose and tail fully visible, nothing clipped at the sides | [ ] |
+| M16.6 | Settings → Appearance → switch to the **light** theme, back to Home | Car reads as paint on paper, not a glowing object in a dark room: the back layer is a plain shadow. Going live warms the card edge — the car itself doesn't change (no lights-off art in this set) | [ ] |
+| M16.7 | Watch the hero for ~10 s in both themes | Reflection sweep crosses **the car body only** — no highlight sliding across empty card. The sweep mask is the car core, so any drift shows here | [ ] |
+| M16.8 | Home with no finished shifts (fresh install or cleared data) | The empty session card shows the **sleeping fox on grass**, ~132 dp wide, not squashed into a square | [ ] |
+| M16.9 | Settings → About & help | Header is the **gold wordmark** with the version under it — not a fox head next to the word "FoxyCo" | [ ] |
+| M16.10 | Check the fox head is still where it belongs | Home brand bar, shift recap sheet, onboarding, and the overlay bubble all still use the round head. Only the empty-session card and About changed | [ ] |
+| M16.11 | Accessibility → Remove animations ON, cold start | Splash shows the car lit and the wordmark instantly, then moves on. Home's car is static | [ ] |
+| M16.12 | Scroll Home up and down a few times on the oldest device you have | No jank on the hero. It's 2 images now instead of 15 — if this ever regresses, that's the place to look | [ ] |
+
+## M17 — Offer detail sheet
+
+| # | Step | Expect | Pass |
+|---|------|--------|------|
+| M17.1 | History → tap any row | Nothing cut off: verdict pill, fare, all six stat cells, the verdict-math line and the take/pass line all fully visible. The sheet grows past the old 9/16-screen cap | [ ] |
+| M17.2 | Settings → Display → largest text size, reopen the same row | Sheet caps at 90% of the screen and the body **scrolls**; the grab handle stays put. No clipped text at the top | [ ] |
+| M17.3 | Open an offer that has a ride tier (Uber Share, UberX, Comfort) | Tier shows right-aligned on the fare line, e.g. `$17.01 … UberX` — not truncated to `Ube…` in the header row | [ ] |
+| M17.4 | Look at the big fare | Top of the `$` and digits not shaved off — display font has room above the caps | [ ] |
+
+_Last updated: 2026-07-27 (M17: offer detail sheet scroll + header). 2026-07-26 (M13: shell navigation — back-to-Home, deep-linked Settings sections, tab re-tap, Logs route, bubble → offer. M14: Settings banded into five sections; shared SectionLabel. M15: overlay surface transparency, bubble-tap resume, offer-log de-dupe. M16: Foxy brand art — 2-layer car, gold wordmark, sleeping fox)._

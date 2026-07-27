@@ -1,0 +1,24 @@
+FOXY CAR V1 - QA REPORT
+========================
+
+OUTPUT
+[PASS] 4096 x 2731 RGBA PNG
+[PASS] Transparent canvas corners
+[PASS] Strong-object padding: left 614px, top 296px, right 311px, bottom 514px
+[PASS] Exact same core asset in dark and light packages
+
+VISUAL CHECKS
+[PASS] Entire front and rear of car visible
+[PASS] Front and rear wheels fully rendered
+[PASS] Hood logo visible
+[PASS] Front and rear wheel-hub logos visible
+[PASS] Steering-wheel logo visible
+[PASS] Fox, paws, sunglasses, windshield, seat, and tail complete
+
+CONSISTENCY
+No new image generation was used. Both themes use the exact same approved car/fox core.
+Only the separate glow/shadow layer behind the car differs.
+
+QUALITY NOTE
+The approved 1536x1024 render was alpha-safe upscaled to 4096x2731.
+This preserves the approved geometry and logos exactly; it is an upscale, not a native-4K rerender.

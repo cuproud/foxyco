@@ -46,6 +46,7 @@ class _SlideToLiveState extends State<SlideToLive>
 
   static const _height = 56.0;
   static const _thumb = 44.0;
+  static const _stopHint = '· slide back to stop';
 
   bool get _running =>
       widget.status == WatchStatus.watching ||
@@ -138,6 +139,16 @@ class _SlideToLiveState extends State<SlideToLive>
       builder: (context, c) {
         final travelPx = c.maxWidth - _thumb - 12;
         final x = _drag * travelPx;
+        final label = blocked ? 'Grant access to go live' : 'Slide to go live';
+        final labelStyle = TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0.3,
+          // On-card token: textSecondary is the PAGE's, and it washed out
+          // against the track (device 2026-07-25).
+          color: FoxColors.creamDim,
+        );
+        final labelW = _textWidth(context, label, labelStyle);
         return GestureDetector(
           onTap: blocked ? widget.onFix : null,
           child: Container(
@@ -196,6 +207,9 @@ class _SlideToLiveState extends State<SlideToLive>
                       // the "drag me" cue didn't land (device 2026-07-25).
                       opacity: (1 - _drag * 2).clamp(0.0, 1.0) * 0.85,
                       inset: _thumb + 12,
+                      // The label is centred, so the gap is too.
+                      clearFrom: (c.maxWidth - labelW) / 2 - 10,
+                      clearTo: (c.maxWidth + labelW) / 2 + 10,
                     ),
                   ),
                 ],
@@ -203,17 +217,7 @@ class _SlideToLiveState extends State<SlideToLive>
                 Center(
                   child: Opacity(
                     opacity: (1 - _drag * 2).clamp(0.0, 1.0),
-                    child: Text(
-                      blocked ? 'Grant access to go live' : 'Slide to go live',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 0.3,
-                        // On-card token: textSecondary is the PAGE's, and it
-                        // washed out against the track (device 2026-07-25).
-                        color: FoxColors.creamDim,
-                      ),
-                    ),
+                    child: Text(label, style: labelStyle),
                   ),
                 ),
                 // Thumb.
@@ -277,6 +281,29 @@ class _SlideToLiveState extends State<SlideToLive>
         // device: the finger hit the screen edge ~250 px short of commit.)
         final x = _drag * travelPx;
         final paused = widget.status == WatchStatus.paused;
+        final stateWord = paused ? 'Paused' : 'Live';
+        final stateStyle = TextStyle(
+          fontSize: 13.5,
+          fontWeight: FontWeight.w700,
+          color: FoxColors.cream,
+        );
+        final hintStyle = TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+          color: FoxColors.textDisabled,
+        );
+        // Where the label row ends: its left pad + dot + the two gaps + both
+        // strings. Capped short of the resting thumb so the train always has
+        // somewhere to march even at large font scales.
+        final labelEnd =
+            (Gap.md +
+                    Gap.xs +
+                    _PulsingDot.size +
+                    Gap.sm * 2 +
+                    _textWidth(context, stateWord, stateStyle) +
+                    _textWidth(context, _stopHint, hintStyle) +
+                    10)
+                .clamp(0.0, c.maxWidth - _thumb - 60);
         return Container(
           height: _height,
           decoration: BoxDecoration(
@@ -296,43 +323,35 @@ class _SlideToLiveState extends State<SlideToLive>
                   children: [
                     _PulsingDot(reduced: _reduced || paused),
                     const SizedBox(width: Gap.sm),
-                    Text(
-                      paused ? 'Paused' : 'Live',
-                      style: TextStyle(
-                        fontSize: 13.5,
-                        fontWeight: FontWeight.w700,
-                        color: FoxColors.cream,
-                      ),
-                    ),
+                    Text(stateWord, style: stateStyle),
                     const SizedBox(width: Gap.sm),
                     Flexible(
                       child: Opacity(
                         opacity: (1 - _drag * 2).clamp(0.0, 1.0),
                         child: Text(
-                          '· slide back to stop',
+                          _stopHint,
                           maxLines: 1,
                           overflow: TextOverflow.clip,
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: FoxColors.textDisabled,
-                          ),
+                          style: hintStyle,
                         ),
                       ),
                     ),
                   ],
                 ),
               ),
-              // Left-pointing train across the track — the mirror of the
-              // go-live cue: "pull this way to stop". Inset on the LEFT here
-              // so it clears the "Live · slide back to stop" label. Fades out
-              // as the fill recedes with the drag.
+              // Left-pointing train — the mirror of the go-live cue: "pull this
+              // way to stop". It spans the track but dissolves across the
+              // label's footprint; at full width the chevrons struck through
+              // "slide back to stop" (device 2026-07-25).
               Positioned.fill(
                 child: _MarchingChevrons(
                   reduced: _reduced,
                   reverse: true,
                   opacity: (1 - _drag * 2).clamp(0.0, 1.0) * 0.55,
                   inset: _thumb + 12,
+                  // Label runs from the left edge, so the gap starts there.
+                  clearFrom: 0,
+                  clearTo: labelEnd,
                 ),
               ),
               Positioned(
@@ -476,12 +495,42 @@ class _MarchingChevrons extends StatefulWidget {
     required this.opacity,
     required this.inset,
     this.reverse = false,
+    this.clearFrom,
+    this.clearTo,
   });
 
   final bool reduced;
   final double opacity; // outer fade (driven by drag)
   final double inset; // px kept clear at each end (thumb / label)
   final bool reverse; // true → point/march left (stop bar)
+
+  /// The label's own footprint, in px from the track's left edge. The train
+  /// dissolves across this span instead of marching through it — at full width
+  /// the chevrons crossed the words and read as strikethrough (device
+  /// 2026-07-25). Callers measure the label rather than guessing a fraction, so
+  /// the gap tracks font scale and translated strings.
+  final double? clearFrom;
+  final double? clearTo;
+
+  /// Soft edge on the gap, so chevrons fade into it rather than clipping.
+  static const _feather = 14.0;
+
+  /// Alpha ramp that ERASES the train between [clearFrom]/[clearTo] — painted
+  /// through [BlendMode.dstOut], opaque black is what removes pixels.
+  static Shader _gapShader(Rect r, double from, double to) {
+    double at(double px) => (px / r.width).clamp(0.0, 1.0);
+    return LinearGradient(
+      colors: const [
+        Colors.transparent,
+        Colors.transparent,
+        Colors.black,
+        Colors.black,
+        Colors.transparent,
+        Colors.transparent,
+      ],
+      stops: [0, at(from - _feather), at(from), at(to), at(to + _feather), 1],
+    ).createShader(r);
+  }
 
   static const _iconSize = 26.0;
   static const _weight = 2.0; // overlapped stroke → bolder glyph
@@ -535,7 +584,9 @@ class _MarchingChevronsState extends State<_MarchingChevrons>
               2,
               12,
             );
-            return AnimatedBuilder(
+            final from = widget.clearFrom;
+            final to = widget.clearTo;
+            final train = AnimatedBuilder(
               animation: _c,
               builder: (context, _) => Stack(
                 children: [
@@ -555,10 +606,8 @@ class _MarchingChevronsState extends State<_MarchingChevrons>
                             // but floored: an unfloored sine leaves most of the
                             // train near zero at any instant, so the direction
                             // never reads (device 2026-07-25).
-                            opacity: (0.35 + 0.65 * math.sin(f * math.pi)).clamp(
-                              0.0,
-                              1.0,
-                            ),
+                            opacity: (0.35 + 0.65 * math.sin(f * math.pi))
+                                .clamp(0.0, 1.0),
                             // Two stacked glyphs, the back one thicker, fake a
                             // bold weight the icon font doesn't otherwise expose.
                             child: Stack(
@@ -588,6 +637,12 @@ class _MarchingChevronsState extends State<_MarchingChevrons>
                 ],
               ),
             );
+            if (from == null || to == null || to <= from) return train;
+            return ShaderMask(
+              blendMode: BlendMode.dstOut,
+              shaderCallback: (r) => _MarchingChevrons._gapShader(r, from, to),
+              child: train,
+            );
           },
         ),
       ),
@@ -595,10 +650,24 @@ class _MarchingChevronsState extends State<_MarchingChevrons>
   }
 }
 
+/// Width [text] will occupy in [style] at the current text scale. Used to size
+/// the chevron train's gap around a label instead of hard-coding a fraction.
+double _textWidth(BuildContext context, String text, TextStyle style) {
+  final painter = TextPainter(
+    text: TextSpan(text: text, style: style),
+    textDirection: TextDirection.ltr,
+    textScaler: MediaQuery.textScalerOf(context),
+  )..layout();
+  return painter.width;
+}
+
 /// Pulsing live dot; steady (no loop) under reduced motion / paused.
 class _PulsingDot extends StatefulWidget {
   const _PulsingDot({required this.reduced});
   final bool reduced;
+
+  /// Laid-out width; callers measuring the label row need it.
+  static const size = 9.0;
 
   @override
   State<_PulsingDot> createState() => _PulsingDotState();
@@ -635,8 +704,8 @@ class _PulsingDotState extends State<_PulsingDot>
     return AnimatedBuilder(
       animation: _c,
       builder: (context, _) => Container(
-        width: 9,
-        height: 9,
+        width: _PulsingDot.size,
+        height: _PulsingDot.size,
         decoration: BoxDecoration(
           color: FoxColors.brandFox,
           shape: BoxShape.circle,

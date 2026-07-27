@@ -101,6 +101,8 @@ flutter:
     # icon/splash generator INPUTS and must not ship in the APK (~6MB).
     - assets/branding/foxyco_bubble.png
     - assets/branding/foxyco_head.png
+    - assets/branding/foxyco_logo.png
+    - assets/branding/foxy_sleeping.png
     - assets/car/
     # Foxy garage thumbnails, one illustration per body type (art set 2026-07-23).
     - assets/vehicles/

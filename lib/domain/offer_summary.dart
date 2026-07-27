@@ -40,6 +40,19 @@ class OfferSummary {
     this.category,
   });
 
+  /// Same CARD as [other]? Compares what the parser read off the screen, not
+  /// when we read it — so one offer card seen twice reads as one offer.
+  ///
+  /// Deliberately excludes [seenAt], [verdict] and [outcome]: the first is what
+  /// differs between the two reads, and the last two are ours, not the card's.
+  bool sameCardAs(OfferSummary other) =>
+      platform == other.platform &&
+      payout == other.payout &&
+      totalKm == other.totalKm &&
+      pickupKm == other.pickupKm &&
+      totalMinutes == other.totalMinutes &&
+      category == other.category;
+
   double get pricePerKm => totalKm > 0 ? payout / totalKm : 0;
 
   /// Dollars per hour; 0 when no time was parsed (UI hides it, no ∞).

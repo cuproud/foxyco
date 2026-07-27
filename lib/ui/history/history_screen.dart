@@ -8,6 +8,7 @@ import '../../domain/platform.dart';
 import '../../domain/verdict.dart';
 import '../../services/offer_log.dart';
 import '../theme/platform_badge.dart';
+import '../theme/section_label.dart';
 import '../theme/step_button.dart';
 import '../theme/tokens.dart';
 import '../theme/verdict_style.dart';
@@ -197,7 +198,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
               top: lastLabel == null ? 0 : Gap.md,
               bottom: Gap.sm,
             ),
-            child: _DateHeader(label),
+            child: SectionLabel(label),
           ),
         );
         lastLabel = label;
@@ -977,25 +978,6 @@ class _AppVerdictChart extends StatelessWidget {
             ),
           ),
         ),
-      ],
-    );
-  }
-}
-
-class _DateHeader extends StatelessWidget {
-  const _DateHeader(this.label);
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Text(
-          label.toUpperCase(),
-          style: Theme.of(context).textTheme.labelSmall,
-        ),
-        const SizedBox(width: Gap.sm + Gap.xs),
-        Expanded(child: Divider(color: FoxColors.border, height: 1)),
       ],
     );
   }

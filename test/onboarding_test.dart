@@ -1,12 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:foxyco/router.dart';
 import 'package:foxyco/ui/onboarding/onboarding_screen.dart';
 import 'package:foxyco/ui/settings/settings_controller.dart';
 
 void main() {
+  // The wizard now AWAITS its prefs writes (driver name + the onboarded flag)
+  // before navigating, so an exit only completes if the plugin answers.
+  setUp(() => SharedPreferences.setMockInitialValues({}));
+
   Widget app({required bool showOnboarding}) => ProviderScope(
     child: MaterialApp.router(
       routerConfig: createRouter(showOnboarding: showOnboarding),
@@ -78,6 +83,21 @@ void main() {
     await tester.pump(const Duration(milliseconds: 400));
     expect(find.byType(OnboardingScreen), findsNothing);
     expect(find.text('FoxyCo'), findsOneWidget);
+  });
+
+  testWidgets('name typed on page 1 lands in Home\'s greeting', (tester) async {
+    await tester.pumpWidget(app(showOnboarding: true));
+
+    // Padded on purpose — the name is trimmed on the way out.
+    await tester.enterText(find.byType(TextField), '  Vamsi  ');
+    await tester.tap(find.text('Skip for now'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pump(const Duration(milliseconds: 400));
+
+    // ProfileCard hides itself on an empty name, so this only passes if the
+    // wizard actually saved one.
+    expect(find.textContaining('Vamsi'), findsOneWidget);
   });
 
   testWidgets('Skip for now exits to Home from page 1', (tester) async {

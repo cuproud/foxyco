@@ -3,33 +3,30 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../domain/app_skin.dart';
 import '../../domain/decision_engine.dart';
 import '../../domain/fox_settings.dart';
-import '../../domain/driver_profile.dart';
-import '../../domain/garage.dart';
 import '../../domain/money_font.dart';
 import '../../domain/overlay_payload.dart' show OverlayPayload, PillSize;
 import '../../domain/platform.dart';
 import '../../domain/rate_mode.dart';
-import '../../domain/thresholds.dart';
 import '../../domain/verdict.dart';
 import '../../services/offer_log.dart';
 import '../../services/parse_health.dart';
 import '../overlay/verdict_pill.dart';
+import '../shell/root_shell.dart';
 import '../theme/platform_badge.dart';
-import '../theme/step_button.dart';
+import '../theme/section_label.dart';
 import '../theme/tokens.dart';
-import '../theme/vehicle_badge.dart';
-import '../theme/verdict_style.dart';
 import 'about_content.dart';
 import 'garage_controller.dart';
+import 'garage_section.dart';
 import 'reminder_controller.dart';
 import 'reminder_section.dart';
 import 'settings_controller.dart';
+import 'settings_controls.dart';
 
 /// Settings — every driver-tunable knob in [FoxSettings]: verdict thresholds
 /// (with live preview), pickup-distance guard, watched apps, pill size, theme +
@@ -49,7 +46,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   static const _maxHr = 60.0;
   static const _engine = DecisionEngine();
 
-  /// Per-group accent hues (index-matched to the accordion order) — flat
+  /// Per-group accent hues, index-matched to the GROUP INDEX rather than the
+  /// on-screen order (Parser health, 9, is shown up with Watched apps) — flat
   /// same-orange tiles read boring (device 2026-07-21). Muted; green/red stay
   /// reserved for verdicts except the thresholds group, whose whole point is
   /// the verdict band.
@@ -79,8 +77,42 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   int _open = 0;
   void _toggle(int i) => setState(() => _open = _open == i ? -1 : i);
 
+  /// One key per row so a deep link can scroll its target into view. The rows
+  /// all live in a plain `ListView(children:)`, so anything past the cache
+  /// extent has no context to scroll to — hence the null guard rather than a
+  /// bang. Worst case the group is open but the driver still has to scroll,
+  /// which is where every deep link used to land.
+  final _rowKeys = List.generate(12, (_) => GlobalKey());
+
+  /// Honour a jump made with `TabIndex.go(2, section: n)`: expand the group the
+  /// driver actually tapped for and bring it on screen. Consumed once, so
+  /// switching to Settings by hand afterwards leaves their accordion alone.
+  void _consumeDeepLink() {
+    final tabs = ref.read(tabIndexProvider.notifier);
+    final target = tabs.pendingSection;
+    if (target == null) return;
+    tabs.pendingSection = null;
+    setState(() => _open = target);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final ctx = _rowKeys[target].currentContext;
+      if (ctx == null || !mounted) return;
+      Scrollable.ensureVisible(
+        ctx,
+        alignment: 0.08,
+        duration: Motion.morph,
+        curve: Motion.curve,
+      );
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
+    // Settings is always built (it's an IndexedStack child), so the deep link
+    // has to hang off the tab CHANGE, not off this build.
+    ref.listen<int>(tabIndexProvider, (_, next) {
+      if (next == 2) _consumeDeepLink();
+    });
+
     final settings = ref.watch(settingsProvider);
     final perHour = settings.rateMode == RateMode.perHour;
     final t = settings.activeThresholds;
@@ -119,22 +151,24 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ],
         ),
         const SizedBox(height: Gap.md),
+        const SectionLabel('You & your car'),
+        const SizedBox(height: Gap.sm + Gap.xs),
         _staggered(
           0,
-          _SettingsGroup(
+          SettingsGroup(
             title: 'Driver',
             icon: Icons.person_outline_rounded,
             summary: driverName.isNotEmpty ? driverName : 'Set your name',
             open: _open == 0,
             accent: _accents[0],
             onTap: () => _toggle(0),
-            child: const _DriverNameCard(),
+            child: const DriverNameCard(),
           ),
         ),
         const SizedBox(height: Gap.sm),
         _staggered(
           1,
-          _SettingsGroup(
+          SettingsGroup(
             title: 'Garage',
             icon: Icons.garage_outlined,
             summary:
@@ -148,7 +182,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const _GarageList(),
+                const GarageList(),
                 const SizedBox(height: Gap.lg),
                 Row(
                   children: [
@@ -167,10 +201,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
           ),
         ),
-        const SizedBox(height: Gap.sm),
+        const SizedBox(height: Gap.lg),
+        const SectionLabel('Scoring'),
+        const SizedBox(height: Gap.sm + Gap.xs),
         _staggered(
           2,
-          _SettingsGroup(
+          SettingsGroup(
             title: 'Verdict thresholds',
             icon: Icons.tune_rounded,
             summary: 'GOOD ≥ \$${t.goodAtOrAbove.toStringAsFixed(2)}$unit',
@@ -215,12 +251,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 // One-tap starting points (same trio as onboarding).
                 // Only shown in $/km mode — the presets are $/km numbers.
                 if (!perHour) ...[
-                  _PresetChips(current: t, onPick: controller.applyPreset),
+                  PresetChips(current: t, onPick: controller.applyPreset),
                   const SizedBox(height: Gap.md),
                 ],
-                _ThresholdBand(thresholds: t, min: min, max: max, unit: unit),
+                ThresholdBand(thresholds: t, min: min, max: max, unit: unit),
                 const SizedBox(height: Gap.md),
-                _ThresholdSlider(
+                ThresholdSlider(
                   label: 'GOOD at or above',
                   color: VerdictColors.good,
                   value: t.goodAtOrAbove,
@@ -229,7 +265,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   onChanged: controller.setGood,
                 ),
                 const SizedBox(height: Gap.md),
-                _ThresholdSlider(
+                ThresholdSlider(
                   label: 'BAD below',
                   color: VerdictColors.bad,
                   value: t.badBelow,
@@ -244,14 +280,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         const SizedBox(height: Gap.sm),
         _staggered(
           3,
-          _SettingsGroup(
+          SettingsGroup(
             title: 'Live preview',
             icon: Icons.visibility_outlined,
             summary: 'Try a sample rate',
             open: _open == 3,
             accent: _accents[3],
             onTap: () => _toggle(3),
-            child: _PreviewCard(
+            child: PreviewCard(
               sample: sample,
               unit: unit,
               verdict: _engine.evaluate(sample, t),
@@ -270,7 +306,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         const SizedBox(height: Gap.sm),
         _staggered(
           4,
-          _SettingsGroup(
+          SettingsGroup(
             title: 'Pickup guard',
             icon: Icons.near_me_outlined,
             summary: 'Near ≤ ${settings.pickupNearKm.toStringAsFixed(1)} km',
@@ -280,7 +316,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _ThresholdSlider(
+                ThresholdSlider(
                   label: 'Near pickup at or under',
                   color: FoxColors.brandFox,
                   value: settings.pickupNearKm,
@@ -300,10 +336,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
           ),
         ),
-        const SizedBox(height: Gap.sm),
+        const SizedBox(height: Gap.lg),
+        const SectionLabel('Watching'),
+        const SizedBox(height: Gap.sm + Gap.xs),
         _staggered(
           5,
-          _SettingsGroup(
+          SettingsGroup(
             title: 'Watched apps',
             icon: Icons.apps_rounded,
             summary: settings.watchedApps.map((a) => a.label).join(' · '),
@@ -335,8 +373,49 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         ),
         const SizedBox(height: Gap.sm),
         _staggered(
+          9,
+          SettingsGroup(
+            title: 'Parser health',
+            icon: Icons.monitor_heart_outlined,
+            summary: 'This session',
+            open: _open == 9,
+            accent: _accents[9],
+            onTap: () => _toggle(9),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Column(
+                  children: [
+                    for (final app in GigPlatform.values) ...[
+                      HealthRow(
+                        app: app,
+                        watched: settings.watches(app),
+                        health:
+                            ref.watch(parseHealthProvider)[app] ??
+                            const PlatformHealth(),
+                      ),
+                      if (app != GigPlatform.values.last)
+                        Divider(color: FoxColors.border, height: Gap.lg),
+                    ],
+                  ],
+                ),
+                const SizedBox(height: Gap.sm),
+                Text(
+                  'This session. "Needs update" means offer cards are arriving '
+                  'but FoxyCo can\'t read them — the app\'s layout likely '
+                  'changed.',
+                  style: text.bodyMedium?.copyWith(
+                    color: FoxColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: Gap.sm),
+        _staggered(
           6,
-          _SettingsGroup(
+          SettingsGroup(
             title: 'Outcome tracking',
             icon: Icons.fact_check_outlined,
             summary: settings.trackOutcomes ? 'On' : 'Off',
@@ -378,10 +457,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
           ),
         ),
-        const SizedBox(height: Gap.sm),
+        const SizedBox(height: Gap.lg),
+        const SectionLabel('Look & feel'),
+        const SizedBox(height: Gap.sm + Gap.xs),
         _staggered(
           7,
-          _SettingsGroup(
+          SettingsGroup(
             title: 'Pill size',
             icon: Icons.circle_outlined,
             summary: switch (settings.pillSize) {
@@ -395,7 +476,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                _ChoiceRow<PillSize>(
+                ChoiceRow<PillSize>(
                   values: PillSize.values,
                   selected: settings.pillSize,
                   labelOf: (s) => switch (s) {
@@ -435,7 +516,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 const SizedBox(height: Gap.sm + Gap.xs),
                 // Quick "how to read it" legend for first-time users — mirrors
                 // the sample pill above (M6 follow-up, device 2026-07-19).
-                const _PillLegend(),
+                const PillLegend(),
               ],
             ),
           ),
@@ -443,7 +524,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         const SizedBox(height: Gap.sm),
         _staggered(
           8,
-          _SettingsGroup(
+          SettingsGroup(
             title: 'Appearance',
             icon: Icons.text_fields_rounded,
             summary: '${settings.skin.label} · ${settings.moneyFont.label}',
@@ -460,7 +541,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   ),
                 ),
                 const SizedBox(height: Gap.sm),
-                _ChoiceRow<AppSkin>(
+                ChoiceRow<AppSkin>(
                   values: AppSkin.values,
                   selected: settings.skin,
                   labelOf: (s) => s.label,
@@ -490,7 +571,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ),
                 const SizedBox(height: Gap.md),
                 for (final f in MoneyFont.values) ...[
-                  _FontChoiceCard(
+                  FontChoiceCard(
                     font: f,
                     selected: settings.moneyFont == f,
                     onTap: () => controller.setMoneyFont(f),
@@ -502,51 +583,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
           ),
         ),
-        const SizedBox(height: Gap.sm),
-        _staggered(
-          9,
-          _SettingsGroup(
-            title: 'Parser health',
-            icon: Icons.monitor_heart_outlined,
-            summary: 'This session',
-            open: _open == 9,
-            accent: _accents[9],
-            onTap: () => _toggle(9),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Column(
-                  children: [
-                    for (final app in GigPlatform.values) ...[
-                      _HealthRow(
-                        app: app,
-                        watched: settings.watches(app),
-                        health:
-                            ref.watch(parseHealthProvider)[app] ??
-                            const PlatformHealth(),
-                      ),
-                      if (app != GigPlatform.values.last)
-                        Divider(color: FoxColors.border, height: Gap.lg),
-                    ],
-                  ],
-                ),
-                const SizedBox(height: Gap.sm),
-                Text(
-                  'This session. "Needs update" means offer cards are arriving '
-                  'but FoxyCo can\'t read them — the app\'s layout likely '
-                  'changed.',
-                  style: text.bodyMedium?.copyWith(
-                    color: FoxColors.textSecondary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(height: Gap.sm),
+        const SizedBox(height: Gap.lg),
+        const SectionLabel('Your data'),
+        const SizedBox(height: Gap.sm + Gap.xs),
         _staggered(
           10,
-          _SettingsGroup(
+          SettingsGroup(
             title: 'History',
             icon: Icons.history_rounded,
             summary: settings.retentionDays == FoxSettings.keepForever
@@ -560,7 +602,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               children: [
                 Text('Keep offers for', style: text.titleMedium),
                 const SizedBox(height: Gap.sm),
-                _ChoiceRow<int>(
+                ChoiceRow<int>(
                   values: const [7, 30, 90, FoxSettings.keepForever],
                   selected: settings.retentionDays,
                   labelOf: (d) =>
@@ -605,18 +647,45 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
         ),
         const SizedBox(height: Gap.sm),
-        // Last row, and a plain link rather than an accordion — About is a page
-        // of prose, not a group of knobs.
-        _staggered(11, const _AboutRow()),
+        // Last two rows, plain links rather than accordions — these are pages,
+        // not groups of knobs. Logs is the record About tells drivers to check
+        // when the watcher goes quiet ("Settings → Logs"); it had a screen and
+        // a test but no route and no way in, so that instruction pointed at
+        // nothing.
+        _staggered(
+          11,
+          const LinkRow(
+            icon: Icons.info_outline_rounded,
+            title: 'About & help',
+            trailing: aboutVersion,
+            route: '/about',
+          ),
+        ),
+        const SizedBox(height: Gap.sm),
+        const LinkRow(
+          icon: Icons.receipt_long_outlined,
+          title: 'Logs',
+          trailing: 'Watcher record',
+          route: '/logs',
+        ),
       ],
     );
   }
 
   /// Section-entry stagger (spec M6 §6): each section fades + slides up with a
-  /// small per-index delay. Reduced-motion or below-the-fold sections (i > 7)
-  /// render instantly — no loops, no jank.
+  /// small per-index delay. Reduced-motion or below-the-fold sections render
+  /// instantly — no loops, no jank.
+  ///
+  /// Cutoff is 5, not the old 7: the delay is derived from the group INDEX, and
+  /// only the first six groups still appear in index order on screen (Parser
+  /// health, 9, was lifted up into the Watching band). Past that the two
+  /// disagree, and a stagger that runs out of step with the page reads as jitter
+  /// — below the fold nobody was going to see it anyway.
   Widget _staggered(int i, Widget child) {
-    if (MediaQuery.of(context).disableAnimations || i > 7) return child;
+    // Keyed here rather than at every call site — it's the one wrapper every
+    // row already goes through.
+    child = KeyedSubtree(key: _rowKeys[i], child: child);
+    if (MediaQuery.of(context).disableAnimations || i > 5) return child;
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0, end: 1),
       duration: Motion.base + Motion.stagger * i,
@@ -729,1150 +798,5 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       ),
     );
     if (yes == true) ref.read(offerLogProvider.notifier).clearAll();
-  }
-}
-
-/// One-tap threshold presets (shared trio with onboarding). Highlights the
-/// preset matching the current cut points; custom slider positions match none.
-/// Settings' last row: a link out to [AboutScreen]. Shaped like a collapsed
-/// [_SettingsGroup] header so it sits in the stack without looking bolted on,
-/// but it navigates instead of expanding.
-class _AboutRow extends StatelessWidget {
-  const _AboutRow();
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: FoxColors.bgSurface,
-      borderRadius: BorderRadius.circular(Radii.card),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(Radii.card),
-        onTap: () => context.push('/about'),
-        child: Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: Gap.md,
-            vertical: Gap.md,
-          ),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(Radii.card),
-            border: Border.all(color: FoxColors.borderSoft),
-          ),
-          child: Row(
-            children: [
-              const Icon(
-                Icons.info_outline_rounded,
-                size: 20,
-                color: Color(0xFF9AA7B8),
-              ),
-              const SizedBox(width: Gap.sm + Gap.xs),
-              Expanded(
-                child: Text(
-                  'About & help',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                    color: FoxColors.textPrimary,
-                  ),
-                ),
-              ),
-              Text(
-                aboutVersion,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: FoxColors.textDisabled,
-                ),
-              ),
-              const SizedBox(width: Gap.xs),
-              Icon(
-                Icons.chevron_right_rounded,
-                size: 20,
-                color: FoxColors.textDisabled,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _PresetChips extends StatelessWidget {
-  const _PresetChips({required this.current, required this.onPick});
-
-  final Thresholds current;
-  final ValueChanged<Thresholds> onPick;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        for (final (label, t) in Thresholds.presets) ...[
-          Expanded(
-            child: GestureDetector(
-              onTap: () {
-                HapticFeedback.selectionClick();
-                onPick(t);
-              },
-              child: AnimatedContainer(
-                duration: Motion.base,
-                padding: const EdgeInsets.symmetric(vertical: 9),
-                decoration: BoxDecoration(
-                  color: current == t
-                      ? FoxColors.brandFoxSoft
-                      : FoxColors.bgSurface2,
-                  borderRadius: BorderRadius.circular(Radii.pill),
-                  border: Border.all(
-                    color: current == t
-                        ? FoxColors.brandFox.withValues(alpha: 0.6)
-                        : FoxColors.borderSoft,
-                  ),
-                ),
-                child: Center(
-                  child: Text(
-                    label,
-                    style: TextStyle(
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.w700,
-                      color: current == t
-                          ? FoxColors.textPrimary
-                          : FoxColors.textSecondary,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-          if ((label, t) != Thresholds.presets.last)
-            const SizedBox(width: Gap.sm),
-        ],
-      ],
-    );
-  }
-}
-
-/// Pill-shaped single-select row (pill size, retention).
-class _ChoiceRow<T> extends StatelessWidget {
-  const _ChoiceRow({
-    required this.values,
-    required this.selected,
-    required this.labelOf,
-    required this.onChanged,
-  });
-
-  final List<T> values;
-  final T selected;
-  final String Function(T) labelOf;
-  final ValueChanged<T> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        for (final v in values) ...[
-          Expanded(
-            child: GestureDetector(
-              onTap: () {
-                HapticFeedback.selectionClick();
-                onChanged(v);
-              },
-              child: AnimatedContainer(
-                duration: Motion.base,
-                padding: const EdgeInsets.symmetric(vertical: 9),
-                decoration: BoxDecoration(
-                  color: v == selected
-                      ? FoxColors.bgSurface2
-                      : FoxColors.bgSurface,
-                  borderRadius: BorderRadius.circular(Radii.pill),
-                  border: Border.all(
-                    color: v == selected
-                        ? FoxColors.border
-                        : FoxColors.borderSoft,
-                  ),
-                ),
-                child: Center(
-                  child: Text(
-                    labelOf(v),
-                    style: TextStyle(
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.w700,
-                      // textPrimary, not cream: this row sits on page chrome,
-                      // which flips with the theme (cream would vanish on
-                      // paper).
-                      color: v == selected
-                          ? FoxColors.textPrimary
-                          : FoxColors.textSecondary,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-          if (v != values.last) const SizedBox(width: Gap.sm),
-        ],
-      ],
-    );
-  }
-}
-
-/// One platform's session parse health: OK / quiet / needs-update. Row stays
-/// dimmed for apps the driver isn't watching (their health is moot).
-class _HealthRow extends StatelessWidget {
-  const _HealthRow({
-    required this.app,
-    required this.watched,
-    required this.health,
-  });
-
-  final GigPlatform app;
-  final bool watched;
-  final PlatformHealth health;
-
-  @override
-  Widget build(BuildContext context) {
-    final text = Theme.of(context).textTheme;
-    final (label, color, bg) = !watched
-        ? ('Off', FoxColors.textDisabled, FoxColors.bgBase)
-        : health.likelyUnreadable
-        // Frames arrive but carry no readable text (canvas/Compose UI) —
-        // a parser update can't fix this; it needs the OCR fallback.
-        ? ('Unreadable · OCR needed', VerdictColors.bad, VerdictColors.badBg)
-        : health.likelyBroken
-        ? ('Needs update', VerdictColors.bad, VerdictColors.badBg)
-        : health.parsed > 0
-        ? (
-            'OK · ${health.parsed} read',
-            VerdictColors.good,
-            VerdictColors.goodBg,
-          )
-        : ('No offers yet', FoxColors.textSecondary, FoxColors.bgBase);
-
-    return Opacity(
-      opacity: watched ? 1 : 0.55,
-      child: Row(
-        children: [
-          Expanded(child: Text(app.label, style: text.titleMedium)),
-          Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: Gap.sm + Gap.xs,
-              vertical: Gap.xs,
-            ),
-            decoration: BoxDecoration(
-              color: bg,
-              borderRadius: BorderRadius.circular(Radii.pill),
-            ),
-            child: Text(
-              label,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-                color: color,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// One accordion group card: tappable header (icon chip + title + live
-/// summary + chevron) over an AnimatedSize body. Single-open behavior lives
-/// in the parent (`_open` index) so the page never grows unbounded.
-/// A live "$24.50" sample in each MoneyFont, tappable to select it app-wide.
-class _FontChoiceCard extends StatelessWidget {
-  const _FontChoiceCard({
-    required this.font,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final MoneyFont font;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () {
-        HapticFeedback.selectionClick();
-        onTap();
-      },
-      child: AnimatedContainer(
-        duration: Motion.base,
-        padding: const EdgeInsets.symmetric(
-          horizontal: Gap.md,
-          vertical: Gap.sm + Gap.xs,
-        ),
-        decoration: BoxDecoration(
-          color: selected ? FoxColors.brandFoxSoft : FoxColors.bgSurface2,
-          borderRadius: BorderRadius.circular(Radii.field),
-          border: Border.all(
-            color: selected
-                ? FoxColors.brandFox.withValues(alpha: 0.6)
-                : FoxColors.borderSoft,
-          ),
-        ),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    r'$24.50',
-                    style: TextStyle(
-                      fontFamily: font.family,
-                      fontSize: 26,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: -0.5,
-                      // Page token: this chip sits on bgSurface2, not on a
-                      // gradient card.
-                      color: FoxColors.textPrimary,
-                      fontFeatures: const [FontFeature.tabularFigures()],
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    font.label,
-                    style: TextStyle(
-                      fontSize: 11.5,
-                      fontWeight: FontWeight.w600,
-                      color: FoxColors.textSecondary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            if (selected)
-              const Icon(
-                Icons.check_circle_rounded,
-                color: FoxColors.brandFox,
-                size: 20,
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _SettingsGroup extends StatelessWidget {
-  const _SettingsGroup({
-    required this.title,
-    required this.icon,
-    required this.summary,
-    required this.open,
-    required this.onTap,
-    required this.child,
-    this.accent = FoxColors.brandFox,
-  });
-
-  final String title;
-  final IconData icon;
-  final String summary;
-  final bool open;
-  final VoidCallback onTap;
-  final Widget child;
-
-  /// Per-group hue (flat tiles read boring, device 2026-07-21): tints the icon
-  /// chip always, and the border + glow while open.
-  final Color accent;
-
-  @override
-  Widget build(BuildContext context) {
-    final text = Theme.of(context).textTheme;
-    return AnimatedContainer(
-      duration: Motion.base,
-      decoration: BoxDecoration(
-        // Subtle top sheen over the flat surface so cards read as lit panels.
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            Color.lerp(FoxColors.bgSurface, FoxColors.cream, 0.045)!,
-            FoxColors.bgSurface,
-          ],
-          stops: const [0, 0.45],
-        ),
-        borderRadius: BorderRadius.circular(Radii.card),
-        border: Border.all(
-          color: open ? accent.withValues(alpha: 0.45) : FoxColors.borderSoft,
-        ),
-        boxShadow: [
-          ...Shadows.card,
-          if (open)
-            BoxShadow(color: accent.withValues(alpha: 0.18), blurRadius: 16),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          InkWell(
-            borderRadius: BorderRadius.circular(Radii.card),
-            onTap: () {
-              HapticFeedback.selectionClick();
-              onTap();
-            },
-            child: Padding(
-              padding: const EdgeInsets.all(Gap.md),
-              child: Row(
-                children: [
-                  AnimatedContainer(
-                    duration: Motion.base,
-                    width: 34,
-                    height: 34,
-                    decoration: BoxDecoration(
-                      color: accent.withValues(alpha: open ? 0.28 : 0.14),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(
-                        color: accent.withValues(alpha: open ? 0.55 : 0.25),
-                      ),
-                      boxShadow: open
-                          ? [
-                              BoxShadow(
-                                color: accent.withValues(alpha: 0.35),
-                                blurRadius: 10,
-                              ),
-                            ]
-                          : null,
-                    ),
-                    child: Icon(
-                      icon,
-                      size: 18,
-                      color: Color.lerp(accent, FoxColors.cream, 0.25),
-                    ),
-                  ),
-                  const SizedBox(width: Gap.md),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(title, style: text.titleMedium),
-                        if (summary.isNotEmpty) ...[
-                          const SizedBox(height: 2),
-                          Text(
-                            summary,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: 11.5,
-                              color: FoxColors.textSecondary,
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: Gap.sm),
-                  AnimatedRotation(
-                    turns: open ? 0.5 : 0,
-                    duration: Motion.base,
-                    curve: Motion.curve,
-                    child: Icon(
-                      Icons.keyboard_arrow_down_rounded,
-                      color: FoxColors.textSecondary,
-                      size: 20,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          // AnimatedSize animates the height change; the body is conditionally
-          // built, so collapsing discards the group's child state (deliberate —
-          // groups are cheap to rebuild).
-          AnimatedSize(
-            duration: Motion.morph,
-            curve: Motion.curve,
-            alignment: Alignment.topCenter,
-            child: open
-                ? Padding(
-                    padding: const EdgeInsets.fromLTRB(
-                      Gap.md,
-                      0,
-                      Gap.md,
-                      Gap.md,
-                    ),
-                    child: child,
-                  )
-                : const SizedBox(width: double.infinity),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// A horizontal bar split into BAD / OK / GOOD zones at the current cut points.
-class _ThresholdBand extends StatelessWidget {
-  const _ThresholdBand({
-    required this.thresholds,
-    required this.min,
-    required this.max,
-    required this.unit,
-  });
-
-  final Thresholds thresholds;
-  final double min;
-  final double max;
-  final String unit;
-
-  @override
-  Widget build(BuildContext context) {
-    final span = max - min;
-    final badFlex = ((thresholds.badBelow - min) / span * 1000).round();
-    final goodFlex = ((max - thresholds.goodAtOrAbove) / span * 1000).round();
-    final okFlex = (1000 - badFlex - goodFlex).clamp(0, 1000);
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        ClipRRect(
-          borderRadius: BorderRadius.circular(Radii.pill),
-          child: SizedBox(
-            height: 14,
-            child: Row(
-              children: [
-                if (badFlex > 0)
-                  Expanded(
-                    flex: badFlex,
-                    child: ColoredBox(color: VerdictColors.bad),
-                  ),
-                if (okFlex > 0)
-                  Expanded(
-                    flex: okFlex,
-                    child: ColoredBox(color: VerdictColors.ok),
-                  ),
-                if (goodFlex > 0)
-                  Expanded(
-                    flex: goodFlex,
-                    child: ColoredBox(color: VerdictColors.good),
-                  ),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(height: Gap.sm),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              '\$${min.toStringAsFixed(2)}',
-              style: Theme.of(context).textTheme.labelSmall,
-            ),
-            // Cut points, so the band and the sliders visibly connect.
-            Text(
-              '\$${thresholds.badBelow.toStringAsFixed(2)}',
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: VerdictColors.bad.withValues(alpha: 0.85),
-              ),
-            ),
-            Text(
-              '\$${thresholds.goodAtOrAbove.toStringAsFixed(2)}',
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: VerdictColors.good.withValues(alpha: 0.85),
-              ),
-            ),
-            Text(
-              '\$${max.toStringAsFixed(2)}$unit',
-              style: Theme.of(context).textTheme.labelSmall,
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-}
-
-class _ThresholdSlider extends StatelessWidget {
-  const _ThresholdSlider({
-    required this.label,
-    required this.color,
-    required this.value,
-    required this.min,
-    required this.max,
-    required this.onChanged,
-    this.unit = '',
-  });
-
-  final String label;
-  final Color color;
-  final double value;
-  final double min;
-  final double max;
-  final ValueChanged<double> onChanged;
-
-  /// Empty = dollars ('$1.50'); otherwise suffixed ('2.0 km').
-  final String unit;
-
-  /// One nudge of the −/+ buttons. Matches the slider's own division size for
-  /// money; km reads in tenths, so a 5c-equivalent step would take forever.
-  double get _step => unit.isEmpty ? 0.05 : 0.1;
-
-  /// Round to the step so repeated nudges can't drift off it in binary float
-  /// ($1.3500000000000002 formats fine but never equals a division).
-  void _nudge(int dir) {
-    final next = ((value + dir * _step) / _step).round() * _step;
-    final clamped = next.clamp(min, max);
-    if (clamped != value) onChanged(clamped);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final text = Theme.of(context).textTheme;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Icon(Icons.circle, size: 10, color: color),
-            const SizedBox(width: Gap.sm),
-            Expanded(child: Text(label, style: text.titleMedium)),
-            Text(
-              unit.isEmpty
-                  ? '\$${value.toStringAsFixed(2)}'
-                  : '${value.toStringAsFixed(1)} $unit',
-              style: text.titleMedium?.copyWith(
-                fontSize: 13.5,
-                color: color,
-                fontFeatures: const [FontFeature.tabularFigures()],
-              ),
-            ),
-          ],
-        ),
-        // Slider for the ballpark, −/+ to land on an exact number — dragging to
-        // a specific $1.35 is fiddly at this track width (device 2026-07-25).
-        Row(
-          children: [
-            StepButton(
-              glyph: '−',
-              onTap: value > min ? () => _nudge(-1) : null,
-              semanticLabel: 'Decrease $label',
-            ),
-            Expanded(
-              child: SliderTheme(
-                data: SliderTheme.of(context).copyWith(
-                  activeTrackColor: color,
-                  thumbColor: color,
-                  overlayColor: color.withValues(alpha: 0.15),
-                  inactiveTrackColor: FoxColors.border,
-                ),
-                child: Slider(
-                  value: value,
-                  min: min,
-                  max: max,
-                  divisions: ((max - min) / 0.05).round(),
-                  onChanged: onChanged,
-                ),
-              ),
-            ),
-            StepButton(
-              glyph: '+',
-              onTap: value < max ? () => _nudge(1) : null,
-              semanticLabel: 'Increase $label',
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-}
-
-/// Drag a sample offer's $/km and watch the verdict flip in real time.
-class _PreviewCard extends StatelessWidget {
-  const _PreviewCard({
-    required this.sample,
-    required this.unit,
-    required this.verdict,
-    required this.min,
-    required this.max,
-    required this.onChanged,
-  });
-
-  final double sample;
-  final String unit; // '/km' or '/hr'
-  final Verdict verdict;
-  final double min;
-  final double max;
-  final ValueChanged<double> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    final style = VerdictStyle.of(verdict);
-    final text = Theme.of(context).textTheme;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-              decoration: BoxDecoration(
-                color: style.bg,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(style.icon, color: style.color, size: 20),
-                  const SizedBox(width: Gap.sm),
-                  Text(
-                    style.label,
-                    style: text.titleLarge?.copyWith(color: style.color),
-                  ),
-                ],
-              ),
-            ),
-            const Spacer(),
-            Text(
-              '\$${sample.toStringAsFixed(2)}$unit',
-              style: text.titleMedium?.copyWith(
-                fontFeatures: const [FontFeature.tabularFigures()],
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: Gap.xs),
-        Text(
-          'A sample offer at this rate',
-          style: text.bodyMedium?.copyWith(color: FoxColors.textSecondary),
-        ),
-        SliderTheme(
-          data: SliderTheme.of(context).copyWith(
-            activeTrackColor: style.color,
-            thumbColor: style.color,
-            overlayColor: style.color.withValues(alpha: 0.15),
-            inactiveTrackColor: FoxColors.border,
-          ),
-          child: Slider(
-            value: sample,
-            min: min,
-            max: max,
-            divisions: ((max - min) / 0.05).round(),
-            onChanged: onChanged,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-/// Driver name with an explicit save; the check button appears only while the
-/// draft differs from the stored name (spec M6 §4.2 — no silent live-apply).
-class _DriverNameCard extends ConsumerStatefulWidget {
-  const _DriverNameCard();
-
-  @override
-  ConsumerState<_DriverNameCard> createState() => _DriverNameCardState();
-}
-
-class _DriverNameCardState extends ConsumerState<_DriverNameCard> {
-  late final _name = TextEditingController();
-  bool _seeded = false;
-  bool _editing = false;
-
-  @override
-  void dispose() {
-    _name.dispose();
-    super.dispose();
-  }
-
-  void _save() {
-    ref.read(driverNameProvider.notifier).setName(_name.text.trim());
-    FocusScope.of(context).unfocus();
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        const SnackBar(
-          content: Text('Name saved'),
-          duration: Duration(seconds: 2),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-    setState(() => _editing = false);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final saved = ref.watch(driverNameProvider);
-    // Seed once from the async-loaded name — after that the field owns its text.
-    if (!_seeded && saved.isNotEmpty) {
-      _name.text = saved;
-      _seeded = true;
-    }
-    final dirty = _name.text.trim() != saved.trim();
-
-    // Two modes (device feedback 2026-07-20 — a saved name should not look
-    // permanently editable): display row (name + pencil) ↔ edit row
-    // (TextField + Save while dirty). Empty saved name starts in edit mode
-    // so first-run still has an obvious field.
-    if (!_editing && saved.isNotEmpty) {
-      return Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Name',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: FoxColors.textSecondary,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(saved, style: Theme.of(context).textTheme.titleMedium),
-              ],
-            ),
-          ),
-          IconButton(
-            key: const ValueKey('edit-name'),
-            onPressed: () => setState(() {
-              _name.text = saved; // discard any stale draft
-              _editing = true;
-            }),
-            icon: Icon(
-              Icons.edit_outlined,
-              color: FoxColors.textSecondary,
-              size: 18,
-            ),
-          ),
-        ],
-      );
-    }
-
-    return Row(
-      children: [
-        Expanded(
-          child: TextField(
-            controller: _name,
-            autofocus: _editing, // pencil tap → keyboard up immediately
-            onChanged: (_) => setState(() {}),
-            textInputAction: TextInputAction.done,
-            // Greeting shows this name — cap it so it can't dominate Home.
-            maxLength: 20,
-            onSubmitted: (_) {
-              if (_name.text.trim() != saved.trim()) {
-                _save();
-              } else {
-                setState(() => _editing = false);
-              }
-            },
-            decoration: const InputDecoration(
-              labelText: 'Name',
-              isDense: true,
-              counterText: '',
-            ),
-          ),
-        ),
-        if (dirty) ...[
-          const SizedBox(width: Gap.sm),
-          FilledButton.icon(
-            key: const ValueKey('save-name'),
-            onPressed: _save,
-            style: FilledButton.styleFrom(
-              backgroundColor: FoxColors.brandFox,
-              foregroundColor: Colors.white,
-              // Theme default is Size.fromHeight(52) → infinite width, which
-              // can't sit in this Row next to the field.
-              minimumSize: const Size(0, 44),
-              padding: const EdgeInsets.symmetric(
-                horizontal: Gap.md,
-                vertical: 10,
-              ),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(Radii.field),
-              ),
-            ),
-            icon: const Icon(Icons.check_rounded, size: 18),
-            label: const Text(
-              'Save',
-              style: TextStyle(fontWeight: FontWeight.w700),
-            ),
-          ),
-        ],
-      ],
-    );
-  }
-}
-
-/// Vehicle list — premium mini car-cards + a "+ Add vehicle" affordance (spec
-/// M6 §4.2). Tap sets active (instant, persisted). The edit icon opens the
-/// editor.
-class _GarageList extends ConsumerWidget {
-  const _GarageList();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final garage = ref.watch(garageProvider);
-    return Column(
-      children: [
-        for (final v in garage.vehicles) ...[
-          _VehicleCard(
-            vehicle: v,
-            active: garage.active?.id == v.id,
-            onTap: () => ref.read(garageProvider.notifier).setActive(v.id),
-            onEdit: () => context.push('/vehicle-editor', extra: v),
-          ),
-          const SizedBox(height: Gap.sm),
-        ],
-        // "+ Add vehicle" card.
-        InkWell(
-          key: const ValueKey('add-vehicle'),
-          borderRadius: BorderRadius.circular(Radii.cardSm),
-          onTap: () => context.push('/vehicle-editor'),
-          child: Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(vertical: Gap.md),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(Radii.cardSm),
-              border: Border.all(color: FoxColors.border),
-            ),
-            child: const Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.add_rounded, color: FoxColors.brandFox, size: 20),
-                SizedBox(width: Gap.sm),
-                Text(
-                  'Add vehicle',
-                  style: TextStyle(
-                    fontSize: 13.5,
-                    fontWeight: FontWeight.w700,
-                    color: FoxColors.brandFox,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-/// One vehicle card: a big body illustration (~45% of the card) beside the
-/// title + plate + active state. Tap sets active; **long-press edits** (no more
-/// corner edit icon / check tick — the border and "Active" pill carry state).
-class _VehicleCard extends StatelessWidget {
-  const _VehicleCard({
-    required this.vehicle,
-    required this.active,
-    required this.onTap,
-    required this.onEdit,
-  });
-
-  final Vehicle vehicle;
-  final bool active;
-  final VoidCallback onTap;
-  final VoidCallback onEdit;
-
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      button: true,
-      label: '${vehicle.title.isEmpty ? 'Unnamed vehicle' : vehicle.title}'
-          '${active ? ', active' : ''}. Tap to activate, long-press to edit.',
-      child: InkWell(
-        borderRadius: BorderRadius.circular(Radii.cardSm),
-        onTap: onTap,
-        onLongPress: onEdit,
-        child: Container(
-          padding: const EdgeInsets.all(Gap.md),
-          decoration: BoxDecoration(
-            color: FoxColors.bgSurface,
-            borderRadius: BorderRadius.circular(Radii.cardSm),
-            border: Border.all(
-              color: active ? FoxColors.brandFox : FoxColors.borderSoft,
-              width: active ? 1.5 : 1,
-            ),
-            boxShadow: active ? Shadows.glowSoft : Shadows.soft,
-          ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              // Art fills ~45% of the card width; a 1.4:1 box keeps landscape
-              // bodies wide while leaving portrait ones (bikes) room to breathe.
-              Expanded(
-                flex: 45,
-                child: AspectRatio(
-                  aspectRatio: 1.4,
-                  child: VehicleBadge(
-                    bodyType: vehicle.bodyType,
-                    color: Color(vehicle.colorValue),
-                    fuelType: vehicle.fuelType,
-                  ),
-                ),
-              ),
-              const SizedBox(width: Gap.md),
-              Expanded(
-                flex: 55,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      vehicle.title.isEmpty ? 'Unnamed vehicle' : vehicle.title,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                        height: 1.15,
-                        color: FoxColors.textPrimary,
-                      ),
-                    ),
-                    Text(
-                      vehicle.bodyType.label,
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: FoxColors.textSecondary,
-                      ),
-                    ),
-                    if (vehicle.plate.trim().isNotEmpty) ...[
-                      const SizedBox(height: 6),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 7,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: FoxColors.bgSurface2,
-                          borderRadius: BorderRadius.circular(5),
-                          border: Border.all(color: FoxColors.border),
-                        ),
-                        child: Text(
-                          vehicle.plate,
-                          style: TextStyle(
-                            fontSize: 10.5,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 0.8,
-                            color: FoxColors.textSecondary,
-                          ),
-                        ),
-                      ),
-                    ],
-                    if (active) ...[
-                      const SizedBox(height: 6),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 3,
-                        ),
-                        decoration: BoxDecoration(
-                          color: FoxColors.brandFox.withValues(alpha: 0.14),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: const Text(
-                          'Active',
-                          style: TextStyle(
-                            fontSize: 10.5,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 0.6,
-                            color: FoxColors.brandFox,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// "How to read the pill" legend under the live preview — a quick walkthrough
-/// for new installs. Each row = one colored key + what it means, mirroring the
-/// sample pill exactly (verdict block, green/red pickup km, $/hr).
-class _PillLegend extends StatelessWidget {
-  const _PillLegend();
-
-  @override
-  Widget build(BuildContext context) {
-    final text = Theme.of(context).textTheme;
-    Widget row(Color dot, String label, String meaning) => Padding(
-      padding: const EdgeInsets.only(top: Gap.xs),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.only(top: 4),
-            child: Container(
-              width: 8,
-              height: 8,
-              decoration: BoxDecoration(
-                color: dot,
-                shape: BoxShape.circle,
-                // Hairline so the pale swatches (the cream $/hr one) still read
-                // on a white card — these quote the pill's fixed colors and
-                // can't follow the theme.
-                border: Border.all(color: FoxColors.border),
-              ),
-            ),
-          ),
-          const SizedBox(width: Gap.sm),
-          Expanded(
-            child: Text.rich(
-              TextSpan(
-                children: [
-                  TextSpan(
-                    text: '$label — ',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w700,
-                      color: FoxColors.textPrimary,
-                    ),
-                  ),
-                  TextSpan(text: meaning),
-                ],
-              ),
-              style: text.bodyMedium?.copyWith(color: FoxColors.textSecondary),
-            ),
-          ),
-        ],
-      ),
-    );
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'How to read it',
-          style: text.bodyMedium?.copyWith(
-            fontWeight: FontWeight.w700,
-            color: FoxColors.textPrimary,
-          ),
-        ),
-        row(
-          const Color(0xFF39A96C),
-          '\$/km block',
-          'the verdict. Green GOOD, amber OK, red BAD — take it in a glance.',
-        ),
-        row(
-          const Color(0xFF5ECD90),
-          'Green km',
-          'pickup is within your pickup radius (set below).',
-        ),
-        row(
-          const Color(0xFFFF8A7E),
-          'Red km',
-          'pickup is beyond your radius — you drive further for free.',
-        ),
-        row(
-          // The pill's own dim cream, const like the swatches above it.
-          FoxColors.creamConst.withValues(alpha: 0.78),
-          '\$/hr',
-          'payout over the full trip time, so long rides don\'t fool you.',
-        ),
-      ],
-    );
   }
 }

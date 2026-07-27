@@ -77,6 +77,9 @@ public class OverlayService extends Service implements View.OnTouchListener {
         }
     }
     private FlutterView flutterView;
+    /// FoxyCo: kept so the transparency flags can be re-asserted after a resize
+    /// (see keepSurfaceTransparent).
+    private FlutterTextureView overlayTextureView;
     private MethodChannel flutterChannel;
     private BasicMessageChannel<Object> overlayMessageChannel;
     private int clickableFlag = WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE | WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE |
@@ -161,6 +164,7 @@ public class OverlayService extends Service implements View.OnTouchListener {
         // translucent so only our widgets paint.
         FlutterTextureView textureView = new FlutterTextureView(getApplicationContext());
         textureView.setOpaque(false);
+        overlayTextureView = textureView;
         flutterView = new FlutterView(getApplicationContext(), textureView);
         flutterView.attachToFlutterEngine(FlutterEngineCache.getInstance().get(OverlayConstants.CACHED_TAG));
         flutterView.setFitsSystemWindows(true);
@@ -303,11 +307,31 @@ public class OverlayService extends Service implements View.OnTouchListener {
             } else {
                 params.alpha = 1;
             }
+            // FoxyCo: this rebuilds params.flags wholesale — re-assert transparency.
+            keepSurfaceTransparent(params);
             windowManager.updateViewLayout(flutterView, params);
             result.success(true);
         } else {
             result.success(false);
         }
+    }
+
+    /// FoxyCo patch (device 2026-07-26): re-assert the transparent-surface flags.
+    ///
+    /// The setOpaque(false) in onStartCommand runs ONCE, at service start.
+    /// updateViewLayout re-creates the TextureView's SurfaceTexture at the new
+    /// size, and the window came back compositing as an opaque grey box behind
+    /// the bubble and pill — the exact symptom the 2026-07-17 patch fixed, back
+    /// again because that call only covered creation. It reproduced after a
+    /// pill -> bubble cycle and cleared on a service restart, which is precisely
+    /// "a resize broke it, a fresh view fixed it".
+    ///
+    /// Idempotent and cheap, so it just runs on every layout change rather than
+    /// trying to detect the bad state.
+    private void keepSurfaceTransparent(WindowManager.LayoutParams params) {
+        if (params != null) params.format = PixelFormat.TRANSLUCENT;
+        if (overlayTextureView != null) overlayTextureView.setOpaque(false);
+        if (flutterView != null) flutterView.setBackgroundColor(Color.TRANSPARENT);
     }
 
     private void resizeOverlay(int width, int height, boolean enableDrag, boolean centerX, MethodChannel.Result result) {
@@ -328,6 +352,7 @@ public class OverlayService extends Service implements View.OnTouchListener {
                 savedRestX = Integer.MIN_VALUE;
             }
             WindowSetup.enableDrag = enableDrag;
+            keepSurfaceTransparent(params);
             windowManager.updateViewLayout(flutterView, params);
             result.success(true);
         } else {
@@ -733,9 +758,19 @@ public class OverlayService extends Service implements View.OnTouchListener {
             launch.addCategory(Intent.CATEGORY_LAUNCHER);
             launch.setClassName(ctx.getPackageName(), "com.foxyco.foxyco.MainActivity");
         }
-        launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK
-                | Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
-                | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+        // NEW_TASK only — it is required when starting an activity from a
+        // Service, and on its own it is exactly what the launcher icon does:
+        // an existing task is RESUMED, state intact.
+        //
+        // FoxyCo fix (device 2026-07-26: "tapped the bubble, it crashed and
+        // opened a fresh session"). REORDER_TO_FRONT used to ride along here.
+        // Against an ACTION_MAIN/CATEGORY_LAUNCHER intent that changes the
+        // launch from "resume this task" to a relaunch, so the driver lost the
+        // tab, the scroll and the open sheet every time — indistinguishable
+        // from a crash-and-restart from the outside. SINGLE_TOP went with it:
+        // it only ever applied when the activity was already frontmost, which
+        // is the one case where nothing needed doing anyway.
+        launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         Log.d("FoxyCoNative", "bringHostAppToFront: pkg=" + ctx.getPackageName()
                 + " intent=" + launch);
         try {

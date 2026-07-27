@@ -7,14 +7,13 @@ import 'package:go_router/go_router.dart';
 import '../theme/car_hero.dart';
 import '../theme/tokens.dart';
 
-/// Cold-start splash (spec M6 §10, car-hero redesign 2026-07-20). A single
-/// [AnimationController] drives a three-act ignition sequence over 2.2s:
-/// stealth car fades from black (0–0.27), lights flare on with a flicker
-/// (0.27–0.55), then the full-color reveal blooms and the wordmark fades up
-/// (0.55–1.0). A hard 3.5s ceiling [Timer] force-navigates even if the
-/// controller stalls — the splash never traps. Reduced motion skips the
-/// animation: the full reveal + wordmark show instantly and a short timer
-/// moves on.
+/// Cold-start splash (spec M6 §10, Foxy brand art 2026-07-26). A single
+/// [AnimationController] drives a two-act ignition over 2.2s: car and logo
+/// fade up together from black (0–0.30), then the glow flares on with a
+/// cold-start flicker (0.30–0.80). A hard 3.5s ceiling [Timer]
+/// force-navigates even if the controller stalls — the splash never traps.
+/// Reduced motion skips the animation: car, glow and logo show instantly and a
+/// short timer moves on.
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
@@ -83,7 +82,7 @@ class _SplashScreenState extends State<SplashScreen>
     super.dispose();
   }
 
-  /// Headlight flicker: two brief dips on the way to full, like a cold start.
+  /// Glow flicker: two brief dips on the way to full, like a cold start.
   static double _flicker(double t) {
     if (t <= 0) return 0;
     if (t >= 1) return 1;
@@ -94,41 +93,11 @@ class _SplashScreenState extends State<SplashScreen>
     return 1.0; // steady on
   }
 
-  CarHeroState _stateAt(double t) {
-    final fadeIn = const Interval(
-      0.0,
-      0.27,
-      curve: Curves.easeOut,
-    ).transform(t);
-    final ignition = const Interval(0.27, 0.55).transform(t);
-    final reveal = const Interval(
-      0.55,
-      1.0,
-      curve: Curves.easeInOutCubic,
-    ).transform(t);
-    final lights = _flicker(ignition);
+  static double _fadeAt(double t) =>
+      const Interval(0, 0.30, curve: Curves.easeOut).transform(t);
 
-    // Stealth base fades in, then the reveal crossfade takes over.
-    final base = CarHeroState.lerp(
-      const CarHeroState(),
-      CarHeroState.stealth,
-      fadeIn,
-    );
-    final lit = CarHeroState(
-      shadow: base.shadow,
-      stealthBacklight: base.stealthBacklight,
-      fogRear: base.fogRear,
-      carStealth: base.carStealth,
-      fogFront: base.fogFront,
-      rimLight: (base.rimLight + 0.65 * lights).clamp(0.0, 1.0),
-      headlightBeams: lights,
-      headlightsSharp: lights,
-      grilleLights: lights,
-      interiorGlow: 0.8 * lights,
-      reflection: base.reflection,
-    );
-    return CarHeroState.lerp(lit, CarHeroState.reveal, reveal);
-  }
+  static double _glowAt(double t) =>
+      _flicker(const Interval(0.30, 0.80).transform(t));
 
   @override
   Widget build(BuildContext context) {
@@ -145,7 +114,7 @@ class _SplashScreenState extends State<SplashScreen>
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  _SplashCar(state: CarHeroState.reveal),
+                  _SplashCar(fade: 1, glow: 1),
                   SizedBox(height: Gap.lg),
                   _Wordmark(opacity: 1),
                 ],
@@ -155,18 +124,17 @@ class _SplashScreenState extends State<SplashScreen>
               animation: _c,
               builder: (context, _) {
                 final t = _c.value;
-                final wordmark = const Interval(
-                  0.65,
-                  0.95,
-                  curve: Curves.easeOut,
-                ).transform(t);
+                // Car and wordmark share ONE fade: staggering the logo late
+                // (it used to start at 0.65) left it on screen for a blink
+                // before the route swap (device 2026-07-26).
+                final fade = _fadeAt(t);
                 return Center(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      _SplashCar(state: _stateAt(t)),
+                      _SplashCar(fade: fade, glow: _glowAt(t)),
                       const SizedBox(height: Gap.lg),
-                      _Wordmark(opacity: wordmark),
+                      _Wordmark(opacity: fade),
                     ],
                   ),
                 );
@@ -177,22 +145,29 @@ class _SplashScreenState extends State<SplashScreen>
 }
 
 /// Car capped to a phone-friendly width so the splash column never overflows
-/// short viewports.
+/// short viewports. [fade] is the whole car rising out of black — one Opacity
+/// over both layers, which only the splash pays for.
 class _SplashCar extends StatelessWidget {
-  const _SplashCar({required this.state});
+  const _SplashCar({required this.fade, required this.glow});
 
-  final CarHeroState state;
+  final double fade;
+  final double glow;
 
   @override
   Widget build(BuildContext context) {
     final w = math.min(360.0, MediaQuery.of(context).size.width * 0.86);
     return SizedBox(
       width: w,
-      child: CarHero(state: state),
+      child: Opacity(
+        opacity: fade.clamp(0.0, 1.0),
+        // onDark: the splash stage is pinned dark in both themes.
+        child: CarHero(glow: glow, onDark: true),
+      ),
     );
   }
 }
 
+/// The gold FoxyCo wordmark (`logo 3d`), the brand's main logo since 2026-07-26.
 class _Wordmark extends StatelessWidget {
   const _Wordmark({required this.opacity});
 
@@ -202,17 +177,11 @@ class _Wordmark extends StatelessWidget {
   Widget build(BuildContext context) {
     return Opacity(
       opacity: opacity.clamp(0.0, 1.0),
-      child: Text(
-        'FoxyCo',
-        style: TextStyle(
-          fontFamily: FoxFonts.display,
-          fontSize: 42,
-          fontWeight: FontWeight.w700,
-          // creamConst: the splash stage is pinned dark in both themes, so the
-          // wordmark can't follow the varying on-card token.
-          color: FoxColors.creamConst,
-          letterSpacing: -1,
-        ),
+      child: Image.asset(
+        'assets/branding/foxyco_logo.png',
+        key: const Key('splash-wordmark'),
+        width: 220,
+        semanticLabel: 'FoxyCo',
       ),
     );
   }
