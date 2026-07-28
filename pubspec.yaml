@@ -55,6 +55,9 @@ dependencies:
   shared_preferences: ^2.3.2
   path_provider: ^2.1.6
   share_plus: ^13.2.1
+  in_app_purchase: ^3.3.0
+  in_app_purchase_android: ^0.5.2
+  basic_utils: ^5.8.2
 
 dev_dependencies:
   flutter_test:
