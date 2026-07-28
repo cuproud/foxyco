@@ -17,7 +17,13 @@ enum OverlayAction {
   /// isolate to flip the dashboard to "not watching" so the two never desync
   /// (HANDOFF req 10 — before, the window closed but the app still showed
   /// "active"). Distinct from [togglePause]: this is a full stop, not a pause.
-  stopWatching;
+  stopWatching,
+
+  /// Tap the LOCKED pill → foreground FoxyCo and open the paywall
+  /// (MONETIZATION_v1.0 §4). Distinct from [openApp], which lands on the offer
+  /// or Home; here the driver just tried to read a verdict they haven't paid
+  /// for, which is the moment to ask.
+  openPaywall;
 
   /// Wrap as a primitive map tagged so the main isolate can tell an action
   /// message apart from other `shareData` traffic. Enum crosses as its stable

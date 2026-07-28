@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io' show Platform;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -36,7 +37,13 @@ class BillingStore extends Notifier<UnlockStatus> {
   /// consumable would let the unlock be spent and re-bought.
   static const productId = 'foxyco.lifetime';
 
-  final InAppPurchase _iap = InAppPurchase.instance;
+  /// A getter, not a field: `InAppPurchase.instance` registers the Android
+  /// platform on first touch, which needs a platform binding. As a field it
+  /// would fire while the Notifier is being CONSTRUCTED, outside the guard in
+  /// [build] — so any test that reaches entitlement would blow up before we
+  /// could degrade to `unavailable`. It's a singleton, so the getter is free.
+  InAppPurchase get _iap => InAppPurchase.instance;
+
   StreamSubscription<List<PurchaseDetails>>? _sub;
   ProductDetails? _product;
 
@@ -46,15 +53,30 @@ class BillingStore extends Notifier<UnlockStatus> {
 
   @override
   UnlockStatus build() {
-    _sub = _iap.purchaseStream.listen(
-      _onPurchases,
-      onError: (Object e) {
-        if (kDebugMode) debugPrint('FoxyCo billing stream error: $e');
-      },
-    );
-    ref.onDispose(() => _sub?.cancel());
-    _start();
-    return UnlockStatus.unknown;
+    // Play Billing exists on Android and nowhere else. Checked BEFORE touching
+    // the plugin because `InAppPurchase.instance` immediately opens a
+    // BillingClient connection, and off-device (widget tests on the Linux host)
+    // that fails inside a `Future.sync` — an UNHANDLED async error that no
+    // try/catch here can hold. So don't start it at all.
+    if (!Platform.isAndroid) return UnlockStatus.unavailable;
+    // Still guarded: an Android device with no Play Store (sideloaded, some
+    // Huawei builds) throws synchronously instead. Either way `unavailable` is
+    // the honest answer — Play can tell us nothing, and the trial governs
+    // entitlement meanwhile.
+    try {
+      _sub = _iap.purchaseStream.listen(
+        _onPurchases,
+        onError: (Object e) {
+          if (kDebugMode) debugPrint('FoxyCo billing stream error: $e');
+        },
+      );
+      ref.onDispose(() => _sub?.cancel());
+      _start();
+      return UnlockStatus.unknown;
+    } catch (e) {
+      if (kDebugMode) debugPrint('FoxyCo billing unavailable: $e');
+      return UnlockStatus.unavailable;
+    }
   }
 
   Future<void> _start() async {

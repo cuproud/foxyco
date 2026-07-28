@@ -568,4 +568,39 @@ layer behind it), the gold `logo 3d` wordmark, and the sleeping fox.
 | M17.3 | Open an offer that has a ride tier (Uber Share, UberX, Comfort) | Tier shows right-aligned on the fare line, e.g. `$17.01 … UberX` — not truncated to `Ube…` in the header row | [ ] |
 | M17.4 | Look at the big fare | Top of the `$` and digits not shaved off — display font has room above the caps | [ ] |
 
-_Last updated: 2026-07-27 (M17: offer detail sheet scroll + header). 2026-07-26 (M13: shell navigation — back-to-Home, deep-linked Settings sections, tab re-tap, Logs route, bubble → offer. M14: Settings banded into five sections; shared SectionLabel. M15: overlay surface transparency, bubble-tap resume, offer-log de-dupe. M16: Foxy brand art — 2-layer car, gold wordmark, sleeping fox)._
+## M18 — Trial, paywall & locked pill (2026-07-28)
+
+⚠️ **Every row here needs Firebase console setup done first** (`docs/FIREBASE_SETUP.md`
+§1–5) — without `google-services.json` the Android build fails outright. Rows
+marked 💳 additionally need the Play Console product live (§6).
+
+⚠️ **Debug builds are unconditionally unlocked** (`kDebugUnlocked`, MONETIZATION
+§6.2). Testing anything below in a `flutter run` build will show a false pass.
+Use a **release** build: `flutter build apk --release --dart-define=PLAY_PUBLIC_KEY=<key>`.
+
+| # | Step | Expect | Pass |
+|---|------|--------|------|
+| M18.1 | Fresh install (or clear app data), cold start, release build | App opens straight to Home. NO sign-in prompt, no Google sheet, no dialog | [ ] |
+| M18.2 | Same fresh install, look at the top of Home | Banner reads **"Start your 7-day free trial"** with a chevron | [ ] |
+| M18.3 | Go live, let a real offer land, WITHOUT starting the trial | Pill appears but shows **"Unlock FoxyCo / Tap to see this offer"** — no verdict word, no `$/km`, no `$/hr`, no km | [ ] |
+| M18.4 | Tap that locked pill | FoxyCo comes to the foreground, lands on the **Home** tab, paywall sheet is already open | [ ] |
+| M18.5 | Settings → Look & feel → the sample pill; and Home's demo pill | Both still show full numbers — the demo pill is free forever, only the LIVE pill locks | [ ] |
+| M18.6 | Paywall → "Start 7-day free trial" | Google account sheet appears. Pick an account → sheet closes → snackbar "Trial started — 7 days of everything" | [ ] |
+| M18.7 | Home top, right after that | Banner is GONE (7 days left is not the last 3, so nothing to nag about) | [ ] |
+| M18.8 | Go live again, real offer | Full verdict pill: verdict color, `$/km`, km, `$/hr` | [ ] |
+| M18.9 | Settings → Your unlock → Unlock | Header summary reads **"Trial — 7 days left"**; the signed-in Gmail is shown | [ ] |
+| M18.10 | **The reinstall test.** Clear app data (or uninstall + reinstall), start trial again with the SAME Google account | Snackbar: **"This Google account already used its free trial."** Pill stays locked. *If this hands out a fresh 7 days, the whole Firestore design has failed — see MONETIZATION §3.4.1* | [ ] |
+| M18.11 | Airplane mode, cold start, mid-trial | App works, pill shows numbers. No error toast | [ ] |
+| M18.12 | Settings → date & time → wind the clock back 3 days, reopen FoxyCo | Trial days-left does NOT go up. (`FoxClock` high-water mark) | [ ] |
+| M18.13 | Wind the clock FORWARD past the trial end, reopen | Pill locks, banner reads "Trial ended — unlock FoxyCo" | [ ] |
+| M18.14 | Wind the clock back to real time, go online, reopen | Correct days-left returns — the ID-token sync heals the poisoned clock, it does not stay expired | [ ] |
+| M18.15 | 💳 Paywall → "Unlock forever — $12.99" | Google Play sheet shows **$12.99** and the words "one-time" / no subscription language | [ ] |
+| M18.16 | 💳 Complete a test purchase | Paywall closes by itself. Settings → Unlock reads **"Unlocked forever"** | [ ] |
+| M18.17 | 💳 Kill the app immediately after paying, before it settles, then reopen | Still unlocked (queryPurchases re-acknowledges on launch). **Check 4 days later that Google did NOT auto-refund** — that is the 72h acknowledgment rule, MONETIZATION §3.8 | [ ] |
+| M18.18 | 💳 Clear app data after purchasing, reopen, paywall → "Restore purchase" | "Purchase restored." Unlocked, and the trial state is irrelevant | [ ] |
+| M18.19 | 💳 Release build WITHOUT `--dart-define=PLAY_PUBLIC_KEY` | Paywall shows "Purchases are unavailable in this build". Nothing unlocks. Fails CLOSED (§3.9) | [ ] |
+| M18.20 | Build with `--dart-define=BUILD_EXPIRY=<yesterday>` | Everything locks regardless of trial or purchase — the tester kill date (§6) | [ ] |
+| M18.21 | Settings → Unlock → Delete my account → confirm | "Account deleted." The Gmail row disappears; app still opens and works | [ ] |
+| M18.22 | Airplane mode for 5+ days mid-trial (or fake it by clearing only the verify timestamp) | Banner: "Couldn't reach Google Play — unlock check needed in N days". Still usable | [ ] |
+
+_Last updated: 2026-07-28 (M18: trial, paywall, locked pill — needs Firebase console setup before any row can run). 2026-07-27 (M17: offer detail sheet scroll + header). 2026-07-26 (M13: shell navigation — back-to-Home, deep-linked Settings sections, tab re-tap, Logs route, bubble → offer. M14: Settings banded into five sections; shared SectionLabel. M15: overlay surface transparency, bubble-tap resume, offer-log de-dupe. M16: Foxy brand art — 2-layer car, gold wordmark, sleeping fox)._

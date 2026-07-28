@@ -1,0 +1,38 @@
+rules_version = '2';
+
+// The ENTIRE FoxyCo backend (MONETIZATION_v1.0 §3.3). No Cloud Functions, no
+// admin SDK, no RTDN — these rules are what makes the trial unresettable.
+//
+// Deploy with:  firebase deploy --only firestore:rules
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // One document per user, holding nothing but when their trial started.
+    match /trials/{uid} {
+      // Write-once. Only the owning user can create their own document, it may
+      // hold only `startedAt`, and that value must be Google's server clock —
+      // so the client cannot choose its own trial start. The client MUST send
+      // FieldValue.serverTimestamp(); a DateTime.now() is rejected here.
+      allow create: if request.auth != null
+                 && request.auth.uid == uid
+                 && request.resource.data.keys().hasOnly(['startedAt'])
+                 && request.resource.data.startedAt == request.time;
+
+      allow read: if request.auth != null && request.auth.uid == uid;
+
+      // Never. Clearing app data, reinstalling or swapping devices must not be
+      // able to reset the trial — that is the whole point of this collection.
+      // Note the consequence for account deletion: the client cannot delete
+      // its own trial doc either, so "delete my account" deletes the AUTH user
+      // and leaves this row behind (§5.1) — a random uid plus a timestamp,
+      // which identifies nobody.
+      allow update, delete: if false;
+    }
+
+    // Nothing else is stored. Offers, earnings and settings never leave the
+    // device (AUDIT #5), so no other path is writable.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

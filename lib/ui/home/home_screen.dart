@@ -10,6 +10,7 @@ import '../../domain/session_summary.dart';
 import '../../services/offer_log.dart';
 import '../../services/session_log.dart';
 import '../overlay/overlay_controller.dart';
+import '../paywall/access_banner.dart';
 import '../settings/reminder_controller.dart';
 import '../settings/settings_controller.dart';
 import '../shell/root_shell.dart';
@@ -56,6 +57,9 @@ class HomeScreen extends ConsumerWidget {
       children: [
         const _Padded(child: _BrandBar()),
         const SizedBox(height: Gap.sm),
+        // Trial countdown / unlock ask / offline-check warning. Zero height when
+        // there's nothing to say, which is the normal case.
+        const _Padded(child: AccessBanner()),
         // Hidden (zero-height, incl. its own bottom pad) until a name is set.
         const _Padded(child: ProfileCard()),
         // The car sits on the page itself, full-bleed above the receipt card

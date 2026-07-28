@@ -5,8 +5,12 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
-    <!-- NOTE: INTERNET is deliberately NOT declared — MVP is offline by design
-         (AUDIT #5 privacy: no network permission, everything stays on-device). -->
+    <!-- INTERNET: added 2026-07-28 for the unresettable trial + Play Billing
+         (MONETIZATION_v1.0 §5). Reverses the earlier no-network stance. Only
+         Firebase Auth (sign-in) and one Firestore timestamp cross the wire —
+         no offer, location or analytics data ever leaves the device, which is
+         what the store listing and privacy policy now claim (AUDIT #5). -->
+    <uses-permission android:name="android.permission.INTERNET" />
 
     <application
         android:label="FoxyCo"

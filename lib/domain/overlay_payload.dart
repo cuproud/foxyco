@@ -36,6 +36,16 @@ class OverlayPayload {
   /// the main isolate's provider.
   final MoneyFont moneyFont;
 
+  /// Whether this driver may see the verdict and the numbers at all
+  /// (MONETIZATION_v1.0 §4). False renders the "🦊 Unlock" pill instead.
+  ///
+  /// This is the overlay isolate's ONLY entitlement input — it has no Riverpod,
+  /// no SharedPreferences and no clock it trusts, so the flag being absent or
+  /// non-`true` is the whole rule. Defaults to false here and in [fromMap] so a
+  /// patch that strips the flag out of the main isolate produces a LOCKED pill,
+  /// not an unlocked one. Two isolates, two patch sites, both fail closed.
+  final bool entitled;
+
   const OverlayPayload({
     required this.verdict,
     required this.totalKm,
@@ -47,6 +57,7 @@ class OverlayPayload {
     this.hourGoodAt = 0,
     this.hourBadBelow = 0,
     this.moneyFont = MoneyFont.inter,
+    this.entitled = false,
   });
 
   double get pricePerKm => totalKm > 0 ? payout / totalKm : 0;
@@ -87,6 +98,7 @@ class OverlayPayload {
     'hourGoodAt': hourGoodAt,
     'hourBadBelow': hourBadBelow,
     'moneyFont': moneyFont.name,
+    'entitled': entitled,
   };
 
   /// Rebuild from a `shareData` map on the overlay side. Fails safe: unknown or
@@ -109,5 +121,8 @@ class OverlayPayload {
     hourGoodAt: (map['hourGoodAt'] as num?)?.toDouble() ?? 0,
     hourBadBelow: (map['hourBadBelow'] as num?)?.toDouble() ?? 0,
     moneyFont: MoneyFont.fromName(map['moneyFont'] as String?),
+    // Identity check, not a cast-with-default: only a literal `true` unlocks.
+    // Anything else — missing key, null, the string "true" — reads as locked.
+    entitled: map['entitled'] == true,
   );
 }

@@ -65,9 +65,15 @@ continuously. Done naively this drains battery and gets FoxyCo blamed.
 Offer text can contain addresses / rider names. FoxyCo is "privacy-first," so it must actually be.
 
 **Mitigations**
-- 100% on-device. **No network permission in MVP at all** (proves it can't exfiltrate). Check the
-  merged `AndroidManifest.xml` — Flutter plugins can silently add `INTERNET`; strip it if nothing
-  needs it, or justify it.
+- ⚠️ **Revised 2026-07-28 (M11 billing).** The original mitigation was "no network permission at
+  all". `INTERNET` is now declared, for exactly two things: Firebase Auth (Google sign-in) and one
+  Firestore timestamp per driver — the unresettable trial (`MONETIZATION_v1.0.md` §3.3, §5). The
+  claim becomes **"no offer data ever leaves your phone"**, which is still literally true and is
+  what the listing and privacy policy must say. The old wording is no longer defensible; do not
+  reuse it.
+- Everything else stays on-device: offers, earnings, history, settings. No analytics, no crash SDK.
+  Check the merged `AndroidManifest.xml` at build time — Flutter plugins can silently add
+  permissions beyond the ones we justify above.
 - Store only what the tally needs (platform, payout, km, verdict, timestamp) — not addresses/names.
 - No analytics, no crash SDK phoning home in MVP. Transparent permission rationale screens.
 - Drift DB local; export/backup is later + encrypted.
@@ -121,6 +127,33 @@ Reviewing the overlay code against the risks above:
   `services/` so a plugin swap doesn't ripple into domain/ui.
 
 ---
+
+## M11 billing sweep — 2026-07-28 (merged-manifest re-check)
+
+Firebase Auth + Firestore + Play Billing + Google Sign-In landed. The merged
+RELEASE manifest was re-read (`--release` build, R8 on) because that is where
+plugin-injected permissions actually show up:
+
+```
+INTERNET                          ← ours, justified (#5 above)
+ACCESS_NETWORK_STATE              ← Firestore, for offline/online transitions
+USE_BIOMETRIC / USE_FINGERPRINT   ← Credential Manager (google_sign_in 7.x)
+SYSTEM_ALERT_WINDOW, FOREGROUND_SERVICE(+SPECIAL_USE), WAKE_LOCK  ← unchanged
+```
+
+- **Three permissions we did not declare** are pulled in by dependencies. All
+  three are normal-level (no runtime prompt, no Data safety row of their own),
+  but they DO appear on the Play listing's permission list, so they need to be
+  expected rather than discovered at review time. Left in place: stripping
+  `USE_BIOMETRIC` with `tools:node="remove"` would risk breaking the very
+  sign-in path the trial depends on, and that cannot be verified until Firebase
+  console setup is done. ⏳ Re-check after the first real sign-in works on
+  device; strip then if sign-in survives without them.
+- **Release build size:** 69.5 MB APK (was ~45 MB pre-Firebase). Expected — the
+  Firestore native library is large. The App Bundle Play actually serves splits
+  per-ABI, so the download will be far smaller; ⏳ confirm from the Play Console
+  size report at first upload rather than assuming.
+- **No new `INTERNET`-adjacent surprises:** no ads, no analytics, no crash SDK.
 
 ## M9 release-readiness sweep — 2026-07-20
 
@@ -190,7 +223,12 @@ fonts (OFL requires shipping the license with the font). Flutter's built-in
 
 - [ ] Accessibility use disclosed + consent screen shipped
 - [ ] No auto-click of platform UI in the build
-- [ ] No network permission (or documented + justified if added) — checked merged manifest
+- [x] Network permission documented + justified — `INTERNET` added 2026-07-28 for trial auth only
+      (see #5); ⏳ still re-check the MERGED release manifest for anything the new Firebase plugins
+      pulled in beyond it
+- [ ] Privacy policy + Data safety form say "Account info (email), App activity (trial/purchase
+      state)" — NOT "no data collected"; that answer is now false (`MONETIZATION_v1.0.md` §5)
+- [ ] In-app account deletion reachable (Settings → Unlock) **and** a public deletion URL live
 - [ ] Parser fails safe (no confident wrong verdict)
 - [ ] Overlay can't cover Accept/decline on 3 test devices
 - [ ] Battery + overlay-isolate memory profiled, watching idles when paused

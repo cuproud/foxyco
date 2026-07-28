@@ -6,9 +6,11 @@ import '../../domain/offer.dart';
 import '../../domain/overlay_action.dart';
 import '../../domain/overlay_payload.dart';
 import '../../domain/verdict.dart';
+import '../../services/billing/entitlement.dart';
 import '../../services/fox_log.dart';
 import '../../services/offer_log.dart';
 import '../../services/overlay_service.dart';
+import '../paywall/paywall_sheet.dart';
 import '../home/dashboard_controller.dart';
 import '../home/dashboard_state.dart';
 import '../settings/settings_controller.dart';
@@ -91,6 +93,12 @@ class OverlayController extends Notifier<void> {
         if (!_pillUp || log.isEmpty) break;
         ref.read(tabIndexProvider.notifier).go(1);
         ref.read(pendingOfferProvider.notifier).set(log.first);
+      case OverlayAction.openPaywall:
+        // Locked pill tapped: the driver just tried to read a verdict they
+        // haven't paid for. Land them on Home with the paywall sheet up — the
+        // overlay already brought the app forward.
+        ref.read(tabIndexProvider.notifier).go(0);
+        ref.read(paywallRequestProvider.notifier).request();
       case OverlayAction.stopWatching:
         // Bubble dragged into the bottom drop zone. Native already closed the
         // window; flip the dashboard so it doesn't keep showing "Watching"
@@ -108,6 +116,10 @@ class OverlayController extends Notifier<void> {
   Future<void> showFromOffer(Offer offer, Verdict verdict) {
     _pillUp = true;
     final settings = ref.read(settingsProvider);
+    // Patch site 1 of 2 (MONETIZATION §4): the payload carries entitlement, the
+    // overlay isolate independently refuses to draw numbers without it. Read
+    // fresh per offer — a trial that lapsed mid-shift locks the next pill.
+    final entitled = ref.read(entitledProvider);
     ref
         .read(foxLogProvider)
         .log(
@@ -126,6 +138,7 @@ class OverlayController extends Notifier<void> {
         hourBadBelow: settings.hourThresholds.badBelow,
         size: settings.pillSize,
         moneyFont: settings.moneyFont,
+        entitled: entitled,
       ),
     );
   }
@@ -150,6 +163,9 @@ class OverlayController extends Notifier<void> {
       totalMinutes: 24,
       hourGoodAt: 30,
       hourBadBelow: 20,
+      // The demo pill is free forever (MONETIZATION §4) — it is the thing that
+      // shows a locked driver what they'd be buying.
+      entitled: true,
     ),
     OverlayPayload(
       verdict: Verdict.ok,
@@ -158,6 +174,9 @@ class OverlayController extends Notifier<void> {
       totalMinutes: 21,
       hourGoodAt: 30,
       hourBadBelow: 20,
+      // The demo pill is free forever (MONETIZATION §4) — it is the thing that
+      // shows a locked driver what they'd be buying.
+      entitled: true,
     ),
     OverlayPayload(
       verdict: Verdict.bad,
@@ -166,6 +185,9 @@ class OverlayController extends Notifier<void> {
       totalMinutes: 33,
       hourGoodAt: 30,
       hourBadBelow: 20,
+      // The demo pill is free forever (MONETIZATION §4) — it is the thing that
+      // shows a locked driver what they'd be buying.
+      entitled: true,
     ),
   ];
   int _next = 0;

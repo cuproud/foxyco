@@ -80,4 +80,48 @@ void main() {
       expect(OverlayPayload.fromMap(m).moneyFont, MoneyFont.inter);
     });
   });
+
+  // The overlay isolate has no Riverpod, no prefs and no clock it trusts, so
+  // this flag is its ENTIRE entitlement rule (MONETIZATION_v1.0 §4). Every case
+  // that isn't a literal `true` must render the locked pill — a patch that
+  // strips the flag out of the main isolate has to fail closed.
+  group('OverlayPayload.entitled — fails closed', () {
+    test('defaults to locked when not specified', () {
+      const p = OverlayPayload(verdict: Verdict.good, totalKm: 5, payout: 10);
+      expect(p.entitled, isFalse);
+    });
+
+    test('round-trips true', () {
+      const p = OverlayPayload(
+        verdict: Verdict.good,
+        totalKm: 5,
+        payout: 10,
+        entitled: true,
+      );
+      expect(OverlayPayload.fromMap(p.toMap()).entitled, isTrue);
+    });
+
+    test('a stripped flag reads as locked', () {
+      const p = OverlayPayload(
+        verdict: Verdict.good,
+        totalKm: 5,
+        payout: 10,
+        entitled: true,
+      );
+      final tampered = p.toMap()..remove('entitled');
+      expect(OverlayPayload.fromMap(tampered).entitled, isFalse);
+    });
+
+    test('only a literal true unlocks — not null, 1, or "true"', () {
+      for (final forged in <Object?>[null, 1, 'true', 'yes', {}]) {
+        final p = OverlayPayload.fromMap({
+          'verdict': 'good',
+          'totalKm': 5,
+          'payout': 10,
+          'entitled': forged,
+        });
+        expect(p.entitled, isFalse, reason: 'forged value: $forged');
+      }
+    });
+  });
 }

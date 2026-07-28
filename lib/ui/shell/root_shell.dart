@@ -6,6 +6,7 @@ import '../../domain/offer_summary.dart';
 import '../history/history_screen.dart';
 import '../history/offer_detail_sheet.dart';
 import '../home/home_screen.dart';
+import '../paywall/paywall_sheet.dart';
 import '../settings/settings_controller.dart';
 import '../settings/settings_screen.dart';
 import '../theme/tokens.dart';
@@ -90,6 +91,15 @@ class _RootShellState extends ConsumerState<RootShell> {
       if (offer == null) return;
       ref.read(pendingOfferProvider.notifier).set(null);
       showOfferDetail(context, offer);
+    });
+
+    // Same one-shot pattern for the paywall: the locked pill lives in the
+    // overlay isolate and can't push a route, so it raises a flag here
+    // (MONETIZATION §4).
+    ref.listen<bool>(paywallRequestProvider, (_, requested) {
+      if (!requested) return;
+      ref.read(paywallRequestProvider.notifier).clear();
+      showPaywall(context);
     });
 
     // Palette tokens are plain statics ([FoxColors]), not an InheritedWidget,

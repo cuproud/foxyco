@@ -13,9 +13,11 @@ import '../../domain/overlay_payload.dart' show OverlayPayload, PillSize;
 import '../../domain/platform.dart';
 import '../../domain/rate_mode.dart';
 import '../../domain/verdict.dart';
+import '../../services/billing/entitlement.dart';
 import '../../services/offer_log.dart';
 import '../../services/parse_health.dart';
 import '../overlay/verdict_pill.dart';
+import '../paywall/unlock_section.dart';
 import '../shell/root_shell.dart';
 import '../theme/platform_badge.dart';
 import '../theme/section_label.dart';
@@ -66,6 +68,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     const Color(0xFFC8C87A), // 8 Appearance — olive gold
     const Color(0xFF6ABF9E), // 9 Parser health — mint
     const Color(0xFF9AA7B8), // 10 History — slate
+    // 11 Unlock — brand orange, same as Driver. Deliberate: this is the one
+    // group that IS the brand action, and the two sit at opposite ends of a
+    // long list, so they never read as a repeated tile.
+    FoxColors.brandFox,
   ];
 
   /// Live-preview sample rate, one per mode so flipping modes lands on a
@@ -82,7 +88,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   /// extent has no context to scroll to — hence the null guard rather than a
   /// bang. Worst case the group is open but the driver still has to scroll,
   /// which is where every deep link used to land.
-  final _rowKeys = List.generate(12, (_) => GlobalKey());
+  final _rowKeys = List.generate(13, (_) => GlobalKey());
 
   /// Honour a jump made with `TabIndex.go(2, section: n)`: expand the group the
   /// driver actually tapped for and bring it on screen. Consumed once, so
@@ -646,6 +652,21 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
           ),
         ),
+        const SizedBox(height: Gap.lg),
+        const SectionLabel('Your unlock'),
+        const SizedBox(height: Gap.sm + Gap.xs),
+        _staggered(
+          11,
+          SettingsGroup(
+            title: 'Unlock',
+            icon: Icons.lock_open_rounded,
+            summary: UnlockSection.summaryOf(ref.watch(accessProvider)),
+            open: _open == 11,
+            accent: _accents[11],
+            onTap: () => _toggle(11),
+            child: const UnlockSection(),
+          ),
+        ),
         const SizedBox(height: Gap.sm),
         // Last two rows, plain links rather than accordions — these are pages,
         // not groups of knobs. Logs is the record About tells drivers to check
@@ -653,7 +674,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         // a test but no route and no way in, so that instruction pointed at
         // nothing.
         _staggered(
-          11,
+          12,
           const LinkRow(
             icon: Icons.info_outline_rounded,
             title: 'About & help',

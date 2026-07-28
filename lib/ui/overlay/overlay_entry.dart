@@ -9,6 +9,7 @@ import '../../domain/overlay_control.dart';
 import '../../domain/overlay_payload.dart';
 import '../theme/tokens.dart';
 import 'fox_bubble.dart';
+import 'locked_pill.dart';
 import 'verdict_pill.dart';
 
 /// TEMP diagnostic. When true the overlay paints a translucent tint across the
@@ -76,6 +77,10 @@ class _OverlayRootState extends State<_OverlayRoot> {
   };
   static const _bubbleBox = (w: 72, h: 72);
 
+  /// The locked pill is one fixed size — it shows no numbers, so the driver's
+  /// S/M/L choice has nothing to scale.
+  static const _lockedBox = (w: 240, h: 72);
+
   OverlayPayload? _payload;
   bool _paused = false;
   StreamSubscription<dynamic>? _sub;
@@ -114,7 +119,12 @@ class _OverlayRootState extends State<_OverlayRoot> {
       final payload = OverlayPayload.fromMap(data);
       FoxFonts.display = payload.moneyFont.family;
       setState(() => _payload = payload);
-      _resize(_pillBoxFor(payload.size), centerX: true); // centered pill
+      // Locked pills get their own box — sizing the window for numbers that
+      // aren't drawn would leave the chip floating in dead space.
+      _resize(
+        payload.entitled ? _pillBoxFor(payload.size) : _lockedBox,
+        centerX: true, // centered pill
+      );
       _dismissTimer?.cancel();
       _dismissTimer = Timer(_dismissAfter, _clearPill);
     }
@@ -147,6 +157,14 @@ class _OverlayRootState extends State<_OverlayRoot> {
   void _onBubbleTap() {
     FlutterOverlayWindow.bringHostToFront();
     FlutterOverlayWindow.shareData(OverlayAction.openApp.toMap());
+  }
+
+  /// Locked pill tapped: foreground the app (same direct native call as the
+  /// bubble tap, which is the reliable path) and ask the main isolate to open
+  /// the paywall.
+  void _onLockedTap() {
+    FlutterOverlayWindow.bringHostToFront();
+    FlutterOverlayWindow.shareData(OverlayAction.openPaywall.toMap());
   }
 
   void _onBubbleLongPress() {
@@ -192,7 +210,8 @@ class _OverlayRootState extends State<_OverlayRoot> {
                 onTap: _onBubbleTap,
                 onLongPress: _onBubbleLongPress,
               )
-            : GestureDetector(
+            : payload.entitled
+            ? GestureDetector(
                 // Absorb taps on the pill so a stray touch can't dismiss it —
                 // the driver needs it to STAY put while they read the offer.
                 // The pill's life is driven entirely by the main isolate: it
@@ -203,6 +222,13 @@ class _OverlayRootState extends State<_OverlayRoot> {
                 behavior: HitTestBehavior.opaque,
                 onTap: () {},
                 child: VerdictPill(payload: payload),
+              )
+            // Not entitled: no verdict, no numbers, just the way to buy them.
+            // `entitled` absent or non-true lands here — the overlay's whole
+            // entitlement rule, fail-closed (MONETIZATION §4).
+            : LockedPill(
+                key: const ValueKey('locked-pill'),
+                onTap: _onLockedTap,
               ),
       ),
     );

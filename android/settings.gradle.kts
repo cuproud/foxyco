@@ -21,6 +21,10 @@ plugins {
     id("dev.flutter.flutter-plugin-loader") version "1.0.0"
     id("com.android.application") version "9.0.1" apply false
     id("org.jetbrains.kotlin.android") version "2.3.20" apply false
+    // Reads android/app/google-services.json and generates the Firebase config
+    // resources (incl. R.string.default_web_client_id, which google_sign_in
+    // needs). The build FAILS without that file — see docs/FIREBASE_SETUP.md.
+    id("com.google.gms.google-services") version "4.5.0" apply false
 }
 
 include(":app")

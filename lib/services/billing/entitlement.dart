@@ -1,0 +1,259 @@
+import 'package:flutter/foundation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import 'billing_store.dart';
+import 'fox_clock.dart';
+import 'purchase_verifier.dart';
+import 'trial_store.dart';
+
+/// Forces entitlement on in debug builds so the pill can be worked on without a
+/// Play purchase or a live trial (MONETIZATION_v1.0 §6.2).
+///
+/// Gated on [kDebugMode], which is a compile-time constant, so the whole branch
+/// is tree-shaken out of release builds. It must never become a runtime setting,
+/// a flavor string or a hidden preference.
+const kDebugUnlocked = kDebugMode;
+
+/// Drop-dead date for closed-track builds (§6 layer 3): past it, the paywall
+/// applies no matter what the trial says, so a tester build can't become a
+/// permanent free copy. Empty (the default) means no expiry — that is what
+/// production ships with.
+///
+/// `flutter build apk --dart-define=BUILD_EXPIRY=2026-09-30`
+const _buildExpiryRaw = String.fromEnvironment('BUILD_EXPIRY');
+
+/// Why the driver has (or hasn't) got access. Drives the copy: "3 days left" is
+/// a very different banner from "trial ended".
+enum AccessSource {
+  /// Still resolving Play and Firestore. Never lock the UI on this.
+  unknown,
+
+  /// Debug build override.
+  debugBuild,
+
+  /// Signature-verified Play purchase, or a redeemed promo code — Play reports
+  /// both identically, which is what §6.1 wants.
+  purchase,
+
+  /// A previously verified purchase, honoured while Play is unreachable.
+  cachedPurchase,
+
+  /// Inside the 7-day trial.
+  trial,
+
+  /// Nothing grants access: pre-trial, expired, or the grace window lapsed.
+  none,
+}
+
+/// The one answer the rest of the app asks for: is this driver entitled?
+@immutable
+class Access {
+  final bool entitled;
+  final AccessSource source;
+
+  /// Days left in the trial, 0 when not on one. Banner copy only.
+  final int trialDaysLeft;
+
+  /// The cached verdict has gone [offlineGrace] - 2 days without a successful
+  /// check, so the driver gets a warning before it lapses mid-shift (§3.5).
+  final bool cacheGoingStale;
+
+  /// Days before the unverified cache lapses, for that warning's copy. Only
+  /// meaningful while [cacheGoingStale].
+  final int graceDaysLeft;
+
+  /// Release build with no `PLAY_PUBLIC_KEY` compiled in: every receipt fails
+  /// verification, so nobody can buy anything (§3.9 — fails closed, loudly).
+  final bool licenceKeyMissing;
+
+  const Access({
+    required this.entitled,
+    required this.source,
+    this.trialDaysLeft = 0,
+    this.cacheGoingStale = false,
+    this.graceDaysLeft = 0,
+    this.licenceKeyMissing = false,
+  });
+
+  static const resolving = Access(
+    entitled: false,
+    source: AccessSource.unknown,
+  );
+
+  /// The whole entitlement decision, as a pure function of what Play said, what
+  /// the trial says, and the clock (MONETIZATION_v1.0 §11).
+  ///
+  /// Pulled out of [AccessStore] so the money path is testable without Play,
+  /// Firebase or prefs — and so the precedence is readable in one place.
+  /// [debugUnlocked] and [buildExpiry] are parameters rather than the constants
+  /// they normally come from, for the same reason.
+  factory Access.derive({
+    required UnlockStatus unlock,
+    required TrialState trial,
+    required DateTime now,
+    required DateTime? purchasedAt,
+    bool debugUnlocked = kDebugUnlocked,
+    DateTime? buildExpiry,
+    bool licenceKeyMissing = false,
+  }) {
+    final cachedPurchase =
+        purchasedAt != null && now.difference(purchasedAt) < offlineGrace;
+
+    // Age of the trial check, for the day-5 warning. Only worth warning about
+    // while the driver actually has something to lose.
+    final trialStale = trial.staleness(now);
+    final goingStale =
+        trial.isActive &&
+        trialStale != null &&
+        trialStale > offlineGrace - const Duration(days: 2);
+    final graceLeft = trialStale == null
+        ? 0
+        : (offlineGrace - trialStale).inHours ~/ 24;
+
+    final (bool entitled, AccessSource source) = switch (null) {
+      // Debug first: a dev build must work with neither Play nor Firebase.
+      _ when debugUnlocked => (true, AccessSource.debugBuild),
+      // The kill date beats anything a tester build could otherwise claim.
+      _ when buildExpiry != null && now.isAfter(buildExpiry) => (
+        false,
+        AccessSource.none,
+      ),
+      _ when unlock == UnlockStatus.purchased => (true, AccessSource.purchase),
+      _ when cachedPurchase => (true, AccessSource.cachedPurchase),
+      _ when trial.isActive => (true, AccessSource.trial),
+      // Still asking both sides: stay unresolved rather than flashing a paywall
+      // at a driver who is only mid-boot.
+      _
+          when unlock == UnlockStatus.unknown &&
+              trial.phase == TrialPhase.unknown =>
+        (false, AccessSource.unknown),
+      _ => (false, AccessSource.none),
+    };
+
+    return Access(
+      entitled: entitled,
+      source: source,
+      trialDaysLeft: trial.daysLeft,
+      cacheGoingStale: goingStale,
+      graceDaysLeft: graceLeft < 0 ? 0 : graceLeft,
+      licenceKeyMissing: licenceKeyMissing,
+    );
+  }
+
+  /// True once we know enough to show a paywall. Guards against flashing "trial
+  /// ended" over a driver who is simply mid-boot.
+  bool get resolved => source != AccessSource.unknown;
+
+  bool get onTrial => source == AccessSource.trial;
+}
+
+/// Combines the two independent sources of truth — Play for the purchase,
+/// Firestore for the trial — into a single `entitled` bool
+/// (MONETIZATION_v1.0 §11).
+///
+/// `entitled = purchased OR trial active`, cached with an offline grace window.
+/// Everything fails CLOSED: while Play is unreachable and the trial unknown, a
+/// driver with no cached purchase is locked, not waved through.
+class AccessStore extends Notifier<Access> {
+  /// When a signature-verified purchase was last seen, local clock. This is the
+  /// offline grace window's anchor — Play is unreachable in a dead zone and a
+  /// paid-up driver must not get locked mid-shift.
+  static const _keyPurchasedAt = 'foxyco.unlock.verifiedAt.v1';
+
+  DateTime? _purchasedAt;
+
+  @override
+  Access build() {
+    // Both halves feed the same verdict; either changing re-derives it.
+    ref.listen(billingProvider, (_, _) => _derive());
+    ref.listen(trialProvider, (_, _) => _derive());
+    _loadCache().then((_) => _derive());
+    return Access.resolving;
+  }
+
+  Future<void> _loadCache() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final ms = prefs.getInt(_keyPurchasedAt);
+      if (ms != null) {
+        _purchasedAt = DateTime.fromMillisecondsSinceEpoch(ms, isUtc: true);
+      }
+    } catch (e) {
+      if (kDebugMode) debugPrint('FoxyCo unlock cache read skipped: $e');
+    }
+  }
+
+  Future<void> _setPurchasedAt(DateTime? at) async {
+    _purchasedAt = at;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (at == null) {
+        await prefs.remove(_keyPurchasedAt);
+      } else {
+        await prefs.setInt(_keyPurchasedAt, at.millisecondsSinceEpoch);
+      }
+    } catch (e) {
+      if (kDebugMode) debugPrint('FoxyCo unlock cache write skipped: $e');
+    }
+  }
+
+  /// Recompute from whatever both stores currently say. Cheap and idempotent.
+  Future<void> _derive() async {
+    final unlock = ref.read(billingProvider);
+    final trial = ref.read(trialProvider);
+    final now = await FoxClock.now();
+
+    if (unlock == UnlockStatus.purchased) {
+      // Refresh the grace anchor every time Play confirms it.
+      if (_purchasedAt == null || now.difference(_purchasedAt!).inHours > 12) {
+        await _setPurchasedAt(now);
+      }
+    } else if (unlock == UnlockStatus.notPurchased) {
+      // Play answered and owns no purchase for this account — a refund, or a
+      // receipt that stopped verifying. Drop the cache; keeping it would extend
+      // access past a refund by the whole grace window.
+      if (_purchasedAt != null) await _setPurchasedAt(null);
+    }
+
+    state = Access.derive(
+      unlock: unlock,
+      trial: trial,
+      now: now,
+      purchasedAt: _purchasedAt,
+      buildExpiry: _buildExpiry,
+      // A release build with no licensing key compiled in can verify nothing,
+      // so nobody can buy anything (§3.9 — fails closed, and says so).
+      licenceKeyMissing:
+          !kDebugMode && PurchaseVerifier.publicKeyBase64.isEmpty,
+    );
+  }
+
+  /// Kill date for closed-track builds (§6 layer 3), or null in production.
+  static DateTime? get _buildExpiry => _buildExpiryRaw.isEmpty
+      ? null
+      : DateTime.tryParse(_buildExpiryRaw)?.toUtc();
+
+  /// Re-ask both sides. Called on app resume and after a purchase or trial
+  /// start, so the pill unlocks without a restart.
+  ///
+  /// [sampled] passes the anti-piracy sampling down to the trial read — resume
+  /// fires often, and a Firestore round trip every time would be both wasteful
+  /// and pointless (the trial's end date is already known locally). Play is
+  /// re-asked every time regardless: `restorePurchases` is a local Play Store
+  /// call, and it doubles as the acknowledgment recovery path for a purchase
+  /// interrupted mid-flight (§3.8).
+  Future<void> refresh({bool sampled = false}) async {
+    await ref.read(trialProvider.notifier).refresh(sampled: sampled);
+    await ref.read(billingProvider.notifier).restore();
+    await _derive();
+  }
+}
+
+final accessProvider = NotifierProvider<AccessStore, Access>(AccessStore.new);
+
+/// Just the bool, for the many widgets that need nothing else. Separate provider
+/// so they don't rebuild when only `trialDaysLeft` moves.
+final entitledProvider = Provider<bool>(
+  (ref) => ref.watch(accessProvider).entitled,
+);

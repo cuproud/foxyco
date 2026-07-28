@@ -12,3 +12,8 @@ GeneratedPluginRegistrant.java
 key.properties
 **/*.keystore
 **/*.jks
+
+# Firebase config: per-project, per-environment, and regenerated whenever a
+# signing fingerprint is added (docs/FIREBASE_SETUP.md). The Android build fails
+# without it — that is intended, not a bug to work around.
+app/google-services.json

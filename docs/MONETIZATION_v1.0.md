@@ -420,19 +420,45 @@ Each step is independently shippable and testable.
 
 | Step | What | Est. | Status |
 |---|---|---|---|
-| 0 | **Play Console account** — $25 one-time, ID verification 1–3 days, merchant profile. Blocks steps 4b, 6 and the 14-day closed test clock. Start it first; it is calendar time, not work time. | — | ⏳ in progress |
-| 1 | Firebase project setup (dev + prod), `google-services.json` per flavor, anonymous Auth at launch | 0.5 day | ☐ |
-| 1b | **SHA-1 registration (upload key)** in Firebase. Google Sign-In fails without it — must land before step 2, not last. | 0.25 day | ☐ |
-| 2 | Google Sign-In + `linkWithCredential` **with the `credential-already-in-use` fallback (§3.4.1)**, Firestore trial doc write-once | 0.5 day | ☐ |
-| 3 | `TrialGate` service: reads Firestore trial, caches locally, `entitled` bool | 0.5 day | ☐ |
+| 0 | **Play Console account** — $25 one-time, ID verification 1–3 days, merchant profile. Blocks steps 4b, 6 and the 14-day closed test clock. Start it first; it is calendar time, not work time. | — | ✅ signed up 2026-07-28, ⏳ ID verification |
+| 1 | Firebase project setup (dev + prod), `google-services.json` per flavor, anonymous Auth at launch | 0.5 day | ✅ code 2026-07-28 / ⏳ console: `docs/FIREBASE_SETUP.md` §1–2, §4–5 |
+| 1b | **SHA-1 registration (upload key)** in Firebase. Google Sign-In fails without it — must land before step 2, not last. | 0.25 day | ⏳ yours: FIREBASE_SETUP §3 |
+| 2 | Google Sign-In + `linkWithCredential` **with the `credential-already-in-use` fallback (§3.4.1)**, Firestore trial doc write-once | 0.5 day | ✅ 2026-07-28 `TrialStore.startTrial` |
+| 3 | `TrialGate` service: reads Firestore trial, caches locally, `entitled` bool | 0.5 day | ✅ 2026-07-28 — shipped as `TrialStore` (`lib/services/billing/trial_store.dart`), name changed to match the codebase's `*Store` providers |
 | 4a | `in_app_purchase` dep, `queryPurchases()` + RSA signature verify + `completePurchase()` acknowledgment (§3.8) | 0.5 day | ✅ done 2026-07-28 |
-| 4b | `foxyco.lifetime` **non-consumable** product in Play Console; paste licensing key via `--dart-define` (§3.9); verify a real purchase on an internal-testing build | 0.5 day | ⛔ blocked on step 0 |
-| 5 | `entitlementProvider` wires TrialGate + Billing result; overlay payload carries `entitled` flag; pill locked state | 0.5 day | ☐ |
-| 6 | Paywall sheet + "Restore purchase" + "Redeem code" + Home banner | 0.5 day | ☐ |
-| 7 | Anti-piracy layers: random re-verify, packageName check, boring class names | 0.5 day | ☐ |
-| 8 | Account deletion flow (§5.1) + public web URL | 0.5 day | ☐ |
-| 9 | Papers: privacy policy page, Data safety form, manifest INTERNET permission, `AUDIT.md` update | 0.5 day | ☐ |
-| 10 | **SHA-1 registration (Play App Signing key)** in Firebase — this key only exists in Play Console *after* the first bundle upload, so it cannot be done earlier. Skipping it means Google Sign-In works in debug and fails in production. | 0.25 day | ⛔ blocked on first upload |
+| 4b | `foxyco.lifetime` **non-consumable** product in Play Console; paste licensing key via `--dart-define` (§3.9); verify a real purchase on an internal-testing build | 0.5 day | ⛔ blocked on step 0 verification — FIREBASE_SETUP §6 |
+| 5 | `entitlementProvider` wires TrialGate + Billing result; overlay payload carries `entitled` flag; pill locked state | 0.5 day | ✅ 2026-07-28 — `accessProvider`/`entitledProvider`, `OverlayPayload.entitled`, `LockedPill` |
+| 6 | Paywall sheet + "Restore purchase" + "Redeem code" + Home banner | 0.5 day | ✅ 2026-07-28 — `ui/paywall/` (sheet, `AccessBanner`, Settings → Unlock) |
+| 7 | Anti-piracy layers: random re-verify, packageName check, boring class names | 0.5 day | 🟡 partial — 1-in-5 re-verify done; resign check deferred (see below) |
+| 8 | Account deletion flow (§5.1) + public web URL | 0.5 day | 🟡 in-app path done (Settings → Unlock); ⏳ public URL is yours |
+| 9 | Papers: privacy policy page, Data safety form, manifest INTERNET permission, `AUDIT.md` update | 0.5 day | 🟡 `INTERNET` + `AUDIT.md` done; ⏳ policy page + Data safety form are yours |
+| 10 | **SHA-1 registration (Play App Signing key)** in Firebase — this key only exists in Play Console *after* the first bundle upload, so it cannot be done earlier. Skipping it means Google Sign-In works in debug and fails in production. | 0.25 day | ⛔ blocked on first upload — FIREBASE_SETUP §7 |
+
+### Deviations from this plan, and why (2026-07-28 implementation)
+
+1. **§3.7 layer 3 — the resigned-repack check is NOT built.** It compares the
+   running app's signing certificate against an expected fingerprint, and the
+   Play App Signing fingerprint does not exist until after the first bundle
+   upload (step 10). Building it now would mean shipping a comparison against a
+   placeholder, which is worse than not shipping it. Revisit with step 10.
+2. **"Boring class names" was skipped as ineffective, not forgotten.** That
+   advice comes from Java/Android, where R8 leaves class names in the DEX and a
+   cracker greps for `Purchase*`. Dart is AOT-compiled to machine code for
+   release builds; Dart class names are not retained the way Java ones are, so
+   renaming `Access`/`BillingStore` buys obscurity against nothing and costs
+   readability every day. The load-bearing layers are the local RSA receipt
+   verification and the sampled re-verify.
+3. **Clock rollback needed a mechanism the doc didn't specify.** §10 requires
+   that winding the device clock back cannot extend a trial, but the trial end
+   was to be computed locally from a server start date. `FoxClock` keeps a
+   high-water mark of the latest time seen and never reads earlier than it, and
+   *overwrites* that mark with the Firebase ID token's `issuedAtTime` on every
+   successful refresh — so a device clock briefly set years ahead heals on the
+   next online check instead of expiring a paying driver's trial early.
+4. **`entitled` is stamped per offer, not cached in the overlay.** §4 asked the
+   overlay to reject stale payloads; since `OverlayPayload` is rebuilt for every
+   offer, "stale" reduces to "flag absent or not literally `true`", which is the
+   single rule implemented and unit-tested.
 
 **Total: ~5–6 days of work.** No Cloud Functions, no Blaze plan, no RTDN, no
 admin dashboard. Maintenance after launch: Firebase SDK bumps at your leisure.

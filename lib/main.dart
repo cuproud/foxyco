@@ -1,3 +1,4 @@
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -6,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'domain/app_skin.dart';
 import 'router.dart';
 import 'services/accessibility/offer_watcher.dart';
+import 'services/billing/entitlement.dart';
 import 'ui/home/dashboard_controller.dart';
 import 'ui/onboarding/onboarding_gate.dart';
 import 'ui/overlay/overlay_controller.dart';
@@ -24,6 +26,16 @@ void main() async {
       systemNavigationBarIconBrightness: Brightness.light,
     ),
   );
+  // Firebase backs the unresettable trial and nothing else (MONETIZATION §3.3):
+  // one anonymous auth session and one trial timestamp. Fails SOFT — a missing
+  // google-services.json or a dead network must never stop the app booting, so
+  // entitlement falls back to the cached verdict and, once the offline grace
+  // window lapses, to locked.
+  try {
+    await Firebase.initializeApp();
+  } catch (e) {
+    if (kDebugMode) debugPrint('FoxyCo Firebase init skipped: $e');
+  }
   // Read the first-run flag BEFORE runApp so the app boots straight into the
   // right screen — no flash of Home before onboarding takes over.
   final onboarded = await OnboardingGate.isDone();
@@ -70,10 +82,13 @@ class _FoxyCoAppState extends ConsumerState<FoxyCoApp>
     //  • overlayController — subscribes to the bubble's gesture stream
     //  • offerWatcher      — the M3 pipeline (accessibility → parser → overlay)
     //  • refreshPermissions — reflect the real OS grant state on the dashboard
+    //  • access            — starts Play + the trial check, so the pill knows
+    //                        whether it may draw numbers on the first offer
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(overlayControllerProvider);
       ref.read(offerWatcherProvider);
       ref.read(dashboardProvider.notifier).refreshPermissions();
+      ref.read(accessProvider);
     });
   }
 
@@ -83,6 +98,10 @@ class _FoxyCoAppState extends ConsumerState<FoxyCoApp>
     // grants so the dashboard flips out of "blocked" without a manual reload.
     if (state == AppLifecycleState.resumed) {
       ref.read(dashboardProvider.notifier).refreshPermissions();
+      // Also the moment to reconcile entitlement: the driver may have just come
+      // back from Play's buy sheet, or from a week offline. Re-asks Play every
+      // time (local, cheap) and Firestore only when due (§3.7 layer 2).
+      ref.read(accessProvider.notifier).refresh(sampled: true);
     }
   }
 
