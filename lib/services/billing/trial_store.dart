@@ -145,6 +145,13 @@ class TrialStore extends Notifier<TrialState> {
   /// paywall button can't open two sheets.
   bool _busy = false;
 
+  String? _lastStartError;
+
+  /// Short tag for why the last [startTrial] failed, shown in the paywall so a
+  /// release build can be diagnosed without logcat. Codes only — never a token,
+  /// uid or credential.
+  String? get lastStartError => _lastStartError;
+
   @override
   TrialState build() {
     // Cache first so the UI has a verdict on frame one, then reconcile with the
@@ -309,8 +316,9 @@ class TrialStore extends Notifier<TrialState> {
   /// over a local flag.
   Future<TrialStartResult> startTrial() async {
     if (_busy) return TrialStartResult.failed;
-    if (!_firebaseUp) return TrialStartResult.failed;
+    if (!_firebaseUp) return _fail('firebase-down');
     _busy = true;
+    _lastStartError = null;
     try {
       // serverClientId is not passed: the Android plugin falls back to
       // R.string.default_web_client_id, which the google-services plugin
@@ -318,15 +326,15 @@ class TrialStore extends Notifier<TrialState> {
       await GoogleSignIn.instance.initialize();
       final account = await GoogleSignIn.instance.authenticate();
       final idToken = account.authentication.idToken;
-      if (idToken == null) return TrialStartResult.failed;
+      if (idToken == null) return _fail('no-id-token');
       final cred = GoogleAuthProvider.credential(idToken: idToken);
 
-      final anon = _auth.currentUser;
-      if (anon == null) {
+      final current = _auth.currentUser;
+      if (current == null) {
         await _auth.signInWithCredential(cred);
-      } else {
+      } else if (current.isAnonymous) {
         try {
-          await anon.linkWithCredential(cred);
+          await current.linkWithCredential(cred);
         } on FirebaseAuthException catch (e) {
           if (e.code == 'credential-already-in-use' ||
               e.code == 'email-already-in-use') {
@@ -338,12 +346,20 @@ class TrialStore extends Notifier<TrialState> {
             rethrow;
           }
         }
+      } else {
+        // A previous attempt can successfully link Google and then fail later
+        // while creating/reading the Firestore trial document. Retrying must
+        // resume from that linked identity, not call linkWithCredential again
+        // (which always throws provider-already-linked). Signing in also makes
+        // the account just selected in Google's sheet authoritative if the app
+        // previously held a different Google session.
+        await _auth.signInWithCredential(cred);
       }
 
       // The UID may have changed underneath us in the fallback above, so read
       // it back rather than reusing `anon`.
       final user = _auth.currentUser;
-      if (user == null) return TrialStartResult.failed;
+      if (user == null) return _fail('no-user-after-signin');
 
       final doc = FirebaseFirestore.instance.collection('trials').doc(user.uid);
       var snap = await doc.get(const GetOptions(source: Source.server));
@@ -368,19 +384,34 @@ class TrialStore extends Notifier<TrialState> {
         TrialPhase.expired => TrialStartResult.alreadyExpired,
         // Doc written but the timestamp hasn't resolved — treat as retryable
         // rather than claiming a trial that may not have been recorded.
-        TrialPhase.preTrial || TrialPhase.unknown => TrialStartResult.failed,
+        TrialPhase.preTrial || TrialPhase.unknown => _fail('timestamp-pending'),
       };
     } on GoogleSignInException catch (e) {
-      if (kDebugMode) debugPrint('FoxyCo sign-in failed: ${e.code}');
-      return e.code == GoogleSignInExceptionCode.canceled
-          ? TrialStartResult.cancelled
-          : TrialStartResult.failed;
+      if (e.code == GoogleSignInExceptionCode.canceled) {
+        return TrialStartResult.cancelled;
+      }
+      return _fail('google/${e.code.name}', e.description);
+    } on FirebaseAuthException catch (e) {
+      return _fail('auth/${e.code}', e.message);
+    } on FirebaseException catch (e) {
+      return _fail('${e.plugin}/${e.code}', e.message);
     } catch (e) {
-      if (kDebugMode) debugPrint('FoxyCo start trial failed: $e');
-      return TrialStartResult.failed;
+      return _fail('unexpected/${e.runtimeType}');
     } finally {
       _busy = false;
     }
+  }
+
+  /// Record why the trial start failed and return the failure. Only [tag]
+  /// reaches the paywall: plugin messages are free-form and can contain account
+  /// details. Debug builds still log [detail] for local diagnosis.
+  TrialStartResult _fail(String tag, [String? detail]) {
+    _lastStartError = tag;
+    if (kDebugMode) {
+      final suffix = detail == null || detail.isEmpty ? '' : ' — $detail';
+      debugPrint('FoxyCo start trial failed: $tag$suffix');
+    }
+    return TrialStartResult.failed;
   }
 
   /// Settings → About → Delete my account (Play requires an in-app path once
@@ -395,7 +426,7 @@ class TrialStore extends Notifier<TrialState> {
     if (!_firebaseUp) return false;
     try {
       await _auth.currentUser?.delete();
-      await GoogleSignIn.instance.signOut();
+      await _disconnectGoogle();
       await _clearCache();
       state = TrialState.initial;
       await refresh(); // straight back to a fresh anonymous identity
@@ -404,6 +435,37 @@ class TrialStore extends Notifier<TrialState> {
       // Most often `requires-recent-login`. The caller surfaces a retry.
       if (kDebugMode) debugPrint('FoxyCo delete account failed: $e');
       return false;
+    }
+  }
+
+  /// Leaves the Google-backed trial identity without deleting it.
+  ///
+  /// An active trial is tied to that identity, so signing out locks it until
+  /// the driver signs back into the same account. A Play purchase is separate
+  /// and remains owned by Google Play.
+  Future<bool> signOut() async {
+    if (!_firebaseUp) return false;
+    try {
+      await _auth.signOut();
+      await _disconnectGoogle();
+      await _clearCache();
+      state = TrialState.initial;
+      await refresh(); // mint a fresh anonymous session for normal app boot
+      return true;
+    } catch (e) {
+      if (kDebugMode) debugPrint('FoxyCo sign-out failed: $e');
+      return false;
+    }
+  }
+
+  /// GoogleSignIn 7 requires initialization after a cold app launch. Treat the
+  /// provider disconnect as best-effort once Firebase Auth has been cleared.
+  Future<void> _disconnectGoogle() async {
+    try {
+      await GoogleSignIn.instance.initialize();
+      await GoogleSignIn.instance.signOut();
+    } catch (e) {
+      if (kDebugMode) debugPrint('FoxyCo Google disconnect skipped: $e');
     }
   }
 

@@ -157,17 +157,26 @@ class _RootShellState extends ConsumerState<RootShell> {
               child: IndexedStack(
                 index: index,
                 children: [
-                  PrimaryScrollController(
-                    controller: _scrolls[0],
-                    child: const HomeScreen(),
+                  TickerMode(
+                    enabled: index == 0,
+                    child: PrimaryScrollController(
+                      controller: _scrolls[0],
+                      child: const HomeScreen(),
+                    ),
                   ),
-                  PrimaryScrollController(
-                    controller: _scrolls[1],
-                    child: const HistoryScreen(),
+                  TickerMode(
+                    enabled: index == 1,
+                    child: PrimaryScrollController(
+                      controller: _scrolls[1],
+                      child: const HistoryScreen(),
+                    ),
                   ),
-                  PrimaryScrollController(
-                    controller: _scrolls[2],
-                    child: const SettingsScreen(),
+                  TickerMode(
+                    enabled: index == 2,
+                    child: PrimaryScrollController(
+                      controller: _scrolls[2],
+                      child: const SettingsScreen(),
+                    ),
                   ),
                 ],
               ),

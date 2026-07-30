@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  google_sign_in_android resolves this generated string by name at runtime.
+  The release resource shrinker cannot see that reflective lookup and otherwise
+  removes it, causing google/clientConfigurationError after account selection.
+-->
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@string/default_web_client_id" />

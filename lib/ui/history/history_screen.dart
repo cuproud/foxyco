@@ -485,11 +485,16 @@ class _TopCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(
-                Icons.local_fire_department,
-                color: Color(0xFFFFB25C),
-                size: 20,
-              ), // warm streak-flame accent — one-off
+              ClipRRect(
+                borderRadius: BorderRadius.circular(Radii.cardSm),
+                child: Image.asset(
+                  'assets/history/filter.webp',
+                  width: 56,
+                  height: 56,
+                  fit: BoxFit.cover,
+                  semanticLabel: 'Fox holding a glowing earnings filter',
+                ),
+              ),
               const SizedBox(width: Gap.sm + Gap.xs),
               Expanded(
                 child: Column(
@@ -1148,22 +1153,21 @@ class _Empty extends StatelessWidget {
   Widget build(BuildContext context) {
     final filtered = hiddenCount > 0 && onShowAll != null;
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 40),
+      padding: const EdgeInsets.only(top: Gap.sm, bottom: 40),
       child: Column(
         children: [
-          Icon(
-            filtered ? Icons.filter_alt_off_outlined : Icons.search_off,
-            size: 36,
-            color: FoxColors.textDisabled,
-          ),
-          const SizedBox(height: Gap.sm),
-          Text(
-            filtered
-                ? '$hiddenCount offers outside these filters'
-                : 'No offers yet — go live and let the fox hunt 🦊🍕',
-            style: TextStyle(fontSize: 13, color: FoxColors.textDisabled),
-          ),
           if (filtered) ...[
+            Icon(
+              Icons.filter_alt_off_outlined,
+              size: 36,
+              color: FoxColors.textDisabled,
+            ),
+            const SizedBox(height: Gap.sm),
+            Text(
+              '$hiddenCount offers outside these filters',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 13, color: FoxColors.textDisabled),
+            ),
             const SizedBox(height: Gap.sm),
             TextButton(
               onPressed: onShowAll,
@@ -1171,6 +1175,41 @@ class _Empty extends StatelessWidget {
               child: const Text(
                 'Show all',
                 style: TextStyle(fontWeight: FontWeight.w700),
+              ),
+            ),
+          ] else ...[
+            Text(
+              'No offers yet',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: FoxColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: Gap.xs),
+            Text(
+              'Go live and let the fox hunt.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 13,
+                height: 1.35,
+                color: FoxColors.textSecondary,
+              ),
+            ),
+            const SizedBox(height: Gap.md),
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 320),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(Radii.card),
+                child: AspectRatio(
+                  aspectRatio: 1,
+                  child: Image.asset(
+                    'assets/history/hunt.webp',
+                    fit: BoxFit.cover,
+                    semanticLabel:
+                        'Fox driver waiting beside a car near a mountain lake',
+                  ),
+                ),
               ),
             ),
           ],

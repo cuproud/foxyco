@@ -14,8 +14,9 @@ import 'onboarding_gate.dart';
 /// First-run walkthrough (UI_DESIGN §5.1) — earns the two scary permissions
 /// honestly, per Play accessibility policy (AUDIT #1/#2).
 ///
-/// Four swipeable pages: meet FoxyCo → pick a threshold preset → overlay
-/// grant → accessibility grant. The preset page personalizes BEFORE the
+/// Five swipeable pages: meet FoxyCo → pick a threshold preset → understand
+/// the trial/lifetime unlock → overlay grant → accessibility grant. The preset
+/// page personalizes BEFORE the
 /// permission asks, so the driver has seen value first.
 ///
 /// The accessibility page carries the full plain-language disclosure: FoxyCo
@@ -30,7 +31,7 @@ import 'onboarding_gate.dart';
 class OnboardingScreen extends ConsumerStatefulWidget {
   const OnboardingScreen({super.key});
 
-  static const pageCount = 4;
+  static const pageCount = 5;
 
   @override
   ConsumerState<OnboardingScreen> createState() => _OnboardingScreenState();
@@ -128,6 +129,16 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                         'point — every number stays tunable in Settings.',
                     footer: _PresetPicker(),
                   ),
+                  const _Page(
+                    hero: _ArtHero('assets/tips/fox_tip_earnings.png'),
+                    title: 'Try a week. Pay once.',
+                    body:
+                        'Run every verdict free for 7 days. If FoxyCo earns a '
+                        'seat in your shift, unlock it with one Google Play '
+                        'purchase — no subscription and no monthly meter. One '
+                        'avoided dud offer can cover it.',
+                    footer: _BillingPromise(),
+                  ),
                   _GrantPage(
                     hero: const _GlowIcon(Icons.picture_in_picture_alt_rounded),
                     title: 'Draw over other apps',
@@ -205,6 +216,49 @@ class _FoxHero extends StatelessWidget {
   @override
   Widget build(BuildContext context) =>
       Image.asset('assets/branding/foxyco_head.png', width: 96, height: 96);
+}
+
+class _ArtHero extends StatelessWidget {
+  const _ArtHero(this.asset);
+
+  final String asset;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    width: 132,
+    height: 132,
+    decoration: BoxDecoration(
+      borderRadius: BorderRadius.circular(Radii.hero),
+      boxShadow: Shadows.hero,
+    ),
+    clipBehavior: Clip.antiAlias,
+    child: Image.asset(asset, fit: BoxFit.cover),
+  );
+}
+
+class _BillingPromise extends StatelessWidget {
+  const _BillingPromise();
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: Gap.md, vertical: Gap.sm),
+    decoration: BoxDecoration(
+      color: FoxColors.brandFoxSoft,
+      borderRadius: BorderRadius.circular(Radii.pill),
+      border: Border.all(color: FoxColors.brandFox.withValues(alpha: 0.28)),
+    ),
+    child: const Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(Icons.all_inclusive_rounded, size: 17, color: FoxColors.brandFox),
+        SizedBox(width: Gap.sm),
+        Text(
+          'Lifetime unlock · zero recurring fees',
+          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
+        ),
+      ],
+    ),
+  );
 }
 
 /// Icon in a glowing orange disc — replaces the emoji heroes, which read
@@ -455,7 +509,7 @@ class _Dots extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Decorative: to a screen reader these are four unlabeled boxes between
+    // Decorative: to a screen reader these are unlabeled boxes between
     // the page body and the CTA. Position is announced by the PageView itself.
     return ExcludeSemantics(
       child: Row(

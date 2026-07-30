@@ -35,7 +35,7 @@ void main() {
     expect(find.text('FoxyCo'), findsOneWidget); // Home brand bar
   });
 
-  testWidgets('Next walks the 4 pages; preset applies; grant state shows; '
+  testWidgets('Next walks the 5 pages; preset applies; grant state shows; '
       'last page CTA exits to Home', (tester) async {
     final container = ProviderContainer();
     addTearDown(container.dispose);
@@ -56,14 +56,20 @@ void main() {
     await tester.pumpAndSettle();
     expect(container.read(settingsProvider).thresholds.goodAtOrAbove, 1.8);
 
-    // Page 3 — overlay grant. Off-device the dashboard defaults both grants
+    // Page 3 — one-time purchase promise; no subscription language.
+    await tester.tap(find.text('Next'));
+    await tester.pumpAndSettle();
+    expect(find.text('Try a week. Pay once.'), findsOneWidget);
+    expect(find.textContaining('no subscription'), findsOneWidget);
+
+    // Page 4 — overlay grant. Off-device the dashboard defaults both grants
     // to true (plugin channels absent), so the page shows the granted chip.
     await tester.tap(find.text('Next'));
     await tester.pumpAndSettle();
     expect(find.text('Draw over other apps'), findsOneWidget);
     expect(find.text('✅ Granted'), findsOneWidget);
 
-    // Page 4 — accessibility grant, with the plain-language disclosure.
+    // Page 5 — accessibility grant, with the plain-language disclosure.
     await tester.tap(find.text('Next'));
     await tester.pumpAndSettle();
     expect(find.text('Read the offer on screen'), findsOneWidget);

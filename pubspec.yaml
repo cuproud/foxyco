@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.0.0+2
+version: 1.0.0+4
 
 environment:
   sdk: ^3.12.2
@@ -47,7 +47,7 @@ dependencies:
   go_router: ^17.3.0
   flutter_overlay_window: ^0.5.0
   permission_handler: ^12.0.3
-  # Reads on-screen offer text from Uber/Hopp (M3). Scoped to those packages in
+  # Reads on-screen offer text from Uber/Hopp/Lyft (M3). Scoped to those packages in
   # res/xml/accessibility_service_config.xml — see AUDIT #1 (Play disclosure) and
   # #4 (debounce for battery). Version pinned per AUDIT #9 (community plugin).
   flutter_accessibility_service: ^1.2.0
@@ -112,6 +112,10 @@ flutter:
     - assets/branding/foxyco_logo.png
     - assets/branding/foxy_sleeping.png
     - assets/car/
+    # Compressed History filter and empty-state illustrations.
+    - assets/history/
+    # Compressed 384px mascot crops for the Home tips carousel and unlock UI.
+    - assets/tips/
     # Foxy garage thumbnails, one illustration per body type (art set 2026-07-23).
     - assets/vehicles/
 

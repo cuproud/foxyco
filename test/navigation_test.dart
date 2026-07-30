@@ -134,7 +134,7 @@ void main() {
     final container = scope();
     await pumpShell(tester, container);
 
-    // No section → no jump, no scroll: Driver (group 0) stays open as it boots
+    // No section → no jump, no scroll: Profile (group 0) stays open as it boots
     // and Watched apps stays shut.
     container.read(tabIndexProvider.notifier).go(2);
     await beat(tester);

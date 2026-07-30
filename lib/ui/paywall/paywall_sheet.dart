@@ -41,7 +41,9 @@ Future<void> showPaywall(BuildContext context) => showModalBottomSheet<void>(
   context: context,
   backgroundColor: Colors.transparent,
   isScrollControlled: true,
-  constraints: BoxConstraints(maxHeight: MediaQuery.sizeOf(context).height * 0.9),
+  constraints: BoxConstraints(
+    maxHeight: MediaQuery.sizeOf(context).height * 0.9,
+  ),
   builder: (_) => const _PaywallSheet(),
 );
 
@@ -56,6 +58,17 @@ class _PaywallSheetState extends ConsumerState<_PaywallSheet> {
   /// A sign-in or purchase flow is in flight — disables the buttons so a second
   /// tap can't open a second Google sheet.
   bool _working = false;
+
+  /// Entitlement can flip while the explicit trial/purchase action is still
+  /// awaiting its refresh. Both paths want to dismiss this route, so guard the
+  /// pop: a second pop would remove the app screen underneath the sheet and
+  /// leave the driver looking at a blank navigator.
+  bool _closing = false;
+
+  /// Last failure, shown inline. A SnackBar can't be used while the sheet is
+  /// open: ScaffoldMessenger draws it in the Scaffold *below* this route, so the
+  /// sheet covers it and the driver sees a dead button.
+  String? _notice;
 
   Future<void> _run(Future<void> Function() action) async {
     if (_working) return;
@@ -74,22 +87,35 @@ class _PaywallSheetState extends ConsumerState<_PaywallSheet> {
     ).showSnackBar(SnackBar(content: Text(message)));
   }
 
+  void _close() {
+    if (!mounted || _closing) return;
+    _closing = true;
+    Navigator.of(context).pop();
+  }
+
   Future<void> _startTrial() => _run(() async {
-    final result = await ref.read(trialProvider.notifier).startTrial();
+    final notifier = ref.read(trialProvider.notifier);
+    final result = await notifier.startTrial();
     if (!mounted) return;
     switch (result) {
       case TrialStartResult.started:
         await ref.read(accessProvider.notifier).refresh();
-        if (mounted) Navigator.of(context).pop();
-        _say('Trial started — 7 days of everything.');
+        _close();
       case TrialStartResult.alreadyExpired:
         // The whole point of the server-side start date: a reinstall lands here
         // instead of getting a fresh week (§3.4.1).
-        _say('This Google account already used its free trial.');
+        setState(
+          () => _notice = 'This Google account already used its free trial.',
+        );
       case TrialStartResult.cancelled:
         break; // driver dismissed Google's sheet; say nothing
       case TrialStartResult.failed:
-        _say("Couldn't start the trial. Check your connection and retry.");
+        final why = notifier.lastStartError;
+        setState(
+          () => _notice =
+              "Couldn't start the trial. Check your connection and retry."
+              "${why == null ? '' : '\n($why)'}",
+        );
     }
   });
 
@@ -126,7 +152,7 @@ class _PaywallSheetState extends ConsumerState<_PaywallSheet> {
     // Purchase landed while the sheet was open (Play's flow is asynchronous) —
     // get out of the driver's way.
     ref.listen(entitledProvider, (_, entitled) {
-      if (entitled && mounted) Navigator.of(context).pop();
+      if (entitled) _close();
     });
 
     // ponytail: price read once at build, not watched — BillingStore resolves it
@@ -177,24 +203,16 @@ class _PaywallSheetState extends ConsumerState<_PaywallSheet> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      ClipOval(
-                        child: Image.asset(
-                          'assets/branding/foxyco_bubble.png',
-                          width: 44,
-                          height: 44,
-                          fit: BoxFit.cover,
-                        ),
-                      ),
-                      const SizedBox(width: Gap.sm),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
                               canTrial
-                                  ? 'Try FoxyCo free'
-                                  : 'Unlock FoxyCo forever',
+                                  ? 'Put FoxyCo on your next shift'
+                                  : 'Keep every verdict forever',
                               style: TextStyle(
                                 fontFamily: FoxFonts.display,
                                 fontSize: 22,
@@ -204,8 +222,8 @@ class _PaywallSheetState extends ConsumerState<_PaywallSheet> {
                             ),
                             Text(
                               canTrial
-                                  ? '7 days, everything on. No card needed.'
-                                  : 'One payment. No subscription. Yours for life.',
+                                  ? '7 days free. Then pay once only if it earns its seat.'
+                                  : 'One Google Play purchase. No monthly meter.',
                               style: TextStyle(
                                 fontFamily: FoxFonts.sans,
                                 fontSize: 13,
@@ -215,14 +233,27 @@ class _PaywallSheetState extends ConsumerState<_PaywallSheet> {
                           ],
                         ),
                       ),
+                      const SizedBox(width: Gap.sm),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(Radii.cardSm),
+                        child: Image.asset(
+                          'assets/tips/fox_tip_earnings.png',
+                          width: 76,
+                          height: 76,
+                          fit: BoxFit.cover,
+                          semanticLabel: 'Fox holding shift earnings',
+                        ),
+                      ),
                     ],
                   ),
                   const SizedBox(height: Gap.md),
                   // Anchor the price to the driver's own arithmetic, not to a
                   // competitor's (§6.3 — a hardcoded rival price rots).
-                  const _Bullet('See the verdict before you accept'),
-                  const _Bullet('One avoided bad ride ≈ 30 dead minutes saved'),
-                  const _Bullet('Pay once. Zero monthly fees.'),
+                  const _Bullet('Catch weak \$/km before it eats your shift'),
+                  const _Bullet('One dodged dud can cover the lifetime unlock'),
+                  const _Bullet(
+                    'Pay once. Keep every verdict. No recurring fee.',
+                  ),
                   const SizedBox(height: Gap.md),
                   if (access.licenceKeyMissing)
                     const _Notice(
@@ -242,12 +273,14 @@ class _PaywallSheetState extends ConsumerState<_PaywallSheet> {
                       "Google Play isn't reachable right now, so buying is off. "
                       'Your trial still works.',
                     ),
+                  if (_notice != null) _Notice(_notice!),
                   if (canTrial)
                     _PrimaryButton(
                       label: 'Start 7-day free trial',
                       // Sign-in is what makes the trial unresettable; say so
                       // rather than springing a Google sheet on the driver.
-                      note: 'Signs you in with Google so your trial follows you '
+                      note:
+                          'Signs you in with Google so your trial follows you '
                           'to a new phone.',
                       busy: _working,
                       onTap: _startTrial,

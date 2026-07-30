@@ -34,9 +34,9 @@ const aboutIntro =
     'you set, and shows you a verdict — good, ok, or bad — before you decide. '
     'That is the whole job. It never touches the offer itself.';
 
-/// Version string. Keep in sync with `version:` in pubspec.yaml — deliberately
-/// a plain const rather than a package_info_plus dependency for one label.
-const aboutVersion = '1.0.0 (build 2)';
+/// Version string. Kept as a plain const rather than adding a native plugin for
+/// one label; `about_content_test.dart` guards it against `pubspec.yaml` drift.
+const aboutVersion = '1.0.0 (build 4)';
 
 const aboutSections = <AboutSection>[
   AboutSection(
@@ -75,17 +75,64 @@ const aboutSections = <AboutSection>[
     ],
   ),
   AboutSection(
+    title: 'Trial & lifetime unlock',
+    entries: [
+      AboutEntry(
+        'Is FoxyCo a subscription?',
+        'No. The paid option is one non-consumable Google Play purchase that '
+            'unlocks FoxyCo for life. There is no monthly or annual renewal. '
+            'Google Play shows the final price in your local currency before '
+            'you confirm anything.',
+      ),
+      AboutEntry(
+        'How does the 7-day trial work?',
+        'The trial starts only when you choose Start trial. It turns on every '
+            'verdict for 7 days and does not need a card. Google sign-in ties '
+            'the start date to your account so reinstalling the app or moving '
+            'to a new phone does not restart the clock.',
+      ),
+      AboutEntry(
+        'Why do I sign in with Google?',
+        'Only to keep one trial start date attached to the same account. '
+            'FoxyCo does not use the account for ads or analytics. Your Google '
+            'email appears in Settings → Profile so you can see which account '
+            'is active.',
+      ),
+      AboutEntry(
+        'What happens if I log out?',
+        'Your name, settings, garage and offer history stay on this phone. You '
+            'must sign into the same Google account again to use any remaining '
+            'trial days. A lifetime unlock remains owned by your Play account.',
+      ),
+      AboutEntry(
+        'How do I restore a purchase?',
+        'Open Settings → Unlock and tap Restore purchase while Google Play is '
+            'using the account that bought FoxyCo. Promo-code unlocks restore '
+            'the same way.',
+      ),
+      AboutEntry(
+        'Can I delete my FoxyCo account?',
+        'Yes. Open Settings → Unlock → Delete my account. FoxyCo removes the '
+            'Firebase Auth account. It keeps only a random user ID and the '
+            'trial start time to limit trial abuse; that retained row does not '
+            'contain your email or offer data.',
+      ),
+    ],
+  ),
+  AboutSection(
     title: 'Privacy',
     blurb:
-        'Nothing FoxyCo reads leaves your phone. There is no account, no '
-        'server, and no analytics.',
+        'Offer text, history, garage data and settings stay on your phone. '
+        'Firebase stores only the identity and timestamp needed for the trial. '
+        'There is no Firebase Analytics.',
     entries: [
       AboutEntry(
         'What gets stored?',
-        'Your settings, your garage, and a log of the offers you were shown — '
-            'all in the app\'s own storage on this device. Delete the app and '
-            'it all goes with it. You can also set how long offers are kept, '
-            'or clear the log outright, in Settings.',
+        'On this device: your name, settings, garage, reminders and offer '
+            'history. In Firebase after you start a trial: your Google-backed '
+            'account identity and one server-stamped trial start time. Google '
+            'Play handles purchases; FoxyCo never receives card details. You '
+            'can set how long offers are kept or clear them in Settings.',
       ),
       AboutEntry(
         'Why does it need the accessibility permission?',

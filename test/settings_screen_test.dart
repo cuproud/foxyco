@@ -237,7 +237,7 @@ void main() {
     // it claims. Parser health is the one that moved (it was stranded down by
     // History); assert it now reads inside the Watching band.
     double y(String label) => tester.getTopLeft(find.text(label)).dy;
-    expect(y('YOU & YOUR CAR'), lessThan(y('Driver')));
+    expect(y('YOU & YOUR CAR'), lessThan(y('Profile')));
     expect(y('SCORING'), lessThan(y('Verdict thresholds')));
     expect(y('WATCHING'), lessThan(y('Watched apps')));
     expect(y('Watched apps'), lessThan(y('Parser health')));

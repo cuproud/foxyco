@@ -105,6 +105,15 @@ class OfferWatcher extends Notifier<Offer?> {
   /// while a pill is up; cancelled with it.
   Timer? _idleTimer;
 
+  /// Production logs need enough shape information to retune a parser without
+  /// storing rider names or addresses. Identical partial frames can arrive
+  /// several times a second, so write the same signature at most once per
+  /// interval; parse-health counters still record every miss in memory.
+  String? _lastMissSignature;
+  DateTime? _lastMissLoggedAt;
+  int _suppressedMisses = 0;
+  static const _missLogInterval = Duration(seconds: 10);
+
   @override
   Offer? build() {
     _sub = _watcher.reads().listen(
@@ -214,9 +223,7 @@ class OfferWatcher extends Notifier<Offer?> {
           ref
               .read(parseHealthProvider.notifier)
               .recordCardMiss(parser.platform);
-          ref
-              .read(foxLogProvider)
-              .log('parse', 'MISS card-like frame ${parser.platform.label}');
+          _logCardMiss(parser, read.texts);
         }
         if (kDebugMode) debugPrint('FoxyCo[watch] drop: parse null (low conf)');
         return; // nothing showing — browse/home noise, not a lost card
@@ -318,6 +325,38 @@ class OfferWatcher extends Notifier<Offer?> {
         );
 
     ref.read(overlayControllerProvider.notifier).showFromOffer(offer, verdict);
+  }
+
+  void _logCardMiss(OfferParser parser, List<String> texts) {
+    final joined = texts.join(' ');
+    final signature =
+        '${parser.platform.name}|'
+        'payout=${ParserPatterns.findPayout(texts) != null}|'
+        'legs=${ParserPatterns.leg.allMatches(joined).length}|'
+        'browse=${ParserPatterns.looksLikeBrowse(joined)}|'
+        'scheduled=${ParserPatterns.looksLikeScheduledRideList(joined)}';
+    final now = DateTime.now();
+    if (signature == _lastMissSignature &&
+        _lastMissLoggedAt != null &&
+        now.difference(_lastMissLoggedAt!) < _missLogInterval) {
+      _suppressedMisses++;
+      return;
+    }
+
+    final repeated = signature == _lastMissSignature && _suppressedMisses > 0
+        ? ' repeats=${_suppressedMisses + 1}'
+        : '';
+    _lastMissSignature = signature;
+    _lastMissLoggedAt = now;
+    _suppressedMisses = 0;
+    ref
+        .read(foxLogProvider)
+        .log(
+          'parse',
+          'MISS card-like frame ${parser.platform.label} '
+              '${signature.substring(signature.indexOf('|') + 1)} '
+              'nodes=${texts.length}$repeated',
+        );
   }
 
   /// The offer stayed gone for the whole grace window — really clear now. Stamp

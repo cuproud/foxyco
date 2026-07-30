@@ -107,16 +107,41 @@ public class OverlayService extends Service implements View.OnTouchListener {
         // FoxyCo patch: dismiss-zone view is a second window — drop it too or
         // it leaks (service can die mid-drag: drop-to-close calls stopSelf).
         hideDismissZone();
-        if (windowManager != null) {
-            windowManager.removeView(flutterView);
-            windowManager = null;
-            flutterView.detachFromFlutterEngine();
-            flutterView = null;
-        }
+        if (mTrayTimerTask != null) mTrayTimerTask.cancel();
+        if (mTrayAnimationTimer != null) mTrayAnimationTimer.cancel();
+        mAnimationHandler.removeCallbacksAndMessages(null);
+        removeFlutterView();
         isRunning = false;
         NotificationManager notificationManager = (NotificationManager) getApplicationContext().getSystemService(Context.NOTIFICATION_SERVICE);
         notificationManager.cancel(OverlayConstants.NOTIFICATION_ID);
         instance = null;
+        super.onDestroy();
+    }
+
+    /// Remove the Flutter window defensively. Service restarts, explicit close,
+    /// and Android window teardown can race; removeView throws when the system
+    /// already detached it, and detachFromFlutterEngine must never receive a
+    /// stale/null view.
+    private void removeFlutterView() {
+        WindowManager manager = windowManager;
+        FlutterView view = flutterView;
+        windowManager = null;
+        flutterView = null;
+        if (manager != null && view != null) {
+            try {
+                manager.removeView(view);
+            } catch (IllegalArgumentException ignored) {
+                // The system may already have detached the window while
+                // stopping/restarting the sticky service.
+            }
+        }
+        if (view != null) {
+            try {
+                view.detachFromFlutterEngine();
+            } catch (IllegalStateException ignored) {
+                // Already detached during engine/service teardown.
+            }
+        }
     }
 
     /// FoxyCo patch (device 2026-07-19): swiping FoxyCo out of Recents kills
@@ -135,28 +160,39 @@ public class OverlayService extends Service implements View.OnTouchListener {
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         mResources = getApplicationContext().getResources();
+        // Android restarts START_STICKY services with a null Intent. We cannot
+        // safely recreate a Flutter overlay without the original window setup
+        // and cached engine, so stop cleanly instead of dereferencing the null
+        // Intent and repeatedly crashing the app process.
+        if (intent == null) {
+            Log.w("onStartCommand", "Sticky restart has no overlay setup; stopping");
+            stopSelf();
+            return START_NOT_STICKY;
+        }
         int startX = intent.getIntExtra("startX", OverlayConstants.DEFAULT_XY);
         int startY = intent.getIntExtra("startY", OverlayConstants.DEFAULT_XY);
         boolean isCloseWindow = intent.getBooleanExtra(INTENT_EXTRA_IS_CLOSE_WINDOW, false);
         if (isCloseWindow) {
-            if (windowManager != null) {
-                windowManager.removeView(flutterView);
-                windowManager = null;
-                flutterView.detachFromFlutterEngine();
-                stopSelf();
-            }
+            removeFlutterView();
+            stopSelf();
             isRunning = false;
-            return START_STICKY;
+            return START_NOT_STICKY;
         }
         if (windowManager != null) {
-            windowManager.removeView(flutterView);
-            windowManager = null;
-            flutterView.detachFromFlutterEngine();
-            stopSelf();
+            // A second start command reconfigures the existing service. Calling
+            // stopSelf() here and then adding a new view made onDestroy race the
+            // new window, a plausible intermittent Samsung crash source.
+            removeFlutterView();
         }
         isRunning = true;
         Log.d("onStartCommand", "Service started");
         FlutterEngine engine = FlutterEngineCache.getInstance().get(OverlayConstants.CACHED_TAG);
+        if (engine == null) {
+            Log.e("onStartCommand", "Overlay FlutterEngine is unavailable; stopping");
+            isRunning = false;
+            stopSelf();
+            return START_NOT_STICKY;
+        }
         engine.getLifecycleChannel().appIsResumed();
         // FoxyCo patch: TextureView defaults to OPAQUE — the window's transparent
         // area then composites as a dark box/gradient behind the bubble and pill

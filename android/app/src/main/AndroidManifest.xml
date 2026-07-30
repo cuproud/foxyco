@@ -15,7 +15,10 @@
     <application
         android:label="FoxyCo"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:allowBackup="false"
+        android:fullBackupContent="@xml/backup_rules"
+        android:dataExtractionRules="@xml/data_extraction_rules">
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -46,12 +49,12 @@
             android:foregroundServiceType="specialUse">
             <property
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
-                android:value="Shows a driver's gig-offer verdict over the Uber/Hopp app." />
+                android:value="Shows a driver's gig-offer verdict over Uber, Hopp, or Lyft." />
         </service>
 
         <!-- Accessibility service (flutter_accessibility_service, M3). Reads the
-             on-screen offer text from Uber/Hopp so FoxyCo can score it. Scoped to
-             those two packages and READ-ONLY via @xml/accessibilityservice; the
+             on-screen offer text from Uber/Hopp/Lyft so FoxyCo can score it. Scoped to
+             those three packages and READ-ONLY via @xml/accessibilityservice; the
              description there is the Play-required rationale (AUDIT #1). -->
         <service
             android:name="slayer.accessibility.service.flutter_accessibility_service.AccessibilityListener"

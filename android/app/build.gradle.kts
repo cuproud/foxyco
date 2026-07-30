@@ -9,12 +9,44 @@ plugins {
 }
 
 // Release signing: android/key.properties (gitignored) holds the upload
-// keystore path + passwords. Absent → fall back to debug signing so
-// `flutter run --release` still works on dev machines.
+// keystore path + passwords. Release tasks fail when it is absent: a bundle
+// called "release" but signed by Android Debug is not publishable and is too
+// easy to upload by mistake.
 val keystoreProperties = Properties()
 val keystorePropertiesFile = rootProject.file("key.properties")
 if (keystorePropertiesFile.exists()) {
     keystoreProperties.load(FileInputStream(keystorePropertiesFile))
+}
+val releaseTaskRequested = gradle.startParameter.taskNames.any {
+    it.contains("release", ignoreCase = true)
+}
+val requiredSigningProperties = listOf(
+    "storeFile",
+    "storePassword",
+    "keyAlias",
+    "keyPassword",
+)
+if (releaseTaskRequested) {
+    if (!keystorePropertiesFile.exists()) {
+        throw GradleException(
+            "Release signing is not configured. Copy android/key.properties.example " +
+                "to android/key.properties and point it at the FoxyCo upload keystore."
+        )
+    }
+    val missing = requiredSigningProperties.filter {
+        keystoreProperties.getProperty(it).isNullOrBlank()
+    }
+    if (missing.isNotEmpty()) {
+        throw GradleException(
+            "Missing release-signing values in android/key.properties: ${missing.joinToString()}"
+        )
+    }
+    val configuredStore = file(keystoreProperties.getProperty("storeFile"))
+    if (!configuredStore.isFile) {
+        throw GradleException(
+            "Release keystore does not exist: ${configuredStore.absolutePath}"
+        )
+    }
 }
 
 android {
@@ -38,8 +70,8 @@ android {
     }
 
     signingConfigs {
-        create("release") {
-            if (keystorePropertiesFile.exists()) {
+        if (keystorePropertiesFile.exists()) {
+            create("release") {
                 keyAlias = keystoreProperties["keyAlias"] as String
                 keyPassword = keystoreProperties["keyPassword"] as String
                 storeFile = file(keystoreProperties["storeFile"] as String)
@@ -50,10 +82,8 @@ android {
 
     buildTypes {
         release {
-            signingConfig = if (keystorePropertiesFile.exists()) {
-                signingConfigs.getByName("release")
-            } else {
-                signingConfigs.getByName("debug")
+            if (keystorePropertiesFile.exists()) {
+                signingConfig = signingConfigs.getByName("release")
             }
             // R8: shrink + obfuscate. Keep rules cover the two vendored
             // plugins (accessed reflectively by the Flutter engine).

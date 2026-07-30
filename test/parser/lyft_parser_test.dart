@@ -86,6 +86,26 @@ void main() {
     expect(parser.parse(nodes), isNull);
   });
 
+  test('parses a live card when background map chrome is merged into it', () {
+    // The accessibility service deliberately merges Lyft's card window and
+    // background map window. These browse labels are therefore not proof that
+    // a complete card is absent; the card's Accept + payout + two legs win.
+    final offer = parser.parse([
+      '\$9.01',
+      '3 mins · 0.4 km',
+      '16 mins · 7.2 km',
+      'Accept',
+      'Earnings Goal',
+      'Turbo Zones',
+      'Ride Finder',
+      'Go Online',
+    ]);
+
+    expect(offer, isNotNull);
+    expect(offer!.payout, 9.01);
+    expect(offer.totalKm, closeTo(7.6, 1e-9));
+  });
+
   test('rejects the Ride Finder browse map — bug1 (6)', () {
     // The $37.64 | 3 Turbo/streak banner + a "$10 Lyft · 2 min away" map bubble.
     // No km legs, no Accept, "Ride Finder" marker present. The old parser

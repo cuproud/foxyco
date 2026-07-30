@@ -8,6 +8,13 @@ of it can run on a device until the console work below is done, because there is
 no `android/app/google-services.json` in the repo (it is per-project and not
 ours to invent).
 
+> **Local status, 2026-07-29:** this workspace now has the gitignored JSON.
+> It was inspected as `com.foxyco.app`, contains the debug SHA-1 and a web OAuth
+> client, and initializes through the Google Services Gradle plugin. Steps 1–5
+> were reported complete. Upload-key signing and its SHA-1 are configured; the
+> post-upload Play App Signing SHA-1 is still outstanding because no Play app
+> or first release has been created yet.
+
 > **The Android build FAILS until step 2 is done.** The `com.google.gms.google-services`
 > Gradle plugin is applied in `android/app/build.gradle.kts` and it hard-errors
 > when the JSON is missing. That is deliberate: a build that silently skipped
@@ -52,6 +59,13 @@ Add **both** SHA-1s in Firebase → Project settings → your Android app →
 *Add fingerprint*. Then **re-download `google-services.json`** — the file changes
 when fingerprints are added, and the stale copy is a very confusing failure.
 
+The build now refuses to create a release artifact without real upload-key
+signing. Copy `android/key.properties.example` to `android/key.properties`,
+fill in the four values, and keep both the JKS and passwords in a backed-up
+password manager. The previous debug-signing fallback was removed because its
+output looked publishable but Play could not accept it as the long-term upload
+identity.
+
 ## 4. Turn on the two auth providers
 
 Firebase → Authentication → Sign-in method → enable:
@@ -83,7 +97,8 @@ everything and every trial start fails with `permission-denied`.
 
 ## 6. Play Console: the product and the licensing key
 
-Blocked until the developer account finishes ID verification.
+The developer account is verified. This section remains blocked until the first
+Play Console app is created for `com.foxyco.app`.
 
 1. Monetization → Products → **In-app products** → create
    **`foxyco.lifetime`**, type **non-consumable**, price **$12.99**, then use the

@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  FoxyCo's local data is deliberately device-local. Android Auto Backup used
+  to restore SharedPreferences after an uninstall, including the onboarding
+  completion flag and driver name, so a reinstall skipped the wizard.
+
+  Trial continuity belongs to Firebase; purchase continuity belongs to Play.
+  Neither depends on backing up app-private files.
+-->
+<full-backup-content>
+    <exclude domain="root" path="." />
+    <exclude domain="file" path="." />
+    <exclude domain="database" path="." />
+    <exclude domain="sharedpref" path="." />
+    <exclude domain="external" path="." />
+    <exclude domain="device_root" path="." />
+    <exclude domain="device_file" path="." />
+    <exclude domain="device_database" path="." />
+    <exclude domain="device_sharedpref" path="." />
+</full-backup-content>

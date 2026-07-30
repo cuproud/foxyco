@@ -25,6 +25,7 @@ import '../theme/tokens.dart';
 import 'about_content.dart';
 import 'garage_controller.dart';
 import 'garage_section.dart';
+import 'profile_section.dart';
 import 'reminder_controller.dart';
 import 'reminder_section.dart';
 import 'settings_controller.dart';
@@ -57,7 +58,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   /// A getter, not a `const` list: the verdict green below is theme-varying, so
   /// the list has to be rebuilt after a palette switch.
   static List<Color> get _accents => [
-    FoxColors.brandFox, // 0 Driver — brand orange
+    FoxColors.brandFox, // 0 Profile — brand orange
     const Color(0xFFE8B44F), // 1 Garage — amber
     VerdictColors.good, // 2 Verdict thresholds — the band's green
     const Color(0xFF5EC2CD), // 3 Live preview — teal
@@ -79,7 +80,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   double _samplePpk = 1.25;
   double _samplePph = 25.0;
 
-  /// Single-open accordion index (-1 = all collapsed); Driver open by default.
+  /// Single-open accordion index (-1 = all collapsed); Profile open by default.
   int _open = 0;
   void _toggle(int i) => setState(() => _open = _open == i ? -1 : i);
 
@@ -100,14 +101,21 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     tabs.pendingSection = null;
     setState(() => _open = target);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final ctx = _rowKeys[target].currentContext;
-      if (ctx == null || !mounted) return;
-      Scrollable.ensureVisible(
-        ctx,
-        alignment: 0.08,
-        duration: Motion.morph,
-        curve: Motion.curve,
-      );
+      // Wait for the previously-open group to collapse and the target to grow.
+      // Scrolling against their old heights overshoots once Profile contains
+      // account details, leaving the requested header above the viewport.
+      Future<void>.delayed(Motion.morph, () {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          final ctx = _rowKeys[target].currentContext;
+          if (ctx == null || !mounted) return;
+          Scrollable.ensureVisible(
+            ctx,
+            alignment: 0.08,
+            duration: Motion.morph,
+            curve: Motion.curve,
+          );
+        });
+      });
     });
   }
 
@@ -162,13 +170,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         _staggered(
           0,
           SettingsGroup(
-            title: 'Driver',
+            title: 'Profile',
             icon: Icons.person_outline_rounded,
             summary: driverName.isNotEmpty ? driverName : 'Set your name',
             open: _open == 0,
             accent: _accents[0],
             onTap: () => _toggle(0),
-            child: const DriverNameCard(),
+            child: const ProfileSection(),
           ),
         ),
         const SizedBox(height: Gap.sm),

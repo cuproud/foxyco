@@ -15,6 +15,7 @@ import 'dashboard_state.dart';
 /// derived live from the offer log and settings — no mock data here.
 class DashboardController extends Notifier<DashboardState> {
   StreamSubscription<bool>? _statusSub;
+  Future<void>? _permissionRefresh;
 
   /// When the current live session started; null while stopped. Read by the
   /// shift-recap sheet at stop time. Survives pause (pause ≠ end of shift).
@@ -150,7 +151,23 @@ class DashboardController extends Notifier<DashboardState> {
   /// Off-device (widget tests) the plugin channels aren't registered and
   /// throw; we swallow and keep the current (default) state so tests that
   /// pump the screen bare still render "watching".
-  Future<void> refreshPermissions() async {
+  Future<void> refreshPermissions() {
+    // Startup, app-resume and the accessibility status observer can all request
+    // this check in the same frame. Share one platform-channel round trip so a
+    // single permission transition does not produce duplicate state writes,
+    // log lines and overlay `isActive` calls (device log 2026-07-30).
+    final active = _permissionRefresh;
+    if (active != null) return active;
+
+    late final Future<void> refresh;
+    refresh = _refreshPermissions().whenComplete(() {
+      if (identical(_permissionRefresh, refresh)) _permissionRefresh = null;
+    });
+    _permissionRefresh = refresh;
+    return refresh;
+  }
+
+  Future<void> _refreshPermissions() async {
     try {
       final overlay = await ref
           .read(overlayServiceProvider)
@@ -177,8 +194,27 @@ class DashboardController extends Notifier<DashboardState> {
       } else {
         status = WatchStatus.stopped; // granted but user hasn't started
       }
+      final old = state;
+      final permissionsChanged =
+          old.permissions.overlayGranted != permissions.overlayGranted ||
+          old.permissions.accessibilityGranted !=
+              permissions.accessibilityGranted;
+      final statusChanged = old.status != status;
+      if (!statusChanged && !permissionsChanged) return;
+
       state = _with(status: status, permissions: permissions);
-      ref.read(foxLogProvider).log('status', 'watch → ${status.name}');
+      if (statusChanged) {
+        ref.read(foxLogProvider).log('status', 'watch → ${status.name}');
+      }
+      if (permissionsChanged) {
+        ref
+            .read(foxLogProvider)
+            .log(
+              'permission',
+              'overlay=${permissions.overlayGranted} '
+                  'accessibility=${permissions.accessibilityGranted}',
+            );
+      }
     } catch (e) {
       if (kDebugMode) debugPrint('FoxyCo refreshPermissions skipped: $e');
     }

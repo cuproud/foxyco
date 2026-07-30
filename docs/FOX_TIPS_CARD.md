@@ -1,6 +1,6 @@
 # FoxyCo — Fox Tips Card
 
-**Status:** Design spec, not yet built  
+**Status:** Built 2026-07-29  
 **Location on Home:** Below the Last Session card  
 **Independence:** Self-contained widget, zero coupling to offer parsing or billing
 
@@ -48,7 +48,7 @@ time they open the app.
 lib/ui/home/fox_tips_card.dart     ← the widget, reads from the provider
 lib/domain/fox_tip.dart            ← FoxTip model (category, headline, body, asset)
 lib/services/tips_provider.dart    ← Riverpod provider, returns List<FoxTip>
-assets/tips/                       ← fox PNG illustrations (one per category)
+assets/tips/                       ← optimized 384px fox PNG illustrations
 ```
 
 The widget takes `List<FoxTip>` from the provider and renders. The provider
@@ -92,15 +92,17 @@ class FoxTip {
 
 ## 5. Fox illustration list — images needed
 
-One PNG per category (5 images). Transparent background. Roughly square
-canvas, ~512×512 px minimum (displayed at ~80–100 dp). The fox is the
-FoxyCo mascot — same character as the splash/home car fox.
+The supplied source set was cropped to square and reduced from roughly 14 MB
+to 1.4 MB total at 384×384 px (displayed at 92 dp). The artwork has its own
+dark vignette, so the widget clips it as a deliberate media tile that works in
+both app themes instead of pretending the files have transparent backgrounds.
 
 | Filename | Scene / pose | Used for |
 |---|---|---|
 | `fox_tip_earnings.png` | Fox holding a stack of cash or a coin, looking pleased, maybe sunglasses | Tips #1, #2, #3 (Earnings) |
 | `fox_tip_safety.png` | Fox wearing a seatbelt or a hi-vis vest, calm confident pose | Tips #4, #5 (Safety) |
 | `fox_tip_maintenance.png` | Fox holding a spanner/wrench or crouching next to a tyre, sleeves rolled up | Tips #6, #7, #8 (Maintenance) |
+| `fox_tip_diagnostics.png` | Fox diagnosing a car with a laptop | The service-schedule maintenance tip |
 | `fox_tip_app.png` | Fox pointing at a phone screen or tapping a chart, curious/helpful expression | Tips #9, #10, #11 (App tips) |
 | `fox_tip_giglife.png` | Fox at a small desk with a calculator and notepad, business-like but relaxed | Tip #12 (Gig life) |
 
@@ -141,4 +143,4 @@ file changes needed.
 
 ---
 
-_Last updated: 2026-07-27_
+_Last updated: 2026-07-29_

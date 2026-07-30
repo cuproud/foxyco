@@ -8,12 +8,12 @@ import 'paywall_sheet.dart';
 
 /// The trial/unlock strip at the top of Home (MONETIZATION_v1.0 §4, §3.5).
 ///
-/// Says nothing at all in the common case — a driver inside their trial with
-/// days to spare, or one who has paid, sees no banner. It speaks up only when
-/// there is something to do:
+/// A paid driver sees no banner. During a trial it stays visible as a calm
+/// status indicator, so Home and Settings never appear to disagree about
+/// whether access is active. It also speaks up when there is something to do:
 ///
 ///   • locked (pre-trial or expired) → the ask
-///   • last 3 days of the trial → a countdown
+///   • active trial → the countdown
 ///   • cached verdict about to lapse → "we need to check with Google Play"
 ///
 /// Zero height when silent, so Home's layout doesn't need to know.
@@ -50,9 +50,9 @@ class AccessBanner extends ConsumerWidget {
         Icons.lock_outline_rounded,
         FoxColors.brandFox,
       ),
-      // Countdown only in the last stretch; a daily nag from day one would just
-      // train the driver to ignore this strip.
-      Access(source: AccessSource.trial) when access.trialDaysLeft <= 3 => (
+      // Status, not an upsell: keep Home consistent with Settings for the
+      // entire trial instead of making active access appear to vanish.
+      Access(source: AccessSource.trial) => (
         access.trialDaysLeft <= 1
             ? 'Last day of your free trial'
             : '${access.trialDaysLeft} days left in your free trial',

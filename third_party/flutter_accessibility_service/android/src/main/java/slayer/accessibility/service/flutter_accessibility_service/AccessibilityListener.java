@@ -242,6 +242,14 @@ public class AccessibilityListener extends AccessibilityService {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
+        // START_STICKY may recreate the service with a null Intent after the
+        // process/service is reclaimed. The OS binding, not this started-service
+        // command, owns accessibility monitoring; there is no command to replay.
+        // Upstream dereferenced the null Intent and crash-looped on restart.
+        if (intent == null) {
+            Log.w("CMD_STARTED", "Restarted without an intent; ignoring command");
+            return START_NOT_STICKY;
+        }
         boolean globalAction = intent.getBooleanExtra(INTENT_GLOBAL_ACTION, false);
         boolean systemActions = intent.getBooleanExtra(INTENT_SYSTEM_GLOBAL_ACTIONS, false);
         if (systemActions && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {

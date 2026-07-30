@@ -35,9 +35,18 @@ class LyftParser implements OfferParser {
   Offer? parse(List<String> nodeTexts) {
     final joined = nodeTexts.join(' ');
 
-    // Contract gate 1: takeable + not a browse/map/scheduled screen.
+    // Contract gate 1: takeable + not a scheduled-ride list. The native
+    // reader merges every same-package window so it can see cards drawn over
+    // the map. Consequently a REAL card frame can also contain background
+    // chrome such as "Earnings Goal", "Turbo" or "Ride Finder". Rejecting the
+    // whole merged frame via looksLikeBrowse made those cards invisible
+    // (device logs 2026-07-30: repeated card-like Lyft misses).
+    //
+    // A scheduled-ride list remains an unconditional rejection because it can
+    // itself supply a payout and multiple leg rows, and is the only known Lyft
+    // browse surface that can mimic a complete card shape.
     if (!ParserPatterns.hasAcceptAction(nodeTexts)) return null;
-    if (ParserPatterns.looksLikeBrowse(joined)) return null;
+    if (ParserPatterns.looksLikeScheduledRideList(joined)) return null;
 
     final payout = ParserPatterns.findPayout(nodeTexts);
     final legs = ParserPatterns.leg.allMatches(joined).toList();

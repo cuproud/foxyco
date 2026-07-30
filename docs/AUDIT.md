@@ -182,12 +182,13 @@ Full pass against every risk above, ahead of the first Play submission.
   (fork NPE, messenger ownership) — we already maintain them.
 - **Release hygiene (this sweep):** all `debugPrint`s now `kDebugMode`-guarded
   (release builds log nothing); no commented-out code blocks in `lib/`;
-  `flutter analyze` clean; 155 tests green.
+  `flutter analyze` clean; 243 tests green as of 2026-07-29.
 
 ### Blockers left for Play submission (not code)
 
-1. ~~**Signing wiring**~~ ✅ 2026-07-20: gradle reads `android/key.properties`
-   (gitignored) with debug fallback. ⏳ YOU still must generate the keystore:
+1. ~~**Signing wiring**~~ ✅ hardened 2026-07-29: Gradle reads the gitignored
+   `android/key.properties` and refuses every release task when the file,
+   required values, or JKS is missing. ⏳ YOU still must generate the keystore:
    ```
    keytool -genkeypair -v -keystore ~/foxyco-upload.jks -alias upload \
      -keyalg RSA -keysize 2048 -validity 10000
@@ -195,9 +196,10 @@ Full pass against every risk above, ahead of the first Play submission.
    then write `android/key.properties` (storePassword/keyPassword/keyAlias=upload/
    storeFile) and BACK BOTH UP — losing them loses the Play listing.
 2. ~~**Application ID**~~ ✅ locked `com.foxyco.app` 2026-07-20.
-3. **Play Console papers:** accessibility declaration form, data-safety form
-   (all "no data collected/shared" — true, offline), listing screenshots,
-   privacy-policy URL (required even for offline apps).
+3. **Play Console papers:** accessibility declaration form, listing
+   screenshots, public privacy-policy and account-deletion URLs, and the Data
+   safety form. Declare account email plus trial/purchase state; "no data
+   collected" is no longer true after Firebase trial identity was added.
 4. ~~**R8/shrink**~~ ✅ 2026-07-20: `minifyEnabled` + `shrinkResources` on, keep
    rules for both vendored plugins (`proguard-rules.pro`); release build green.
 
@@ -216,6 +218,25 @@ Full pass against every risk above, ahead of the first Play submission.
 No GPL/AGPL/commercial anywhere in the tree. OFL texts now committed beside the
 fonts (OFL requires shipping the license with the font). Flutter's built-in
 `LicenseRegistry` covers pub packages at runtime; nothing further owed.
+
+### S24 performance/crash re-audit — 2026-07-30
+
+- **Lyft latency:** the reader correctly merges all Lyft windows, but the
+  parser treated background map labels (`Earnings Goal`, `Turbo`, `Ride
+  Finder`) as proof that the merged frame was not an offer. Complete live cards
+  are now allowed through; scheduled-ride lists remain a hard rejection.
+- **Native crash hardening:** both vendored Android services returned
+  `START_STICKY` and dereferenced a restart `Intent` that Android is allowed to
+  deliver as null. Both now stop/ignore that restart safely. Overlay teardown
+  also tolerates an already-detached window and no longer calls `stopSelf()`
+  before continuing to add a replacement view.
+- **Hot-path work:** identical parser-miss file logs are limited to one per 10
+  seconds, simultaneous permission refreshes share one platform-channel call,
+  and hidden `IndexedStack` tabs have their animation tickers muted.
+- **Verification:** 249 Flutter tests, `flutter analyze`, and a native debug APK
+  build pass. The Samsung battery warning is not a crash stack or energy
+  measurement; a real-shift before/after battery sample and Play Vitals/logcat
+  crash trace are still required before marking device performance measured.
 
 ---
 

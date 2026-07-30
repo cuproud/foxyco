@@ -98,6 +98,19 @@ class ParserPatterns {
   );
   static bool looksLikeBrowse(String joined) => _browseMarker.hasMatch(joined);
 
+  /// A scheduled-ride list is the one Lyft browse surface that can resemble a
+  /// complete live card: several listed rides can contribute a payout and two
+  /// or more `min · km` rows, while an `Accept` node from another window may
+  /// leak into the merged accessibility read. Keep this stronger marker
+  /// separate so Lyft can always reject the list without rejecting ordinary
+  /// map chrome that sits behind a genuine offer window.
+  static final _scheduledRideMarker = RegExp(
+    r'scheduled ride',
+    caseSensitive: false,
+  );
+  static bool looksLikeScheduledRideList(String joined) =>
+      _scheduledRideMarker.hasMatch(joined);
+
   /// Any button that appears on a live offer card — Accept/Match (take) or
   /// Decline/Dismiss (reject). Broader than [_acceptAction] (which gates a
   /// strict parse) because for the overlay's *lifecycle* a lone "Decline" frame

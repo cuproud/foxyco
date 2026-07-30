@@ -21,6 +21,7 @@ import '../theme/section_label.dart';
 import '../theme/tokens.dart';
 import 'dashboard_controller.dart';
 import 'dashboard_state.dart';
+import 'fox_tips_card.dart';
 import 'profile_card.dart';
 import 'recap_widgets.dart';
 import 'shift_recap_sheet.dart';
@@ -133,6 +134,10 @@ class HomeScreen extends ConsumerWidget {
             onTap: () => ref.read(tabIndexProvider.notifier).go(1),
           ),
         ),
+        const SizedBox(height: Gap.lg),
+        const _Padded(child: SectionLabel('Fox tips')),
+        const SizedBox(height: Gap.sm + Gap.xs),
+        const _Padded(child: FoxTipsCard()),
         const SizedBox(height: Gap.md),
         Center(
           child: TextButton(

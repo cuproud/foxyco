@@ -197,8 +197,8 @@ exactly what was chosen. See MONETIZATION §3.3.
 **Still accurate from the original code list:**
 - `in_app_purchase` package (first-party Flutter, BSD-3 — license-clean) —
   ✅ implemented 2026-07-28, `lib/services/billing/`
-- Paywall card + "Restore purchase" in Settings — still to build
-- Pill "locked" state in the overlay isolate — still to build
+- Paywall + restore/redeem actions in Settings — ✅ implemented 2026-07-28
+- Pill locked state in the overlay isolate — ✅ implemented 2026-07-28
 
 **No longer accurate:**
 - ~~`TrialGate` service mirroring `OnboardingGate`~~ — `TrialGate` still

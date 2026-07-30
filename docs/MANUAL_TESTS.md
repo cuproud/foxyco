@@ -503,7 +503,7 @@ _Last updated: 2026-07-25 (M12: polish pass + light theme; white car card + abov
 | M13.1 | On **History**, press system back (gesture or button) | Lands on **Home**, app still open. Press back again → app goes to background | [ ] |
 | M13.2 | Same from **Settings** | Same: back = Home first, only then out | [ ] |
 | M13.3 | On Home, press back straight away | Leaves the app immediately (no extra tap swallowed) | [ ] |
-| M13.4 | Home hero, tap the **app badges** on the status row | Settings opens with **Watched apps** already expanded and scrolled into view — not the top of the list with Driver open | [ ] |
+| M13.4 | Home hero, tap the **app badges** on the status row | Settings opens with **Watched apps** already expanded and scrolled into view — not the top of the list with Profile open | [ ] |
 | M13.5 | With a reminder due, tap the **amber reminder banner** | Settings opens with **Garage** expanded and scrolled into view | [ ] |
 | M13.6 | After M13.4, tap the Settings tab by hand | The accordion is left exactly as you had it — the deep link fires once, not every visit | [ ] |
 | M13.7 | Home → **Last session** card (needs one finished shift) | Tapping it switches to **History**. The empty "No sessions yet" card is NOT tappable | [ ] |

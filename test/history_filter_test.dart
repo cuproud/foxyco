@@ -65,6 +65,16 @@ void main() {
     await tester.pumpWidget(_app(const []));
     await tester.pumpAndSettle();
     expect(find.text('Show all'), findsNothing);
-    expect(find.textContaining('No offers'), findsOneWidget);
+    expect(find.text('No offers yet'), findsOneWidget);
+    expect(find.text('Go live and let the fox hunt.'), findsOneWidget);
+    expect(find.byIcon(Icons.search_off), findsNothing);
+    expect(
+      find.image(const AssetImage('assets/history/filter.webp')),
+      findsOneWidget,
+    );
+    expect(
+      find.image(const AssetImage('assets/history/hunt.webp')),
+      findsOneWidget,
+    );
   });
 }
