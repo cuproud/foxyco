@@ -28,13 +28,18 @@ class ScreenRead {
 /// the app talks in [ScreenRead]s and `parser/`/`domain/` stay plugin-free.
 ///
 /// Battery discipline (AUDIT #4): the Android service is already scoped to
-/// Uber + Hopp in res/xml, but content-change events still machine-gun, so we
+/// Uber + Hopp + Lyft in res/xml, but content-change events still machine-gun, so we
 ///   1. **debounce** — only parse after the screen settles briefly, and
 ///   2. **dedupe** — drop a read identical to the one we just emitted.
 /// Both cut redundant parses to hit the <300 ms detect→verdict budget without
 /// re-parsing the same frame dozens of times.
 class AccessibilityWatcher {
-  AccessibilityWatcher({this.debounce = const Duration(milliseconds: 250)});
+  // Android's accessibility service already coalesces callbacks with its own
+  // notificationTimeout. Another 250 ms here delayed the newest complete Lyft
+  // frame and could let a later partial frame replace it before parsing. A
+  // short 100 ms trailing throttle still dedupes bursts while materially
+  // improving first-verdict latency.
+  AccessibilityWatcher({this.debounce = const Duration(milliseconds: 100)});
 
   /// How long the screen must settle before we parse (AUDIT #4 debounce).
   final Duration debounce;

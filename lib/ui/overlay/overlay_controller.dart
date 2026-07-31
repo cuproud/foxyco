@@ -35,6 +35,11 @@ final overlayServiceProvider = Provider<OverlayService>(
 class OverlayController extends Notifier<void> {
   StreamSubscription<OverlayAction>? _actionSub;
 
+  /// Overlay start/hide calls cross a platform channel and can finish out of
+  /// order. Serialize status transitions so a slow "start" can never complete
+  /// after a later "stop" and leave a ghost bubble/mask onscreen.
+  Future<void> _statusWork = Future<void>.value();
+
   /// True while a REAL offer pill is on the bubble (demo pills excluded — they
   /// never reach the offer log, so there'd be nothing to open). Decides whether
   /// a bubble tap deep-links to that offer or just foregrounds the app.
@@ -50,12 +55,21 @@ class OverlayController extends Notifier<void> {
     // up without waiting for a change (fixes "bubble only via Simulate", req 11).
     ref.listen<WatchStatus>(
       dashboardProvider.select((s) => s.status),
-      (_, next) => _applyStatus(next),
+      (_, next) => _queueStatus(next),
       fireImmediately: true,
     );
   }
 
   OverlayService get _service => ref.read(overlayServiceProvider);
+
+  void _queueStatus(WatchStatus status) {
+    _statusWork = _statusWork.then((_) => _applyStatus(status)).catchError((
+      Object error,
+      StackTrace stack,
+    ) {
+      ref.read(foxLogProvider).log('error', 'overlay lifecycle: $error');
+    });
+  }
 
   /// Bring the overlay up / dim / tear it down to match [status]. Idempotent and
   /// safe to call when the window is already in the target state (the plugin
@@ -113,7 +127,10 @@ class OverlayController extends Notifier<void> {
   /// [Offer] to the tiny cross-isolate [OverlayPayload], carrying totalMinutes
   /// ($/hr), the pickup split + the driver's near-pickup cutoff (km coloring),
   /// and the driver's chosen pill size.
-  Future<void> showFromOffer(Offer offer, Verdict verdict) {
+  Future<void> showFromOffer(Offer offer, Verdict verdict) async {
+    // A read already in flight may finish just after the driver stops. Never
+    // let that stale result recreate the overlay window.
+    if (ref.read(dashboardProvider).status != WatchStatus.watching) return;
     _pillUp = true;
     final settings = ref.read(settingsProvider);
     // Patch site 1 of 2 (MONETIZATION §4): the payload carries entitlement, the
@@ -126,7 +143,7 @@ class OverlayController extends Notifier<void> {
           'overlay',
           'show ${offer.platform.label} \$${offer.payout} $verdict',
         );
-    return _service.showOffer(
+    await _service.showOffer(
       OverlayPayload(
         verdict: verdict,
         totalKm: offer.totalKm,
@@ -141,6 +158,12 @@ class OverlayController extends Notifier<void> {
         entitled: entitled,
       ),
     );
+    // Stop/pause may have landed while native showOverlay was starting. Clean
+    // up immediately; the serialized status queue will also converge on hide.
+    if (ref.read(dashboardProvider).status != WatchStatus.watching) {
+      _pillUp = false;
+      await _service.hide();
+    }
   }
 
   /// Clear the pill the instant the offer leaves the screen (HANDOFF reqs 6–7):

@@ -318,9 +318,11 @@ your call per person, never automatic.
 - Zero offer-data collection, license-clean, R8 release build green
   (⚠️ was "100% offline" — Firebase adds `INTERNET`; no offer data crosses
   the wire, only auth + a trial timestamp)
-- 217 automated tests + manual device matrix (MANUAL_TESTS.md)
+- 251 automated tests + manual device matrix (MANUAL_TESTS.md)
 - Play Billing: signature verification + acknowledgment
   (`lib/services/billing/`, added 2026-07-28)
+- Seven-day Firebase-backed trial, entitlement gate, paywall, restore/redeem,
+  Home access banner, and in-app account deletion
 
 ### Missing before charging money ❌
 
@@ -329,21 +331,24 @@ Full breakdown with estimates and blockers: **MONETIZATION §7**.
 1. **Play Console account** — $25 one-time, ID verification 1–3 days (§3 step
    1). Blocks the product setup, the licensing key, any real purchase test,
    and the 14-day tester clock. **Start this first — it is calendar time.**
-2. **Firebase project + Google Sign-In + Firestore trial** (MONETIZATION
-   §3.3–3.4.1) — free tier, no card, not blocked by the Play account
-3. **`entitlementProvider` + paywall UI + locked pill** (§4a) — not blocked
-4. **`foxyco.lifetime` product + licensing key** — blocked on item 1
-5. **Anti-piracy layers 2 and 3** (§4b) — layer 1 is done
-6. **Play Console papers** (§3 step 3) — privacy page, Data safety, account
+2. **Finish Firebase console setup** — register the upload-key SHA-1 and verify
+   Google Sign-In plus the Firestore write-once trial on a release install
+3. **`foxyco.lifetime` product + licensing key** — blocked on item 1; build the
+   store bundle with `--dart-define=PLAY_PUBLIC_KEY=...`
+4. **Real billing test** — purchase, pending purchase, acknowledgment, restore,
+   reinstall, and promo-code redemption on an internal-testing build
+5. **Play Console papers** (§3 step 3) — privacy page, Data safety, account
    deletion URL, screenshots
-7. **Upload keystore** — one manual command (AUDIT.md)
-8. **Two SHA-1 registrations in Firebase** — upload key (before any sign-in
-   testing) and Play App Signing key (only exists after the first upload).
+6. **Play App Signing SHA-1 in Firebase** — available only after the first
+   bundle upload.
    Missing the second means sign-in works in debug and fails in production.
-9. **Closed-test cohort** — 12 testers × 14 days, calendar-blocking (§3 step 6)
-10. **`AUDIT.md` update** — it currently verifies a no-INTERNET claim that is
-    no longer true
-11. Real-shift battery numbers on a mid-range phone (AUDIT #4 measure)
+7. **AccessibilityService declaration and review video** — demonstrate that
+   reading offer text is the disclosed core purpose and no taps are automated
+8. **Closed-test cohort** — satisfy the current Play Console requirement shown
+   for this developer account; this is calendar-blocking
+9. **Physical-device release matrix** — real-shift battery numbers, S24
+   crash/ANR evidence, mixed Lyft total+bonus cards, overlay drag/cancel cycles,
+   and rapid watch start/stop
 
 ### Nice-to-have, post-launch
 - More platforms (DoorDash, Grubhub…) — each is a parser + package name
@@ -351,5 +356,5 @@ Full breakdown with estimates and blockers: **MONETIZATION §7**.
 - Localized store listings (ES/PT = big driver demographics)
 
 ---
-_Last updated: 2026-07-28 — annotated for the Firestore-trial decision.
+_Last updated: 2026-07-30 — implementation and release inventory refreshed.
 Entitlement architecture lives in `MONETIZATION_v1.0.md`._

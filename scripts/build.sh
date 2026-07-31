@@ -17,6 +17,7 @@
 #     ./scripts/build.sh aab             # Play App Bundle (.aab, smallest per device)
 #     ./scripts/build.sh --bump          # bump build number (+N) first, then build
 #     ./scripts/build.sh release --bump  # combine freely
+#     PLAY_PUBLIC_KEY='...' ./scripts/build.sh aab  # production Play bundle
 #
 # For the Play Store upload use `aab` — Google re-splits it per device, so
 # installs land ~25MB instead of the ~60MB universal APK. Use `split` for
@@ -89,8 +90,22 @@ echo "▶ FoxyCo build: $MODE${SPLIT:+ ($SPLIT)}  →  $LABEL"
 BUILD_ARGS=("--$MODE")
 [[ "$SPLIT" == "split" ]] && BUILD_ARGS+=("--split-per-abi")
 
+# PurchaseVerifier deliberately defaults to no entitlement when the licensing
+# key is absent. Keep the key outside source control and command output, but do
+# not allow an uploadable Play bundle that can never validate a purchase.
+DEFINE_ARGS=()
+if [[ -n "${PLAY_PUBLIC_KEY:-}" ]]; then
+  DEFINE_ARGS+=("--dart-define=PLAY_PUBLIC_KEY=${PLAY_PUBLIC_KEY}")
+elif [[ "$BUNDLE" == "1" ]]; then
+  echo "✗ PLAY_PUBLIC_KEY is required for a Play App Bundle." >&2
+  echo "  Export the Base64 licensing key from Play Console, then rerun." >&2
+  exit 1
+elif [[ "$MODE" == "release" ]]; then
+  echo "⚠ PLAY_PUBLIC_KEY not set; Play purchase verification is disabled in this APK."
+fi
+
 if [[ "$BUNDLE" == "1" ]]; then
-  flutter build appbundle --release
+  flutter build appbundle --release "${DEFINE_ARGS[@]}"
   src="$ROOT/build/app/outputs/bundle/release/app-release.aab"
   dest="$DIST/FoxyCo-${LABEL}.aab"
   cp "$src" "$dest"
@@ -101,7 +116,7 @@ if [[ "$BUNDLE" == "1" ]]; then
   exit 0
 fi
 
-flutter build apk "${BUILD_ARGS[@]}"
+flutter build apk "${BUILD_ARGS[@]}" "${DEFINE_ARGS[@]}"
 
 APK_DIR="$ROOT/build/app/outputs/flutter-apk"
 

@@ -18,6 +18,8 @@ class _FakeOverlayService implements OverlayService {
   final List<bool> pausedCalls = [];
   bool hidden = false;
   bool watchingStarted = false;
+  Completer<void>? startGate;
+  final List<String> operations = [];
 
   /// Drives actionStream so tests can inject bubble gestures.
   final _actions = StreamController<OverlayAction>.broadcast();
@@ -44,8 +46,11 @@ class _FakeOverlayService implements OverlayService {
 
   @override
   Future<void> startWatching({bool paused = false}) async {
+    operations.add('start-begin');
+    await startGate?.future;
     watchingStarted = true;
     pausedCalls.add(paused);
+    operations.add('start-end');
   }
 
   @override
@@ -61,7 +66,10 @@ class _FakeOverlayService implements OverlayService {
   Future<void> clearPill() async {}
 
   @override
-  Future<void> hide() async => hidden = true;
+  Future<void> hide() async {
+    operations.add('hide');
+    hidden = true;
+  }
 }
 
 ProviderContainer _containerWith(_FakeOverlayService fake) {
@@ -190,6 +198,29 @@ void main() {
 
     expect(c.read(dashboardProvider).status, WatchStatus.stopped);
     expect(fake.hidden, isTrue);
+  });
+
+  test('rapid start then stop cannot leave a late ghost bubble', () async {
+    final fake = _FakeOverlayService()..startGate = Completer<void>();
+    final c = _containerWith(fake);
+    c.read(overlayControllerProvider);
+    await Future<void>.delayed(Duration.zero); // initial stopped → hide
+    fake.operations.clear();
+    fake.hidden = false;
+
+    c.read(dashboardProvider.notifier).startMonitoring();
+    await Future<void>.delayed(Duration.zero); // start enters its gate
+    c.read(dashboardProvider.notifier).stopMonitoring();
+    await Future<void>.delayed(Duration.zero);
+
+    expect(fake.operations, ['start-begin']);
+    fake.startGate!.complete();
+    await Future<void>.delayed(Duration.zero);
+    await Future<void>.delayed(Duration.zero);
+
+    expect(fake.operations, ['start-begin', 'start-end', 'hide']);
+    expect(fake.hidden, isTrue);
+    expect(c.read(dashboardProvider).status, WatchStatus.stopped);
   });
 
   test(

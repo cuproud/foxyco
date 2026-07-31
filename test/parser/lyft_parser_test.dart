@@ -51,6 +51,18 @@ void main() {
     expect(parser.parse(nodes)!.payout, 21.11);
   });
 
+  test('keeps the total when total and bonus share one accessibility node', () {
+    final offer = parser.parse([
+      'Total \$15.00 + \$3.00 bonus included',
+      '4 mins · 0.8 km',
+      '18 mins · 8.2 km',
+      'Accept',
+    ]);
+
+    expect(offer, isNotNull);
+    expect(offer!.payout, 15.00);
+  });
+
   test('returns null with only one leg (fail safe)', () {
     expect(parser.parse(['\$9.01', '3 mins · 0.4 km', 'Accept']), isNull);
   });

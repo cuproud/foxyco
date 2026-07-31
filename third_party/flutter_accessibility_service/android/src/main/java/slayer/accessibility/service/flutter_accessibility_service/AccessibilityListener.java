@@ -90,14 +90,43 @@ public class AccessibilityListener extends AccessibilityService {
         thread.start();
         sWorker = new Handler(thread.getLooper());
     }
+    private final Object eventLock = new Object();
+    private AccessibilityEvent pendingEvent;
+    private boolean eventDrainScheduled = false;
+    private final Runnable eventDrain = this::drainLatestEvent;
 
     @RequiresApi(api = Build.VERSION_CODES.N)
     @Override
     public void onAccessibilityEvent(AccessibilityEvent accessibilityEvent) {
         // Copy: the framework may recycle the event after this callback returns.
         final AccessibilityEvent event = AccessibilityEvent.obtain(accessibilityEvent);
-        sWorker.removeCallbacksAndMessages(null); // coalesce — latest frame wins
-        sWorker.post(() -> processEvent(event));
+        synchronized (eventLock) {
+            // Queue depth one: release the superseded copy instead of removing
+            // a Runnable that still owns it. The old removeCallbacks approach
+            // leaked every discarded AccessibilityEvent on animated screens.
+            if (pendingEvent != null) pendingEvent.recycle();
+            pendingEvent = event;
+            if (!eventDrainScheduled) {
+                eventDrainScheduled = true;
+                sWorker.post(eventDrain);
+            }
+        }
+    }
+
+    private void drainLatestEvent() {
+        AccessibilityEvent event;
+        synchronized (eventLock) {
+            event = pendingEvent;
+            pendingEvent = null;
+        }
+        if (event != null) processEvent(event); // processEvent recycles it
+        synchronized (eventLock) {
+            if (pendingEvent != null) {
+                sWorker.post(eventDrain);
+            } else {
+                eventDrainScheduled = false;
+            }
+        }
     }
 
     @RequiresApi(api = Build.VERSION_CODES.N)
@@ -461,6 +490,12 @@ public class AccessibilityListener extends AccessibilityService {
 
     @Override
     public void onDestroy() {
+        synchronized (eventLock) {
+            sWorker.removeCallbacks(eventDrain);
+            if (pendingEvent != null) pendingEvent.recycle();
+            pendingEvent = null;
+            eventDrainScheduled = false;
+        }
         super.onDestroy();
         instance = null;
         removeOverlay();

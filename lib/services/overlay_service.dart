@@ -96,17 +96,17 @@ class OverlayService {
   /// The overlay runs in a fresh isolate whose listener only attaches after its
   /// first frame — a `shareData` sent the instant `showOverlay` returns can land
   /// before anyone is listening and get dropped (bubble still shows; pill never
-  /// does). So when we just brought the window up, settle briefly then send, and
-  /// send once more as a belt-and-braces against the race.
-  /// ponytail: a fixed delay, not a handshake — the plugin exposes no readiness
-  /// signal. Replace with a real ack if the pill ever flakes.
+  /// does). [startWatching] already spends 250 ms sending its two reset controls,
+  /// so the listener has normally attached by the time it returns. Send the
+  /// offer immediately, then repeat it once only for a newly-created window.
   Future<void> showOffer(OverlayPayload payload) async {
     final wasActive = await FlutterOverlayWindow.isActive();
     await startWatching();
-    if (!wasActive) {
-      await Future<void>.delayed(const Duration(milliseconds: 350));
-    }
     await FlutterOverlayWindow.shareData(payload.toMap());
+    if (!wasActive) {
+      await Future<void>.delayed(const Duration(milliseconds: 120));
+      await FlutterOverlayWindow.shareData(payload.toMap());
+    }
   }
 
   /// Update an already-active overlay to a new offer without re-showing.

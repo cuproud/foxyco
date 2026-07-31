@@ -224,17 +224,31 @@ fonts (OFL requires shipping the license with the font). Flutter's built-in
 - **Lyft latency:** the reader correctly merges all Lyft windows, but the
   parser treated background map labels (`Earnings Goal`, `Turbo`, `Ride
   Finder`) as proof that the merged frame was not an offer. Complete live cards
-  are now allowed through; scheduled-ride lists remain a hard rejection.
+  are now allowed through; scheduled-ride lists remain a hard rejection. A
+  mixed node such as `Total $15.00 + $3.00 bonus included` previously rejected
+  both amounts because it contained the word `bonus`; payout exclusion is now
+  amount-specific, preserving the total while excluding the bonus amount.
 - **Native crash hardening:** both vendored Android services returned
   `START_STICKY` and dereferenced a restart `Intent` that Android is allowed to
   deliver as null. Both now stop/ignore that restart safely. Overlay teardown
   also tolerates an already-detached window and no longer calls `stopSelf()`
-  before continuing to add a replacement view.
+  before continuing to add a replacement view. Accessibility events now use a
+  queue-depth-one latest-event slot and recycle superseded native event copies,
+  avoiding retained events when callbacks are coalesced.
 - **Hot-path work:** identical parser-miss file logs are limited to one per 10
   seconds, simultaneous permission refreshes share one platform-channel call,
-  and hidden `IndexedStack` tabs have their animation tickers muted.
-- **Verification:** 249 Flutter tests, `flutter analyze`, and a native debug APK
-  build pass. The Samsung battery warning is not a crash stack or energy
+  hidden `IndexedStack` tabs have their animation tickers muted, and the Dart
+  reader throttle is 100 ms instead of 250 ms. The first offer is sent as soon
+  as the overlay starts, with one 120 ms startup retry only for a new window.
+- **Overlay lifecycle and mask:** start/hide transitions are serialized so a
+  late native start cannot resurrect a stopped bubble. The dismiss overlay no
+  longer paints a full-width gradient, uses an 8 dp drag threshold, and has a
+  2.5-second safety hide in case Android omits the final drag event.
+- **Verification:** all 251 Flutter tests and `flutter analyze` pass. Native
+  debug and signed/minified release APK builds both succeed after the Java
+  changes. The merged release manifest was inspected and contains the expected
+  overlay, foreground-service, network, biometric, billing, and accessibility
+  declarations. The Samsung battery warning is not a crash stack or energy
   measurement; a real-shift before/after battery sample and Play Vitals/logcat
   crash trace are still required before marking device performance measured.
 

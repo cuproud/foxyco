@@ -45,17 +45,19 @@ class ParserPatterns {
   /// A dollar amount anywhere in a string.
   static final payout = RegExp(r'\$\s?(\d+(?:\.\d{1,2})?)');
 
-  /// Lines whose dollar figure is NOT the payout: tolls, fees, tips, bonuses,
-  /// and rate estimates ("$28.45/hr"). Real device data (Hopp on a 407 trip)
-  /// shows a `Toll Fee • $2.10` node ABOVE the payout, so a naive first-$ match
-  /// grabs the toll. Skip any node mentioning these before taking its amount.
-  static final _notPayout = RegExp(
-    // `extra|quest|promotion`: Uber's home-map Quest banner ("$20 extra for 30
-    // trips") rides along in the same read as a live card now that the a11y
-    // walk merges all same-package windows (device 2026-07-19) — and the map
-    // subtree walks FIRST, so without this filter the Quest $ wins over the
-    // card's payout.
-    r'\b(toll|fee|tip|bonus|surge|extra|quest|promotions?|/\s*hr|per\s*hr|est\.?\s*rate)\b|/hr',
+  /// Dollar amounts that are clearly attached to a non-payout label. This is
+  /// deliberately applied to the text immediately around EACH amount rather
+  /// than to the whole accessibility node: Lyft sometimes exposes
+  /// `Total $15.00 + $3.00 bonus included` as one node. Rejecting that whole
+  /// node loses the real total and caused intermittent Lyft misses.
+  static final _excludedAmountBefore = RegExp(
+    r'(?:toll|fee|tip|bonus|surge|extra|quest|promotions?|per\s*hr|est\.?\s*rate)'
+    r'[^\$]{0,8}$',
+    caseSensitive: false,
+  );
+  static final _excludedAmountAfter = RegExp(
+    r'^\s*(?:/\s*hr|per\s*hr|toll|fee|tip|bonus|surge|extra|quest|'
+    r'promotions?)\b',
     caseSensitive: false,
   );
 
@@ -143,15 +145,21 @@ class ParserPatterns {
   /// return null (and show nothing) than take a number we already flagged wrong.
   static double? findPayout(List<String> nodeTexts) {
     for (final node in nodeTexts) {
-      if (!payout.hasMatch(node)) continue;
-      if (_notPayout.hasMatch(node)) continue;
-      final amount = double.tryParse(payout.firstMatch(node)!.group(1)!);
-      // $0.00 is never an offer — it's Uber's home-map earnings chip ("Home |
-      // $0.00"), which rides in every merged read. Treating it as a payout kept
-      // looksLikeOfferCard true on map frames, so the pill never cleared
-      // (device 2026-07-19).
-      if (amount == null || amount <= 0) continue;
-      return amount;
+      for (final match in payout.allMatches(node)) {
+        final before = node.substring(0, match.start);
+        final after = node.substring(match.end);
+        if (_excludedAmountBefore.hasMatch(before) ||
+            _excludedAmountAfter.hasMatch(after)) {
+          continue;
+        }
+        final amount = double.tryParse(match.group(1)!);
+        // $0.00 is never an offer — it's Uber's home-map earnings chip ("Home |
+        // $0.00"), which rides in every merged read. Treating it as a payout kept
+        // looksLikeOfferCard true on map frames, so the pill never cleared
+        // (device 2026-07-19).
+        if (amount == null || amount <= 0) continue;
+        return amount;
+      }
     }
     return null;
   }

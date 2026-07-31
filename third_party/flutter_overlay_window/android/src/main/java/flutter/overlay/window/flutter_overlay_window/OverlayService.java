@@ -515,14 +515,17 @@ public class OverlayService extends Service implements View.OnTouchListener {
 
     /// FoxyCo patch: visible drop-to-dismiss zone (device 2026-07-19 — the
     /// drag-to-close gesture existed but nothing on screen ever hinted at it).
-    /// While the bubble is dragged, a red-tinted gradient strip with an ✕
-    /// target fades in over the nav-bar area; the ✕ swells + saturates while
-    /// the finger is inside the dismiss band. Removed the moment the drag
-    /// ends. Same window type as the overlay itself and NOT_TOUCHABLE, so it
-    /// can never eat a touch.
+    /// While the bubble is dragged, a compact ✕ target fades in over the
+    /// nav-bar area; the ✕ swells + saturates while the finger is inside the
+    /// dismiss band. The surrounding window stays transparent so Android
+    /// cannot composite a rectangular scrim around the bubble. Removed when
+    /// the drag ends (with a timeout as protection against a missing UP/CANCEL).
+    /// Same window type as the overlay itself and NOT_TOUCHABLE, so it can
+    /// never eat a touch.
     private View dismissZoneView;
     private TextView dismissIcon;
     private boolean dismissHot = false;
+    private final Runnable dismissZoneSafetyHide = this::hideDismissZone;
 
     /// The one predicate for "finger is in the close zone" — the visual (hot
     /// state) and the actual dismiss on ACTION_UP must never disagree.
@@ -537,12 +540,11 @@ public class OverlayService extends Service implements View.OnTouchListener {
         LinearLayout zone = new LinearLayout(ctx);
         zone.setOrientation(LinearLayout.VERTICAL);
         zone.setGravity(Gravity.CENTER_HORIZONTAL | Gravity.BOTTOM);
-        // Soft red wash rising from the bottom edge — reads "danger, drop
-        // here to close" without covering the map.
-        GradientDrawable bg = new GradientDrawable(
-                GradientDrawable.Orientation.BOTTOM_TOP,
-                new int[]{0x66E5352B, 0x00E5352B});
-        zone.setBackground(bg);
+        // Keep the dismiss affordance itself visible, but never paint a
+        // full-width translucent scrim over the driver's app. That scrim was
+        // perceived as a rectangular mask around the bubble and could remain
+        // visible when Android canceled a drag during a window transition.
+        zone.setBackgroundColor(Color.TRANSPARENT);
 
         dismissIcon = new TextView(ctx);
         dismissIcon.setText("✕");
@@ -579,6 +581,8 @@ public class OverlayService extends Service implements View.OnTouchListener {
         try {
             windowManager.addView(zone, lp);
             dismissZoneView = zone;
+            mAnimationHandler.removeCallbacks(dismissZoneSafetyHide);
+            mAnimationHandler.postDelayed(dismissZoneSafetyHide, 2500);
         } catch (Exception e) {
             Log.e("OverlayService", "showDismissZone failed", e);
         }
@@ -586,6 +590,10 @@ public class OverlayService extends Service implements View.OnTouchListener {
 
     private void updateDismissZone(float rawY) {
         if (dismissIcon == null) return;
+        // Every move refreshes the fail-safe. If Android drops ACTION_UP/CANCEL
+        // during a window transition, the target still removes itself.
+        mAnimationHandler.removeCallbacks(dismissZoneSafetyHide);
+        mAnimationHandler.postDelayed(dismissZoneSafetyHide, 2500);
         boolean hot = inDismissZone(rawY);
         if (hot == dismissHot) return;
         dismissHot = hot;
@@ -596,6 +604,7 @@ public class OverlayService extends Service implements View.OnTouchListener {
     }
 
     private void hideDismissZone() {
+        mAnimationHandler.removeCallbacks(dismissZoneSafetyHide);
         if (dismissZoneView == null) return;
         View v = dismissZoneView;
         dismissZoneView = null;
@@ -631,7 +640,8 @@ public class OverlayService extends Service implements View.OnTouchListener {
                 case MotionEvent.ACTION_MOVE:
                     float dx = event.getRawX() - lastX;
                     float dy = event.getRawY() - lastY;
-                    if (!dragging && dx * dx + dy * dy < 25) {
+                    int dragThreshold = dpToPx(8);
+                    if (!dragging && dx * dx + dy * dy < dragThreshold * dragThreshold) {
                         return false;
                     }
                     lastX = event.getRawX();
