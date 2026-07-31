@@ -250,7 +250,7 @@ class _PaywallSheetState extends ConsumerState<_PaywallSheet> {
                   // Anchor the price to the driver's own arithmetic, not to a
                   // competitor's (§6.3 — a hardcoded rival price rots).
                   const _Bullet('Catch weak \$/km before it eats your shift'),
-                  const _Bullet('One dodged dud can cover the lifetime unlock'),
+                  const _Bullet('Avoiding one bad offer can pay for FoxyCo'),
                   const _Bullet(
                     'Pay once. Keep every verdict. No recurring fee.',
                   ),

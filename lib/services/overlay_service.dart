@@ -132,9 +132,12 @@ class OverlayService {
   /// second line of defense alongside [startWatching]'s reset for the same
   /// stale-pill-in-bubble-window bug.
   Future<void> hide() async {
-    if (await FlutterOverlayWindow.isActive()) {
-      await FlutterOverlayWindow.shareData(OverlayControl.clearPill());
-    }
+    // The vendored plugin historically never completed closeOverlay's method
+    // result when no service was running. Besides being unnecessary, calling it
+    // in that state could permanently block the serialized lifecycle queue at
+    // app startup, so the later watching transition never raised the bubble.
+    if (!await FlutterOverlayWindow.isActive()) return;
+    await FlutterOverlayWindow.shareData(OverlayControl.clearPill());
     await FlutterOverlayWindow.closeOverlay();
   }
 }

@@ -318,7 +318,7 @@ your call per person, never automatic.
 - Zero offer-data collection, license-clean, R8 release build green
   (⚠️ was "100% offline" — Firebase adds `INTERNET`; no offer data crosses
   the wire, only auth + a trial timestamp)
-- 251 automated tests + manual device matrix (MANUAL_TESTS.md)
+- 252 automated tests + manual device matrix (MANUAL_TESTS.md)
 - Play Billing: signature verification + acknowledgment
   (`lib/services/billing/`, added 2026-07-28)
 - Seven-day Firebase-backed trial, entitlement gate, paywall, restore/redeem,

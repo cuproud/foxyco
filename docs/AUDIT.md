@@ -243,8 +243,10 @@ fonts (OFL requires shipping the license with the font). Flutter's built-in
 - **Overlay lifecycle and mask:** start/hide transitions are serialized so a
   late native start cannot resurrect a stopped bubble. The dismiss overlay no
   longer paints a full-width gradient, uses an 8 dp drag threshold, and has a
-  2.5-second safety hide in case Android omits the final drag event.
-- **Verification:** all 251 Flutter tests and `flutter analyze` pass. Native
+  2.5-second safety hide in case Android omits the final drag event. The plugin
+  now completes an inactive `closeOverlay` call; Dart also skips that no-op,
+  preventing the initial stopped state from blocking the later watching start.
+- **Verification:** all 252 Flutter tests and `flutter analyze` pass. Native
   debug and signed/minified release APK builds both succeed after the Java
   changes. The merged release manifest was inspected and contains the expected
   overlay, foreground-service, network, biometric, billing, and accessibility

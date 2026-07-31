@@ -131,6 +131,11 @@ public class FlutterOverlayWindowPlugin implements
                 final Intent i = new Intent(context, OverlayService.class);
                 context.stopService(i);
                 result.success(true);
+            } else {
+                // Every MethodChannel call must complete. Leaving this result
+                // unresolved when the window was already closed blocked Dart's
+                // serialized stopped → watching lifecycle forever at startup.
+                result.success(false);
             }
             return;
         } else {
