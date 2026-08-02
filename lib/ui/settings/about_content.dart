@@ -36,7 +36,7 @@ const aboutIntro =
 
 /// Version string. Kept as a plain const rather than adding a native plugin for
 /// one label; `about_content_test.dart` guards it against `pubspec.yaml` drift.
-const aboutVersion = '1.0.0 (build 4)';
+const aboutVersion = '1.0.0 (build 6)';
 
 const aboutSections = <AboutSection>[
   AboutSection(
@@ -65,6 +65,13 @@ const aboutSections = <AboutSection>[
             'between the two is ok. Switch between \$/km and \$/hr in Settings '
             '— each mode keeps its own pair of numbers, since the scales are '
             'about twenty times apart.',
+      ),
+      AboutEntry(
+        'Is FoxyCo made by Uber, Lyft or Hopp?',
+        'No. FoxyCo is an independent app, not affiliated with, authorised by '
+            'or endorsed by any of them — those are their own companies and '
+            'trademarks. FoxyCo just reads what is already on your screen and '
+            'does the arithmetic you would otherwise do in your head.',
       ),
       AboutEntry(
         'What is the pickup distance for?',
@@ -111,6 +118,25 @@ const aboutSections = <AboutSection>[
             'the same way.',
       ),
       AboutEntry(
+        'I was given a code — how do I use it?',
+        'Open Settings → Unlock and tap Redeem code. That opens Google Play, '
+            'where you enter the code; Play then grants the unlock to whichever '
+            'Google account it is signed in with. Come back to FoxyCo and it '
+            'picks the unlock up on its own — tap Restore purchase if it has '
+            'not caught up yet. A code unlocks FoxyCo outright; it is not a '
+            'discount applied at checkout, and it has no cash value.',
+      ),
+      AboutEntry(
+        'Does FoxyCo need an internet connection?',
+        'Not while you are driving. Reading offers, scoring them and showing '
+            'the pill are all done on your phone with no network at all. '
+            'FoxyCo does need to check in with Google roughly once a week to '
+            'confirm your trial or purchase is still valid — it keeps working '
+            'for 7 days between successful checks, and warns you a couple of '
+            'days before that runs out. Open the app once with a signal and '
+            'the clock resets.',
+      ),
+      AboutEntry(
         'Can I delete my FoxyCo account?',
         'Yes. Open Settings → Unlock → Delete my account. FoxyCo removes the '
             'Firebase Auth account. It keeps only a random user ID and the '
@@ -124,7 +150,8 @@ const aboutSections = <AboutSection>[
     blurb:
         'Offer text, history, garage data and settings stay on your phone. '
         'Firebase stores only the identity and timestamp needed for the trial. '
-        'There is no Firebase Analytics.',
+        'There is no Firebase Analytics. The full Privacy Policy and Terms are '
+        'linked at the bottom of this screen.',
     entries: [
       AboutEntry(
         'What gets stored?',

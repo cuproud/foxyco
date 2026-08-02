@@ -84,22 +84,30 @@ class BillingStore extends Notifier<UnlockStatus> {
       state = UnlockStatus.unavailable;
       return;
     }
-    await _loadProduct();
+    if (!await _loadProduct()) {
+      state = UnlockStatus.unavailable;
+      return;
+    }
     // Re-emits every owned purchase through _onPurchases. Doubles as the
     // recovery path for a purchase that was paid for but never acknowledged
     // (app killed mid-flow) — see §3.8.
     await _iap.restorePurchases();
   }
 
-  Future<void> _loadProduct() async {
+  Future<bool> _loadProduct() async {
     try {
       final res = await _iap.queryProductDetails({productId});
       if (res.productDetails.isNotEmpty) {
         _product = res.productDetails.first;
+        // Price is a separate provider so the paywall can rebuild as soon as
+        // Play returns its already-localized string (CA$, US$, etc.).
+        ref.invalidate(billingPriceProvider);
+        return true;
       }
     } catch (e) {
       if (kDebugMode) debugPrint('FoxyCo product query skipped: $e');
     }
+    return false;
   }
 
   Future<void> _onPurchases(List<PurchaseDetails> purchases) async {
@@ -175,3 +183,10 @@ class BillingStore extends Notifier<UnlockStatus> {
 final billingProvider = NotifierProvider<BillingStore, UnlockStatus>(
   BillingStore.new,
 );
+
+/// Google Play's localized display price for the current user's storefront.
+/// Invalidated by [BillingStore] when product details arrive.
+final billingPriceProvider = Provider<String?>((ref) {
+  ref.watch(billingProvider);
+  return ref.read(billingProvider.notifier).price;
+});

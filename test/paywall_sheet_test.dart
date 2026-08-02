@@ -59,6 +59,7 @@ void main() {
         overrides: [
           trialProvider.overrideWith(_FailedTrialStore.new),
           billingProvider.overrideWith(_UnavailableBillingStore.new),
+          billingPriceProvider.overrideWithValue(r'US$9.99'),
           accessProvider.overrideWith(_LockedAccessStore.new),
         ],
         child: MaterialApp(
@@ -77,6 +78,7 @@ void main() {
 
     await tester.tap(find.text('Open paywall'));
     await tester.pumpAndSettle();
+    expect(find.text(r'Unlock now — US$9.99'), findsOneWidget);
     await tester.tap(find.text('Start 7-day free trial'));
     await tester.pumpAndSettle();
 
@@ -127,6 +129,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Open paywall'));
     await tester.pumpAndSettle();
+    expect(find.text('Unlock now with Google Play'), findsOneWidget);
     await tester.tap(find.text('Start 7-day free trial'));
     await tester.pumpAndSettle();
 

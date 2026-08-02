@@ -52,6 +52,11 @@ void main() {
     await tester.tap(find.text('Next'));
     await tester.pumpAndSettle();
     expect(find.text('Set your bar'), findsOneWidget);
+    // The page scrolls (small screens, large font scale, and now the consent
+    // line in the footer), so scroll the preset into view before tapping it —
+    // a tap on a half-clipped widget silently misses.
+    await tester.ensureVisible(find.text('Picky'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Picky'));
     await tester.pumpAndSettle();
     expect(container.read(settingsProvider).thresholds.goodAtOrAbove, 1.8);

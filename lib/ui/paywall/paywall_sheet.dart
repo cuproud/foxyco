@@ -7,11 +7,6 @@ import '../../services/billing/entitlement.dart';
 import '../../services/billing/trial_store.dart';
 import '../theme/tokens.dart';
 
-/// Price shown before Play answers `queryProductDetails` (MONETIZATION §2, §10).
-/// Play's own localized string replaces it the moment it arrives — never show
-/// this to a driver in a country where it isn't what they'd be charged.
-const _fallbackPrice = r'$12.99';
-
 /// Where the driver goes to redeem a Play promo code (§6.1). Play has no
 /// in-app redemption API for one-time products; this is the supported path.
 const _redeemUrl = 'https://play.google.com/redeem';
@@ -155,12 +150,15 @@ class _PaywallSheetState extends ConsumerState<_PaywallSheet> {
       if (entitled) _close();
     });
 
-    // ponytail: price read once at build, not watched — BillingStore resolves it
-    // within a second of app start and this sheet only opens on a user tap much
-    // later. If it ever shows the fallback in a live build, promote price into
-    // the provider's state.
-    final price = ref.read(billingProvider.notifier).price ?? _fallbackPrice;
+    // Play supplies a storefront-localized string (for example CA$12.99 or
+    // US$9.99). Never guess a currency while product details are loading.
+    final price = ref.watch(billingPriceProvider);
     final canTrial = trial.phase == TrialPhase.preTrial;
+    final unlockLabel = price == null
+        ? (canTrial
+              ? 'Unlock now with Google Play'
+              : 'Unlock forever with Google Play')
+        : (canTrial ? 'Unlock now — $price' : 'Unlock forever — $price');
 
     return Container(
       margin: const EdgeInsets.all(Gap.sm),
@@ -287,13 +285,13 @@ class _PaywallSheetState extends ConsumerState<_PaywallSheet> {
                     ),
                   if (canTrial) const SizedBox(height: Gap.sm),
                   _PrimaryButton(
-                    label: canTrial
-                        ? 'Unlock now — $price'
-                        : 'Unlock forever — $price',
+                    label: unlockLabel,
                     note: 'One-time purchase through Google Play.',
                     outlined: canTrial,
                     busy: _working,
-                    onTap: unlock == UnlockStatus.unavailable ? null : _buy,
+                    onTap: unlock == UnlockStatus.unavailable || price == null
+                        ? null
+                        : _buy,
                   ),
                   const SizedBox(height: Gap.sm),
                   Row(

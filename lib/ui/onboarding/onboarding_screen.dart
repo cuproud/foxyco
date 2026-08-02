@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../domain/thresholds.dart';
 import '../../services/accessibility/accessibility_watcher.dart';
 import '../home/dashboard_controller.dart';
+import '../legal/legal_links.dart';
 import '../overlay/overlay_controller.dart';
 import '../settings/garage_controller.dart';
 import '../settings/settings_controller.dart';
@@ -166,7 +167,14 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
               ),
             ),
             _Dots(page: _page),
-            const SizedBox(height: Gap.md),
+            const SizedBox(height: Gap.sm),
+            // Click-wrap: assent is given by continuing, so it sits with the
+            // button that continues — not buried in Settings (AUDIT legal).
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: Gap.md),
+              child: LegalConsent(),
+            ),
+            const SizedBox(height: Gap.sm),
             Padding(
               padding: const EdgeInsets.fromLTRB(Gap.md, 0, Gap.md, Gap.sm),
               child: SizedBox(

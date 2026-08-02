@@ -263,12 +263,56 @@ fonts (OFL requires shipping the license with the font). Flutter's built-in
 - [x] Network permission documented + justified — `INTERNET` added 2026-07-28 for trial auth only
       (see #5); ⏳ still re-check the MERGED release manifest for anything the new Firebase plugins
       pulled in beyond it
-- [ ] Privacy policy + Data safety form say "Account info (email), App activity (trial/purchase
-      state)" — NOT "no data collected"; that answer is now false (`MONETIZATION_v1.0.md` §5)
-- [ ] In-app account deletion reachable (Settings → Unlock) **and** a public deletion URL live
+- [x] Privacy policy + Terms **drafted** (`docs/legal/`) saying "Account info (email), App activity
+      (trial/purchase state)" — NOT "no data collected"; that answer is now false
+      (`MONETIZATION_v1.0.md` §5). ⏳ still to PUBLISH them and mirror into the Data safety form
+- [x] In-app account deletion reachable (Settings → Unlock); ⏳ public deletion URL drafted
+      (`docs/legal/delete-account.md`) but not yet live
 - [ ] Parser fails safe (no confident wrong verdict)
 - [ ] Overlay can't cover Accept/decline on 3 test devices
 - [ ] Battery + overlay-isolate memory profiled, watching idles when paused
 - [ ] Distribution decided (Play with disclosure vs sideload)
 - [ ] Plugin versions pinned in pubspec.lock
 - [ ] Keystore backed up, package name final
+
+
+## M11 legal + money-path sweep — 2026-08-02
+
+Pre-internal-testing pass. Analyzer clean, 259 tests green.
+
+**Fixed**
+1. `about_content.dart` version string had drifted from `pubspec.yaml` (build 4 vs 6) — the
+   guard test was red. Now tracks.
+2. **Trial ignored the offline grace window.** `Access.derive` granted access on
+   `trial.isActive` alone — pure arithmetic against the local clock — so airplane mode plus a
+   rolled-back clock plus cleared app data kept a trial running forever. §3.5 says the cached
+   verdict lapses after 7 days without a successful server check; it now does, for the trial
+   exactly as for a cached purchase. A trial that has NEVER reached the server stays permissive
+   (first launch in a dead zone). Four tests added.
+3. **Offer-log write amplification.** Every scored offer wrote the whole log twice in quick
+   succession (`record`, then `markLatestOutcome`), each a full `jsonEncode` of up to 2000 rows.
+   Writes are now coalesced on a 3s debounce, flushed on container dispose. Destructive edits
+   (clear, purge) still write immediately.
+4. **Legal surface shipped** — `lib/ui/legal/legal_links.dart`: click-wrap consent above the
+   onboarding CTA, and a Terms · Privacy · Delete-my-account footer plus the affiliation
+   disclaimer at the bottom of About. `test/legal_test.dart` guards both against silent removal.
+5. **FAQ corrected and extended** — added the affiliation disclaimer, how a promo code is
+   redeemed, and the offline behaviour (works 7 days between checks) that finding 2 made
+   user-visible. Privacy blurb now points at the published documents.
+
+**Verified, no action**
+- Play Billing Library is **8.0.0** (via `in_app_purchase_android 0.5.2`), so the
+  31 Aug 2026 "Billing 8+ for all new apps and updates" deadline is already met.
+- Out-of-app promo redemptions are handled: `restorePurchases()` runs on resume, which is the
+  `queryPurchasesAsync` behaviour Google requires of any app issuing promo codes.
+- No secrets tracked (`google-services.json`, `key.properties` both ignored); every `debugPrint`
+  is behind `kDebugMode`; `allowBackup=false`; Firestore rules are write-once and own-uid only.
+
+**Still open (console/device work, not code)**
+- `isAccessibilityTool="true"` is required to read Uber's `accessibilityDataSensitive` card views
+  and is simultaneously the single biggest Play-review risk. Write the justification and record
+  the review video BEFORE submitting.
+- Firebase App Check + a Firestore budget alert. Anonymous auth is open by design; without App
+  Check the abuse ceiling is quota cost, not data.
+- Battery/memory profile over a real shift — the vendored listener walks every same-package
+  window per event, and that has never been measured.

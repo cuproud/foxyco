@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
@@ -30,9 +31,24 @@ class OfferLog extends Notifier<List<OfferSummary>> {
 
   @override
   List<OfferSummary> build() {
+    // A queued write must not outlive the container (widget tests dispose it at
+    // tear-down, and a stray timer there is a test failure, not a nicety).
+    ref.onDispose(() {
+      if (_saveTimer != null) {
+        _saveTimer!.cancel();
+        _saveTimer = null;
+        _save();
+      }
+    });
     _load();
     return const [];
   }
+
+  /// Pending coalesced write, or null when the log is already on disk.
+  Timer? _saveTimer;
+
+  /// How long writes are held so a burst becomes one encode.
+  static const _saveDebounce = Duration(seconds: 3);
 
   Future<void> _load() async {
     try {
@@ -51,7 +67,27 @@ class OfferLog extends Notifier<List<OfferSummary>> {
     }
   }
 
+  /// Queue a write instead of making one now.
+  ///
+  /// Persisting is a full `jsonEncode` of the whole list — up to [maxEntries]
+  /// rows — and a scored offer writes TWICE in quick succession: once when it
+  /// lands, once when [markLatestOutcome] stamps take/pass on it. Coalescing
+  /// turns that pair, and any burst of offers, into a single encode. State is
+  /// already updated in memory, so nothing the driver can see waits on this.
+  ///
+  /// Destructive edits (clear, purge) call [_save] directly — those must be on
+  /// disk before the driver can close the app and doubt they happened.
+  void _saveSoon() {
+    _saveTimer?.cancel();
+    _saveTimer = Timer(_saveDebounce, () {
+      _saveTimer = null;
+      _save();
+    });
+  }
+
   Future<void> _save() async {
+    _saveTimer?.cancel();
+    _saveTimer = null;
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(
@@ -97,7 +133,7 @@ class OfferLog extends Notifier<List<OfferSummary>> {
       next = next.where((o) => o.seenAt.isAfter(cutoff)).toList();
     }
     state = next;
-    _save();
+    _saveSoon();
   }
 
   /// Stamp the inferred take/pass outcome onto the most recent offer (the one
@@ -108,7 +144,7 @@ class OfferLog extends Notifier<List<OfferSummary>> {
     final latest = state.first;
     if (latest.outcome != OfferOutcome.unknown) return;
     state = [latest.withOutcome(outcome), ...state.skip(1)];
-    _save();
+    _saveSoon();
   }
 
   /// Drop entries older than [days] (retention purge). Returns removed count.

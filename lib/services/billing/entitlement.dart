@@ -103,8 +103,22 @@ class Access {
     // Age of the trial check, for the day-5 warning. Only worth warning about
     // while the driver actually has something to lose.
     final trialStale = trial.staleness(now);
+
+    // §3.5 applies to the trial exactly as it does to a cached purchase: the
+    // cached verdict is honoured for [offlineGrace] without a successful server
+    // check, then it lapses. Without this an active trial was granted purely on
+    // arithmetic against the local clock — so airplane mode plus a rolled-back
+    // clock plus cleared app data kept the 7 days running forever, which is the
+    // piracy ceiling §3.5 says it is closing.
+    //
+    // A null staleness means we have NEVER reached the server. Kept permissive:
+    // that is a first launch in a dead zone, not a cracker, and locking it would
+    // punish the one driver who cannot do anything about it.
+    final trialUsable =
+        trial.isActive && (trialStale == null || trialStale < offlineGrace);
+
     final goingStale =
-        trial.isActive &&
+        trialUsable &&
         trialStale != null &&
         trialStale > offlineGrace - const Duration(days: 2);
     final graceLeft = trialStale == null
@@ -121,7 +135,7 @@ class Access {
       ),
       _ when unlock == UnlockStatus.purchased => (true, AccessSource.purchase),
       _ when cachedPurchase => (true, AccessSource.cachedPurchase),
-      _ when trial.isActive => (true, AccessSource.trial),
+      _ when trialUsable => (true, AccessSource.trial),
       // Still asking both sides: stay unresolved rather than flashing a paywall
       // at a driver who is only mid-boot.
       _

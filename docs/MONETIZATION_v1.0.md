@@ -422,7 +422,7 @@ Each step is independently shippable and testable.
 |---|---|---|---|
 | 0 | **Play Console account** — $25 one-time, ID verification 1–3 days, merchant profile. Blocks steps 4b, 6 and the 14-day closed test clock. Start it first; it is calendar time, not work time. | — | ✅ signed up 2026-07-28, ⏳ ID verification |
 | 1 | Firebase project setup (dev + prod), `google-services.json` per flavor, anonymous Auth at launch | 0.5 day | ✅ code 2026-07-28 / ⏳ console: `docs/FIREBASE_SETUP.md` §1–2, §4–5 |
-| 1b | **SHA-1 registration (upload key)** in Firebase. Google Sign-In fails without it — must land before step 2, not last. | 0.25 day | ⏳ yours: FIREBASE_SETUP §3 |
+| 1b | **SHA-1 registration (upload key)** in Firebase. Google Sign-In fails without it — must land before step 2, not last. | 0.25 day | ⏳ yours: FIREBASE_SETUP §3 — fingerprint is known, `8E:FB:79:2F:D5:62:7A:9B:B5:BA:17:76:19:2F:6E:67:EC:A8:32:49` (PLAY_RELEASE §0 A2) |
 | 2 | Google Sign-In + `linkWithCredential` **with the `credential-already-in-use` fallback (§3.4.1)**, Firestore trial doc write-once | 0.5 day | ✅ 2026-07-28 `TrialStore.startTrial` |
 | 3 | `TrialGate` service: reads Firestore trial, caches locally, `entitled` bool | 0.5 day | ✅ 2026-07-28 — shipped as `TrialStore` (`lib/services/billing/trial_store.dart`), name changed to match the codebase's `*Store` providers |
 | 4a | `in_app_purchase` dep, `queryPurchases()` + RSA signature verify + `completePurchase()` acknowledgment (§3.8) | 0.5 day | ✅ done 2026-07-28 |
@@ -430,8 +430,8 @@ Each step is independently shippable and testable.
 | 5 | `entitlementProvider` wires TrialGate + Billing result; overlay payload carries `entitled` flag; pill locked state | 0.5 day | ✅ 2026-07-28 — `accessProvider`/`entitledProvider`, `OverlayPayload.entitled`, `LockedPill` |
 | 6 | Paywall sheet + "Restore purchase" + "Redeem code" + Home banner | 0.5 day | ✅ 2026-07-28 — `ui/paywall/` (sheet, `AccessBanner`, Settings → Unlock) |
 | 7 | Anti-piracy layers: random re-verify, packageName check, boring class names | 0.5 day | 🟡 partial — 1-in-5 re-verify done; resign check deferred (see below) |
-| 8 | Account deletion flow (§5.1) + public web URL | 0.5 day | 🟡 in-app path done (Settings → Unlock); ⏳ public URL is yours |
-| 9 | Papers: privacy policy page, Data safety form, manifest INTERNET permission, `AUDIT.md` update | 0.5 day | 🟡 `INTERNET` + `AUDIT.md` done; ⏳ policy page + Data safety form are yours |
+| 8 | Account deletion flow (§5.1) + public web URL | 0.5 day | 🟡 in-app path done (Settings → Unlock); page drafted `docs/legal/delete-account.md`; ⏳ turn on GitHub Pages (PLAY_RELEASE §0 A1) |
+| 9 | Papers: privacy policy page, Data safety form, manifest INTERNET permission, `AUDIT.md` update | 0.5 day | 🟡 `INTERNET` + `AUDIT.md` done; privacy/terms drafted `docs/legal/`; ⏳ publish them + Data safety form (PLAY_RELEASE §0 A1, B5) |
 | 10 | **SHA-1 registration (Play App Signing key)** in Firebase — this key only exists in Play Console *after* the first bundle upload, so it cannot be done earlier. Skipping it means Google Sign-In works in debug and fails in production. | 0.25 day | ⛔ blocked on first upload — FIREBASE_SETUP §7 |
 
 ### Deviations from this plan, and why (2026-07-28 implementation)

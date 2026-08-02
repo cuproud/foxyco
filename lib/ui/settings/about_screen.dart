@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../legal/legal_links.dart';
 import '../theme/tokens.dart';
 import 'about_content.dart';
 
@@ -61,6 +62,8 @@ class AboutScreen extends StatelessWidget {
             const SizedBox(height: Gap.sm),
             _SectionCard(entries: section.entries),
           ],
+          const SizedBox(height: Gap.lg),
+          const LegalFooter(),
         ],
       ),
     );

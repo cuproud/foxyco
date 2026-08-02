@@ -21,10 +21,120 @@
 > | §5 launch playbook | ⚠️ price rows updated |
 > | §6 inventory | ⚠️ refreshed |
 >
+> **Start at §0** — it is the ordered runbook for getting into closed testing.
+> The sections below are the reasoning behind it.
+>
 > **The one change that drives all others:** the app now ships the `INTERNET`
 > permission and a Google account sign-in for the trial. "100% offline"
 > becomes "no offer data ever leaves your phone" — still true, since only
 > auth and a trial timestamp cross the wire.
+
+---
+
+## 0. Closed-test runbook — do this now
+
+_Added 2026-08-02. §1–§6 are the reasoning; this is the ordered list of moves.
+Everything below is a console/web action except C1. Code is done: `flutter
+analyze` clean, 259 tests green, release `.aab` builds and is signed by the
+upload key (verified 2026-08-02)._
+
+### Phase A — no Play Console needed, do it today
+
+| # | Do | Where |
+|---|---|---|
+| A1 | **Publish the legal pages.** GitHub → repo Settings → Pages → Source **"Deploy from a branch"**, branch `main`, folder **`/docs`**. Wait ~1 min, then confirm all three load: `/foxyco/legal/privacy.html`, `/terms.html`, `/delete-account.html`. Those exact URLs are compiled into `lib/ui/legal/legal_links.dart` — if you host them anywhere else, change that file too. | github.com |
+| A2 | **Register the upload-key SHA-1 in Firebase** (build order step 1b — Google Sign-In fails on any signed build without it). Console → Project settings → Your apps → Android → Add fingerprint:<br>`8E:FB:79:2F:D5:62:7A:9B:B5:BA:17:76:19:2F:6E:67:EC:A8:32:49`<br>Then re-download `google-services.json` and replace `android/app/google-services.json`. | console.firebase.google.com |
+| A3 | **Fill the two placeholders** in `docs/legal/*.md` — publisher name and contact email are still in `[brackets]`. A Play reviewer reads these pages. | this repo |
+| A4 | **Record the accessibility consent video** (30–60s screen recording): open FoxyCo → onboarding disclosure screen → enable the service → an offer gets scored. Play asks for it, often after submission; having it ready saves a review round-trip. | phone |
+
+### Phase B — Play Console (blocks everything after it)
+
+1. Confirm **ID verification** finished on the $25 account, and the **payments/merchant profile** is set up (needed to sell `foxyco.lifetime`).
+2. **Create the app** → package `com.foxyco.app`, free, "app".
+3. **Store listing** — title (30), short desc (80), full desc (4000), ≥2 phone screenshots, feature graphic 1024×500. Copy angles in §5.
+4. **Privacy policy URL** → the A1 privacy link. **App content → Data deletion** → the A1 delete-account link.
+5. **Data safety form** — declare **Account info (email)** and **App activity (trial/purchase state)**. Not location, not financial. See §3 for the exact wording and why the old "collects nothing" answer is now wrong.
+6. **Accessibility declaration** — answer with the §3 step 3 text; attach the A4 video if asked.
+7. **Content rating** → Everyone. **Target audience** → 18+.
+8. **Monetization setup** → copy the **licensing key** (base64 RSA blob). This is the `PLAY_PUBLIC_KEY` for C1.
+9. **Products → In-app products** → create `foxyco.lifetime`, **non-consumable**, $12.99, activate it.
+
+### Phase C — build and upload
+
+```bash
+flutter build appbundle --dart-define=PLAY_PUBLIC_KEY=<paste from Phase B step 8>
+# → build/app/outputs/bundle/release/app-release.aab
+```
+
+⚠️ **Do not upload a bundle built without that flag.** `PurchaseVerifier`
+fails closed: no key compiled in → every receipt is rejected → a real payment
+grants nothing. The trial still works, so the bug is invisible until someone
+pays. Also bump `version:` in `pubspec.yaml` before every re-upload — Play
+rejects a duplicate version code.
+
+Then:
+
+1. Upload to **Internal testing** first (live in minutes, just you). Install, run one shift, confirm sign-in works on the *signed* build — that is what A2 protects.
+2. Play Console → **Setup → App signing** → copy the **App signing key certificate SHA-1** (this key only exists after the first upload) → add it as a second fingerprint in Firebase, exactly like A2. This is build-order step 10; skipping it means Google Sign-In works for you and fails for every tester.
+3. Promote the same bundle to **Closed testing**.
+
+### Phase D — the 14-day tester gate (your Facebook/Reddit plan)
+
+**How Play actually gates it:** a closed tester must be *on your tester list*
+before the opt-in link works for them. So the link you post publicly cannot be
+the opt-in link alone. Use a self-serve Google Group as the list — then you
+never collect or paste a single email address by hand.
+
+1. **groups.google.com → Create group.** Name `FoxyCo Testers`, address e.g. `foxyco-testers@googlegroups.com`. Settings: **Who can join → Anyone on the web can join**, **Who can post → Only owners** (it is a list, not a forum), and turn off the welcome email if you like.
+2. **Play Console → Testing → Closed testing → Testers tab → Google Groups** → paste `foxyco-testers@googlegroups.com`. Adding a tester later = they join the group. No new build, no review.
+3. Copy the **opt-in URL**: `https://play.google.com/apps/testing/com.foxyco.app`.
+4. **Post both links, in this order** — joining the group first is the step people skip:
+   - Step 1: join → `https://groups.google.com/g/foxyco-testers`
+   - Step 2: opt in → `https://play.google.com/apps/testing/com.foxyco.app`
+   - Step 3: install from the Play link that appears after opting in.
+5. **Aim for 16–20 joiners**, not 12. The requirement is **12 opted-in testers held for 14 consecutive days** — drop below 12 and the clock pauses, so over-recruit for dropouts. Cap around 20–30 (§4c).
+6. **Ping the group twice** during the 14 days ("open it once this week"). Ghost testers are the usual reason the production questionnaire gets rejected.
+7. Day 15: **Production access questionnaire**. No cooldown if refused — fix and reapply.
+
+**Fallback if group self-join confuses people:** a Google Form collecting
+"your Google account email", then paste the responses into the group's member
+list in one bulk add. Slower, but nobody gets stuck at step 1.
+
+#### Recruitment post
+
+Reddit (r/uberdrivers, r/couriersofreddit, r/AndroidClosedTesting, local
+driver subs) — check each sub's self-promo rule first, some require a flair or
+a mod ping:
+
+> **[Android] Free testers wanted — app that scores ride offers before you accept**
+>
+> I built FoxyCo, an Android app for gig drivers. It reads the offer card from
+> Uber / Lyft / Hopp as it appears and shows a floating pill with $/km, $/hr
+> and a take-it-or-not verdict. Read-only — it never taps accept or decline,
+> that stays yours.
+>
+> Google requires 12 testers for 14 days before I can publish, so I need
+> people willing to keep it installed for two weeks. Free during testing, and
+> you get the 7-day trial after launch like everyone else.
+>
+> 1. Join the tester group: https://groups.google.com/g/foxyco-testers
+> 2. Opt in: https://play.google.com/apps/testing/com.foxyco.app
+> 3. Install and open it once a week — that's the whole ask.
+>
+> Works without driving, if you just want to help: there's a demo offer in the
+> app. Android 8+. Feedback very welcome, that's the point.
+
+Facebook / WhatsApp driver groups — same links, shorter, and ask the admin
+before posting:
+
+> Building an Android app that scores Uber/Lyft/Hopp offers before you accept
+> (floating pill, $/hr + $/km, read-only). Google needs 12 testers for 14 days
+> before I can launch. Free for testers. Join → groups.google.com/g/foxyco-testers,
+> then opt in → play.google.com/apps/testing/com.foxyco.app. Two weeks
+> installed is the whole commitment.
+
+**Do not** post the raw opt-in link alone: people who skip the group get "not
+a tester" and never come back.
 
 ---
 
@@ -318,7 +428,11 @@ your call per person, never automatic.
 - Zero offer-data collection, license-clean, R8 release build green
   (⚠️ was "100% offline" — Firebase adds `INTERNET`; no offer data crosses
   the wire, only auth + a trial timestamp)
-- 252 automated tests + manual device matrix (MANUAL_TESTS.md)
+- 259 automated tests + manual device matrix (MANUAL_TESTS.md)
+- Legal pages drafted (`docs/legal/`) and linked in-app — onboarding click-wrap
+  consent, About footer, affiliation disclaimer (`lib/ui/legal/`)
+- Release `.aab` builds signed by the upload key; upload-key SHA-1 is
+  `8E:FB:79:2F:D5:62:7A:9B:B5:BA:17:76:19:2F:6E:67:EC:A8:32:49`
 - Play Billing: signature verification + acknowledgment
   (`lib/services/billing/`, added 2026-07-28)
 - Seven-day Firebase-backed trial, entitlement gate, paywall, restore/redeem,
@@ -326,7 +440,8 @@ your call per person, never automatic.
 
 ### Missing before charging money ❌
 
-Full breakdown with estimates and blockers: **MONETIZATION §7**.
+Ordered, actionable version of this list: **§0**. Estimates and code-level
+blockers: **MONETIZATION §7**.
 
 1. **Play Console account** — $25 one-time, ID verification 1–3 days (§3 step
    1). Blocks the product setup, the licensing key, any real purchase test,

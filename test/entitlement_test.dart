@@ -154,6 +154,40 @@ void main() {
       );
       expect(a.cacheGoingStale, isFalse);
     });
+
+    test('an unverified trial lapses once past the grace window', () {
+      // The anti-piracy half of §3.5: airplane mode plus a rolled-back clock
+      // used to keep an "active" trial alive forever, because the phase was
+      // pure arithmetic against the local clock. Seven days with no successful
+      // server check now locks it, exactly as a cached purchase locks.
+      final a = derive(
+        trial: trialStartedAgo(
+          const Duration(days: 1),
+          verifiedAgo: const Duration(days: 7, minutes: 1),
+        ),
+      );
+      expect(a.entitled, isFalse);
+      expect(a.source, AccessSource.none);
+    });
+
+    test('and survives right up to the edge of it', () {
+      final a = derive(
+        trial: trialStartedAgo(
+          const Duration(days: 1),
+          verifiedAgo: const Duration(days: 6, hours: 23),
+        ),
+      );
+      expect(a.entitled, isTrue);
+      expect(a.source, AccessSource.trial);
+    });
+
+    test('a trial never yet verified is honoured — dead zone, not a cracker', () {
+      // First launch with no network: startedAt from cache, verifiedAt null.
+      // Locking here punishes the one driver who cannot fix it.
+      final a = derive(trial: trialStartedAgo(const Duration(days: 1)));
+      expect(a.entitled, isTrue);
+      expect(a.source, AccessSource.trial);
+    });
   });
 
   group('tester build kill date (§6)', () {
