@@ -4,6 +4,12 @@
 title: FoxyCo
 description: The gig driver's offer analyzer.
 
+# Google Search Console ownership of https://cuproud.github.io/foxyco/, needed
+# only if we ever chase OAuth brand verification (github.io is GitHub's domain,
+# so the DNS-TXT route is impossible — this is the HTML-tag route). Emitted
+# into <head> by jekyll-seo-tag.
+google_site_verification: 4UAMldiNI0erVEcX0ad7M8sMfM-ntNUh_gj4Kq5nhHM
+
 # superpowers/ holds internal plan transcripts. One of them contains Liquid
 # braces ({{ }}) which abort the Jekyll build and 404 the entire site — and
 # none of it belongs on a public page anyway. Add future non-published dirs
