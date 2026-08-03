@@ -43,9 +43,9 @@ upload key (verified 2026-08-02)._
 | # | Do | Where |
 |---|---|---|
 | A1 | ✅ **Done 2026-08-02.** Legal pages are live on GitHub Pages (`main`, `/docs`) and return 200:<br>`https://cuproud.github.io/foxyco/` (landing)<br>`https://cuproud.github.io/foxyco/legal/privacy.html`<br>`https://cuproud.github.io/foxyco/legal/terms.html`<br>`https://cuproud.github.io/foxyco/legal/delete-account.html`<br>Those exact URLs are compiled into `lib/ui/legal/legal_links.dart` — host them elsewhere and that file must change too. **Pages serves `main`, so legal edits on a feature branch are invisible until merged.** `docs/_config.yml` excludes `superpowers/`: a Liquid brace in one plan transcript fails the Jekyll build, which 404s the whole site. | github.com |
-| A2 | **Register the upload-key SHA-1 in Firebase** (build order step 1b — Google Sign-In fails on any signed build without it). Console → Project settings → Your apps → Android → Add fingerprint:<br>`8E:FB:79:2F:D5:62:7A:9B:B5:BA:17:76:19:2F:6E:67:EC:A8:32:49`<br>Then re-download `google-services.json` and replace `android/app/google-services.json`. | console.firebase.google.com |
+| A2 | ✅ **Done** (verified 2026-08-02). `android/app/google-services.json` already carries both Android OAuth clients — upload key `8efb792fd5627a9bb5ba1776192f6e67eca83249` and debug key `747ad0d4c7e7af31c1f8e110c5df40cf4ba0ad9f` — plus the type-3 web client. Check with:<br>`python3 -c "import json;d=json.load(open('android/app/google-services.json'));[print(o.get('client_type'),o.get('android_info',{}).get('certificate_hash','-')) for c in d['client'] for o in c['oauth_client']]"`<br>Still outstanding is the **Play App Signing** hash — see Phase C step 2, it cannot exist until the first upload. | console.firebase.google.com |
 | A3 | ✅ **Done 2026-08-02.** Publisher name and contact address in `docs/legal/*.md` are now **Vamsi Naradasu / foxyco.dev@gmail.com**. The publisher name must keep matching the Play Console developer name. | this repo |
-| A4 | **OAuth consent screen** (Google Cloud → Google Auth Platform → **Branding**), needed because the trial signs in with Google:<br>Application home page → `https://cuproud.github.io/foxyco/`<br>Privacy policy link → `.../legal/privacy.html`<br>Terms of service link → `.../legal/terms.html`<br>Authorized domain 1 → `cuproud.github.io`<br><br>**Ignore the "Verify branding" warning** — it only gates showing the fox logo on the consent screen; sign-in works without it, and verifying needs Search Console ownership of the domain.<br><br>⚠️ **Do set Audience → Publishing status to "In production".** FoxyCo requests only `openid`/`email`/`profile` (`trial_store.dart` calls `GoogleSignIn.instance.authenticate()` with no custom scopes), which are non-sensitive, so production needs **no Google review**. Left in **"Testing"**, only 100 hand-added users can sign in and their refresh tokens expire after 7 days — that silently breaks the trial for closed testers. | console.cloud.google.com |
+| A4 | **OAuth consent screen** (Google Cloud → Google Auth Platform → **Branding**), needed because the trial signs in with Google:<br>Application home page → `https://cuproud.github.io/foxyco/`<br>Privacy policy link → `.../legal/privacy.html`<br>Terms of service link → `.../legal/terms.html`<br>Authorized domain 1 → `cuproud.github.io`<br><br>**Do not upload a logo, and ignore "Verify branding."** Uploading a custom logo is what *triggers* the verification requirement; with no logo and non-sensitive scopes only, Google asks for nothing. A verification attempt on 2026-08-02 was refused with "home page is not registered to you" — `cuproud.github.io` belongs to GitHub, so satisfying it needs a Search Console URL-prefix property (and the other two refusal reasons, "no purpose stated" and "name mismatch", were artefacts of Google fetching the page while Pages was still 404). Not worth it for a logo on one dialog.<br><br>⚠️ **Do set Audience → Publishing status to "In production".** FoxyCo requests only `openid`/`email`/`profile` (`trial_store.dart` calls `GoogleSignIn.instance.authenticate()` with no custom scopes), which are non-sensitive, so production needs **no Google review**. Left in **"Testing"**, only 100 hand-added users can sign in and their refresh tokens expire after 7 days — that silently breaks the trial for closed testers. | console.cloud.google.com |
 | A5 | **Record the accessibility consent video** (30–60s screen recording): open FoxyCo → onboarding disclosure screen → enable the service → an offer gets scored. Play asks for it, often after submission; having it ready saves a review round-trip. | phone |
 
 ### Phase B — Play Console (blocks everything after it)
@@ -62,9 +62,23 @@ upload key (verified 2026-08-02)._
 
 ### Phase C — build and upload
 
+The licensing key is an RSA **public** key. It is extractable from any shipped
+APK, so recording it here costs nothing and makes the build reproducible:
+
 ```bash
-flutter build appbundle --dart-define=PLAY_PUBLIC_KEY=<paste from Phase B step 8>
+flutter build appbundle --dart-define=PLAY_PUBLIC_KEY=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAqTpiV2mIQJeDVeoIRmabFXEFHtfr1lPWYV56M3GX/fR4D3gqG7YpPRYVKN5JoOB4Pv8qS2Q8VKEv1FGXQODLUxWvhDWSxev0WBHfHUwPS2ZlBbNm+U2dd/Gx9Wf9dvhHZku0oP2hvacWEhHR0Q6Q4Q7TJUxuXoPtkayM6aeagFL7pmw1wUNVKeVyHX9CufKTJdjc48++BACM712kUc5CHpwCcRO5E+MhG9bt0vwWJizNrvNG9iREzPHeMgsaQX5Oeco+sWyC1b5okHiYkmmZMG1Z8S9fqnM8bw90HoA/8EnNkbt/+ZMo4E0D/jzor8RpF+gtTFGMAkzXQilW1OaJqQIDAQAB
 # → build/app/outputs/bundle/release/app-release.aab
+```
+
+✅ **Built and verified 2026-08-02** — `1.0.0+6`, 66.6 MB, signed by the upload
+key (`SHA1: 8E:FB:79:…:32:49`), licensing key confirmed present in the AOT
+snapshot. Ready to upload.
+
+Confirm any future bundle actually carries the key before uploading:
+
+```bash
+unzip -qo build/app/outputs/bundle/release/app-release.aab 'base/lib/arm64-v8a/*' -d /tmp/aabchk
+grep -qa qTpiV2mIQJeDVeoIRmab /tmp/aabchk/base/lib/arm64-v8a/ -r && echo "key present"
 ```
 
 ⚠️ **Do not upload a bundle built without that flag.** `PurchaseVerifier`
