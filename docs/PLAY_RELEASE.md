@@ -42,10 +42,11 @@ upload key (verified 2026-08-02)._
 
 | # | Do | Where |
 |---|---|---|
-| A1 | **Publish the legal pages.** GitHub → repo Settings → Pages → Source **"Deploy from a branch"**, branch `main`, folder **`/docs`**. Wait ~1 min, then confirm all three load: `/foxyco/legal/privacy.html`, `/terms.html`, `/delete-account.html`. Those exact URLs are compiled into `lib/ui/legal/legal_links.dart` — if you host them anywhere else, change that file too. | github.com |
+| A1 | ✅ **Done 2026-08-02.** Legal pages are live on GitHub Pages (`main`, `/docs`) and return 200:<br>`https://cuproud.github.io/foxyco/` (landing)<br>`https://cuproud.github.io/foxyco/legal/privacy.html`<br>`https://cuproud.github.io/foxyco/legal/terms.html`<br>`https://cuproud.github.io/foxyco/legal/delete-account.html`<br>Those exact URLs are compiled into `lib/ui/legal/legal_links.dart` — host them elsewhere and that file must change too. **Pages serves `main`, so legal edits on a feature branch are invisible until merged.** `docs/_config.yml` excludes `superpowers/`: a Liquid brace in one plan transcript fails the Jekyll build, which 404s the whole site. | github.com |
 | A2 | **Register the upload-key SHA-1 in Firebase** (build order step 1b — Google Sign-In fails on any signed build without it). Console → Project settings → Your apps → Android → Add fingerprint:<br>`8E:FB:79:2F:D5:62:7A:9B:B5:BA:17:76:19:2F:6E:67:EC:A8:32:49`<br>Then re-download `google-services.json` and replace `android/app/google-services.json`. | console.firebase.google.com |
-| A3 | **Fill the two placeholders** in `docs/legal/*.md` — publisher name and contact email are still in `[brackets]`. A Play reviewer reads these pages. | this repo |
-| A4 | **Record the accessibility consent video** (30–60s screen recording): open FoxyCo → onboarding disclosure screen → enable the service → an offer gets scored. Play asks for it, often after submission; having it ready saves a review round-trip. | phone |
+| A3 | ✅ **Done 2026-08-02.** Publisher name and contact address in `docs/legal/*.md` are now **Vamsi Naradasu / foxyco.dev@gmail.com**. The publisher name must keep matching the Play Console developer name. | this repo |
+| A4 | **OAuth consent screen** (Google Cloud → Google Auth Platform → **Branding**), needed because the trial signs in with Google:<br>Application home page → `https://cuproud.github.io/foxyco/`<br>Privacy policy link → `.../legal/privacy.html`<br>Terms of service link → `.../legal/terms.html`<br>Authorized domain 1 → `cuproud.github.io`<br><br>**Ignore the "Verify branding" warning** — it only gates showing the fox logo on the consent screen; sign-in works without it, and verifying needs Search Console ownership of the domain.<br><br>⚠️ **Do set Audience → Publishing status to "In production".** FoxyCo requests only `openid`/`email`/`profile` (`trial_store.dart` calls `GoogleSignIn.instance.authenticate()` with no custom scopes), which are non-sensitive, so production needs **no Google review**. Left in **"Testing"**, only 100 hand-added users can sign in and their refresh tokens expire after 7 days — that silently breaks the trial for closed testers. | console.cloud.google.com |
+| A5 | **Record the accessibility consent video** (30–60s screen recording): open FoxyCo → onboarding disclosure screen → enable the service → an offer gets scored. Play asks for it, often after submission; having it ready saves a review round-trip. | phone |
 
 ### Phase B — Play Console (blocks everything after it)
 
@@ -54,7 +55,7 @@ upload key (verified 2026-08-02)._
 3. **Store listing** — title (30), short desc (80), full desc (4000), ≥2 phone screenshots, feature graphic 1024×500. Copy angles in §5.
 4. **Privacy policy URL** → the A1 privacy link. **App content → Data deletion** → the A1 delete-account link.
 5. **Data safety form** — declare **Account info (email)** and **App activity (trial/purchase state)**. Not location, not financial. See §3 for the exact wording and why the old "collects nothing" answer is now wrong.
-6. **Accessibility declaration** — answer with the §3 step 3 text; attach the A4 video if asked.
+6. **Accessibility declaration** — answer with the §3 step 3 text; attach the A5 video if asked.
 7. **Content rating** → Everyone. **Target audience** → 18+.
 8. **Monetization setup** → copy the **licensing key** (base64 RSA blob). This is the `PLAY_PUBLIC_KEY` for C1.
 9. **Products → In-app products** → create `foxyco.lifetime`, **non-consumable**, $12.99, activate it.
