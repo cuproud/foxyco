@@ -8,7 +8,7 @@ description: The gig driver's offer analyzer.
 # only if we ever chase OAuth brand verification (github.io is GitHub's domain,
 # so the DNS-TXT route is impossible — this is the HTML-tag route). Emitted
 # into <head> by jekyll-seo-tag.
-google_site_verification: 4UAMldiNI0erVEcX0ad7M8sMfM-ntNUh_gj4Kq5nhHM
+google_site_verification: "-DYgRJY2SGihE1kqKR7ixMDIQ00EYRKKoULdSSYuRY8"
 
 # superpowers/ holds internal plan transcripts. One of them contains Liquid
 # braces ({{ }}) which abort the Jekyll build and 404 the entire site — and
