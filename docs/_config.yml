@@ -1,0 +1,12 @@
+# GitHub Pages builds this folder (repo Settings → Pages → main, /docs).
+# The site exists for one reason: public Privacy / Terms / account-deletion
+# URLs that Google Play and the OAuth consent screen can link to.
+title: FoxyCo
+description: The gig driver's offer analyzer.
+
+# superpowers/ holds internal plan transcripts. One of them contains Liquid
+# braces ({{ }}) which abort the Jekyll build and 404 the entire site — and
+# none of it belongs on a public page anyway. Add future non-published dirs
+# here rather than deleting them.
+exclude:
+  - superpowers
