@@ -1,4 +1,5 @@
 import '../domain/offer.dart';
+import '../domain/distance_unit.dart';
 import '../domain/platform.dart';
 
 /// One platform's rule for turning a screen's text into an [Offer]. Pure Dart —
@@ -65,11 +66,11 @@ class ParserPatterns {
   /// which use the same dot-line pickup→dropoff card. Tolerant of min/mins and
   /// the separator (middot / bullet / hyphen) between time and distance.
   ///
-  /// Note the REQUIRED "km": a map bubble like "$12 Lyft · 1 min away" has a
+  /// Note the REQUIRED distance unit: a map bubble like "$12 Lyft · 1 min away" has a
   /// time but no distance, so it never counts as a leg — that browse-map noise
   /// (bug1 (8)) can't be stitched into a fake trip.
   static final leg = RegExp(
-    r'(\d+)\s*mins?\s*[·•⋅\-]\s*([\d.]+)\s*km',
+    r'(\d+)\s*mins?\s*[·•⋅\-]\s*([\d.]+)\s*(km|mi|miles?)\b',
     caseSensitive: false,
   );
 
@@ -78,7 +79,7 @@ class ParserPatterns {
   /// screens, and "Ride Finder"/"Go Online" screens never show one, so its
   /// ABSENCE is the single strongest "this isn't an offer" signal.
   static final _acceptAction = RegExp(
-    r'\b(accept|match)\b',
+    r'\b(accept|match|add\s+to\s+queue)\b',
     caseSensitive: false,
   );
   static bool hasAcceptAction(List<String> nodeTexts) =>
@@ -118,7 +119,7 @@ class ParserPatterns {
   /// strict parse) because for the overlay's *lifecycle* a lone "Decline" frame
   /// still means the card is up.
   static final _cardAction = RegExp(
-    r'\b(accept|match|decline|dismiss)\b',
+    r'\b(accept|match|add\s+to\s+queue|decline|dismiss)\b',
     caseSensitive: false,
   );
 
@@ -164,6 +165,65 @@ class ParserPatterns {
     return null;
   }
 
+  /// Promotional amount included in the displayed total. Lyft currently uses
+  /// "Incl. CA$1.73 bonus" / "CA$4.30 in bonuses". Return zero when no
+  /// explicit bonus label exists; a plain dollar value is never guessed.
+  static double findBonus(List<String> nodeTexts) {
+    final bonusLabel = RegExp(r'\bbonus(?:es)?\b', caseSensitive: false);
+    for (final node in nodeTexts) {
+      if (!bonusLabel.hasMatch(node)) continue;
+      // If total and bonus share one node ("Total $15 + $3 bonus"), the
+      // bonus-labeled amount is the final one. Single-amount Lyft lines work
+      // identically.
+      final matches = payout.allMatches(node).toList();
+      final match = matches.lastOrNull;
+      final amount = match == null ? null : double.tryParse(match.group(1)!);
+      if (amount != null && amount > 0) return amount;
+    }
+    return 0;
+  }
+
+  /// Strong positive evidence that an offer from [platform] was accepted.
+  /// These phrases come from the supplied live-trip screenshots and avoid
+  /// rider names/addresses. Ambiguous blank/navigation frames stay unknown.
+  static bool looksLikeAcceptedTrip(
+    GigPlatform platform,
+    List<String> nodeTexts,
+  ) {
+    final normalized = nodeTexts
+        .map(
+          (node) => node.trim().replaceAll(RegExp(r'\s+'), ' ').toLowerCase(),
+        )
+        .where((node) => node.isNotEmpty)
+        .toList();
+    if (platform == GigPlatform.lyft) {
+      // "arrive" is only strong when it is the button node itself. Matching it
+      // in the whole screen can misread instructional or address text.
+      return normalized.any(
+        (node) =>
+            node == 'arrive' ||
+            RegExp(r'\bpassenger notified\b').hasMatch(node) ||
+            RegExp(r'\bslide to (?:pick up|drop off)\b').hasMatch(node),
+      );
+    }
+    final joined = normalized.join(' ');
+    final pattern = switch (platform) {
+      GigPlatform.lyft => throw StateError('handled above'),
+      GigPlatform.uber => RegExp(
+        r'\bpicking\s+up\b|\bwaiting\s+for\s+rider\b|'
+        r'\bstart\s+(?:uber\s*)?(?:x|xl|comfort|share|pool|green|pet|premier|black|connect)\b|'
+        r'\bdropping\s+off\b|'
+        r'\bcomplete\s+(?:uber\s*)?(?:x|xl|comfort|share|pool|green|pet|premier|black|connect)\b',
+        caseSensitive: false,
+      ),
+      GigPlatform.hopp => RegExp(
+        r'navigate\s+to\s+rider|arrive\s+at\s+pickup|start\s+trip|complete\s+trip',
+        caseSensitive: false,
+      ),
+    };
+    return pattern.hasMatch(joined);
+  }
+
   /// Upper bound on timeline legs for a single offer. A normal ride is 2 legs
   /// (pickup + dropoff); a **multi-stop** ride adds one row per stop, so a
   /// 3-stop trip is 5 rows. Beyond this we assume we latched onto a *list* of
@@ -185,12 +245,12 @@ class ParserPatterns {
   foldLegs(List<RegExpMatch> legs) {
     if (legs.length < 2 || legs.length > _maxLegs) return null;
     final pickupMin = double.tryParse(legs.first.group(1)!) ?? 0;
-    final pickupKm = double.tryParse(legs.first.group(2)!) ?? 0;
+    final pickupKm = _legKm(legs.first);
     var tripMin = 0.0;
     var tripKm = 0.0;
     for (final leg in legs.skip(1)) {
       tripMin += double.tryParse(leg.group(1)!) ?? 0;
-      tripKm += double.tryParse(leg.group(2)!) ?? 0;
+      tripKm += _legKm(leg);
     }
     if (pickupKm + tripKm <= 0) return null;
     return (
@@ -199,5 +259,13 @@ class ParserPatterns {
       tripKm: tripKm,
       tripMin: tripMin,
     );
+  }
+
+  static double _legKm(RegExpMatch leg) {
+    final value = double.tryParse(leg.group(2)!) ?? 0;
+    final unit = leg.group(3)?.toLowerCase();
+    return unit == 'mi' || unit?.startsWith('mile') == true
+        ? value * DistanceUnit.kilometresPerMile
+        : value;
   }
 }

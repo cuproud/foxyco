@@ -35,11 +35,12 @@ Append-only. Every locked choice + why, so we don't re-argue it. Open items at b
 
 ## Open — need your call (not blocking M0/M1)
 
-- **Package name** — `com.foxyco.app` placeholder. Lock before first signed build (can't change post-publish).
+- **Package name** — locked and published as `com.foxyco.app`.
 - **Distribution** — Play Store (with accessibility disclosure) vs sideload/direct APK. Decide by M4. See AUDIT #1.
 - **Visual direction** — Kinetic HUD / Aurora Glass / Neo-Tactile (see UI_DESIGN.md). Lock at M5.
-- **Units** — km or mi default? (km assumed; settings toggle either way.)
-- **Third platform** — DoorDash vs Lyft for M6.
+- **Units/currency** — kilometres + CAD default; Settings supports miles and
+  USD labels without FX conversion.
+- **Platforms** — Uber, Lyft and Hopp.
 
 ---
 

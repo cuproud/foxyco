@@ -103,7 +103,13 @@ class _PaywallSheetState extends ConsumerState<_PaywallSheet> {
           () => _notice = 'This Google account already used its free trial.',
         );
       case TrialStartResult.cancelled:
-        break; // driver dismissed Google's sheet; say nothing
+        final why = notifier.lastStartError;
+        setState(
+          () => _notice =
+              'Google sign-in was cancelled. Try again and select the Google '
+              'account that owns your trial.'
+              "${why == null ? '' : '\n($why)'}",
+        );
       case TrialStartResult.failed:
         final why = notifier.lastStartError;
         setState(
@@ -247,7 +253,9 @@ class _PaywallSheetState extends ConsumerState<_PaywallSheet> {
                   const SizedBox(height: Gap.md),
                   // Anchor the price to the driver's own arithmetic, not to a
                   // competitor's (§6.3 — a hardcoded rival price rots).
-                  const _Bullet('Catch weak \$/km before it eats your shift'),
+                  const _Bullet(
+                    'Catch weak per-distance offers before they eat your shift',
+                  ),
                   const _Bullet('Avoiding one bad offer can pay for FoxyCo'),
                   const _Bullet(
                     'Pay once. Keep every verdict. No recurring fee.',

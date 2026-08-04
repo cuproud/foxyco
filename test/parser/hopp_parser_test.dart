@@ -137,4 +137,16 @@ void main() {
     expect(parser.parse(const []), isNull);
     expect(parser.parse(['Go online', 'Current shift']), isNull);
   });
+
+  test('parses US mile timeline into canonical kilometres', () {
+    final offer = parser.parse([
+      '\$8.50',
+      '(NET)',
+      '5 min · 1 mile',
+      '15 min · 3 mi',
+      'Match',
+    ])!;
+    expect(offer.pickupKm, closeTo(1.609344, 1e-9));
+    expect(offer.dropoffKm, closeTo(4.828032, 1e-9));
+  });
 }

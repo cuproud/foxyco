@@ -35,7 +35,9 @@ class LockedPill extends StatelessWidget {
               end: Alignment.bottomRight,
               colors: [Color(0xFF203026), Color(0xFF141C17)],
             ),
-            border: Border.all(color: FoxColors.brandFox.withValues(alpha: 0.7)),
+            border: Border.all(
+              color: FoxColors.brandFox.withValues(alpha: 0.7),
+            ),
             boxShadow: const [
               BoxShadow(
                 color: Color(0x2E141C17),

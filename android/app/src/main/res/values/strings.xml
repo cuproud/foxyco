@@ -5,5 +5,5 @@
       non-accessibility purpose with a user-facing rationale (Play policy,
       docs/AUDIT #1). Keep it honest and specific: read-only, on-device, advisory.
     -->
-    <string name="accessibility_service_description">FoxyCo reads the offer details (pay, distance, time) shown on screen in your Uber, Hopp, and Lyft driver apps, and instantly rates each offer as GOOD, OK, or BAD against the thresholds you set. It only reads these apps, works entirely on your device with no internet, and never taps or changes anything in them — you always accept or decline yourself.</string>
+    <string name="accessibility_service_description">FoxyCo reads offer details (pay, distance, and time) shown in your Uber, Hopp, and Lyft driver apps and rates them against your thresholds. Offer reading and scoring stay on this device. FoxyCo uses internet only for trial sign-in and Google Play purchase checks; it never uploads offer details or taps anything. You always accept or decline yourself.</string>
 </resources>

@@ -63,10 +63,7 @@ class VerdictSplitPills extends StatelessWidget {
                   style: TextStyle(color: color.withValues(alpha: 0.9)),
                 ),
               ],
-              style: TextStyle(
-                fontSize: fontSize,
-                fontWeight: FontWeight.w600,
-              ),
+              style: TextStyle(fontSize: fontSize, fontWeight: FontWeight.w600),
             ),
             maxLines: 1,
           ),

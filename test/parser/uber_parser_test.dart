@@ -129,32 +129,31 @@ void main() {
     expect(offer.dropoffKm, 1.4);
   });
 
-  test('long trip "1 hr 2 min" keeps the hour (device 2026-07-23 \$342/hr bug)',
-      () {
-    // Screenshot_20260723 — $34.22 over a 1 hr 2 min (62 min) trip. Before the
-    // optional-hours fix the regex grabbed only "2 min", so $/hr read ~$342.
-    final offer = parser.parse([
-      'UberX',
-      '\$34.22',
-      '4.86',
-      '4 mins (0.8 km) away',
-      '5700 Yonge St, North York',
-      '1 hr 2 min (54.6 km) trip',
-      '1337 Copley Ct, Milton',
-      'Match',
-    ])!;
-    expect(offer.dropoffMinutes, 62);
-    expect(offer.totalMinutes, 66); // 4 pickup + 62 trip
-    expect(offer.pricePerHour, closeTo(31.11, 0.1)); // NOT ~342
-  });
+  test(
+    'long trip "1 hr 2 min" keeps the hour (device 2026-07-23 \$342/hr bug)',
+    () {
+      // Screenshot_20260723 — $34.22 over a 1 hr 2 min (62 min) trip. Before the
+      // optional-hours fix the regex grabbed only "2 min", so $/hr read ~$342.
+      final offer = parser.parse([
+        'UberX',
+        '\$34.22',
+        '4.86',
+        '4 mins (0.8 km) away',
+        '5700 Yonge St, North York',
+        '1 hr 2 min (54.6 km) trip',
+        '1337 Copley Ct, Milton',
+        'Match',
+      ])!;
+      expect(offer.dropoffMinutes, 62);
+      expect(offer.totalMinutes, 66); // 4 pickup + 62 trip
+      expect(offer.pricePerHour, closeTo(31.11, 0.1)); // NOT ~342
+    },
+  );
 
   test('tags the ride category (tier + radar)', () {
     String? cat(List<String> n) => parser.parse(n)?.category;
     // Plain UberX dispatch.
-    expect(
-      cat(['UberX', '\$9', '15 mins (4.3 km) trip', 'Accept']),
-      'UberX',
-    );
+    expect(cat(['UberX', '\$9', '15 mins (4.3 km) trip', 'Accept']), 'UberX');
     // Comfort dispatch.
     expect(
       cat(['Uber Comfort', '\$12', '15 mins (4.3 km) trip', 'Accept']),
@@ -187,5 +186,17 @@ void main() {
     expect(offer.payout, 6.80);
     expect(offer.pickupKm, 2.8);
     expect(offer.dropoffKm, 5.0);
+  });
+
+  test('parses US mile cards into canonical kilometres', () {
+    final offer = parser.parse([
+      'UberX',
+      '\$12.00',
+      '4 mins (1.0 mi) away',
+      '15 mins (4.0 miles) trip',
+      'Accept',
+    ])!;
+    expect(offer.pickupKm, closeTo(1.609344, 1e-9));
+    expect(offer.dropoffKm, closeTo(6.437376, 1e-9));
   });
 }

@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/decision_engine.dart';
 import '../../domain/offer.dart';
 import '../../domain/offer_summary.dart';
+import '../../domain/platform.dart';
 import '../../domain/verdict.dart';
 import '../../parser/offer_parser.dart';
 import '../../parser/parser_registry.dart';
@@ -49,6 +50,7 @@ class OfferWatcher extends Notifier<Offer?> {
   /// the pill stays until the offer card leaves the screen (see [_onRead]).
   /// Reset when the offer changes or the card is gone.
   String? _shownKey;
+  GigPlatform? _shownPlatform;
 
   /// When the current pill was shown, to enforce a minimum visible time
   /// ([minVisible]) so a card that vanishes almost immediately can't blink the
@@ -229,8 +231,14 @@ class OfferWatcher extends Notifier<Offer?> {
         return; // nothing showing — browse/home noise, not a lost card
       }
       final joined = read.texts.join(' ');
-      final onBrowse = ParserPatterns.looksLikeBrowse(joined);
-      if (!onBrowse && ParserPatterns.looksLikeOfferCard(read.texts)) {
+      final samePlatform = _shownPlatform == parser.platform;
+      final accepted =
+          samePlatform &&
+          ParserPatterns.looksLikeAcceptedTrip(parser.platform, read.texts);
+      final onBrowse = samePlatform && ParserPatterns.looksLikeBrowse(joined);
+      if (!accepted &&
+          !onBrowse &&
+          ParserPatterns.looksLikeOfferCard(read.texts)) {
         // A partial frame of the still-present card. Keep the pill and drop any
         // pending clear so a run of partials can't age it out.
         _clearTimer?.cancel();
@@ -246,7 +254,7 @@ class OfferWatcher extends Notifier<Offer?> {
       if (_clearTimer == null) {
         final shownFor = DateTime.now().difference(_shownAt ?? DateTime.now());
         final floorLeft = minVisible - shownFor;
-        final delay = (!onBrowse && floorLeft > clearGrace)
+        final delay = (!accepted && !onBrowse && floorLeft > clearGrace)
             ? floorLeft
             : clearGrace;
         // Where the app went tells us what the driver did: back to browse/map
@@ -254,12 +262,17 @@ class OfferWatcher extends Notifier<Offer?> {
         // (in-trip nav) means it was taken. Driver-optional (Settings toggle).
         _pendingOutcome = !ref.read(settingsProvider).trackOutcomes
             ? OfferOutcome.unknown
+            : accepted
+            ? OfferOutcome.taken
             : onBrowse
             ? OfferOutcome.missed
-            : OfferOutcome.taken;
+            : OfferOutcome.unknown;
         _clearTimer = Timer(delay, _clearNow);
         if (kDebugMode) {
-          debugPrint('FoxyCo[watch] clear armed (card left, browse=$onBrowse)');
+          debugPrint(
+            'FoxyCo[watch] clear armed '
+            '(accepted=$accepted, browse=$onBrowse)',
+          );
         }
       }
       return; // fail safe — show nothing rather than a wrong verdict
@@ -288,6 +301,7 @@ class OfferWatcher extends Notifier<Offer?> {
     if (verdict == Verdict.unknown) return;
 
     _shownKey = key;
+    _shownPlatform = offer.platform;
     _shownAt = DateTime.now();
     _touchIdle(); // pill is up now — start the silence clock
     state = offer; // expose the latest parsed offer (debug / future tally)
@@ -316,11 +330,13 @@ class OfferWatcher extends Notifier<Offer?> {
             platform: offer.platform,
             verdict: verdict,
             payout: offer.payout,
+            bonus: offer.bonus,
             pickupKm: offer.pickupKm,
             totalKm: offer.totalKm,
             totalMinutes: offer.totalMinutes,
             seenAt: DateTime.now(),
             category: offer.category,
+            isQueued: offer.isQueued,
           ),
         );
 
@@ -368,6 +384,7 @@ class OfferWatcher extends Notifier<Offer?> {
     _idleTimer = null;
     if (_shownKey == null) return;
     _shownKey = null;
+    _shownPlatform = null;
     _shownAt = null;
     state = null;
     final outcome = _pendingOutcome;

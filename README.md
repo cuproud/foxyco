@@ -4,8 +4,8 @@
 whether it's worth taking. Your clever co-driver: spots the good ones, ignores the junk.
 
 - **Platform:** Android (built with **Flutter** — Dart UI, native Android plugins for the system parts)
-- **Model:** 100% free, offline-first, no login, no cloud, no analytics
-- **Package (placeholder):** `com.foxyco.app` — changeable before first release
+- **Model:** 7-day Google-account trial, then one-time lifetime unlock; no subscription or analytics
+- **Package:** `com.foxyco.app` — published and immutable
 - **Status:** feature-complete for v1 (M10) — device-verified core; Play release prep in `docs/PLAY_RELEASE.md`
 
 > **Why "FoxyCo"?** *Foxy* = clever, quick, good at spotting value. *Co* = your co-driver /
@@ -17,12 +17,12 @@ whether it's worth taking. Your clever co-driver: spots the good ones, ignores t
 ## What it does (MVP v0)
 
 ```
-Offer appears on Uber / Hopp
+Offer appears on Uber / Lyft / Hopp
         ↓
-Accessibility plugin reads it (payout $, pickup km, dropoff km)
+Accessibility plugin reads it (payout, pickup, trip distance/time)
         ↓
 total km = pickup + dropoff
-$/km = payout / total km
+rate = payout / total distance (km or mi), or payout / hour
         ↓
 verdict = GOOD / OK / BAD   (driver-set thresholds)
         ↓
@@ -93,13 +93,13 @@ Full spec + the research on how Uber/Hopp lay out their request screens:
 
 ## Decisions locked so far
 
-- **Name:** FoxyCo (package `com.foxyco.app`, placeholder)
+- **Name:** FoxyCo (published package `com.foxyco.app`)
 - **Stack:** Flutter (Dart) + native Android plugins for overlay & accessibility
 - **Scope:** MVP-first (offer analyzer only), architecture scales to full platform later
 - **Overlay:** top pill (dropped from edge) + draggable bubble, single line only
 - **Overlay content:** verdict · total km · payout — no fuel/wear math yet
 - **Thresholds:** driver-set in settings, seeded with defaults
-- **Base platforms:** Uber + Hopp (real screenshots supplied as parser + design base)
+- **Base platforms:** Uber + Lyft + Hopp (real screenshots supplied as parser + design base)
 - **UI visual language:** direction proposed in `docs/UI_DESIGN.md`, locked at M5
 
 Open / deferred items are tracked in [`docs/DECISIONS.md`](docs/DECISIONS.md).

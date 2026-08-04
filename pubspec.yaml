@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.0.0+7
+version: 1.0.8+16
 
 environment:
   sdk: ^3.12.2
@@ -61,7 +61,10 @@ dependencies:
   firebase_core: ^4.12.1
   firebase_auth: ^6.5.6
   cloud_firestore: ^6.7.1
-  google_sign_in: ^7.2.0
+  # 6.x deliberately uses the established Google Play Services account
+  # chooser. The 7.x Android Credential Manager button flow returned a false
+  # `canceled` result on a correctly configured Play-signed release device.
+  google_sign_in: ^6.2.2
   url_launcher: ^6.3.2
 
 dev_dependencies:

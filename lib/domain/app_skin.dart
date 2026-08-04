@@ -1,6 +1,6 @@
 /// Which palette the app paints in. Driver-picked in Settings → Appearance;
-/// dark is the default the app shipped with, light was added for daylight
-/// (device 2026-07-24: the dark theme is unreadable outdoors in the afternoon).
+/// light is the default for daylight/readability; dark remains available for
+/// night shifts (device 2026-07-24: dark was unreadable outdoors).
 ///
 /// Pure Dart, like the rest of `domain/` — the UI maps this to Flutter's
 /// `ThemeMode`.
@@ -17,7 +17,7 @@ enum AppSkin {
   /// One-line description under the label.
   final String blurb;
 
-  /// Null-safe persisted-name lookup; unknown → [dark].
+  /// Null-safe persisted-name lookup; missing/unknown → [light].
   static AppSkin fromName(String? name) =>
-      values.where((s) => s.name == name).firstOrNull ?? AppSkin.dark;
+      values.where((s) => s.name == name).firstOrNull ?? AppSkin.light;
 }

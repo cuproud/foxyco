@@ -370,6 +370,24 @@ public class OverlayService extends Service implements View.OnTouchListener {
         if (flutterView != null) flutterView.setBackgroundColor(Color.TRANSPARENT);
     }
 
+    /// Samsung can replace the TextureView's SurfaceTexture asynchronously
+    /// *after* updateViewLayout returns. Re-applying transparency only before
+    /// the resize therefore still leaves an intermittent grey window-sized box
+    /// around the bubble. Re-assert it on the next frame and once more after
+    /// the compositor has settled; both calls are idempotent.
+    private void keepSurfaceTransparentAfterLayout() {
+        if (flutterView == null) return;
+        Runnable restore = () -> {
+            if (overlayTextureView != null) overlayTextureView.setOpaque(false);
+            if (flutterView != null) {
+                flutterView.setBackgroundColor(Color.TRANSPARENT);
+                flutterView.invalidate();
+            }
+        };
+        flutterView.post(restore);
+        flutterView.postDelayed(restore, 120);
+    }
+
     private void resizeOverlay(int width, int height, boolean enableDrag, boolean centerX, MethodChannel.Result result) {
         if (windowManager != null) {
             WindowManager.LayoutParams params = (WindowManager.LayoutParams) flutterView.getLayoutParams();
@@ -390,6 +408,7 @@ public class OverlayService extends Service implements View.OnTouchListener {
             WindowSetup.enableDrag = enableDrag;
             keepSurfaceTransparent(params);
             windowManager.updateViewLayout(flutterView, params);
+            keepSurfaceTransparentAfterLayout();
             result.success(true);
         } else {
             result.success(false);

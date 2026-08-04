@@ -1,4 +1,6 @@
 import 'app_skin.dart';
+import 'app_currency.dart';
+import 'distance_unit.dart';
 import 'money_font.dart';
 import 'overlay_payload.dart' show PillSize;
 import 'platform.dart';
@@ -46,6 +48,11 @@ class FoxSettings {
   /// Light or dark palette, picked in Settings → Appearance.
   final AppSkin skin;
 
+  /// Display preferences only. Offers stay stored in kilometres and in the
+  /// numeric currency reported by the gig app; no FX conversion is attempted.
+  final DistanceUnit distanceUnit;
+  final AppCurrency currency;
+
   const FoxSettings({
     required this.thresholds,
     required this.hourThresholds,
@@ -56,7 +63,9 @@ class FoxSettings {
     required this.pillSize,
     required this.trackOutcomes,
     this.moneyFont = MoneyFont.inter,
-    this.skin = AppSkin.dark,
+    this.skin = AppSkin.light,
+    this.distanceUnit = DistanceUnit.kilometres,
+    this.currency = AppCurrency.cad,
   });
 
   static const keepForever = 9999;
@@ -78,7 +87,9 @@ class FoxSettings {
     pillSize: PillSize.small,
     trackOutcomes: true,
     moneyFont: MoneyFont.inter,
-    skin: AppSkin.dark,
+    skin: AppSkin.light,
+    distanceUnit: DistanceUnit.kilometres,
+    currency: AppCurrency.cad,
   );
 
   bool watches(GigPlatform p) => watchedApps.contains(p);
@@ -100,6 +111,8 @@ class FoxSettings {
     bool? trackOutcomes,
     MoneyFont? moneyFont,
     AppSkin? skin,
+    DistanceUnit? distanceUnit,
+    AppCurrency? currency,
   }) => FoxSettings(
     thresholds: thresholds ?? this.thresholds,
     hourThresholds: hourThresholds ?? this.hourThresholds,
@@ -111,6 +124,8 @@ class FoxSettings {
     trackOutcomes: trackOutcomes ?? this.trackOutcomes,
     moneyFont: moneyFont ?? this.moneyFont,
     skin: skin ?? this.skin,
+    distanceUnit: distanceUnit ?? this.distanceUnit,
+    currency: currency ?? this.currency,
   );
 
   Map<String, dynamic> toJson() => {
@@ -126,6 +141,8 @@ class FoxSettings {
     'trackOutcomes': trackOutcomes,
     'moneyFont': moneyFont.name,
     'skin': skin.name,
+    'distanceUnit': distanceUnit.name,
+    'currency': currency.name,
   };
 
   factory FoxSettings.fromJson(Map<String, dynamic> j) {
@@ -158,7 +175,9 @@ class FoxSettings {
           d.pillSize,
       trackOutcomes: (j['trackOutcomes'] as bool?) ?? d.trackOutcomes,
       moneyFont: MoneyFont.fromName(j['moneyFont'] as String?),
-    skin: AppSkin.fromName(j['skin'] as String?),
+      skin: AppSkin.fromName(j['skin'] as String?),
+      distanceUnit: DistanceUnit.fromName(j['distanceUnit'] as String?),
+      currency: AppCurrency.fromName(j['currency'] as String?),
     );
   }
 }

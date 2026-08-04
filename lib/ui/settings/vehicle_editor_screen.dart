@@ -243,7 +243,8 @@ class _VehicleEditorScreenState extends ConsumerState<VehicleEditorScreen> {
               // motorbike is legacy (superseded by bike); only offer it when a
               // pre-existing vehicle already uses it.
               for (final t in VehicleType.values)
-                if (t != VehicleType.motorbike || _body == VehicleType.motorbike)
+                if (t != VehicleType.motorbike ||
+                    _body == VehicleType.motorbike)
                   DropdownMenuItem(value: t, child: Text(t.label)),
             ],
             onChanged: (v) => setState(() => _body = v ?? _body),

@@ -155,6 +155,8 @@ class OverlayController extends Notifier<void> {
         hourBadBelow: settings.hourThresholds.badBelow,
         size: settings.pillSize,
         moneyFont: settings.moneyFont,
+        distanceUnit: settings.distanceUnit,
+        currency: settings.currency,
         entitled: entitled,
       ),
     );

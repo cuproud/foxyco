@@ -7,7 +7,9 @@ import '../../domain/offer_summary.dart';
 import '../../domain/platform.dart';
 import '../../domain/verdict.dart';
 import '../../services/offer_log.dart';
+import '../settings/settings_controller.dart';
 import '../theme/platform_badge.dart';
+import '../theme/outcome_style.dart';
 import '../theme/section_label.dart';
 import '../theme/step_button.dart';
 import '../theme/tokens.dart';
@@ -510,7 +512,7 @@ class _TopCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      on ? 'Offers over \$$minFare' : 'Best \$/km, all fares',
+                      on ? 'Offers over \$$minFare' : 'Best rate, all fares',
                       style: TextStyle(
                         fontSize: 12,
                         color: FoxColors.cream.withValues(alpha: 0.55),
@@ -988,13 +990,14 @@ class _AppVerdictChart extends StatelessWidget {
   }
 }
 
-class _OfferRow extends StatelessWidget {
+class _OfferRow extends ConsumerWidget {
   const _OfferRow({required this.offer});
   final OfferSummary offer;
 
   @override
-  Widget build(BuildContext context) {
-    final style = VerdictStyle.of(offer.verdict);
+  Widget build(BuildContext context, WidgetRef ref) {
+    final settings = ref.watch(settingsProvider);
+    final outcome = OutcomeStyle.of(offer.outcome);
     // Locale-aware (12h markets see "6:48 PM", not hardcoded 24h).
     final time = MaterialLocalizations.of(context).formatTimeOfDay(
       TimeOfDay.fromDateTime(offer.seenAt),
@@ -1018,11 +1021,11 @@ class _OfferRow extends StatelessWidget {
               width: 4,
               height: 40,
               decoration: BoxDecoration(
-                color: style.color,
+                color: outcome.color,
                 borderRadius: BorderRadius.circular(2),
                 boxShadow: [
                   BoxShadow(
-                    color: style.color.withValues(alpha: 0.5),
+                    color: outcome.color.withValues(alpha: 0.45),
                     blurRadius: 8,
                   ),
                 ],
@@ -1061,15 +1064,73 @@ class _OfferRow extends StatelessWidget {
                       ],
                     ],
                   ),
-                  const SizedBox(height: 3),
+                  const SizedBox(height: 6),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 4,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 3,
+                        ),
+                        decoration: BoxDecoration(
+                          color: outcome.color.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(Radii.pill),
+                          border: Border.all(
+                            color: outcome.color.withValues(alpha: 0.30),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(outcome.icon, size: 12, color: outcome.color),
+                            const SizedBox(width: 4),
+                            Text(
+                              outcome.label,
+                              style: TextStyle(
+                                fontSize: 10.5,
+                                fontWeight: FontWeight.w700,
+                                color: outcome.color,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (offer.isQueued)
+                        Text(
+                          'QUEUED',
+                          style: TextStyle(
+                            fontSize: 9.5,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.6,
+                            color: FoxColors.textSecondary,
+                          ),
+                        ),
+                      if (offer.bonus > 0)
+                        Text(
+                          '+${settings.currency.prefix}${offer.bonus.toStringAsFixed(2)} bonus',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: VerdictColors.good,
+                            fontFeatures: [FontFeature.tabularFigures()],
+                          ),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
                   Text.rich(
                     TextSpan(
                       children: [
                         TextSpan(
-                          text: '${offer.totalKm.toStringAsFixed(1)} km  ',
+                          text:
+                              '${settings.distanceUnit.distanceFromKm(offer.totalKm).toStringAsFixed(1)} ${settings.distanceUnit.shortLabel}  ',
                         ),
                         TextSpan(
-                          text: '\$${offer.pricePerKm.toStringAsFixed(2)}/km',
+                          text:
+                              '${settings.currency.prefix}${settings.distanceUnit.rateFromPerKm(offer.pricePerKm).toStringAsFixed(2)}/${settings.distanceUnit.shortLabel}',
                           style: TextStyle(
                             color: FoxColors.textPrimary,
                             fontWeight: FontWeight.w700,
@@ -1091,8 +1152,8 @@ class _OfferRow extends StatelessWidget {
               children: [
                 Text(
                   offer.payout == offer.payout.roundToDouble()
-                      ? '\$${offer.payout.toStringAsFixed(0)}'
-                      : '\$${offer.payout.toStringAsFixed(2)}',
+                      ? '${settings.currency.prefix}${offer.payout.toStringAsFixed(0)}'
+                      : '${settings.currency.prefix}${offer.payout.toStringAsFixed(2)}',
                   style: TextStyle(
                     fontFamily: FoxFonts.display,
                     fontSize: 16.5,
@@ -1105,22 +1166,6 @@ class _OfferRow extends StatelessWidget {
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Inferred take/pass marker (icon; unknown → nothing).
-                    if (offer.outcome == OfferOutcome.taken) ...[
-                      Icon(
-                        Icons.check_rounded,
-                        size: 11,
-                        color: VerdictColors.good,
-                      ),
-                      const SizedBox(width: 3),
-                    ] else if (offer.outcome == OfferOutcome.missed) ...[
-                      Icon(
-                        Icons.close_rounded,
-                        size: 11,
-                        color: FoxColors.textDisabled,
-                      ),
-                      const SizedBox(width: 3),
-                    ],
                     Text(
                       time,
                       style: TextStyle(
@@ -1222,7 +1267,7 @@ class _Empty extends StatelessWidget {
 /// Shift-summary rollup over the CURRENTLY FILTERED offers, so the numbers
 /// always mean "for the range/apps you picked". Count-only + two derived
 /// figures — no graphs (MVP).
-class _StatsCard extends StatelessWidget {
+class _StatsCard extends ConsumerWidget {
   const _StatsCard({required this.stats});
 
   final OfferStats stats;
@@ -1235,8 +1280,9 @@ class _StatsCard extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final s = stats;
+    final settings = ref.watch(settingsProvider);
     return Container(
       padding: const EdgeInsets.all(Gap.md + Gap.xs),
       decoration: BoxDecoration(
@@ -1276,16 +1322,16 @@ class _StatsCard extends StatelessWidget {
             child: _Stat(
               label: 'GOOD AVG',
               value: s.goodAvgPerKm > 0
-                  ? '\$${s.goodAvgPerKm.toStringAsFixed(2)}'
+                  ? '${settings.currency.prefix}${settings.distanceUnit.rateFromPerKm(s.goodAvgPerKm).toStringAsFixed(2)}'
                   : '—',
-              sub: '/km',
+              sub: '/${settings.distanceUnit.shortLabel}',
             ),
           ),
           Expanded(
             child: _Stat(
               label: 'BEST',
               value: s.best != null && s.best!.pricePerKm > 0
-                  ? '\$${s.best!.pricePerKm.toStringAsFixed(2)}'
+                  ? '${settings.currency.prefix}${settings.distanceUnit.rateFromPerKm(s.best!.pricePerKm).toStringAsFixed(2)}'
                   : '—',
               sub: s.best != null ? s.best!.platform.label : '',
             ),

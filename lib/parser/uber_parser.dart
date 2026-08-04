@@ -1,4 +1,5 @@
 import '../domain/offer.dart';
+import '../domain/distance_unit.dart';
 import '../domain/platform.dart';
 import 'offer_parser.dart';
 
@@ -30,16 +31,33 @@ class UberParser implements OfferParser {
   // trip". An OPTIONAL leading "N hr" is captured (group 1) so long trips don't
   // lose the hour — without it "1 hr 2 min" parsed as 2 min and $/hr came out
   // ~30× high (device 2026-07-23: $34.22 / 54.6 km showed $342/hr). Groups:
-  // 1=hours?, 2=minutes, 3=km. Tolerant of "min"/"mins", "hr"/"hrs"/"hour(s)".
-  static const _leg = r'(?:(\d+)\s*h(?:rs?|ours?)?\s*)?(\d+)\s*mins?'
-      r'\s*\(\s*([\d.]+)\s*km\s*\)\s*';
-  static final _pickup = RegExp('$_leg' 'away', caseSensitive: false);
-  static final _trip = RegExp('$_leg' 'trip', caseSensitive: false);
+  // 1=hours?, 2=minutes, 3=distance, 4=unit. Tolerant of US mile cards.
+  static const _leg =
+      r'(?:(\d+)\s*h(?:rs?|ours?)?\s*)?(\d+)\s*mins?'
+      r'\s*\(\s*([\d.]+)\s*(km|mi|miles?)\s*\)\s*';
+  static final _pickup = RegExp(
+    '$_leg'
+    'away',
+    caseSensitive: false,
+  );
+  static final _trip = RegExp(
+    '$_leg'
+    'trip',
+    caseSensitive: false,
+  );
 
   static double _minutes(RegExpMatch m) {
     final hr = m.group(1) != null ? (double.tryParse(m.group(1)!) ?? 0) : 0;
     final min = double.tryParse(m.group(2)!) ?? 0;
     return hr * 60 + min;
+  }
+
+  static double _kilometres(RegExpMatch m) {
+    final value = double.tryParse(m.group(3)!) ?? 0;
+    final unit = m.group(4)?.toLowerCase();
+    return unit == 'mi' || unit?.startsWith('mile') == true
+        ? value * DistanceUnit.kilometresPerMile
+        : value;
   }
 
   // Product tier / ride type, longest-first so "UberXL"/"Uber Share" win over a
@@ -69,7 +87,8 @@ class UberParser implements OfferParser {
       }
     }
     // Radar/matched ride: a "Match" affordance without a plain "Accept".
-    final radar = RegExp(r'\bmatch\b', caseSensitive: false).hasMatch(joined) &&
+    final radar =
+        RegExp(r'\bmatch\b', caseSensitive: false).hasMatch(joined) &&
         !RegExp(r'\baccept\b', caseSensitive: false).hasMatch(joined);
     if (tier == null) return radar ? 'Radar match' : null;
     return radar ? '$tier · Radar' : tier;
@@ -91,15 +110,13 @@ class UberParser implements OfferParser {
     if (payout == null || trip == null) return null;
 
     final dropoffMin = _minutes(trip);
-    final dropoffKm = double.tryParse(trip.group(3)!) ?? 0;
+    final dropoffKm = _kilometres(trip);
     if (dropoffKm <= 0) return null;
 
     // Pickup leg is optional — some cards show only the trip. Default to 0 so
     // totalKm/totalMinutes still make sense.
     final pickupMin = pickup != null ? _minutes(pickup) : 0.0;
-    final pickupKm = pickup != null
-        ? (double.tryParse(pickup.group(3)!) ?? 0)
-        : 0.0;
+    final pickupKm = pickup != null ? _kilometres(pickup) : 0.0;
 
     return Offer(
       platform: GigPlatform.uber,

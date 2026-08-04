@@ -128,24 +128,17 @@ flutter build appbundle \
 
 ## 7. After the FIRST bundle upload — the second SHA-1
 
-Play re-signs your upload with **Play App Signing**, and that key's fingerprint
-does not exist until Google has your first bundle. Once it does:
-
-Play Console → Release → Setup → App signing → copy the **SHA-1 of the app
-signing certificate** → add it in Firebase → re-download `google-services.json`
-→ rebuild.
-
-Skip this and you get the classic bug: **Google Sign-In works all through
-development and fails in production.**
+✅ Completed and device-verified 2026-08-04. The actual Play-delivered APK SHA-1
+is `CC:8B:F7:D5:53:81:CF:57:70:98:38:48:13:5A:2E:08:56:4C:88:DC`.
+Adding that fingerprint in Firebase and rebuilding with the refreshed ignored
+`google-services.json` fixed `google-sign-in/sign_in_failed`; the same account
+then restored its remaining trial. Re-check this setup after any Play signing
+key rotation.
 
 ---
 
 ## What is still not built (deliberate, tracked)
 
-- **Resigned-repack detection** (§3.7 layer 3, the signing-certificate check).
-  It needs a fingerprint to compare against, and the Play App Signing one does
-  not exist until step 7 above. Building it now would mean shipping a check
-  against a placeholder. Revisit after the first upload.
-- **Privacy policy + account-deletion web pages** (§5, §5.1). Play requires both
-  URLs to be live before review. The in-app deletion path exists
-  (Settings → Unlock → Delete my account).
+- **Resigned-repack enforcement.** The production Play fingerprint now exists,
+  but adding an app-side signer gate remains deferred pending a tested key
+  rotation strategy.

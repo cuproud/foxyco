@@ -18,6 +18,7 @@ class OfferSummary {
   final GigPlatform platform;
   final Verdict verdict;
   final double payout; // dollars
+  final double bonus; // included in payout; 0 when absent/unknown
   final double pickupKm; // dead mileage to the rider; 0 when unknown
   final double totalKm; // pickup + dropoff
   final double totalMinutes; // pickup + trip; 0 when unknown
@@ -27,17 +28,20 @@ class OfferSummary {
   /// Product tier / ride type ("UberX", "Comfort", "Radar match", …) or null.
   /// Display only — see [Offer.category].
   final String? category;
+  final bool isQueued;
 
   const OfferSummary({
     required this.platform,
     required this.verdict,
     required this.payout,
+    this.bonus = 0,
     required this.totalKm,
     required this.seenAt,
     this.pickupKm = 0,
     this.totalMinutes = 0,
     this.outcome = OfferOutcome.unknown,
     this.category,
+    this.isQueued = false,
   });
 
   /// Same CARD as [other]? Compares what the parser read off the screen, not
@@ -48,10 +52,12 @@ class OfferSummary {
   bool sameCardAs(OfferSummary other) =>
       platform == other.platform &&
       payout == other.payout &&
+      bonus == other.bonus &&
       totalKm == other.totalKm &&
       pickupKm == other.pickupKm &&
       totalMinutes == other.totalMinutes &&
-      category == other.category;
+      category == other.category &&
+      isQueued == other.isQueued;
 
   double get pricePerKm => totalKm > 0 ? payout / totalKm : 0;
 
@@ -62,24 +68,28 @@ class OfferSummary {
     platform: platform,
     verdict: verdict,
     payout: payout,
+    bonus: bonus,
     pickupKm: pickupKm,
     totalKm: totalKm,
     totalMinutes: totalMinutes,
     seenAt: seenAt,
     outcome: o,
     category: category,
+    isQueued: isQueued,
   );
 
   Map<String, dynamic> toJson() => {
     'platform': platform.name,
     'verdict': verdict.name,
     'payout': payout,
+    'bonus': bonus,
     'pickupKm': pickupKm,
     'totalKm': totalKm,
     'totalMinutes': totalMinutes,
     'seenAt': seenAt.millisecondsSinceEpoch,
     'outcome': outcome.name,
     if (category != null) 'category': category,
+    if (isQueued) 'isQueued': true,
   };
 
   factory OfferSummary.fromJson(Map<String, dynamic> j) => OfferSummary(
@@ -90,6 +100,7 @@ class OfferSummary {
         Verdict.values.where((v) => v.name == j['verdict']).firstOrNull ??
         Verdict.unknown,
     payout: (j['payout'] as num?)?.toDouble() ?? 0,
+    bonus: (j['bonus'] as num?)?.toDouble() ?? 0,
     pickupKm: (j['pickupKm'] as num?)?.toDouble() ?? 0,
     totalKm: (j['totalKm'] as num?)?.toDouble() ?? 0,
     totalMinutes: (j['totalMinutes'] as num?)?.toDouble() ?? 0,
@@ -101,5 +112,6 @@ class OfferSummary {
         OfferOutcome.values.where((o) => o.name == j['outcome']).firstOrNull ??
         OfferOutcome.unknown,
     category: j['category'] is String ? j['category'] as String : null,
+    isQueued: j['isQueued'] == true,
   );
 }

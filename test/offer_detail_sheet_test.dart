@@ -51,12 +51,12 @@ void main() {
     await open(tester);
 
     expect(tester.takeException(), isNull);
-    expect(find.text('\$17.01'), findsOne);
+    expect(find.text('CA\$17.01'), findsOne);
     expect(find.text('UberX Share Comfort'), findsOne); // not ellipsised away
     // Bottom of the card is reachable by scrolling, not cut off.
-    await tester.drag(find.text('\$17.01'), const Offset(0, -300));
+    await tester.drag(find.text('CA\$17.01'), const Offset(0, -300));
     await tester.pump();
-    expect(find.text('Likely passed'), findsOne);
+    expect(find.text('Not taken'), findsOne);
     expect(tester.takeException(), isNull);
   });
 
@@ -70,6 +70,6 @@ void main() {
     await open(tester);
 
     expect(tester.takeException(), isNull);
-    expect(find.text('\$17.01'), findsOne);
+    expect(find.text('CA\$17.01'), findsOne);
   });
 }

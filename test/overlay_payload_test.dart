@@ -1,4 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:foxyco/domain/app_currency.dart';
+import 'package:foxyco/domain/distance_unit.dart';
 import 'package:foxyco/domain/money_font.dart';
 import 'package:foxyco/domain/overlay_payload.dart';
 import 'package:foxyco/domain/verdict.dart';
@@ -122,6 +124,21 @@ void main() {
         });
         expect(p.entitled, isFalse, reason: 'forged value: $forged');
       }
+    });
+
+    test('round-trips US display preferences and derives display values', () {
+      const p = OverlayPayload(
+        verdict: Verdict.good,
+        totalKm: 1.609344,
+        payout: 8,
+        distanceUnit: DistanceUnit.miles,
+        currency: AppCurrency.usd,
+      );
+      final restored = OverlayPayload.fromMap(p.toMap());
+      expect(restored.distanceUnit, DistanceUnit.miles);
+      expect(restored.currency, AppCurrency.usd);
+      expect(restored.displayDistance, closeTo(1, 1e-9));
+      expect(restored.displayRate, closeTo(8, 1e-9));
     });
   });
 }

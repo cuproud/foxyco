@@ -593,6 +593,7 @@ class ThresholdSlider extends StatelessWidget {
     required this.max,
     required this.onChanged,
     this.unit = '',
+    this.currencyPrefix = r'$',
   });
 
   final String label;
@@ -604,6 +605,7 @@ class ThresholdSlider extends StatelessWidget {
 
   /// Empty = dollars ('$1.50'); otherwise suffixed ('2.0 km').
   final String unit;
+  final String currencyPrefix;
 
   /// One nudge of the −/+ buttons. Matches the slider's own division size for
   /// money; km reads in tenths, so a 5c-equivalent step would take forever.
@@ -630,7 +632,7 @@ class ThresholdSlider extends StatelessWidget {
             Expanded(child: Text(label, style: text.titleMedium)),
             Text(
               unit.isEmpty
-                  ? '\$${value.toStringAsFixed(2)}'
+                  ? '$currencyPrefix${value.toStringAsFixed(2)}'
                   : '${value.toStringAsFixed(1)} $unit',
               style: text.titleMedium?.copyWith(
                 fontSize: 13.5,
@@ -688,6 +690,7 @@ class PreviewCard extends StatelessWidget {
     required this.min,
     required this.max,
     required this.onChanged,
+    this.currencyPrefix = r'$',
   });
 
   final double sample;
@@ -696,6 +699,7 @@ class PreviewCard extends StatelessWidget {
   final double min;
   final double max;
   final ValueChanged<double> onChanged;
+  final String currencyPrefix;
 
   @override
   Widget build(BuildContext context) {
@@ -727,7 +731,7 @@ class PreviewCard extends StatelessWidget {
             ),
             const Spacer(),
             Text(
-              '\$${sample.toStringAsFixed(2)}$unit',
+              '$currencyPrefix${sample.toStringAsFixed(2)}$unit',
               style: text.titleMedium?.copyWith(
                 fontFeatures: const [FontFeature.tabularFigures()],
               ),
@@ -762,7 +766,9 @@ class PreviewCard extends StatelessWidget {
 /// Driver name with an explicit save; the check button appears only while the
 /// draft differs from the stored name (spec M6 §4.2 — no silent live-apply).
 class PillLegend extends StatelessWidget {
-  const PillLegend({super.key});
+  const PillLegend({super.key, this.distanceLabel = 'km'});
+
+  final String distanceLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -821,17 +827,17 @@ class PillLegend extends StatelessWidget {
         ),
         row(
           const Color(0xFF39A96C),
-          '\$/km block',
+          '\$/$distanceLabel block',
           'the verdict. Green GOOD, amber OK, red BAD — take it in a glance.',
         ),
         row(
           const Color(0xFF5ECD90),
-          'Green km',
+          'Green $distanceLabel',
           'pickup is within your pickup radius (set below).',
         ),
         row(
           const Color(0xFFFF8A7E),
-          'Red km',
+          'Red $distanceLabel',
           'pickup is beyond your radius — you drive further for free.',
         ),
         row(

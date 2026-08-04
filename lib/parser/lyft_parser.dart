@@ -61,11 +61,20 @@ class LyftParser implements OfferParser {
     return Offer(
       platform: GigPlatform.lyft,
       payout: payout,
+      bonus: ParserPatterns.findBonus(nodeTexts),
       pickupKm: t.pickupKm,
       dropoffKm: t.tripKm,
       pickupMinutes: t.pickupMin,
       dropoffMinutes: t.tripMin,
       payIsNet: false, // Lyft shows gross pay (bonus shown separately)
+      category:
+          RegExp(r'\badd\s+to\s+queue\b', caseSensitive: false).hasMatch(joined)
+          ? 'Queued ride'
+          : null,
+      isQueued: RegExp(
+        r'\badd\s+to\s+queue\b',
+        caseSensitive: false,
+      ).hasMatch(joined),
       rawText: joined,
     );
   }

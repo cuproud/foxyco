@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:foxyco/ui/theme/hero_stage.dart';
+import 'package:foxyco/ui/theme/plasma_border.dart';
 import 'package:foxyco/ui/theme/tokens.dart';
 
 /// The stage runs an endless ambient loop, so the two things worth pinning are
@@ -8,7 +9,11 @@ import 'package:foxyco/ui/theme/tokens.dart';
 /// and shadows are built from runtime palette statics — and (b) reduced motion
 /// really stops the clock, which `pumpAndSettle` proves by returning at all.
 void main() {
-  Widget host({required bool reduced, Widget? silhouette}) => MediaQuery(
+  Widget host({
+    required bool reduced,
+    Widget? silhouette,
+    Color? plasmaColor,
+  }) => MediaQuery(
     data: MediaQueryData(disableAnimations: reduced),
     child: Directionality(
       textDirection: TextDirection.ltr,
@@ -17,6 +22,7 @@ void main() {
           width: 360,
           child: HeroStage(
             silhouette: silhouette,
+            plasmaColor: plasmaColor,
             child: const AspectRatio(
               aspectRatio: 1536 / 1024,
               child: Placeholder(key: ValueKey('car')),
@@ -65,6 +71,27 @@ void main() {
     // Would time out if the ambient controller were still repeating.
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('car')), findsOneWidget);
+  });
+
+  testWidgets('live plasma outline wraps the stage and honors reduced motion', (
+    tester,
+  ) async {
+    FoxColors.apply(FoxPalette.light);
+    await tester.pumpWidget(
+      host(reduced: true, plasmaColor: FoxColors.brandFox),
+    );
+    expect(find.byType(PlasmaBorder), findsOneWidget);
+    final plasmaPaint = find.byWidgetPredicate(
+      (widget) =>
+          widget is CustomPaint &&
+          widget.foregroundPainter is PlasmaBorderPainter,
+    );
+    expect(plasmaPaint, findsOneWidget);
+    expect(
+      tester.widget<CustomPaint>(plasmaPaint).foregroundPainter,
+      isA<PlasmaBorderPainter>(),
+    );
+    await tester.pumpAndSettle();
   });
 
   tearDown(() => FoxColors.apply(FoxPalette.dark));

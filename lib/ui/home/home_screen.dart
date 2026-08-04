@@ -768,15 +768,23 @@ class _CarStage extends StatelessWidget {
   static const _glowOff = 0.25;
 
   /// Same crop for the car AND its sweep mask: the two have to land on the same
-  /// pixels. Shows the 0.10–0.92 band of the canvas: the empty top is cropped, and so
-  /// is the dead strip under the wheels, which is what used to leave the car
+  /// pixels. Shows the 0.10–0.92 band of the canvas: the empty top is cropped, and
+  /// so is the dead strip under the wheels, which is what used to leave the car
   /// hovering mid-card (device 2026-07-26). Alignment y is solved from the
   /// band: top = (1 + y) / 2 * (1 − heightFactor) = 0.10.
-  static Widget _framed(Widget layer) => ClipRect(
-    child: Align(
-      alignment: const Alignment(0, 0.111),
-      heightFactor: 0.82,
-      child: layer,
+  ///
+  /// Keep one 8 dp showroom gutter above that crop. Without it, the fox ears
+  /// visually touch the stage edge even though the source canvas has padding.
+  /// Adding height here (instead of translating the raster) also moves the
+  /// stage's proportional floor line with the wheels and avoids bottom clipping.
+  static Widget _framed(Widget layer) => Padding(
+    padding: const EdgeInsets.only(top: Gap.sm),
+    child: ClipRect(
+      child: Align(
+        alignment: const Alignment(0, 0.111),
+        heightFactor: 0.82,
+        child: layer,
+      ),
     ),
   );
 
@@ -804,20 +812,9 @@ class _CarStage extends StatelessWidget {
           // car-level cue, that's a second art layer, not more code here.
           final glow = light ? 1.0 : _glowOff + (1 - _glowOff) * lit;
           return HeroStage(
-            // Live: a warm edge + halo, the same power-on cue the receipt card
-            // below picks up.
-            borderColor: online
-                ? FoxColors.brandFox.withValues(alpha: 0.30)
-                : null,
-            extraShadows: online
-                ? [
-                    BoxShadow(
-                      color: FoxColors.brandFox.withValues(alpha: 0.10),
-                      blurRadius: 32,
-                      spreadRadius: 2,
-                    ),
-                  ]
-                : null,
+            // Live: the verdict pill's orbiting plasma language, recolored to
+            // Foxy orange so this reads as service status rather than a score.
+            plasmaColor: online ? FoxColors.brandFox : null,
             silhouette: _framed(
               AspectRatio(
                 aspectRatio: CarHero.canvas,
@@ -1047,13 +1044,14 @@ class _AccessAlert extends StatelessWidget {
 /// The date is spelled out for EVERY session, today's included. It used to be
 /// dropped on a same-day session, which read as "this is current" the morning
 /// after a night shift.
-class _SessionCard extends StatelessWidget {
+class _SessionCard extends ConsumerWidget {
   const _SessionCard({required this.session, required this.onTap});
   final SessionSummary? session;
   final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final settings = ref.watch(settingsProvider);
     final s = session;
     // Nothing to show yet → nothing to open; the empty card's own copy points
     // at the slide instead.
@@ -1207,14 +1205,15 @@ class _SessionCard extends StatelessWidget {
                   children: [
                     StatTile(
                       value: s.bestPerKm > 0
-                          ? '\$${s.bestPerKm.toStringAsFixed(2)}'
+                          ? '${settings.currency.prefix}${settings.distanceUnit.rateFromPerKm(s.bestPerKm).toStringAsFixed(2)}'
                           : '—',
-                      label: 'BEST \$/KM',
+                      label:
+                          'BEST \$/${settings.distanceUnit.shortLabel.toUpperCase()}',
                     ),
                     const SizedBox(width: Gap.sm),
                     StatTile(
                       value: s.goodAvgPerKm > 0
-                          ? '\$${s.goodAvgPerKm.toStringAsFixed(2)}'
+                          ? '${settings.currency.prefix}${settings.distanceUnit.rateFromPerKm(s.goodAvgPerKm).toStringAsFixed(2)}'
                           : '—',
                       label: 'GOOD AVG',
                     ),

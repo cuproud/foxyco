@@ -36,7 +36,7 @@ const aboutIntro =
 
 /// Version string. Kept as a plain const rather than adding a native plugin for
 /// one label; `about_content_test.dart` guards it against `pubspec.yaml` drift.
-const aboutVersion = '1.0.0 (build 7)';
+const aboutVersion = '1.0.8 (build 16)';
 
 const aboutSections = <AboutSection>[
   AboutSection(
@@ -46,7 +46,7 @@ const aboutSections = <AboutSection>[
         'What FoxyCo actually does',
         'While the watcher is live, FoxyCo reads the text of the offer card '
             'showing in Uber Driver, Hopp or Lyft. It works out the pay per '
-            'kilometre (or per hour, your choice), compares that to your '
+            'kilometre, mile (or per hour, your choice), compares that to your '
             'thresholds, and paints a floating pill green, amber or red. You '
             'still accept or decline the offer yourself, exactly as before.',
       ),
@@ -62,7 +62,7 @@ const aboutSections = <AboutSection>[
         'Where do good / ok / bad come from?',
         'From Settings. You set the rate at or above which an offer counts as '
             'good, and the rate below which it counts as bad; everything '
-            'between the two is ok. Switch between \$/km and \$/hr in Settings '
+            'between the two is ok. Switch between distance rate and \$/hr in Settings '
             '— each mode keeps its own pair of numbers, since the scales are '
             'about twenty times apart.',
       ),

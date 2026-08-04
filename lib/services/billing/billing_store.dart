@@ -80,18 +80,46 @@ class BillingStore extends Notifier<UnlockStatus> {
   }
 
   Future<void> _start() async {
-    if (!await _iap.isAvailable()) {
-      state = UnlockStatus.unavailable;
-      return;
+    await _refreshFromPlay();
+  }
+
+  /// Reconnect, retry product discovery, and re-emit anything already owned.
+  ///
+  /// Product activation and Play's BillingClient connection can both lag a
+  /// fresh install. A failed first query must not leave the direct-purchase
+  /// button disabled until the process is restarted. Restoring purchases is
+  /// deliberately attempted even if product discovery still fails: an
+  /// existing owner must not be locked merely because the shop listing is
+  /// temporarily unavailable.
+  Future<void> _refreshFromPlay() async {
+    try {
+      if (!await _iap.isAvailable()) {
+        if (state != UnlockStatus.purchased) {
+          state = UnlockStatus.unavailable;
+        }
+        return;
+      }
+
+      final productLoaded = _product != null || await _loadProduct();
+      if (productLoaded && state == UnlockStatus.unavailable) {
+        // Play recovered. `unknown` keeps entitlement conservative while the
+        // owned-purchase query below resolves, but immediately lets the shop
+        // use the freshly loaded ProductDetails.
+        state = UnlockStatus.unknown;
+      }
+
+      // Re-emits every owned purchase through _onPurchases. Doubles as the
+      // recovery path for a purchase that was paid for but never acknowledged
+      // (app killed mid-flow) — see §3.8.
+      await _iap.restorePurchases();
+
+      if (!productLoaded && state != UnlockStatus.purchased) {
+        state = UnlockStatus.unavailable;
+      }
+    } catch (e) {
+      if (state != UnlockStatus.purchased) state = UnlockStatus.unavailable;
+      if (kDebugMode) debugPrint('FoxyCo Play refresh failed: $e');
     }
-    if (!await _loadProduct()) {
-      state = UnlockStatus.unavailable;
-      return;
-    }
-    // Re-emits every owned purchase through _onPurchases. Doubles as the
-    // recovery path for a purchase that was paid for but never acknowledged
-    // (app killed mid-flow) — see §3.8.
-    await _iap.restorePurchases();
   }
 
   Future<bool> _loadProduct() async {
@@ -172,11 +200,7 @@ class BillingStore extends Notifier<UnlockStatus> {
 
   /// "Restore purchase" — also how a redeemed promo code is picked up.
   Future<void> restore() async {
-    try {
-      await _iap.restorePurchases();
-    } catch (e) {
-      if (kDebugMode) debugPrint('FoxyCo restore failed: $e');
-    }
+    await _refreshFromPlay();
   }
 }
 

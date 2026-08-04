@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import 'plasma_border.dart';
 import 'tokens.dart';
 
 // A premium automotive product stage: the layered card the showroom car stands
@@ -150,6 +151,7 @@ class HeroStage extends StatefulWidget {
     this.metrics = const HeroStageMetrics(),
     this.borderColor,
     this.extraShadows,
+    this.plasmaColor,
   });
 
   /// The car. Sized by its own constraints; the stage adopts its size.
@@ -169,6 +171,10 @@ class HeroStage extends StatefulWidget {
 
   /// Appended to the surface shadow (the live glow).
   final List<BoxShadow>? extraShadows;
+
+  /// Adds the same orbiting outline used by the verdict pill. Null keeps the
+  /// normal static stage border.
+  final Color? plasmaColor;
 
   @override
   State<HeroStage> createState() => _HeroStageState();
@@ -220,7 +226,7 @@ class _HeroStageState extends State<HeroStage>
     // never rebuilds it.
     final car = RepaintBoundary(child: widget.child);
 
-    return DecoratedBox(
+    final stage = DecoratedBox(
       decoration: BoxDecoration(
         gradient: style.surface,
         borderRadius: radius,
@@ -241,6 +247,14 @@ class _HeroStageState extends State<HeroStage>
         ),
       ),
     );
+    final plasmaColor = widget.plasmaColor;
+    return plasmaColor == null
+        ? stage
+        : PlasmaBorder(
+            color: plasmaColor,
+            borderRadius: Radii.hero + 3,
+            child: stage,
+          );
   }
 
   /// Huge stretched ellipse behind the car, breathing 0.08 → 0.12 over 6 s.

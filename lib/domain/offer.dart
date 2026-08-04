@@ -15,6 +15,9 @@ import 'platform.dart';
 class Offer {
   final GigPlatform platform;
   final double payout; // dollars
+  /// Promotional amount already included in [payout] (Lyft bonus/bonuses).
+  /// Kept separate for History; never add it again when scoring.
+  final double bonus;
   final double pickupKm;
   final double dropoffKm;
   final double pickupMinutes;
@@ -26,17 +29,23 @@ class Offer {
   /// only — never feeds the verdict. See [UberParser].
   final String? category;
 
+  /// True when the card was offered while another Lyft trip was active via
+  /// "Add to queue". It is still a normal offer, but useful context later.
+  final bool isQueued;
+
   final String? rawText;
 
   const Offer({
     required this.platform,
     required this.payout,
+    this.bonus = 0,
     required this.pickupKm,
     required this.dropoffKm,
     this.pickupMinutes = 0,
     this.dropoffMinutes = 0,
     this.payIsNet = false,
     this.category,
+    this.isQueued = false,
     this.rawText,
   });
 

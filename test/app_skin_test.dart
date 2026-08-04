@@ -6,8 +6,8 @@ import 'package:foxyco/ui/theme/app_theme.dart';
 import 'package:foxyco/ui/theme/tokens.dart';
 
 void main() {
-  test('defaults to dark', () {
-    expect(FoxSettings.defaults.skin, AppSkin.dark);
+  test('defaults to light', () {
+    expect(FoxSettings.defaults.skin, AppSkin.light);
   });
 
   test('round-trips through json', () {
@@ -15,14 +15,14 @@ void main() {
     expect(FoxSettings.fromJson(s.toJson()).skin, AppSkin.light);
   });
 
-  test('old blobs without skin fall back to dark', () {
+  test('old blobs without skin fall back to light', () {
     final j = FoxSettings.defaults.toJson()..remove('skin');
-    expect(FoxSettings.fromJson(j).skin, AppSkin.dark);
+    expect(FoxSettings.fromJson(j).skin, AppSkin.light);
   });
 
-  test('unknown persisted name falls back to dark', () {
+  test('unknown persisted name falls back to light', () {
     final j = FoxSettings.defaults.toJson()..['skin'] = 'neon';
-    expect(FoxSettings.fromJson(j).skin, AppSkin.dark);
+    expect(FoxSettings.fromJson(j).skin, AppSkin.light);
   });
 
   // The static-token trick only works if building a theme repoints FoxColors;

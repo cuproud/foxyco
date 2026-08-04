@@ -15,7 +15,10 @@ class SectionLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Text(label.toUpperCase(), style: Theme.of(context).textTheme.labelSmall),
+        Text(
+          label.toUpperCase(),
+          style: Theme.of(context).textTheme.labelSmall,
+        ),
         const SizedBox(width: Gap.sm + Gap.xs),
         Expanded(child: Divider(color: FoxColors.border, height: 1)),
       ],

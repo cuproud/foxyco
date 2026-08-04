@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:foxyco/domain/fox_settings.dart';
+import 'package:foxyco/domain/distance_unit.dart';
 import 'package:foxyco/domain/rate_mode.dart';
 import 'package:foxyco/domain/thresholds.dart';
 import 'package:foxyco/ui/settings/garage_controller.dart';
@@ -313,5 +314,18 @@ void main() {
       const Thresholds(goodAtOrAbove: 1.8, badBelow: 0.9),
     );
     expect(back.hourThresholds, FoxSettings.defaultHourThresholds);
+  });
+
+  test('mile threshold and pickup edits are stored canonically', () {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+    final controller = container.read(settingsProvider.notifier);
+    controller.setDistanceUnit(DistanceUnit.miles);
+    controller.setDisplayedGood(1.609344);
+    controller.setDisplayedPickupNear(1);
+
+    final settings = container.read(settingsProvider);
+    expect(settings.thresholds.goodAtOrAbove, closeTo(1, 1e-9));
+    expect(settings.pickupNearKm, closeTo(1.609344, 1e-9));
   });
 }

@@ -104,9 +104,10 @@ class _EntryTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return Theme(
       // ExpansionTile draws its own divider lines; the card supplies them.
-      data: Theme.of(
-        context,
-      ).copyWith(dividerColor: Colors.transparent, splashColor: Colors.transparent),
+      data: Theme.of(context).copyWith(
+        dividerColor: Colors.transparent,
+        splashColor: Colors.transparent,
+      ),
       child: ExpansionTile(
         tilePadding: const EdgeInsets.symmetric(horizontal: Gap.md),
         childrenPadding: const EdgeInsets.fromLTRB(Gap.md, 0, Gap.md, Gap.md),

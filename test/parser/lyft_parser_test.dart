@@ -29,6 +29,7 @@ void main() {
 
     expect(offer.platform, GigPlatform.lyft);
     expect(offer.payout, 9.01); // NOT 1.50 (bonus) or 28.45 (rate)
+    expect(offer.bonus, 1.50);
     expect(offer.pickupKm, 0.4);
     expect(offer.dropoffKm, 7.2);
     expect(offer.pickupMinutes, 3);
@@ -48,7 +49,9 @@ void main() {
       '25 mins · 18.1 km',
       'Accept',
     ];
-    expect(parser.parse(nodes)!.payout, 21.11);
+    final offer = parser.parse(nodes)!;
+    expect(offer.payout, 21.11);
+    expect(offer.bonus, 4.87);
   });
 
   test('keeps the total when total and bonus share one accessibility node', () {
@@ -61,6 +64,23 @@ void main() {
 
     expect(offer, isNotNull);
     expect(offer!.payout, 15.00);
+    expect(offer.bonus, 3.00);
+  });
+
+  test('parses a Lyft Add to queue card as a queued offer', () {
+    final offer = parser.parse([
+      'Add to queue',
+      '\$18.42',
+      'Incl. CA\$4.30 in bonuses',
+      '6 mins · 2.1 km',
+      '22 mins · 14.8 km',
+    ]);
+
+    expect(offer, isNotNull);
+    expect(offer!.isQueued, isTrue);
+    expect(offer.category, 'Queued ride');
+    expect(offer.bonus, 4.30);
+    expect(offer.totalKm, closeTo(16.9, 1e-9));
   });
 
   test('returns null with only one leg (fail safe)', () {
@@ -194,5 +214,16 @@ void main() {
       isNull,
     );
     expect(parser.parse(const []), isNull);
+  });
+
+  test('parses US mile timeline into canonical kilometres', () {
+    final offer = parser.parse([
+      '\$10.00',
+      '3 mins · 1.0 mi',
+      '12 mins · 4.0 miles',
+      'Accept',
+    ])!;
+    expect(offer.pickupKm, closeTo(1.609344, 1e-9));
+    expect(offer.dropoffKm, closeTo(6.437376, 1e-9));
   });
 }

@@ -15,10 +15,11 @@ final tipsProvider = Provider<List<FoxTip>>(
     ),
     FoxTip(
       category: TipCategory.earnings,
-      headline: 'Include the pickup distance',
+      headline: 'Include the unpaid pickup distance',
       body:
-          'A good-looking payout can become weak when the pickup is far away. '
-          'FoxyCo includes that unpaid distance in every verdict.',
+          'A good-looking payout can turn into a bad one when the pickup is '
+          'far away. FoxyCo includes that unpaid pickup distance in every '
+          'verdict.',
       asset: 'assets/tips/fox_tip_earnings.png',
     ),
     FoxTip(
@@ -31,7 +32,7 @@ final tipsProvider = Provider<List<FoxTip>>(
     ),
     FoxTip(
       category: TipCategory.safety,
-      headline: 'Take a break before you feel exhausted',
+      headline: 'Take a break before you feel tired',
       body:
           'On a long shift, park safely, stretch, drink water and rest your '
           'eyes for a few minutes before taking another trip.',
@@ -47,10 +48,10 @@ final tipsProvider = Provider<List<FoxTip>>(
     ),
     FoxTip(
       category: TipCategory.maintenance,
-      headline: 'Check tyre pressure when tyres are cold',
+      headline: 'Check tire pressure when tires are cold',
       body:
           'Use the pressure on the driver-door label. Correct pressure helps '
-          'fuel economy, braking and even tyre wear.',
+          'fuel economy, braking and even tire wear.',
       asset: 'assets/tips/fox_tip_maintenance.png',
     ),
     FoxTip(
@@ -90,7 +91,7 @@ final tipsProvider = Provider<List<FoxTip>>(
       headline: 'Red means the pickup is too far',
       body:
           'A red pickup distance is beyond the limit you set. Check that '
-          'unpaid leg before deciding from the payout alone.',
+          'unpaid pickup distance before deciding from the payout alone.',
       asset: 'assets/tips/fox_tip_app.png',
     ),
     FoxTip(

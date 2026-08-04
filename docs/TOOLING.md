@@ -97,8 +97,8 @@ Don't add these until the milestone needs them (YAGNI — every dep is app size 
 
 ## What I need from you to start M0
 
-1. Confirm **FoxyCo** + package name (or leave `com.foxyco.app` placeholder).
-2. Confirm **Uber + Hopp** first (already the base per DECISIONS #6).
+1. FoxyCo is published as immutable package `com.foxyco.app`.
+2. Current watched apps are Uber, Lyft and Hopp.
 3. Run `flutter doctor -v` and get an Android device to `flutter devices`.
 4. (Nice-to-have) point me at an Android MCP if you want the cleaner loop; else I use `adb` via Bash.
 

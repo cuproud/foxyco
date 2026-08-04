@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -128,6 +129,18 @@ enum TrialStartResult {
   failed,
 }
 
+/// Preserve Google's numeric API status without exposing its free-form error
+/// message in release UI. `google_sign_in_android` wraps every non-network,
+/// non-cancel result as `sign_in_failed`, but its message still contains e.g.
+/// `ApiException: 10:`. Status 10 is the crucial OAuth/certificate diagnostic.
+@visibleForTesting
+String trialPlatformFailureTag(String stage, PlatformException error) {
+  final status = RegExp(
+    r'ApiException:\s*(\d+)',
+  ).firstMatch(error.message ?? '')?.group(1);
+  return '$stage/${error.code}${status == null ? '' : '/api-$status'}';
+}
+
 /// Owns the trial half of entitlement: identity (anonymous, then Google) and the
 /// write-once Firestore trial record, cached locally with an offline grace
 /// window (MONETIZATION_v1.0 §3.2–§3.5).
@@ -144,6 +157,18 @@ class TrialStore extends Notifier<TrialState> {
   /// True once a Google sign-in flow is in flight, so a double tap on the
   /// paywall button can't open two sheets.
   bool _busy = false;
+
+  /// Google Play Services' established account chooser. The newer Credential
+  /// Manager button flow used by google_sign_in 7.x returned `canceled` on a
+  /// correctly configured Play-signed device before Firebase ever received a
+  /// credential. Keeping one client also lets [signOut] clear the same session.
+  // Explicitly pin the web client that Firebase expects as the ID-token
+  // audience. The Google Services plugin also generates this value, but
+  // passing it here removes resource shrinking/runtime lookup as a variable in
+  // Play-signed release builds.
+  static const _webClientId =
+      '5760619153-1ve3meka5bipv4d8jis5kio2up17fp52.apps.googleusercontent.com';
+  final GoogleSignIn _googleSignIn = GoogleSignIn(serverClientId: _webClientId);
 
   String? _lastStartError;
 
@@ -319,16 +344,21 @@ class TrialStore extends Notifier<TrialState> {
     if (!_firebaseUp) return _fail('firebase-down');
     _busy = true;
     _lastStartError = null;
+    var stage = 'google-sign-in';
     try {
-      // serverClientId is not passed: the Android plugin falls back to
-      // R.string.default_web_client_id, which the google-services plugin
-      // generates from google-services.json. One less thing to keep in sync.
-      await GoogleSignIn.instance.initialize();
-      final account = await GoogleSignIn.instance.authenticate();
-      final idToken = account.authentication.idToken;
+      // Uses the explicitly pinned Firebase web client above so the ID-token
+      // audience is identical in local, upload-signed, and Play-signed builds.
+      final account = await _googleSignIn.signIn();
+      if (account == null) {
+        _lastStartError = 'google/cancelled';
+        return TrialStartResult.cancelled;
+      }
+      final authentication = await account.authentication;
+      final idToken = authentication.idToken;
       if (idToken == null) return _fail('no-id-token');
       final cred = GoogleAuthProvider.credential(idToken: idToken);
 
+      stage = 'firebase-auth';
       final current = _auth.currentUser;
       if (current == null) {
         await _auth.signInWithCredential(cred);
@@ -361,13 +391,16 @@ class TrialStore extends Notifier<TrialState> {
       final user = _auth.currentUser;
       if (user == null) return _fail('no-user-after-signin');
 
+      stage = 'firestore-read';
       final doc = FirebaseFirestore.instance.collection('trials').doc(user.uid);
       var snap = await doc.get(const GetOptions(source: Source.server));
       if (!snap.exists) {
         // serverTimestamp, NOT DateTime.now(): the security rule requires
         // startedAt == request.time, so a client-chosen date is rejected. That
         // is the point — the client cannot pick its own trial start.
+        stage = 'firestore-create';
         await doc.set({'startedAt': FieldValue.serverTimestamp()});
+        stage = 'firestore-reread';
         snap = await doc.get(const GetOptions(source: Source.server));
       }
 
@@ -386,17 +419,14 @@ class TrialStore extends Notifier<TrialState> {
         // rather than claiming a trial that may not have been recorded.
         TrialPhase.preTrial || TrialPhase.unknown => _fail('timestamp-pending'),
       };
-    } on GoogleSignInException catch (e) {
-      if (e.code == GoogleSignInExceptionCode.canceled) {
-        return TrialStartResult.cancelled;
-      }
-      return _fail('google/${e.code.name}', e.description);
+    } on PlatformException catch (e) {
+      return _fail(trialPlatformFailureTag(stage, e), e.message);
     } on FirebaseAuthException catch (e) {
-      return _fail('auth/${e.code}', e.message);
+      return _fail('$stage/${e.code}', e.message);
     } on FirebaseException catch (e) {
-      return _fail('${e.plugin}/${e.code}', e.message);
+      return _fail('$stage/${e.plugin}/${e.code}', e.message);
     } catch (e) {
-      return _fail('unexpected/${e.runtimeType}');
+      return _fail('$stage/unexpected/${e.runtimeType}');
     } finally {
       _busy = false;
     }
@@ -458,12 +488,11 @@ class TrialStore extends Notifier<TrialState> {
     }
   }
 
-  /// GoogleSignIn 7 requires initialization after a cold app launch. Treat the
-  /// provider disconnect as best-effort once Firebase Auth has been cleared.
+  /// Treat the provider disconnect as best-effort once Firebase Auth has been
+  /// cleared.
   Future<void> _disconnectGoogle() async {
     try {
-      await GoogleSignIn.instance.initialize();
-      await GoogleSignIn.instance.signOut();
+      await _googleSignIn.signOut();
     } catch (e) {
       if (kDebugMode) debugPrint('FoxyCo Google disconnect skipped: $e');
     }

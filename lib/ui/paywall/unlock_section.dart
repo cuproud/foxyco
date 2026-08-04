@@ -39,21 +39,18 @@ class UnlockSection extends ConsumerWidget {
       children: [
         Text(summaryOf(access), style: text.titleMedium),
         const SizedBox(height: Gap.xs),
-        Text(
-          switch (access.source) {
-            AccessSource.purchase || AccessSource.cachedPurchase =>
-              'One-time purchase. No subscription, nothing to renew.',
-            AccessSource.trial =>
-              'Everything is on. Unlock any time and the trial stops mattering.',
-            AccessSource.debugBuild =>
-              'Entitlement is forced on in debug builds. Release builds ignore '
-                  'this branch entirely.',
-            _ =>
-              'Live watching still starts, but the pill hides the verdict and '
-                  'the numbers until you unlock.',
-          },
-          style: text.bodySmall,
-        ),
+        Text(switch (access.source) {
+          AccessSource.purchase || AccessSource.cachedPurchase =>
+            'One-time purchase. No subscription, nothing to renew.',
+          AccessSource.trial =>
+            'Everything is on. Unlock any time and the trial stops mattering.',
+          AccessSource.debugBuild =>
+            'Entitlement is forced on in debug builds. Release builds ignore '
+                'this branch entirely.',
+          _ =>
+            'Live watching still starts, but the pill hides the verdict and '
+                'the numbers until you unlock.',
+        }, style: text.bodySmall),
         if (trial.hasAccount) ...[
           const SizedBox(height: Gap.sm),
           Row(

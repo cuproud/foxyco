@@ -6,6 +6,7 @@ import '../../domain/offer_summary.dart';
 import '../../domain/rate_mode.dart';
 import '../settings/settings_controller.dart';
 import '../theme/platform_badge.dart';
+import '../theme/outcome_style.dart';
 import '../theme/tokens.dart';
 import '../theme/verdict_style.dart';
 
@@ -36,6 +37,7 @@ class _OfferDetailSheet extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final o = offer;
     final style = VerdictStyle.of(o.verdict);
+    final outcome = OutcomeStyle.of(o.outcome);
     final settings = ref.watch(settingsProvider);
     final time = MaterialLocalizations.of(context).formatTimeOfDay(
       TimeOfDay.fromDateTime(o.seenAt),
@@ -160,7 +162,7 @@ class _OfferDetailSheet extends ConsumerWidget {
                     fit: BoxFit.scaleDown,
                     alignment: Alignment.centerLeft,
                     child: Text(
-                      '\$${o.payout.toStringAsFixed(2)}',
+                      '${settings.currency.prefix}${o.payout.toStringAsFixed(2)}',
                       maxLines: 1,
                       style: TextStyle(
                         fontFamily: FoxFonts.display,
@@ -185,20 +187,51 @@ class _OfferDetailSheet extends ConsumerWidget {
                         color: FoxColors.textSecondary,
                       ),
                     ),
+                  if (o.bonus > 0) ...[
+                    const SizedBox(height: Gap.sm),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: VerdictColors.good.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(Radii.pill),
+                        border: Border.all(
+                          color: VerdictColors.good.withValues(alpha: 0.28),
+                        ),
+                      ),
+                      child: Text(
+                        'Includes ${settings.currency.prefix}${o.bonus.toStringAsFixed(2)} bonus',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: VerdictColors.good,
+                          fontFeatures: [FontFeature.tabularFigures()],
+                        ),
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: Gap.md),
                   // Stat grid: everything parsed. Unknowns (0) show an em-dash.
                   Row(
                     children: [
-                      _cell('\$${o.pricePerKm.toStringAsFixed(2)}', 'PER KM'),
+                      _cell(
+                        '${settings.currency.prefix}${settings.distanceUnit.rateFromPerKm(o.pricePerKm).toStringAsFixed(2)}',
+                        'PER ${settings.distanceUnit.shortLabel.toUpperCase()}',
+                      ),
                       const SizedBox(width: Gap.sm),
                       _cell(
                         o.pricePerHour > 0
-                            ? '\$${o.pricePerHour.toStringAsFixed(0)}'
+                            ? '${settings.currency.prefix}${o.pricePerHour.toStringAsFixed(0)}'
                             : '—',
                         'PER HOUR',
                       ),
                       const SizedBox(width: Gap.sm),
-                      _cell('${o.totalKm.toStringAsFixed(1)} km', 'TOTAL'),
+                      _cell(
+                        '${settings.distanceUnit.distanceFromKm(o.totalKm).toStringAsFixed(1)} ${settings.distanceUnit.shortLabel}',
+                        'TOTAL',
+                      ),
                     ],
                   ),
                   const SizedBox(height: Gap.sm),
@@ -206,7 +239,7 @@ class _OfferDetailSheet extends ConsumerWidget {
                     children: [
                       _cell(
                         o.pickupKm > 0
-                            ? '${o.pickupKm.toStringAsFixed(1)} km'
+                            ? '${settings.distanceUnit.distanceFromKm(o.pickupKm).toStringAsFixed(1)} ${settings.distanceUnit.shortLabel}'
                             : '—',
                         'PICKUP',
                       ),
@@ -220,7 +253,7 @@ class _OfferDetailSheet extends ConsumerWidget {
                       const SizedBox(width: Gap.sm),
                       _cell(
                         o.pickupKm > 0 && o.totalKm > o.pickupKm
-                            ? '${(o.totalKm - o.pickupKm).toStringAsFixed(1)} km'
+                            ? '${settings.distanceUnit.distanceFromKm(o.totalKm - o.pickupKm).toStringAsFixed(1)} ${settings.distanceUnit.shortLabel}'
                             : '—',
                         'RIDE',
                       ),
@@ -228,36 +261,47 @@ class _OfferDetailSheet extends ConsumerWidget {
                   ),
                   const SizedBox(height: Gap.md),
                   _VerdictMath(offer: o, settings: settings),
-                  // Inferred take/pass — an estimate, not ground truth.
-                  if (o.outcome != OfferOutcome.unknown) ...[
-                    const SizedBox(height: Gap.sm),
-                    Row(
+                  const SizedBox(height: Gap.sm),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: outcome.color.withValues(alpha: 0.10),
+                      borderRadius: BorderRadius.circular(Radii.field),
+                      border: Border.all(
+                        color: outcome.color.withValues(alpha: 0.30),
+                      ),
+                    ),
+                    child: Row(
                       children: [
-                        Icon(
-                          o.outcome == OfferOutcome.taken
-                              ? Icons.check_circle_outline_rounded
-                              : Icons.highlight_off_rounded,
-                          size: 15,
-                          color: o.outcome == OfferOutcome.taken
-                              ? VerdictColors.good
-                              : FoxColors.textSecondary,
-                        ),
-                        const SizedBox(width: 6),
+                        Icon(outcome.icon, size: 20, color: outcome.color),
+                        const SizedBox(width: Gap.sm),
                         Expanded(
-                          child: Text(
-                            o.outcome == OfferOutcome.taken
-                                ? 'Likely taken'
-                                : 'Likely passed',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: FoxColors.textSecondary,
-                            ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                outcome.label,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w800,
+                                  color: outcome.color,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                outcome.detail,
+                                style: TextStyle(
+                                  fontSize: 11.5,
+                                  height: 1.3,
+                                  color: FoxColors.textSecondary,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ],
                     ),
-                  ],
+                  ),
                 ],
               ),
             ),
@@ -321,27 +365,36 @@ class _VerdictMath extends StatelessWidget {
   Widget build(BuildContext context) {
     final style = VerdictStyle.of(offer.verdict);
     final perHour = settings.rateMode == RateMode.perHour;
-    final t = settings.activeThresholds;
-    final rate = perHour ? offer.pricePerHour : offer.pricePerKm;
-    final unit = perHour ? '/hr' : '/km';
+    final canonical = settings.activeThresholds;
+    final rate = perHour
+        ? offer.pricePerHour
+        : settings.distanceUnit.rateFromPerKm(offer.pricePerKm);
+    final good = perHour
+        ? canonical.goodAtOrAbove
+        : settings.distanceUnit.rateFromPerKm(canonical.goodAtOrAbove);
+    final bad = perHour
+        ? canonical.badBelow
+        : settings.distanceUnit.rateFromPerKm(canonical.badBelow);
+    final unit = perHour ? '/hr' : '/${settings.distanceUnit.shortLabel}';
+    final prefix = settings.currency.prefix;
 
     // No parsed time in per-hour mode → nothing to compare against.
     final String text;
     if (rate <= 0) {
       text = 'Not enough parsed data to score this one.';
-    } else if (rate >= t.goodAtOrAbove) {
+    } else if (rate >= good) {
       text =
-          '\$${rate.toStringAsFixed(2)}$unit clears your GOOD bar of '
-          '\$${t.goodAtOrAbove.toStringAsFixed(2)}$unit.';
-    } else if (rate < t.badBelow) {
+          '$prefix${rate.toStringAsFixed(2)}$unit clears your GOOD bar of '
+          '$prefix${good.toStringAsFixed(2)}$unit.';
+    } else if (rate < bad) {
       text =
-          '\$${rate.toStringAsFixed(2)}$unit is under your BAD line of '
-          '\$${t.badBelow.toStringAsFixed(2)}$unit.';
+          '$prefix${rate.toStringAsFixed(2)}$unit is under your BAD line of '
+          '$prefix${bad.toStringAsFixed(2)}$unit.';
     } else {
       text =
-          '\$${rate.toStringAsFixed(2)}$unit sits between your BAD '
-          '\$${t.badBelow.toStringAsFixed(2)} and GOOD '
-          '\$${t.goodAtOrAbove.toStringAsFixed(2)}$unit.';
+          '$prefix${rate.toStringAsFixed(2)}$unit sits between your BAD '
+          '$prefix${bad.toStringAsFixed(2)} and GOOD '
+          '$prefix${good.toStringAsFixed(2)}$unit.';
     }
 
     return Container(

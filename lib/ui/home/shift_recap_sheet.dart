@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/offer_stats.dart';
 import '../../domain/offer_summary.dart';
+import '../settings/settings_controller.dart';
 import '../theme/tokens.dart';
 import 'recap_widgets.dart';
 
@@ -27,14 +29,15 @@ void maybeShowShiftRecap(
   );
 }
 
-class _ShiftRecapSheet extends StatelessWidget {
+class _ShiftRecapSheet extends ConsumerWidget {
   const _ShiftRecapSheet({required this.stats, required this.duration});
 
   final OfferStats stats;
   final Duration duration;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final settings = ref.watch(settingsProvider);
     final s = stats;
     return Container(
       margin: const EdgeInsets.all(Gap.sm),
@@ -134,14 +137,15 @@ class _ShiftRecapSheet extends StatelessWidget {
             children: [
               StatTile(
                 value: s.best != null && s.best!.pricePerKm > 0
-                    ? '\$${s.best!.pricePerKm.toStringAsFixed(2)}'
+                    ? '${settings.currency.prefix}${settings.distanceUnit.rateFromPerKm(s.best!.pricePerKm).toStringAsFixed(2)}'
                     : '—',
-                label: 'BEST \$/KM',
+                label:
+                    'BEST \$/${settings.distanceUnit.shortLabel.toUpperCase()}',
               ),
               const SizedBox(width: Gap.sm),
               StatTile(
                 value: s.goodAvgPerKm > 0
-                    ? '\$${s.goodAvgPerKm.toStringAsFixed(2)}'
+                    ? '${settings.currency.prefix}${settings.distanceUnit.rateFromPerKm(s.goodAvgPerKm).toStringAsFixed(2)}'
                     : '—',
                 label: 'GOOD AVG',
               ),
@@ -156,5 +160,4 @@ class _ShiftRecapSheet extends StatelessWidget {
       ),
     );
   }
-
 }

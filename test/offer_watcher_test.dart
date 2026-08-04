@@ -313,10 +313,7 @@ void main() {
 
       watcher.emit(_hoppNodes);
       await Future<void>.delayed(Duration.zero);
-      expect(
-        c.read(offerLogProvider).first.outcome,
-        OfferOutcome.unknown,
-      );
+      expect(c.read(offerLogProvider).first.outcome, OfferOutcome.unknown);
 
       // "Go online" is a browse marker → driver passed on the offer.
       watcher.emit(_hoppHome);
@@ -324,7 +321,7 @@ void main() {
       expect(c.read(offerLogProvider).first.outcome, OfferOutcome.missed);
     });
 
-    test('card → non-browse screen (in-trip nav) marks it taken', () async {
+    test('card → explicit Hopp trip state marks it taken', () async {
       final c = container();
       c.read(offerWatcherProvider);
       c.read(overlayControllerProvider);
@@ -342,6 +339,100 @@ void main() {
       );
       await pastGrace();
       expect(c.read(offerLogProvider).first.outcome, OfferOutcome.taken);
+    });
+
+    test('ambiguous non-card screen leaves the outcome unknown', () async {
+      final c = container();
+      c.read(offerWatcherProvider);
+      c.read(overlayControllerProvider);
+
+      watcher.emit(_hoppNodes);
+      await Future<void>.delayed(Duration.zero);
+      watcher.emit(
+        const ScreenRead(
+          packageName: ParserRegistry.hoppPackage,
+          texts: ['Main St', '3 min'],
+        ),
+      );
+      await pastGrace();
+      expect(c.read(offerLogProvider).first.outcome, OfferOutcome.unknown);
+      expect(overlay.clears, 1);
+    });
+
+    for (final stateText in const [
+      'Arrive',
+      'Passenger notified Slide to pick up',
+      'Slide to drop off',
+    ]) {
+      test('Lyft "$stateText" marks the offer taken', () async {
+        final c = container();
+        c.read(offerWatcherProvider);
+        c.read(overlayControllerProvider);
+
+        watcher.emit(
+          const ScreenRead(
+            packageName: ParserRegistry.lyftPackage,
+            texts: ['\$9.01', '3 mins · 0.4 km', '16 mins · 7.2 km', 'Accept'],
+          ),
+        );
+        await Future<void>.delayed(Duration.zero);
+        watcher.emit(
+          ScreenRead(
+            packageName: ParserRegistry.lyftPackage,
+            texts: [stateText],
+          ),
+        );
+        await pastGrace();
+        expect(c.read(offerLogProvider).first.outcome, OfferOutcome.taken);
+      });
+    }
+
+    for (final stateText in const [
+      'Picking up Alex',
+      'Waiting for rider',
+      'Start UberX',
+      'Start Comfort',
+      'Dropping off Alex',
+      'Complete Uber Share',
+    ]) {
+      test('Uber "$stateText" marks the offer taken', () async {
+        final c = container();
+        c.read(offerWatcherProvider);
+        c.read(overlayControllerProvider);
+
+        watcher.emit(
+          const ScreenRead(
+            packageName: ParserRegistry.uberPackage,
+            texts: ['UberX', '\$9', '15 mins (4.3 km) trip', 'Accept'],
+          ),
+        );
+        await Future<void>.delayed(Duration.zero);
+        watcher.emit(
+          ScreenRead(
+            packageName: ParserRegistry.uberPackage,
+            texts: [stateText],
+          ),
+        );
+        await pastGrace();
+        expect(c.read(offerLogProvider).first.outcome, OfferOutcome.taken);
+      });
+    }
+
+    test('a different gig app cannot stamp the shown offer outcome', () async {
+      final c = container();
+      c.read(offerWatcherProvider);
+      c.read(overlayControllerProvider);
+
+      watcher.emit(_hoppNodes);
+      await Future<void>.delayed(Duration.zero);
+      watcher.emit(
+        const ScreenRead(
+          packageName: ParserRegistry.uberPackage,
+          texts: ['Picking up a rider'],
+        ),
+      );
+      await pastGrace();
+      expect(c.read(offerLogProvider).first.outcome, OfferOutcome.unknown);
     });
 
     test('card frame returning cancels a pending outcome', () async {

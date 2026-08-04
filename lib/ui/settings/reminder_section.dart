@@ -465,7 +465,9 @@ class _PresetChip extends StatelessWidget {
               Icon(
                 icon,
                 size: 14,
-                color: selected ? FoxColors.textPrimary : FoxColors.textSecondary,
+                color: selected
+                    ? FoxColors.textPrimary
+                    : FoxColors.textSecondary,
               ),
               const SizedBox(width: 5),
             ],
@@ -474,7 +476,9 @@ class _PresetChip extends StatelessWidget {
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
-                color: selected ? FoxColors.textPrimary : FoxColors.textSecondary,
+                color: selected
+                    ? FoxColors.textPrimary
+                    : FoxColors.textSecondary,
               ),
             ),
           ],

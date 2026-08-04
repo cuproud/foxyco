@@ -1,3 +1,5 @@
+import 'app_currency.dart';
+import 'distance_unit.dart';
 import 'money_font.dart';
 import 'verdict.dart';
 
@@ -17,6 +19,8 @@ class OverlayPayload {
   final double payout; // dollars
   final double totalMinutes; // pickup + trip; 0 when unknown
   final PillSize size;
+  final DistanceUnit distanceUnit;
+  final AppCurrency currency;
 
   /// Dead mileage to the rider; 0 when the parser couldn't split it out.
   final double pickupKm;
@@ -52,6 +56,8 @@ class OverlayPayload {
     required this.payout,
     this.totalMinutes = 0,
     this.size = PillSize.medium,
+    this.distanceUnit = DistanceUnit.kilometres,
+    this.currency = AppCurrency.cad,
     this.pickupKm = 0,
     this.pickupNearKm = 0,
     this.hourGoodAt = 0,
@@ -61,6 +67,8 @@ class OverlayPayload {
   });
 
   double get pricePerKm => totalKm > 0 ? payout / totalKm : 0;
+  double get displayDistance => distanceUnit.distanceFromKm(totalKm);
+  double get displayRate => distanceUnit.rateFromPerKm(pricePerKm);
 
   /// Dollars per hour — the Maxymo-style headline. Zero when no time was parsed,
   /// so the pill hides it rather than dividing by zero.
@@ -93,6 +101,8 @@ class OverlayPayload {
     'payout': payout,
     'totalMinutes': totalMinutes,
     'size': size.name,
+    'distanceUnit': distanceUnit.name,
+    'currency': currency.name,
     'pickupKm': pickupKm,
     'pickupNearKm': pickupNearKm,
     'hourGoodAt': hourGoodAt,
@@ -116,6 +126,8 @@ class OverlayPayload {
       (s) => s.name == map['size'],
       orElse: () => PillSize.medium,
     ),
+    distanceUnit: DistanceUnit.fromName(map['distanceUnit'] as String?),
+    currency: AppCurrency.fromName(map['currency'] as String?),
     pickupKm: (map['pickupKm'] as num?)?.toDouble() ?? 0,
     pickupNearKm: (map['pickupNearKm'] as num?)?.toDouble() ?? 0,
     hourGoodAt: (map['hourGoodAt'] as num?)?.toDouble() ?? 0,

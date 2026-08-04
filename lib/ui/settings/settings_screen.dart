@@ -6,12 +6,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../domain/app_skin.dart';
+import '../../domain/app_currency.dart';
 import '../../domain/decision_engine.dart';
+import '../../domain/distance_unit.dart';
 import '../../domain/fox_settings.dart';
 import '../../domain/money_font.dart';
 import '../../domain/overlay_payload.dart' show OverlayPayload, PillSize;
 import '../../domain/platform.dart';
 import '../../domain/rate_mode.dart';
+import '../../domain/thresholds.dart';
 import '../../domain/verdict.dart';
 import '../../services/billing/entitlement.dart';
 import '../../services/offer_log.dart';
@@ -129,10 +132,21 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
     final settings = ref.watch(settingsProvider);
     final perHour = settings.rateMode == RateMode.perHour;
-    final t = settings.activeThresholds;
-    final min = perHour ? _minHr : _minKm;
-    final max = perHour ? _maxHr : _maxKm;
-    final unit = perHour ? '/hr' : '/km';
+    final canonicalThresholds = settings.activeThresholds;
+    final t = perHour
+        ? canonicalThresholds
+        : Thresholds(
+            goodAtOrAbove: settings.distanceUnit.rateFromPerKm(
+              canonicalThresholds.goodAtOrAbove,
+            ),
+            badBelow: settings.distanceUnit.rateFromPerKm(
+              canonicalThresholds.badBelow,
+            ),
+          );
+    final min = perHour ? _minHr : settings.distanceUnit.rateFromPerKm(_minKm);
+    final max = perHour ? _maxHr : settings.distanceUnit.rateFromPerKm(_maxKm);
+    final unit = perHour ? '/hr' : '/${settings.distanceUnit.shortLabel}';
+    final money = settings.currency.prefix;
     final sample = perHour ? _samplePph : _samplePpk;
     final controller = ref.read(settingsProvider.notifier);
     final text = Theme.of(context).textTheme;
@@ -223,7 +237,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           SettingsGroup(
             title: 'Verdict thresholds',
             icon: Icons.tune_rounded,
-            summary: 'GOOD ≥ \$${t.goodAtOrAbove.toStringAsFixed(2)}$unit',
+            summary: 'GOOD ≥ $money${t.goodAtOrAbove.toStringAsFixed(2)}$unit',
             open: _open == 2,
             accent: _accents[2],
             onTap: () => _toggle(2),
@@ -234,7 +248,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   perHour
                       ? 'Offers are scored by dollars per hour. Set where '
                             'GOOD and BAD begin.'
-                      : 'Offers are scored by dollars per kilometre. Set '
+                      : 'Offers are scored by dollars per ${settings.distanceUnit.label.toLowerCase()}. Set '
                             'where GOOD and BAD begin.',
                   style: text.bodyMedium?.copyWith(
                     color: FoxColors.textSecondary,
@@ -264,7 +278,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 const SizedBox(height: Gap.md),
                 // One-tap starting points (same trio as onboarding).
                 // Only shown in $/km mode — the presets are $/km numbers.
-                if (!perHour) ...[
+                if (!perHour &&
+                    settings.distanceUnit == DistanceUnit.kilometres) ...[
                   PresetChips(current: t, onPick: controller.applyPreset),
                   const SizedBox(height: Gap.md),
                 ],
@@ -276,7 +291,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   value: t.goodAtOrAbove,
                   min: min,
                   max: max,
-                  onChanged: controller.setGood,
+                  currencyPrefix: money,
+                  onChanged: perHour
+                      ? controller.setGood
+                      : controller.setDisplayedGood,
                 ),
                 const SizedBox(height: Gap.md),
                 ThresholdSlider(
@@ -285,7 +303,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   value: t.badBelow,
                   min: min,
                   max: max,
-                  onChanged: controller.setBad,
+                  currencyPrefix: money,
+                  onChanged: perHour
+                      ? controller.setBad
+                      : controller.setDisplayedBad,
                 ),
               ],
             ),
@@ -307,6 +328,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               verdict: _engine.evaluate(sample, t),
               min: min,
               max: max,
+              currencyPrefix: money,
               onChanged: (v) => setState(() {
                 if (perHour) {
                   _samplePph = v;
@@ -323,7 +345,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           SettingsGroup(
             title: 'Pickup guard',
             icon: Icons.near_me_outlined,
-            summary: 'Near ≤ ${settings.pickupNearKm.toStringAsFixed(1)} km',
+            summary:
+                'Near ≤ ${settings.distanceUnit.distanceFromKm(settings.pickupNearKm).toStringAsFixed(1)} ${settings.distanceUnit.shortLabel}',
             open: _open == 4,
             accent: _accents[4],
             onTap: () => _toggle(4),
@@ -333,11 +356,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ThresholdSlider(
                   label: 'Near pickup at or under',
                   color: FoxColors.brandFox,
-                  value: settings.pickupNearKm,
-                  min: 0.5,
-                  max: 10.0,
-                  unit: 'km',
-                  onChanged: controller.setPickupNearKm,
+                  value: settings.distanceUnit.distanceFromKm(
+                    settings.pickupNearKm,
+                  ),
+                  min: settings.distanceUnit.distanceFromKm(0.5),
+                  max: settings.distanceUnit.distanceFromKm(10.0),
+                  unit: settings.distanceUnit.shortLabel,
+                  onChanged: controller.setDisplayedPickupNear,
                 ),
                 Text(
                   'Pickups under this distance show green on the pill; '
@@ -510,7 +535,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   child: FittedBox(
                     fit: BoxFit.scaleDown,
                     child: VerdictPill(
-                      payload: const OverlayPayload(
+                      payload: OverlayPayload(
                         verdict: Verdict.good,
                         totalKm: 8.4,
                         payout: 12,
@@ -519,6 +544,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         pickupNearKm: 3,
                         hourGoodAt: 30,
                         hourBadBelow: 20,
+                        distanceUnit: settings.distanceUnit,
+                        currency: settings.currency,
                       ),
                       size: settings.pillSize,
                       // Static ring in preview: the orbit loop would keep the
@@ -530,7 +557,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 const SizedBox(height: Gap.sm + Gap.xs),
                 // Quick "how to read it" legend for first-time users — mirrors
                 // the sample pill above (M6 follow-up, device 2026-07-19).
-                const PillLegend(),
+                PillLegend(distanceLabel: settings.distanceUnit.shortLabel),
               ],
             ),
           ),
@@ -541,7 +568,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           SettingsGroup(
             title: 'Appearance',
             icon: Icons.text_fields_rounded,
-            summary: '${settings.skin.label} · ${settings.moneyFont.label}',
+            summary:
+                '${settings.skin.label} · ${settings.distanceUnit.shortLabel} · ${settings.currency.label}',
             open: _open == 8,
             accent: _accents[8],
             onTap: () => _toggle(8),
@@ -564,6 +592,31 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 const SizedBox(height: Gap.sm),
                 Text(
                   settings.skin.blurb,
+                  style: text.bodySmall?.copyWith(
+                    color: FoxColors.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: Gap.lg),
+                Text('Distance', style: text.titleSmall),
+                const SizedBox(height: Gap.sm),
+                ChoiceRow<DistanceUnit>(
+                  values: DistanceUnit.values,
+                  selected: settings.distanceUnit,
+                  labelOf: (unit) => unit.label,
+                  onChanged: controller.setDistanceUnit,
+                ),
+                const SizedBox(height: Gap.lg),
+                Text('Offer currency', style: text.titleSmall),
+                const SizedBox(height: Gap.sm),
+                ChoiceRow<AppCurrency>(
+                  values: AppCurrency.values,
+                  selected: settings.currency,
+                  labelOf: (currency) => currency.label,
+                  onChanged: controller.setCurrency,
+                ),
+                const SizedBox(height: Gap.sm),
+                Text(
+                  'Currency changes labels only. FoxyCo does not convert fares.',
                   style: text.bodySmall?.copyWith(
                     color: FoxColors.textSecondary,
                   ),
@@ -731,6 +784,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   /// building the string in memory is fine.
   Future<void> _exportCsv(BuildContext context) async {
     final offers = ref.read(offerLogProvider);
+    final settings = ref.read(settingsProvider);
     if (offers.isEmpty) {
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
@@ -743,19 +797,24 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       return;
     }
     final buf = StringBuffer(
-      'seen_at,app,verdict,fare,total_km,pickup_km,minutes,per_km,per_hour,outcome\n',
+      'seen_at,app,category,queued,verdict,currency,fare,bonus,distance_unit,total_distance,pickup_distance,minutes,rate_per_distance,per_hour,outcome\n',
     );
     for (final o in offers) {
       buf.writeln(
         [
           o.seenAt.toIso8601String(),
           o.platform.label,
+          o.category ?? '',
+          o.isQueued,
           o.verdict.name,
+          settings.currency.label,
           o.payout.toStringAsFixed(2),
-          o.totalKm.toStringAsFixed(1),
-          o.pickupKm.toStringAsFixed(1),
+          o.bonus.toStringAsFixed(2),
+          settings.distanceUnit.shortLabel,
+          settings.distanceUnit.distanceFromKm(o.totalKm).toStringAsFixed(1),
+          settings.distanceUnit.distanceFromKm(o.pickupKm).toStringAsFixed(1),
           o.totalMinutes.toStringAsFixed(0),
-          o.pricePerKm.toStringAsFixed(2),
+          settings.distanceUnit.rateFromPerKm(o.pricePerKm).toStringAsFixed(2),
           o.pricePerHour.toStringAsFixed(2),
           o.outcome.name,
         ].join(','),

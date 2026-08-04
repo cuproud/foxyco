@@ -298,14 +298,16 @@ class _PresetPicker extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final current = ref.watch(settingsProvider).thresholds;
+    final settings = ref.watch(settingsProvider);
+    final current = settings.thresholds;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         for (final (label, t) in Thresholds.presets) ...[
           _PresetCard(
             label: label,
-            sub: 'GOOD from \$${t.goodAtOrAbove.toStringAsFixed(2)}/km',
+            sub:
+                'GOOD from ${settings.currency.prefix}${settings.distanceUnit.rateFromPerKm(t.goodAtOrAbove).toStringAsFixed(2)}/${settings.distanceUnit.shortLabel}',
             selected: current == t,
             onTap: () => ref.read(settingsProvider.notifier).applyPreset(t),
           ),

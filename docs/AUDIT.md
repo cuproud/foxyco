@@ -94,8 +94,8 @@ Offer text can contain addresses / rider names. FoxyCo is "privacy-first," so it
 ## 🟢 8. Distribution & naming
 
 - **"FoxyCo"** — check Play Store + trademark collision before committing the listing (lots of "Foxy"
-  apps). Package `com.foxyco.app` is a placeholder; lock it before first signed build (can't change
-  after publish). Also grab `foxy.co` / `getfoxyco.app` if the brand sticks.
+  apps). Package `com.foxyco.app` is now published and immutable. Also grab
+  `foxy.co` / `getfoxyco.app` if the brand sticks.
 - Sign + keep the keystore backed up (losing it = can't update the app ever).
 
 ---
@@ -278,7 +278,8 @@ fonts (OFL requires shipping the license with the font). Flutter's built-in
 
 ## M11 legal + money-path sweep — 2026-08-02
 
-Pre-internal-testing pass. Analyzer clean, 259 tests green.
+Pre-internal-testing pass (historical build 6 snapshot). For the current build,
+test count and release findings, see `HANDOFF_2026-08-04.md`.
 
 **Fixed**
 1. `about_content.dart` version string had drifted from `pubspec.yaml` (build 4 vs 6) — the

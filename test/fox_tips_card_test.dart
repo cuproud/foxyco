@@ -39,7 +39,7 @@ void main() {
     await tester.tap(find.byTooltip('Next tip'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Include the pickup distance'), findsOneWidget);
+    expect(find.text('Include the unpaid pickup distance'), findsOneWidget);
     expect(find.text('2 / 12'), findsOneWidget);
   });
 
