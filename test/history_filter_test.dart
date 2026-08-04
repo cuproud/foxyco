@@ -14,12 +14,17 @@ class _FixedLog extends OfferLog {
   List<OfferSummary> build() => _offers;
 }
 
-OfferSummary _offer(DateTime seenAt) => OfferSummary(
+OfferSummary _offer(
+  DateTime seenAt, {
+  OfferOutcome outcome = OfferOutcome.unknown,
+  double payout = 20,
+}) => OfferSummary(
   platform: GigPlatform.uber,
   verdict: Verdict.good,
-  payout: 20,
+  payout: payout,
   totalKm: 10,
   seenAt: seenAt,
+  outcome: outcome,
 );
 
 Widget _app(List<OfferSummary> offers) => ProviderScope(
@@ -76,5 +81,45 @@ void main() {
       find.image(const AssetImage('assets/history/hunt.webp')),
       findsOneWidget,
     );
+  });
+
+  testWidgets('Accepted history filter excludes missed and unknown offers', (
+    tester,
+  ) async {
+    final now = DateTime.now();
+    final offers = [
+      _offer(now, outcome: OfferOutcome.taken, payout: 21),
+      _offer(now, outcome: OfferOutcome.missed, payout: 22),
+      _offer(now, outcome: OfferOutcome.unknown, payout: 23),
+    ];
+    await tester.pumpWidget(_app(offers));
+    await tester.pumpAndSettle();
+
+    expect(find.text('3 today'), findsOneWidget);
+    await tester.tap(find.text('Accepted'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('1 today'), findsOneWidget);
+
+    await tester.tap(find.text('All').last);
+    await tester.pumpAndSettle();
+    expect(find.text('3 today'), findsOneWidget);
+  });
+
+  testWidgets('Show all also resets the Accepted history filter', (
+    tester,
+  ) async {
+    final now = DateTime.now();
+    await tester.pumpWidget(_app([_offer(now, outcome: OfferOutcome.missed)]));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Accepted'));
+    await tester.pumpAndSettle();
+    expect(find.text('0 today'), findsOneWidget);
+    expect(find.text('Show all'), findsOneWidget);
+
+    await tester.tap(find.text('Show all'));
+    await tester.pumpAndSettle();
+    expect(find.text('1 all time'), findsOneWidget);
   });
 }

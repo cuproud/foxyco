@@ -206,6 +206,26 @@ class ParserPatterns {
             RegExp(r'\bslide to (?:pick up|drop off)\b').hasMatch(node),
       );
     }
+    if (platform == GigPlatform.hopp) {
+      // Real Hopp flow, captured 2026-08-04:
+      // Arrived → Waiting/Start Trip → End Trip → Confirm Price → Rate passenger.
+      // Keep the generic word "waiting" timer-shaped so unrelated copy cannot
+      // turn a declined offer into an accepted one.
+      return normalized.any(
+        (node) =>
+            node == 'arrived' ||
+            node == 'you have arrived' ||
+            node == 'wait here' ||
+            RegExp(r'^\d{1,2}:\d{2} waiting$').hasMatch(node) ||
+            node == 'start trip' ||
+            node == 'end trip' ||
+            node == 'confirm price' ||
+            node == 'rate passenger' ||
+            node == 'navigate to rider' ||
+            node == 'arrive at pickup' ||
+            node == 'complete trip',
+      );
+    }
     final joined = normalized.join(' ');
     final pattern = switch (platform) {
       GigPlatform.lyft => throw StateError('handled above'),
@@ -216,10 +236,7 @@ class ParserPatterns {
         r'\bcomplete\s+(?:uber\s*)?(?:x|xl|comfort|share|pool|green|pet|premier|black|connect)\b',
         caseSensitive: false,
       ),
-      GigPlatform.hopp => RegExp(
-        r'navigate\s+to\s+rider|arrive\s+at\s+pickup|start\s+trip|complete\s+trip',
-        caseSensitive: false,
-      ),
+      GigPlatform.hopp => throw StateError('handled above'),
     };
     return pattern.hasMatch(joined);
   }

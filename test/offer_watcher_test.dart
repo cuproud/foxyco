@@ -341,6 +341,34 @@ void main() {
       expect(c.read(offerLogProvider).first.outcome, OfferOutcome.taken);
     });
 
+    for (final stateText in const [
+      'You have arrived',
+      'Arrived',
+      '01:59 Waiting',
+      'Start Trip',
+      'End Trip',
+      'Confirm Price',
+      'Rate passenger',
+    ]) {
+      test('Hopp "$stateText" marks the History offer accepted', () async {
+        final c = container();
+        c.read(offerWatcherProvider);
+        c.read(overlayControllerProvider);
+
+        watcher.emit(_hoppNodes);
+        await Future<void>.delayed(Duration.zero);
+        watcher.emit(
+          ScreenRead(
+            packageName: ParserRegistry.hoppPackage,
+            texts: [stateText],
+          ),
+        );
+        await pastGrace();
+
+        expect(c.read(offerLogProvider).first.outcome, OfferOutcome.taken);
+      });
+    }
+
     test('ambiguous non-card screen leaves the outcome unknown', () async {
       final c = container();
       c.read(offerWatcherProvider);

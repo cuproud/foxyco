@@ -30,4 +30,38 @@ void main() {
       isTrue,
     );
   });
+
+  test('real Hopp pickup, trip and completion states count as accepted', () {
+    for (final state in const [
+      'You have arrived',
+      'Arrived',
+      'Wait here',
+      '01:59 Waiting',
+      'Start Trip',
+      'End Trip',
+      'Confirm Price',
+      'Rate passenger',
+    ]) {
+      expect(
+        ParserPatterns.looksLikeAcceptedTrip(GigPlatform.hopp, [state]),
+        isTrue,
+        reason: state,
+      );
+    }
+  });
+
+  test('generic Hopp waiting and confirm copy stays unconfirmed', () {
+    for (final state in const [
+      'Waiting for offers',
+      'Confirm',
+      'Price estimate',
+      'You will arrive in 5 minutes',
+    ]) {
+      expect(
+        ParserPatterns.looksLikeAcceptedTrip(GigPlatform.hopp, [state]),
+        isFalse,
+        reason: state,
+      );
+    }
+  });
 }

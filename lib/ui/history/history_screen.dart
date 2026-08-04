@@ -18,8 +18,9 @@ import 'offer_detail_sheet.dart';
 
 /// History (references/foxyco_history.html).
 ///
-/// Time range + per-app chips + a "top offers only" filter over the live
-/// offer log ([offerLogProvider]) — every scored offer FoxyCo has seen.
+/// Time range + app, verdict and trip-status filters + a "top offers only"
+/// filter over the live offer log ([offerLogProvider]) — every scored offer
+/// FoxyCo has seen.
 class HistoryScreen extends ConsumerStatefulWidget {
   const HistoryScreen({super.key});
 
@@ -40,10 +41,13 @@ class HistoryScreen extends ConsumerStatefulWidget {
 
 enum HistoryRange { today, week, month, all }
 
+enum HistoryOutcomeFilter { all, accepted }
+
 class _HistoryScreenState extends ConsumerState<HistoryScreen> {
   HistoryRange _range = HistoryRange.today;
   final Set<GigPlatform?> _apps = {null}; // null == "All"
   final Set<Verdict?> _verdicts = {null}; // null == "All"
+  HistoryOutcomeFilter _outcome = HistoryOutcomeFilter.all;
   bool _topOnly = false;
   int _minFare = 20;
 
@@ -64,6 +68,10 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     }
     if (!_apps.contains(null) && !_apps.contains(o.platform)) return false;
     if (!_verdicts.contains(null) && !_verdicts.contains(o.verdict)) {
+      return false;
+    }
+    if (_outcome == HistoryOutcomeFilter.accepted &&
+        o.outcome != OfferOutcome.taken) {
       return false;
     }
     // Top-only is a FARE floor, nothing more. It used to also require
@@ -120,6 +128,11 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
         _AppChips(selected: _apps, onToggle: _toggleApp),
         const SizedBox(height: Gap.sm),
         _VerdictChips(selected: _verdicts, onToggle: _toggleVerdict),
+        const SizedBox(height: Gap.sm),
+        _OutcomeControl(
+          value: _outcome,
+          onChanged: (outcome) => setState(() => _outcome = outcome),
+        ),
         const SizedBox(height: Gap.md),
         _TopCard(
           on: _topOnly,
@@ -143,6 +156,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                     _verdicts
                       ..clear()
                       ..add(null);
+                    _outcome = HistoryOutcomeFilter.all;
                     _topOnly = false;
                   }),
           )
@@ -247,6 +261,111 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
       'Dec',
     ];
     return '${months[t.month - 1]} ${t.day}';
+  }
+}
+
+/// Explicitly labeled because the nearby platform and verdict rows each have
+/// their own "All" choice. Only confirmed accepted trips are included; an
+/// unconfirmed outcome must never be presented as accepted.
+class _OutcomeControl extends StatelessWidget {
+  const _OutcomeControl({required this.value, required this.onChanged});
+
+  final HistoryOutcomeFilter value;
+  final ValueChanged<HistoryOutcomeFilter> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Text(
+          'TRIP STATUS',
+          style: TextStyle(
+            fontSize: 10,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.8,
+            color: FoxColors.textDisabled,
+          ),
+        ),
+        const Spacer(),
+        Container(
+          height: 48,
+          padding: const EdgeInsets.all(2),
+          decoration: BoxDecoration(
+            color: FoxColors.bgSurface,
+            borderRadius: BorderRadius.circular(Radii.pill),
+            border: Border.all(color: FoxColors.borderSoft),
+            boxShadow: Shadows.soft,
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _choice(HistoryOutcomeFilter.all, 'All', Icons.list_rounded),
+              _choice(
+                HistoryOutcomeFilter.accepted,
+                'Accepted',
+                Icons.check_circle_outline_rounded,
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _choice(HistoryOutcomeFilter choice, String label, IconData icon) {
+    final active = value == choice;
+    final accepted = choice == HistoryOutcomeFilter.accepted;
+    final activeColor = accepted
+        ? OutcomeStyle.of(OfferOutcome.taken).color
+        : FoxColors.textPrimary;
+    return Semantics(
+      selected: active,
+      button: true,
+      label: '$label trip history',
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () {
+          if (!active) {
+            HapticFeedback.selectionClick();
+            onChanged(choice);
+          }
+        },
+        child: AnimatedContainer(
+          duration: Motion.base,
+          curve: Motion.curve,
+          height: 44,
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          decoration: BoxDecoration(
+            color: active
+                ? activeColor.withValues(alpha: accepted ? 0.12 : 0.06)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(Radii.pill),
+            border: active
+                ? Border.all(color: activeColor.withValues(alpha: 0.24))
+                : null,
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                icon,
+                size: 15,
+                color: active ? activeColor : FoxColors.textSecondary,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w700,
+                  color: active ? activeColor : FoxColors.textSecondary,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 

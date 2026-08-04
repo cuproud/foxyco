@@ -15,7 +15,7 @@ testing does not count toward the production-access gate.
 
 ## Ordered closed-test checklist
 
-1. Upload build 16 to Internal, verify it, then promote that same release to
+1. Upload build 17 to Internal, verify it, then promote that same release to
    Closed testing.
 2. Confirm the one-time product and its only purchase option are Active.
 3. Confirm the group is self-joinable and connected to the closed track.

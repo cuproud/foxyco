@@ -79,11 +79,13 @@ Legend: 🟢 GOOD  🟡 OK  🔴 BAD (pill shows icon + WORD + `km · $payout`).
 | 3.10 | Lyft **scheduled-rides** home list | NO pill — multiple legs / browse markers reject it | [ ] |
 | 3.11 | Real Lyft offer card (bug1 1) | Pill draws `$10.05 · $0.85/km · $30/hr`, gross pay | [ ] |
 | 3.12 | Hopp **407 toll** offer (toll line above payout) | Payout = the real net `$`, NOT the toll amount | [ ] |
-| 3.13 | Offer card dismissed / driver leaves offer screen | Pill clears within ~1 s of the Accept/Match affordance leaving (not on a fixed timer); bubble remains | [ ] |
-| 3.14 | Turn watching **ON** in-app (no Simulate tap) | Bubble appears on its own; **Pause** dims it; **Resume** un-dims | [ ] |
-| 3.15 | **Drag** bubble far left/right | Whole pill/bubble stays on-screen, never stuck off-edge (bug1 7) | [ ] |
-| 3.16 | **Tap** bubble | FoxyCo comes to the foreground | [x] verified on S24 2026-07-13 |
-| 3.17 | **Drag bubble to bottom** drop zone | Overlay closes AND Home flips out of "Watching" (no desync) | [ ] |
+| 3.13 | Accept a Hopp offer and progress through **Arrived → Waiting/Start Trip → End Trip → Confirm Price → Rate passenger** | History marks the offer **Accepted** after the first strong trip state; no rider name/address is stored | [ ] |
+| 3.14 | Decline or let a Hopp offer expire and return to its browse/home map | History marks the offer **Not taken**; an ambiguous blank/navigation frame stays **Unconfirmed** | [ ] |
+| 3.15 | Offer card dismissed / driver leaves offer screen | Pill clears within ~1 s of the Accept/Match affordance leaving (not on a fixed timer); bubble remains | [ ] |
+| 3.16 | Turn watching **ON** in-app (no Simulate tap) | Bubble appears on its own; **Pause** dims it; **Resume** un-dims | [ ] |
+| 3.17 | **Drag** bubble far left/right | Whole pill/bubble stays on-screen, never stuck off-edge (bug1 7) | [ ] |
+| 3.18 | **Tap** bubble | FoxyCo comes to the foreground | [x] verified on S24 2026-07-13 |
+| 3.19 | **Drag bubble to bottom** drop zone | Overlay closes AND Home flips out of "Watching" (no desync) | [ ] |
 
 ### M3-lifetime — pill stays while the card is up, clears on action (2026-07-13)
 
@@ -140,9 +142,10 @@ Demo data removed — tally/ticket/history are live from logged offers only.
 | H.2 | Tap "Show a demo pill" | Pill draws; tally stays **0 · 0 · 0**, History count unchanged | [ ] |
 | H.3 | Real offer appears (Uber/Hopp/Lyft) | Tally increments for its verdict; Last-offer ticket matches pill numbers | [ ] |
 | H.4 | Open History | Same offer listed under **Today** with exact fare/km | [ ] |
-| H.5 | History filters | Range/app/top-offers chips narrow the live list (no mock rows anywhere) | [ ] |
+| H.5 | History filters | Range/app/verdict/top-offers controls narrow the live list (no mock rows anywhere) | [ ] |
 | H.6 | Kill + reopen app | Tally, ticket, and History survive restart | [ ] |
 | H.7 | Tap **Pause** | Status flips watching ↔ paused | [ ] |
+| H.8 | History → Trip status → **Accepted** | Only confirmed accepted offers remain; header, stats and charts share that count. **All** restores every outcome | [ ] |
 
 ## M4 — Onboarding (first run, 2026-07-16)
 

@@ -35,6 +35,21 @@ Images: `references/Uber.jpg`, `references/Hopp.jpg`.
   - full-width **green Accept** button
 - **Pay = NET (tax included)** — already smarter than Uber.
 
+### Hopp accepted-trip flow (device capture 2026-08-04)
+
+The supplied `flow/Hopp` sequence provides strong, rider-independent outcome
+signals after the offer card disappears:
+
+1. Pickup navigation: `You have arrived` with the `Arrived` slider.
+2. At pickup: `Wait here`, a `MM:SS Waiting` timer, then `Start Trip`.
+3. Passenger onboard: destination navigation with `End Trip`.
+4. Completion: `Confirm Price`, then `Rate passenger`.
+
+Any of those exact controls proves the preceding offer was accepted. Returning
+to Hopp's browse/home surface proves it was not taken. Plain navigation text,
+generic “waiting” copy, or a blank transition remains Unconfirmed. FoxyCo does
+not store the rider name or either address visible in these screens.
+
 ---
 
 ## Shared design DNA (what FoxyCo inherits)

@@ -35,7 +35,7 @@
 
 _Added 2026-08-02. §1–§6 are the reasoning; this is the ordered list of moves.
 Everything below is a console/web action except C1. Build 15 was Play-installed
-and device-tested; current source is build 16. See `HANDOFF_2026-08-04.md` for
+and device-tested; current source is build 17. See `HANDOFF_2026-08-04.md` for
 the latest automated verification and remaining physical-device checks._
 
 ### Phase A — no Play Console needed, do it today
