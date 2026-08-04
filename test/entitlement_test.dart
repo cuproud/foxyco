@@ -119,6 +119,30 @@ void main() {
     });
   });
 
+  group('Play ownership refresh', () {
+    test('successful empty query clears a refunded local unlock', () {
+      expect(
+        ownedPurchaseQueryStatus(
+          current: UnlockStatus.purchased,
+          succeeded: true,
+          ownsGenuinePurchase: false,
+        ),
+        UnlockStatus.notPurchased,
+      );
+    });
+
+    test('query failure keeps a verified purchase for offline grace', () {
+      expect(
+        ownedPurchaseQueryStatus(
+          current: UnlockStatus.purchased,
+          succeeded: false,
+          ownsGenuinePurchase: false,
+        ),
+        UnlockStatus.purchased,
+      );
+    });
+  });
+
   group('offline grace window (§3.5)', () {
     test('a cached purchase survives Play being unreachable for a week', () {
       final a = derive(

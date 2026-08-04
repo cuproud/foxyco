@@ -11,12 +11,14 @@ OfferSummary _o(
   double km, {
   int hour = 12,
   GigPlatform platform = GigPlatform.uber,
+  OfferOutcome outcome = OfferOutcome.unknown,
 }) => OfferSummary(
   platform: platform,
   verdict: v,
   payout: payout,
   totalKm: km,
   seenAt: DateTime(2026, 7, 16, hour, 5),
+  outcome: outcome,
 );
 
 void main() {
@@ -40,6 +42,17 @@ void main() {
     expect(stats.good, 2);
     expect(stats.ok, 1);
     expect(stats.bad, 1);
+  });
+
+  test('accepted is counted separately from the verdict split', () {
+    final stats = OfferStats.from([
+      _o(Verdict.good, 15, 10, outcome: OfferOutcome.taken),
+      _o(Verdict.bad, 5, 10, outcome: OfferOutcome.taken),
+      _o(Verdict.ok, 10, 10),
+    ]);
+    expect(stats.total, 3);
+    expect(stats.good + stats.ok + stats.bad, 3);
+    expect(stats.accepted, 2);
   });
 
   test('goodAvgPerKm averages GOOD offers only', () {

@@ -128,11 +128,10 @@ class _PaywallSheetState extends ConsumerState<_PaywallSheet> {
   });
 
   Future<void> _restore() => _run(() async {
-    await ref.read(billingProvider.notifier).restore();
     await ref.read(accessProvider.notifier).refresh();
     if (!mounted) return;
     if (ref.read(billingProvider) != UnlockStatus.purchased) {
-      _say('No previous purchase found on this Google account.');
+      _say('No lifetime purchase found in Google Play.');
     }
   });
 
@@ -151,9 +150,9 @@ class _PaywallSheetState extends ConsumerState<_PaywallSheet> {
     final access = ref.watch(accessProvider);
 
     // Purchase landed while the sheet was open (Play's flow is asynchronous) —
-    // get out of the driver's way.
-    ref.listen(entitledProvider, (_, entitled) {
-      if (entitled) _close();
+    // listen to Play itself because an active trial is already entitled.
+    ref.listen(billingProvider, (_, unlock) {
+      if (unlock == UnlockStatus.purchased) _close();
     });
 
     // Play supplies a storefront-localized string (for example CA$12.99 or

@@ -34,8 +34,8 @@
 ## 0. Closed-test runbook — do this now
 
 _Added 2026-08-02. §1–§6 are the reasoning; this is the ordered list of moves.
-Everything below is a console/web action except C1. Build 15 was Play-installed
-and device-tested; current source is build 19. See `HANDOFF_2026-08-04.md` for
+Everything below is a console/web action except C1. Build 22 was Play-installed
+and device-tested; current source is build 23. See `HANDOFF_2026-08-04.md` for
 the latest automated verification and remaining physical-device checks._
 
 ### Phase A — no Play Console needed, do it today
@@ -62,6 +62,31 @@ the latest automated verification and remaining physical-device checks._
 
 ### Phase C — build and upload
 
+Use the repository build helper so the build code and About label stay in
+sync. `--bump` increments the build code before compiling; `apk` is optional
+for an explicit release APK. The AAB command requires the Play public key:
+
+```bash
+./scripts/build.sh apk --bump
+./scripts/build.sh aab --bump
+```
+
+Artifacts are copied to `dist/` with version and timestamped names.
+
+Latest verified bundle:
+
+```text
+dist/FoxyCo-v1.0.9+23-release-20260804-1015.aab
+69,904,002 bytes
+SHA-256 5275194e156544788b63456d9c2d7954da6346288b3e8f1e605d7f027e9702f1
+```
+
+It byte-matches `build/app/outputs/bundle/release/app-release.aab` and contains
+the Play licensing public key. Build 22 was installed from Play: Google trial
+sign-in restored the remaining hours and a promo code granted the lifetime
+unlock (`1/20` codes used). Build 23 adds automatic paywall dismissal after
+that confirmation and the live History filter summary.
+
 The licensing key is an RSA **public** key. It is extractable from any shipped
 APK, so recording it here costs nothing and makes the build reproducible:
 
@@ -81,11 +106,11 @@ unzip -qo build/app/outputs/bundle/release/app-release.aab 'base/lib/arm64-v8a/*
 grep -qa qTpiV2mIQJeDVeoIRmab /tmp/aabchk/base/lib/arm64-v8a/ -r && echo "key present"
 ```
 
-⚠️ **Do not upload a bundle built without that flag.** `PurchaseVerifier`
+⚠️ **Do not upload a bundle built without the key.** `PurchaseVerifier`
 fails closed: no key compiled in → every receipt is rejected → a real payment
 grants nothing. The trial still works, so the bug is invisible until someone
-pays. Also bump `version:` in `pubspec.yaml` before every re-upload — Play
-rejects a duplicate version code.
+pays. The helper updates `pubspec.yaml` and the About label together, then
+bumps the version code before each re-upload — Play rejects duplicate codes.
 
 Then:
 
@@ -445,7 +470,7 @@ your call per person, never automatic.
 - Zero offer-data collection, license-clean, R8 release build green
   (⚠️ was "100% offline" — Firebase adds `INTERNET`; no offer data crosses
   the wire, only auth + a trial timestamp)
-- 301 automated tests + manual device matrix (MANUAL_TESTS.md)
+- 308 automated tests + manual device matrix (MANUAL_TESTS.md)
 - Legal pages drafted (`docs/legal/`) and linked in-app — onboarding click-wrap
   consent, About footer, affiliation disclaimer (`lib/ui/legal/`)
 - Release `.aab` builds signed by the upload key; upload-key SHA-1 is
@@ -455,30 +480,25 @@ your call per person, never automatic.
 - Seven-day Firebase-backed trial, entitlement gate, paywall, restore/redeem,
   Home access banner, and in-app account deletion
 
-### Missing before charging money ❌
+### Remaining before production ❌
 
 Ordered, actionable version of this list: **§0**. Estimates and code-level
 blockers: **MONETIZATION §7**.
 
-1. **Play Console account** — $25 one-time, ID verification 1–3 days (§3 step
-   1). Blocks the product setup, the licensing key, any real purchase test,
-   and the 14-day tester clock. **Start this first — it is calendar time.**
-2. **Finish Firebase console setup** — register the upload-key SHA-1 and verify
-   Google Sign-In plus the Firestore write-once trial on a release install
-3. **`foxyco.lifetime` product + licensing key** — blocked on item 1; build the
-   store bundle with `--dart-define=PLAY_PUBLIC_KEY=...`
-4. **Real billing test** — purchase, pending purchase, acknowledgment, restore,
-   reinstall, and promo-code redemption on an internal-testing build
-5. **Play Console papers** (§3 step 3) — privacy page, Data safety, account
-   deletion URL, screenshots
-6. **Play App Signing SHA-1 in Firebase** — available only after the first
-   bundle upload.
-   Missing the second means sign-in works in debug and fails in production.
-7. **AccessibilityService declaration and review video** — demonstrate that
+1. **Upload build 23 and repeat the short entitlement smoke test** — confirm
+   About shows build 23 and the unlock sheet closes automatically after a
+   purchase, restore or promo redemption while a trial is active.
+2. **Refund/revoke propagation test** — after Play reports no owned lifetime
+   product, Restore purchase must clear `Unlocked forever` while network/query
+   errors retain the paid driver's offline grace.
+3. **Play Console papers** (§3 step 3) — finish/recheck Data safety,
+   accessibility declaration, content rating, merchant details and current
+   screenshots before production review.
+4. **AccessibilityService declaration and review video** — demonstrate that
    reading offer text is the disclosed core purpose and no taps are automated
-8. **Closed-test cohort** — satisfy the current Play Console requirement shown
+5. **Closed-test cohort** — satisfy the current Play Console requirement shown
    for this developer account; this is calendar-blocking
-9. **Physical-device release matrix** — real-shift battery numbers, S24
+6. **Physical-device release matrix** — real-shift battery numbers, S24
    crash/ANR evidence, mixed Lyft total+bonus cards, overlay drag/cancel cycles,
    and rapid watch start/stop
 
@@ -488,5 +508,5 @@ blockers: **MONETIZATION §7**.
 - Localized store listings (ES/PT = big driver demographics)
 
 ---
-_Last updated: 2026-07-30 — implementation and release inventory refreshed.
+_Last updated: 2026-08-04 — build 23 artifact and Play-device results refreshed.
 Entitlement architecture lives in `MONETIZATION_v1.0.md`._

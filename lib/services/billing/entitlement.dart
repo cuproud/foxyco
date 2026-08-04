@@ -267,9 +267,9 @@ class AccessStore extends Notifier<Access> {
   /// [sampled] passes the anti-piracy sampling down to the trial read — resume
   /// fires often, and a Firestore round trip every time would be both wasteful
   /// and pointless (the trial's end date is already known locally). Play is
-  /// re-asked every time regardless: `restorePurchases` is a local Play Store
-  /// call, and it doubles as the acknowledgment recovery path for a purchase
-  /// interrupted mid-flight (§3.8).
+  /// re-asked every time regardless: the owned-products query is a local Play
+  /// Store call and doubles as the acknowledgment recovery path for a purchase
+  /// interrupted mid-flow (§3.8).
   Future<void> refresh({bool sampled = false}) async {
     await ref.read(trialProvider.notifier).refresh(sampled: sampled);
     await ref.read(billingProvider.notifier).restore();

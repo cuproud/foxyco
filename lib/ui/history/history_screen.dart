@@ -48,6 +48,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
   final Set<GigPlatform?> _apps = {null}; // null == "All"
   final Set<Verdict?> _verdicts = {null}; // null == "All"
   HistoryOutcomeFilter _outcome = HistoryOutcomeFilter.all;
+  bool _filtersExpanded = false;
   bool _topOnly = false;
   int _minFare = 20;
 
@@ -121,10 +122,13 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
         ),
         const SizedBox(height: Gap.md),
         _FiltersCard(
+          expanded: _filtersExpanded,
           range: _range,
           apps: _apps,
           verdicts: _verdicts,
           outcome: _outcome,
+          topOnly: _topOnly,
+          minFare: _minFare,
           onRange: (range) => setState(() {
             _range = range;
             if (range == HistoryRange.all) _resetFilters();
@@ -132,6 +136,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
           onApp: _toggleApp,
           onVerdict: _toggleVerdict,
           onOutcome: (outcome) => setState(() => _outcome = outcome),
+          onToggle: () => setState(() => _filtersExpanded = !_filtersExpanded),
         ),
         const SizedBox(height: Gap.md),
         _TopCard(
@@ -269,24 +274,55 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
 /// restriction in that dimension.
 class _FiltersCard extends StatelessWidget {
   const _FiltersCard({
+    required this.expanded,
     required this.range,
     required this.apps,
     required this.verdicts,
     required this.outcome,
+    required this.topOnly,
+    required this.minFare,
     required this.onRange,
     required this.onApp,
     required this.onVerdict,
     required this.onOutcome,
+    required this.onToggle,
   });
 
+  final bool expanded;
   final HistoryRange range;
   final Set<GigPlatform?> apps;
   final Set<Verdict?> verdicts;
   final HistoryOutcomeFilter outcome;
+  final bool topOnly;
+  final int minFare;
   final ValueChanged<HistoryRange> onRange;
   final ValueChanged<GigPlatform?> onApp;
   final ValueChanged<Verdict?> onVerdict;
   final ValueChanged<HistoryOutcomeFilter> onOutcome;
+  final VoidCallback onToggle;
+
+  String get _summary {
+    final platform = apps.contains(null)
+        ? 'All platforms'
+        : apps.length == 1
+        ? apps.first!.label
+        : '${apps.length} platforms';
+    final fare = topOnly ? '\$$minFare+ fare' : 'Any fare';
+    final period = switch (range) {
+      HistoryRange.today => 'Today',
+      HistoryRange.week => 'Last 7 days',
+      HistoryRange.month => 'Last 30 days',
+      HistoryRange.all => 'All time',
+    };
+    final extras = <String>[
+      if (!verdicts.contains(null))
+        verdicts.length == 1
+            ? VerdictStyle.of(verdicts.first!).label
+            : '${verdicts.length} verdicts',
+      if (outcome == HistoryOutcomeFilter.accepted) 'Accepted',
+    ];
+    return [platform, fare, period, ...extras].join(' · ');
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -301,28 +337,103 @@ class _FiltersCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Icon(Icons.tune_rounded, size: 15, color: FoxColors.brandFox),
-              const SizedBox(width: Gap.sm),
-              Text('FILTERS', style: Theme.of(context).textTheme.labelSmall),
-            ],
-          ),
-          const SizedBox(height: Gap.sm),
-          _RangeControl(value: range, onChanged: onRange),
-          const SizedBox(height: Gap.sm + Gap.xs),
-          _FilterGroup(
-            label: 'APP',
-            child: _AppChips(selected: apps, onToggle: onApp),
-          ),
-          const SizedBox(height: Gap.sm + Gap.xs),
-          _FilterGroup(
-            label: 'VERDICT & STATUS',
-            child: _VerdictChips(
-              selected: verdicts,
-              onToggle: onVerdict,
-              trailing: _OutcomeChip(value: outcome, onChanged: onOutcome),
+          Semantics(
+            button: true,
+            label: expanded ? 'Collapse filters' : 'Expand filters',
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: onToggle,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(minHeight: 44),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(Gap.sm),
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: RadialGradient(
+                          colors: [
+                            FoxColors.brandFox.withValues(alpha: 0.22),
+                            FoxColors.brandFox.withValues(alpha: 0),
+                          ],
+                        ),
+                      ),
+                      child: Icon(
+                        Icons.tune_rounded,
+                        size: 18,
+                        color: FoxColors.brandFox,
+                      ),
+                    ),
+                    const SizedBox(width: Gap.sm),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            'Filters',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                              color: FoxColors.textPrimary,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            _summary,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: FoxColors.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: Gap.sm),
+                    AnimatedRotation(
+                      turns: expanded ? 0.5 : 0,
+                      duration: Motion.base,
+                      child: Icon(
+                        Icons.keyboard_arrow_down_rounded,
+                        color: FoxColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
+          ),
+          AnimatedSize(
+            duration: Motion.base,
+            curve: Motion.curve,
+            child: expanded
+                ? Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SizedBox(height: Gap.sm),
+                      _RangeControl(value: range, onChanged: onRange),
+                      const SizedBox(height: Gap.sm + Gap.xs),
+                      _FilterGroup(
+                        label: 'APP',
+                        child: _AppChips(selected: apps, onToggle: onApp),
+                      ),
+                      const SizedBox(height: Gap.sm + Gap.xs),
+                      _FilterGroup(
+                        label: 'VERDICT & STATUS',
+                        child: _VerdictChips(
+                          selected: verdicts,
+                          onToggle: onVerdict,
+                          trailing: _OutcomeChip(
+                            value: outcome,
+                            onChanged: onOutcome,
+                          ),
+                        ),
+                      ),
+                    ],
+                  )
+                : const SizedBox.shrink(),
           ),
         ],
       ),
@@ -771,6 +882,7 @@ class _Switch extends StatelessWidget {
       button: true,
       label: 'Top offers only',
       child: GestureDetector(
+        key: const ValueKey('history-top-toggle'),
         onTap: () {
           HapticFeedback.selectionClick();
           onTap();
@@ -1455,6 +1567,7 @@ class _StatsCard extends ConsumerWidget {
     final s = stats;
     final settings = ref.watch(settingsProvider);
     return Container(
+      key: const ValueKey('history-summary'),
       padding: const EdgeInsets.all(Gap.md + Gap.xs),
       decoration: BoxDecoration(
         color: FoxColors.bgSurface,
@@ -1523,7 +1636,7 @@ class _StatsCard extends ConsumerWidget {
             children: [
               Expanded(
                 child: _Stat(
-                  label: 'BEST OFFER',
+                  label: 'BEST RATE',
                   value: s.best != null && s.best!.pricePerKm > 0
                       ? '${settings.currency.prefix}${settings.distanceUnit.rateFromPerKm(s.best!.pricePerKm).toStringAsFixed(2)}'
                       : '—',
@@ -1540,7 +1653,7 @@ class _StatsCard extends ConsumerWidget {
                   value: s.busiestHour != null
                       ? _hourLabel(s.busiestHour!)
                       : '—',
-                  sub: 'most offers',
+                  sub: '${s.accepted} of ${s.total} accepted',
                 ),
               ),
             ],

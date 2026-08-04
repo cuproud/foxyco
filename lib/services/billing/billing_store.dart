@@ -26,6 +26,23 @@ enum UnlockStatus {
   unavailable,
 }
 
+@visibleForTesting
+UnlockStatus ownedPurchaseQueryStatus({
+  required UnlockStatus current,
+  required bool succeeded,
+  required bool ownsGenuinePurchase,
+  bool hasPendingPurchase = false,
+}) {
+  if (!succeeded) {
+    return current == UnlockStatus.purchased
+        ? UnlockStatus.purchased
+        : UnlockStatus.unavailable;
+  }
+  if (ownsGenuinePurchase) return UnlockStatus.purchased;
+  if (hasPendingPurchase) return UnlockStatus.pending;
+  return UnlockStatus.notPurchased;
+}
+
 /// Lifetime unlock state, owned by Google Play (MONETIZATION §3.2).
 ///
 /// Play is the only source of truth for the purchase: it survives reinstall,
@@ -108,14 +125,44 @@ class BillingStore extends Notifier<UnlockStatus> {
         state = UnlockStatus.unknown;
       }
 
-      // Re-emits every owned purchase through _onPurchases. Doubles as the
-      // recovery path for a purchase that was paid for but never acknowledged
-      // (app killed mid-flow) — see §3.8.
-      await _iap.restorePurchases();
-
-      if (!productLoaded && state != UnlockStatus.purchased) {
-        state = UnlockStatus.unavailable;
+      final addition = _iap
+          .getPlatformAddition<InAppPurchaseAndroidPlatformAddition>();
+      final response = await addition.queryPastPurchases();
+      if (response.error != null) {
+        state = ownedPurchaseQueryStatus(
+          current: state,
+          succeeded: false,
+          ownsGenuinePurchase: false,
+        );
+        if (kDebugMode) {
+          debugPrint('FoxyCo owned-purchase query failed: ${response.error}');
+        }
+        return;
       }
+
+      var ownsGenuinePurchase = false;
+      var hasPendingPurchase = false;
+      for (final purchase in response.pastPurchases) {
+        if (purchase.productID != productId) continue;
+        hasPendingPurchase |= purchase.status == PurchaseStatus.pending;
+        ownsGenuinePurchase |=
+            (purchase.status == PurchaseStatus.purchased ||
+                purchase.status == PurchaseStatus.restored) &&
+            _isGenuine(purchase);
+        if (purchase.pendingCompletePurchase) {
+          try {
+            await _iap.completePurchase(purchase);
+          } catch (e) {
+            if (kDebugMode) debugPrint('FoxyCo acknowledge failed: $e');
+          }
+        }
+      }
+      state = ownedPurchaseQueryStatus(
+        current: state,
+        succeeded: true,
+        ownsGenuinePurchase: ownsGenuinePurchase,
+        hasPendingPurchase: hasPendingPurchase,
+      );
     } catch (e) {
       if (state != UnlockStatus.purchased) state = UnlockStatus.unavailable;
       if (kDebugMode) debugPrint('FoxyCo Play refresh failed: $e');

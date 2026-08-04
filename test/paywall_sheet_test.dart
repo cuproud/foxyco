@@ -24,6 +24,13 @@ class _UnavailableBillingStore extends BillingStore {
   UnlockStatus build() => UnlockStatus.unavailable;
 }
 
+class _PurchasableBillingStore extends BillingStore {
+  @override
+  UnlockStatus build() => UnlockStatus.notPurchased;
+
+  void markPurchased() => state = UnlockStatus.purchased;
+}
+
 class _LockedAccessStore extends AccessStore {
   @override
   Access build() => const Access(entitled: false, source: AccessSource.none);
@@ -48,6 +55,20 @@ class _UnlockingAccessStore extends AccessStore {
     // explicit trial-success path resumes.
     await Future<void>.delayed(Duration.zero);
   }
+}
+
+class _TrialAccessStore extends AccessStore {
+  @override
+  Access build() => const Access(entitled: true, source: AccessSource.trial);
+}
+
+class _ActiveTrialStore extends TrialStore {
+  @override
+  TrialState build() => const TrialState(
+    phase: TrialPhase.active,
+    daysLeft: 1,
+    email: 'driver@example.com',
+  );
 }
 
 void main() {
@@ -135,5 +156,45 @@ void main() {
 
     expect(find.text('Paywall host'), findsOneWidget);
     expect(find.text('Start 7-day free trial'), findsNothing);
+  });
+
+  testWidgets('redeemed purchase dismisses paywall during an active trial', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          trialProvider.overrideWith(_ActiveTrialStore.new),
+          billingProvider.overrideWith(_PurchasableBillingStore.new),
+          billingPriceProvider.overrideWithValue(r'US$9.99'),
+          accessProvider.overrideWith(_TrialAccessStore.new),
+        ],
+        child: MaterialApp(
+          theme: AppTheme.dark,
+          home: Builder(
+            builder: (context) => Scaffold(
+              body: TextButton(
+                onPressed: () => showPaywall(context),
+                child: const Text('Open paywall'),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Open paywall'));
+    await tester.pumpAndSettle();
+    expect(find.text(r'Unlock forever — US$9.99'), findsOneWidget);
+
+    final container = ProviderScope.containerOf(
+      tester.element(find.text(r'Unlock forever — US$9.99')),
+    );
+    (container.read(billingProvider.notifier) as _PurchasableBillingStore)
+        .markPurchased();
+    await tester.pumpAndSettle();
+
+    expect(find.text(r'Unlock forever — US$9.99'), findsNothing);
+    expect(find.text('Open paywall'), findsOneWidget);
   });
 }

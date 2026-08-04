@@ -14,10 +14,11 @@
 #     ./scripts/build.sh debug           # debug APK
 #     ./scripts/build.sh release         # release APK (explicit)
 #     ./scripts/build.sh split           # per-ABI release APKs (smaller)
+#     ./scripts/build.sh apk             # release APK (explicit)
 #     ./scripts/build.sh aab             # Play App Bundle (.aab, smallest per device)
 #     ./scripts/build.sh --bump          # bump build number (+N) first, then build
 #     ./scripts/build.sh release --bump  # combine freely
-#     PLAY_PUBLIC_KEY='...' ./scripts/build.sh aab  # production Play bundle
+#     ./scripts/build.sh aab --bump      # bump + build production Play bundle
 #
 # For the Play Store upload use `aab` — Google re-splits it per device, so
 # installs land ~25MB instead of the ~60MB universal APK. Use `split` for
@@ -42,11 +43,12 @@ BUMP=0              # 1 -> increment build number first
 for arg in "$@"; do
   case "$arg" in
     debug|release) MODE="$arg" ;;
+    apk)           MODE="release" ;;
     split)         SPLIT="split" ;;
     aab)           BUNDLE=1 ;;
     --bump|-b)     BUMP=1 ;;
     *) echo "✗ unknown arg: $arg" >&2
-       echo "  valid: debug | release | split | aab | --bump" >&2
+       echo "  valid: debug | release | apk | split | aab | --bump" >&2
        exit 2 ;;
   esac
 done
@@ -76,6 +78,16 @@ fi
 VERSION_LINE="$(grep -E '^version:' pubspec.yaml | head -1 | awk '{print $2}')"
 VERSION_NAME="${VERSION_LINE%%+*}"                 # 1.0.0
 VERSION_CODE="${VERSION_LINE##*+}"                 # 4
+
+# Keep the one user-visible version label synchronized with pubspec metadata.
+# This runs on every build, so a manual pubspec edit cannot leave About stale.
+ABOUT_FILE="$ROOT/lib/ui/settings/about_content.dart"
+if [[ -f "$ABOUT_FILE" ]]; then
+  sed -i -E \
+    "s|^const aboutVersion = .*;|const aboutVersion = '${VERSION_NAME} (build ${VERSION_CODE})';|" \
+    "$ABOUT_FILE"
+fi
+
 STAMP="$(date +%Y%m%d-%H%M)"                        # 20260710-1327
 LABEL="v${VERSION_NAME}+${VERSION_CODE}-${MODE}-${STAMP}"
 
@@ -94,11 +106,18 @@ BUILD_ARGS=("--$MODE")
 # key is absent. Keep the key outside source control and command output, but do
 # not allow an uploadable Play bundle that can never validate a purchase.
 DEFINE_ARGS=()
+# The Play licensing key is public and already recorded in the release guide.
+# Load it by content instead of a line number so documentation edits are safe.
+if [[ "$BUNDLE" == "1" && -z "${PLAY_PUBLIC_KEY:-}" ]]; then
+  PLAY_PUBLIC_KEY="$(sed -n -E \
+    's|^flutter build appbundle --dart-define=PLAY_PUBLIC_KEY=(.*)$|\1|p' \
+    "$ROOT/docs/PLAY_RELEASE.md" | head -1)"
+fi
 if [[ -n "${PLAY_PUBLIC_KEY:-}" ]]; then
   DEFINE_ARGS+=("--dart-define=PLAY_PUBLIC_KEY=${PLAY_PUBLIC_KEY}")
 elif [[ "$BUNDLE" == "1" ]]; then
   echo "✗ PLAY_PUBLIC_KEY is required for a Play App Bundle." >&2
-  echo "  Export the Base64 licensing key from Play Console, then rerun." >&2
+  echo "  Set it or restore its canonical command in docs/PLAY_RELEASE.md." >&2
   exit 1
 elif [[ "$MODE" == "release" ]]; then
   echo "⚠ PLAY_PUBLIC_KEY not set; Play purchase verification is disabled in this APK."

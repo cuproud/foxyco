@@ -129,6 +129,8 @@ enum TrialStartResult {
   failed,
 }
 
+enum TrialSignInResult { signedIn, cancelled, failed }
+
 /// Preserve Google's numeric API status without exposing its free-form error
 /// message in release UI. `google_sign_in_android` wraps every non-network,
 /// non-cancel result as `sign_in_failed`, but its message still contains e.g.
@@ -346,50 +348,11 @@ class TrialStore extends Notifier<TrialState> {
     _lastStartError = null;
     var stage = 'google-sign-in';
     try {
-      // Uses the explicitly pinned Firebase web client above so the ID-token
-      // audience is identical in local, upload-signed, and Play-signed builds.
-      final account = await _googleSignIn.signIn();
-      if (account == null) {
+      final user = await _signInGoogleAccount((value) => stage = value);
+      if (user == null) {
         _lastStartError = 'google/cancelled';
         return TrialStartResult.cancelled;
       }
-      final authentication = await account.authentication;
-      final idToken = authentication.idToken;
-      if (idToken == null) return _fail('no-id-token');
-      final cred = GoogleAuthProvider.credential(idToken: idToken);
-
-      stage = 'firebase-auth';
-      final current = _auth.currentUser;
-      if (current == null) {
-        await _auth.signInWithCredential(cred);
-      } else if (current.isAnonymous) {
-        try {
-          await current.linkWithCredential(cred);
-        } on FirebaseAuthException catch (e) {
-          if (e.code == 'credential-already-in-use' ||
-              e.code == 'email-already-in-use') {
-            // Returning user. Sign in to the ORIGINAL account and abandon the
-            // throwaway anonymous one (orphans are free; clean up from the
-            // console if the list ever gets noisy).
-            await _auth.signInWithCredential(cred);
-          } else {
-            rethrow;
-          }
-        }
-      } else {
-        // A previous attempt can successfully link Google and then fail later
-        // while creating/reading the Firestore trial document. Retrying must
-        // resume from that linked identity, not call linkWithCredential again
-        // (which always throws provider-already-linked). Signing in also makes
-        // the account just selected in Google's sheet authoritative if the app
-        // previously held a different Google session.
-        await _auth.signInWithCredential(cred);
-      }
-
-      // The UID may have changed underneath us in the fallback above, so read
-      // it back rather than reusing `anon`.
-      final user = _auth.currentUser;
-      if (user == null) return _fail('no-user-after-signin');
 
       stage = 'firestore-read';
       final doc = FirebaseFirestore.instance.collection('trials').doc(user.uid);
@@ -430,6 +393,64 @@ class TrialStore extends Notifier<TrialState> {
     } finally {
       _busy = false;
     }
+  }
+
+  /// Select a Google account and restore its existing trial state without
+  /// starting a new trial.
+  Future<TrialSignInResult> signIn() async {
+    if (_busy || !_firebaseUp) return TrialSignInResult.failed;
+    _busy = true;
+    _lastStartError = null;
+    var stage = 'google-sign-in';
+    try {
+      final user = await _signInGoogleAccount((value) => stage = value);
+      if (user == null) return TrialSignInResult.cancelled;
+      stage = 'firestore-read';
+      await _readTrialDoc(user);
+      return TrialSignInResult.signedIn;
+    } on PlatformException catch (e) {
+      _fail(trialPlatformFailureTag(stage, e), e.message);
+    } on FirebaseAuthException catch (e) {
+      _fail('$stage/${e.code}', e.message);
+    } on FirebaseException catch (e) {
+      _fail('$stage/${e.plugin}/${e.code}', e.message);
+    } catch (e) {
+      _fail('$stage/unexpected/${e.runtimeType}');
+    } finally {
+      _busy = false;
+    }
+    return TrialSignInResult.failed;
+  }
+
+  Future<User?> _signInGoogleAccount(void Function(String) setStage) async {
+    // Uses the explicitly pinned Firebase web client above so the ID-token
+    // audience is identical in local, upload-signed, and Play-signed builds.
+    final account = await _googleSignIn.signIn();
+    if (account == null) return null;
+    final authentication = await account.authentication;
+    final idToken = authentication.idToken;
+    if (idToken == null) throw StateError('no-id-token');
+    final credential = GoogleAuthProvider.credential(idToken: idToken);
+
+    setStage('firebase-auth');
+    final current = _auth.currentUser;
+    if (current == null) {
+      await _auth.signInWithCredential(credential);
+    } else if (current.isAnonymous) {
+      try {
+        await current.linkWithCredential(credential);
+      } on FirebaseAuthException catch (e) {
+        if (e.code == 'credential-already-in-use' ||
+            e.code == 'email-already-in-use') {
+          await _auth.signInWithCredential(credential);
+        } else {
+          rethrow;
+        }
+      }
+    } else {
+      await _auth.signInWithCredential(credential);
+    }
+    return _auth.currentUser;
   }
 
   /// Record why the trial start failed and return the failure. Only [tag]

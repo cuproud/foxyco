@@ -18,9 +18,10 @@ OfferSummary _offer(
   DateTime seenAt, {
   OfferOutcome outcome = OfferOutcome.unknown,
   double payout = 20,
+  Verdict verdict = Verdict.good,
 }) => OfferSummary(
   platform: GigPlatform.uber,
-  verdict: Verdict.good,
+  verdict: verdict,
   payout: payout,
   totalKm: 10,
   seenAt: seenAt,
@@ -103,19 +104,23 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('3 today'), findsOneWidget);
+    await tester.tap(find.text('Filters'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Accepted'));
     await tester.pumpAndSettle();
 
     expect(find.text('1 today'), findsOneWidget);
+    expect(
+      find.text('All platforms · Any fare · Today · Accepted'),
+      findsOneWidget,
+    );
 
     await tester.tap(find.text('Accepted'));
     await tester.pumpAndSettle();
     expect(find.text('3 today'), findsOneWidget);
   });
 
-  testWidgets('filters use one All and fit a narrow phone', (
-    tester,
-  ) async {
+  testWidgets('filters use one All and fit a narrow phone', (tester) async {
     tester.view.physicalSize = const Size(360, 800);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
@@ -124,6 +129,12 @@ void main() {
     await tester.pumpWidget(_app([_offer(DateTime.now())]));
     await tester.pumpAndSettle();
 
+    expect(find.text('Filters'), findsOneWidget);
+    expect(find.text('All platforms · Any fare · Today'), findsOneWidget);
+    expect(find.text('All'), findsNothing);
+    expect(find.text('APP'), findsNothing);
+    await tester.tap(find.text('Filters'));
+    await tester.pumpAndSettle();
     expect(find.text('All'), findsOneWidget);
     expect(find.text('All apps'), findsNothing);
     expect(find.text('All ratings'), findsNothing);
@@ -143,6 +154,88 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('filter summary follows the fare floor', (tester) async {
+    await tester.pumpWidget(_app([_offer(DateTime.now())]));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('history-top-toggle')));
+    await tester.pumpAndSettle();
+
+    expect(find.text(r'All platforms · $20+ fare · Today'), findsOneWidget);
+  });
+
+  testWidgets('summary math follows verdict and Accepted filters', (
+    tester,
+  ) async {
+    final now = DateTime.now();
+    await tester.pumpWidget(
+      _app([
+        _offer(now, outcome: OfferOutcome.taken),
+        _offer(now, verdict: Verdict.ok),
+        _offer(now, verdict: Verdict.bad),
+        _offer(now, verdict: Verdict.bad, outcome: OfferOutcome.taken),
+      ]),
+    );
+    await tester.pumpAndSettle();
+
+    final summary = find.byKey(const ValueKey('history-summary'));
+    expect(
+      find.descendant(of: summary, matching: find.text('4')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: summary,
+        matching: find.text('1 good  ·  1 ok  ·  2 bad'),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: summary, matching: find.text('2 of 4 accepted')),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.text('Filters'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('BAD'));
+    await tester.pumpAndSettle();
+    expect(find.text('2 today'), findsOneWidget);
+    expect(
+      find.descendant(of: summary, matching: find.text('2')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: summary,
+        matching: find.text('0 good  ·  0 ok  ·  2 bad'),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: summary, matching: find.text('1 of 2 accepted')),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.text('Accepted'));
+    await tester.pumpAndSettle();
+    expect(find.text('1 today'), findsOneWidget);
+    expect(
+      find.descendant(of: summary, matching: find.text('1')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: summary,
+        matching: find.text('0 good  ·  0 ok  ·  1 bad'),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: summary, matching: find.text('1 of 1 accepted')),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('Show all also resets the Accepted history filter', (
     tester,
   ) async {
@@ -150,6 +243,8 @@ void main() {
     await tester.pumpWidget(_app([_offer(now, outcome: OfferOutcome.missed)]));
     await tester.pumpAndSettle();
 
+    await tester.tap(find.text('Filters'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Accepted'));
     await tester.pumpAndSettle();
     expect(find.text('0 today'), findsOneWidget);

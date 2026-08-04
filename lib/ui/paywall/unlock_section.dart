@@ -139,7 +139,7 @@ class UnlockSection extends ConsumerWidget {
           content: Text(
             found
                 ? 'Purchase restored.'
-                : 'No purchase found on this Google account.',
+                : 'No lifetime purchase found in Google Play.',
           ),
         ),
       );

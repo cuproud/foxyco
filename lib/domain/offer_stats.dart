@@ -12,6 +12,7 @@ class OfferStats {
   final int good;
   final int ok;
   final int bad;
+  final int accepted;
 
   /// Mean $/km across GOOD offers only — "what did the offers worth taking
   /// pay?". 0 when there were no good offers (UI shows a dash).
@@ -29,6 +30,7 @@ class OfferStats {
     this.good = 0,
     this.ok = 0,
     this.bad = 0,
+    this.accepted = 0,
     this.goodAvgPerKm = 0,
     this.best,
     this.busiestHour,
@@ -37,7 +39,7 @@ class OfferStats {
   static OfferStats from(List<OfferSummary> offers) {
     if (offers.isEmpty) return const OfferStats();
 
-    var good = 0, ok = 0, bad = 0;
+    var good = 0, ok = 0, bad = 0, accepted = 0;
     var goodPerKmSum = 0.0;
     var goodPerKmCount = 0;
     OfferSummary? best;
@@ -58,6 +60,7 @@ class OfferStats {
         case Verdict.unknown:
           break;
       }
+      if (o.outcome == OfferOutcome.taken) accepted++;
       if (best == null || o.pricePerKm > best.pricePerKm) best = o;
       byHour.update(o.seenAt.hour, (n) => n + 1, ifAbsent: () => 1);
     }
@@ -77,6 +80,7 @@ class OfferStats {
       good: good,
       ok: ok,
       bad: bad,
+      accepted: accepted,
       goodAvgPerKm: goodPerKmCount == 0 ? 0 : goodPerKmSum / goodPerKmCount,
       best: best,
       busiestHour: busiest,

@@ -56,8 +56,7 @@ class ProfileSection extends ConsumerWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      trial.email ??
-                          'Google sign-in appears when you start the free trial.',
+                      trial.email ?? 'Sign in to restore your trial status.',
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: text.bodySmall?.copyWith(
@@ -70,7 +69,18 @@ class ProfileSection extends ConsumerWidget {
             ],
           ),
         ),
-        if (trial.hasAccount) ...[
+        if (!trial.hasAccount) ...[
+          const SizedBox(height: Gap.sm),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: FilledButton.icon(
+              key: const ValueKey('signin-account'),
+              onPressed: () => _signIn(context, ref),
+              icon: const Icon(Icons.login_rounded, size: 18),
+              label: const Text('Sign in with Google'),
+            ),
+          ),
+        ] else ...[
           const SizedBox(height: Gap.sm),
           Align(
             alignment: Alignment.centerLeft,
@@ -91,6 +101,28 @@ class ProfileSection extends ConsumerWidget {
         ],
       ],
     );
+  }
+
+  Future<void> _signIn(BuildContext context, WidgetRef ref) async {
+    final result = await ref.read(trialProvider.notifier).signIn();
+    if (result == TrialSignInResult.signedIn) {
+      await ref.read(accessProvider.notifier).refresh();
+    }
+    if (!context.mounted) return;
+    final trial = ref.read(trialProvider);
+    final message = switch (result) {
+      TrialSignInResult.cancelled => 'Google sign-in cancelled.',
+      TrialSignInResult.failed => "Couldn't sign in. Retry.",
+      TrialSignInResult.signedIn when trial.phase == TrialPhase.active =>
+        'Signed in. Your remaining trial time was restored.',
+      TrialSignInResult.signedIn when trial.phase == TrialPhase.expired =>
+        'Signed in. This account’s trial has ended.',
+      TrialSignInResult.signedIn =>
+        'Signed in. You can start your free trial when ready.',
+    };
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
   }
 
   Future<void> _confirmSignOut(BuildContext context, WidgetRef ref) async {
