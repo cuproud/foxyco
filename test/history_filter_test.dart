@@ -57,8 +57,15 @@ void main() {
         find.textContaining('22 offers outside these filters'),
         findsOneWidget,
       );
+      await tester.drag(find.byType(ListView), const Offset(0, -240));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Show all'));
       await tester.pumpAndSettle();
+      tester
+          .state<ScrollableState>(find.byType(Scrollable).first)
+          .position
+          .jumpTo(0);
+      await tester.pump();
       expect(find.text('22 all time'), findsOneWidget);
       expect(find.textContaining('outside these filters'), findsNothing);
     },
@@ -101,9 +108,39 @@ void main() {
 
     expect(find.text('1 today'), findsOneWidget);
 
-    await tester.tap(find.text('All').last);
+    await tester.tap(find.text('Accepted'));
     await tester.pumpAndSettle();
     expect(find.text('3 today'), findsOneWidget);
+  });
+
+  testWidgets('filters use one All and fit a narrow phone', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(360, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(_app([_offer(DateTime.now())]));
+    await tester.pumpAndSettle();
+
+    expect(find.text('All'), findsOneWidget);
+    expect(find.text('All apps'), findsNothing);
+    expect(find.text('All ratings'), findsNothing);
+    expect(find.text('All trips'), findsNothing);
+    final firstLayoutError = tester.takeException();
+    expect(
+      firstLayoutError,
+      isNull,
+      reason: firstLayoutError is FlutterError
+          ? firstLayoutError.toStringDeep()
+          : '$firstLayoutError',
+    );
+
+    await tester.drag(find.byType(ListView), const Offset(0, -600));
+    await tester.pumpAndSettle();
+    expect(find.text('SUMMARY'), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('Show all also resets the Accepted history filter', (
@@ -118,8 +155,15 @@ void main() {
     expect(find.text('0 today'), findsOneWidget);
     expect(find.text('Show all'), findsOneWidget);
 
+    await tester.drag(find.byType(ListView), const Offset(0, -240));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Show all'));
     await tester.pumpAndSettle();
+    tester
+        .state<ScrollableState>(find.byType(Scrollable).first)
+        .position
+        .jumpTo(0);
+    await tester.pump();
     expect(find.text('1 all time'), findsOneWidget);
   });
 }

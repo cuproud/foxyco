@@ -120,18 +120,18 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
           ],
         ),
         const SizedBox(height: Gap.md),
-        _RangeControl(
-          value: _range,
-          onChanged: (r) => setState(() => _range = r),
-        ),
-        const SizedBox(height: Gap.sm + Gap.xs),
-        _AppChips(selected: _apps, onToggle: _toggleApp),
-        const SizedBox(height: Gap.sm),
-        _VerdictChips(selected: _verdicts, onToggle: _toggleVerdict),
-        const SizedBox(height: Gap.sm),
-        _OutcomeControl(
-          value: _outcome,
-          onChanged: (outcome) => setState(() => _outcome = outcome),
+        _FiltersCard(
+          range: _range,
+          apps: _apps,
+          verdicts: _verdicts,
+          outcome: _outcome,
+          onRange: (range) => setState(() {
+            _range = range;
+            if (range == HistoryRange.all) _resetFilters();
+          }),
+          onApp: _toggleApp,
+          onVerdict: _toggleVerdict,
+          onOutcome: (outcome) => setState(() => _outcome = outcome),
         ),
         const SizedBox(height: Gap.md),
         _TopCard(
@@ -146,19 +146,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
         if (filtered.isEmpty)
           _Empty(
             hiddenCount: all.length,
-            onShowAll: all.isEmpty
-                ? null
-                : () => setState(() {
-                    _range = HistoryRange.all;
-                    _apps
-                      ..clear()
-                      ..add(null);
-                    _verdicts
-                      ..clear()
-                      ..add(null);
-                    _outcome = HistoryOutcomeFilter.all;
-                    _topOnly = false;
-                  }),
+            onShowAll: all.isEmpty ? null : () => setState(_resetFilters),
           )
         else ...[
           _StatsCard(stats: OfferStats.from(filtered)),
@@ -179,6 +167,18 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
 
   void _toggleVerdict(Verdict? v) {
     setState(() => _toggleIn(_verdicts, v));
+  }
+
+  void _resetFilters() {
+    _range = HistoryRange.all;
+    _apps
+      ..clear()
+      ..add(null);
+    _verdicts
+      ..clear()
+      ..add(null);
+    _outcome = HistoryOutcomeFilter.all;
+    _topOnly = false;
   }
 
   /// Shared multi-select behavior for filter chip sets where `null` == "All":
@@ -264,97 +264,151 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
   }
 }
 
-/// Explicitly labeled because the nearby platform and verdict rows each have
-/// their own "All" choice. Only confirmed accepted trips are included; an
-/// unconfirmed outcome must never be presented as accepted.
-class _OutcomeControl extends StatelessWidget {
-  const _OutcomeControl({required this.value, required this.onChanged});
+/// One compact filter surface. "All" is the single reset for every dimension;
+/// an empty app/verdict selection and an unselected Accepted chip mean no
+/// restriction in that dimension.
+class _FiltersCard extends StatelessWidget {
+  const _FiltersCard({
+    required this.range,
+    required this.apps,
+    required this.verdicts,
+    required this.outcome,
+    required this.onRange,
+    required this.onApp,
+    required this.onVerdict,
+    required this.onOutcome,
+  });
+
+  final HistoryRange range;
+  final Set<GigPlatform?> apps;
+  final Set<Verdict?> verdicts;
+  final HistoryOutcomeFilter outcome;
+  final ValueChanged<HistoryRange> onRange;
+  final ValueChanged<GigPlatform?> onApp;
+  final ValueChanged<Verdict?> onVerdict;
+  final ValueChanged<HistoryOutcomeFilter> onOutcome;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(Gap.md),
+      decoration: BoxDecoration(
+        color: FoxColors.bgSurface,
+        borderRadius: BorderRadius.circular(Radii.card),
+        border: Border.all(color: FoxColors.borderSoft),
+        boxShadow: Shadows.soft,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.tune_rounded, size: 15, color: FoxColors.brandFox),
+              const SizedBox(width: Gap.sm),
+              Text('FILTERS', style: Theme.of(context).textTheme.labelSmall),
+            ],
+          ),
+          const SizedBox(height: Gap.sm),
+          _RangeControl(value: range, onChanged: onRange),
+          const SizedBox(height: Gap.sm + Gap.xs),
+          _FilterGroup(
+            label: 'APP',
+            child: _AppChips(selected: apps, onToggle: onApp),
+          ),
+          const SizedBox(height: Gap.sm + Gap.xs),
+          _FilterGroup(
+            label: 'VERDICT & STATUS',
+            child: _VerdictChips(
+              selected: verdicts,
+              onToggle: onVerdict,
+              trailing: _OutcomeChip(value: outcome, onChanged: onOutcome),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FilterGroup extends StatelessWidget {
+  const _FilterGroup({required this.label, required this.child});
+
+  final String label;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 9.5,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.8,
+            color: FoxColors.textDisabled,
+          ),
+        ),
+        const SizedBox(height: Gap.xs),
+        child,
+      ],
+    );
+  }
+}
+
+/// Only confirmed accepted trips are included; an unconfirmed outcome must
+/// never be presented as accepted.
+class _OutcomeChip extends StatelessWidget {
+  const _OutcomeChip({required this.value, required this.onChanged});
 
   final HistoryOutcomeFilter value;
   final ValueChanged<HistoryOutcomeFilter> onChanged;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Text(
-          'TRIP STATUS',
-          style: TextStyle(
-            fontSize: 10,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 0.8,
-            color: FoxColors.textDisabled,
-          ),
-        ),
-        const Spacer(),
-        Container(
-          height: 48,
-          padding: const EdgeInsets.all(2),
-          decoration: BoxDecoration(
-            color: FoxColors.bgSurface,
-            borderRadius: BorderRadius.circular(Radii.pill),
-            border: Border.all(color: FoxColors.borderSoft),
-            boxShadow: Shadows.soft,
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _choice(HistoryOutcomeFilter.all, 'All', Icons.list_rounded),
-              _choice(
-                HistoryOutcomeFilter.accepted,
-                'Accepted',
-                Icons.check_circle_outline_rounded,
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _choice(HistoryOutcomeFilter choice, String label, IconData icon) {
-    final active = value == choice;
-    final accepted = choice == HistoryOutcomeFilter.accepted;
-    final activeColor = accepted
-        ? OutcomeStyle.of(OfferOutcome.taken).color
-        : FoxColors.textPrimary;
+    final active = value == HistoryOutcomeFilter.accepted;
+    final activeColor = OutcomeStyle.of(OfferOutcome.taken).color;
     return Semantics(
       selected: active,
       button: true,
-      label: '$label trip history',
+      label: 'Accepted trip history',
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: () {
-          if (!active) {
-            HapticFeedback.selectionClick();
-            onChanged(choice);
-          }
+          HapticFeedback.selectionClick();
+          onChanged(
+            active ? HistoryOutcomeFilter.all : HistoryOutcomeFilter.accepted,
+          );
         },
         child: AnimatedContainer(
           duration: Motion.base,
           curve: Motion.curve,
-          height: 44,
-          padding: const EdgeInsets.symmetric(horizontal: 12),
+          constraints: const BoxConstraints(minHeight: 40),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
           decoration: BoxDecoration(
             color: active
-                ? activeColor.withValues(alpha: accepted ? 0.12 : 0.06)
-                : Colors.transparent,
+                ? activeColor.withValues(alpha: 0.12)
+                : FoxColors.bgSurface,
             borderRadius: BorderRadius.circular(Radii.pill),
-            border: active
-                ? Border.all(color: activeColor.withValues(alpha: 0.24))
-                : null,
+            border: Border.all(
+              color: active
+                  ? activeColor.withValues(alpha: 0.32)
+                  : FoxColors.borderSoft,
+            ),
+            boxShadow: active ? null : Shadows.soft,
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(
-                icon,
-                size: 15,
+                Icons.check_circle_outline_rounded,
+                size: 13,
                 color: active ? activeColor : FoxColors.textSecondary,
               ),
               const SizedBox(width: 6),
               Text(
-                label,
+                'Accepted',
                 style: TextStyle(
                   fontSize: 12.5,
                   fontWeight: FontWeight.w700,
@@ -459,7 +513,6 @@ class _AppChips extends StatelessWidget {
       spacing: Gap.sm,
       runSpacing: Gap.sm,
       children: [
-        _chip(null, 'All'),
         for (final p in const [
           GigPlatform.uber,
           GigPlatform.lyft,
@@ -478,6 +531,7 @@ class _AppChips extends StatelessWidget {
         onToggle(app);
       },
       child: Container(
+        constraints: const BoxConstraints(minHeight: 40),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
           color: active ? FoxColors.bgSurface2 : FoxColors.bgSurface,
@@ -512,9 +566,14 @@ class _AppChips extends StatelessWidget {
 /// Verdict grouping chips (good / ok / bad), same multi-select + "All"
 /// behavior as [_AppChips]. Icon + word, never color alone (colorblind-safe).
 class _VerdictChips extends StatelessWidget {
-  const _VerdictChips({required this.selected, required this.onToggle});
+  const _VerdictChips({
+    required this.selected,
+    required this.onToggle,
+    required this.trailing,
+  });
   final Set<Verdict?> selected;
   final ValueChanged<Verdict?> onToggle;
+  final Widget trailing;
 
   @override
   Widget build(BuildContext context) {
@@ -522,8 +581,8 @@ class _VerdictChips extends StatelessWidget {
       spacing: Gap.sm,
       runSpacing: Gap.sm,
       children: [
-        _chip(null),
         for (final v in const [Verdict.good, Verdict.ok, Verdict.bad]) _chip(v),
+        trailing,
       ],
     );
   }
@@ -537,6 +596,7 @@ class _VerdictChips extends StatelessWidget {
         onToggle(v);
       },
       child: Container(
+        constraints: const BoxConstraints(minHeight: 40),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
           color: active ? FoxColors.bgSurface2 : FoxColors.bgSurface,
@@ -558,7 +618,7 @@ class _VerdictChips extends StatelessWidget {
               const SizedBox(width: 6),
             ],
             Text(
-              style?.label ?? 'All',
+              style!.label,
               style: TextStyle(
                 fontSize: 12.5,
                 fontWeight: FontWeight.w700,
@@ -631,7 +691,9 @@ class _TopCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      on ? 'Offers over \$$minFare' : 'Best rate, all fares',
+                      on
+                          ? '$matchCount offers · over \$$minFare'
+                          : '$matchCount offers · any fare',
                       style: TextStyle(
                         fontSize: 12,
                         color: FoxColors.cream.withValues(alpha: 0.55),
@@ -689,26 +751,6 @@ class _TopCard extends StatelessWidget {
               ),
             ),
             secondChild: const SizedBox(width: double.infinity),
-          ),
-          const SizedBox(height: Gap.sm + Gap.xs),
-          Text.rich(
-            TextSpan(
-              children: [
-                TextSpan(
-                  text: '$matchCount',
-                  style: TextStyle(
-                    color: FoxColors.cream,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const TextSpan(text: ' offers match filters'),
-              ],
-              style: TextStyle(
-                fontSize: 11.5,
-                fontWeight: FontWeight.w600,
-                color: FoxColors.cream.withValues(alpha: 0.5),
-              ),
-            ),
           ),
         ],
       ),
@@ -805,9 +847,19 @@ class _HourlyChart extends StatelessWidget {
         Gap.sm + Gap.xs,
       ),
       decoration: BoxDecoration(
-        color: FoxColors.bgSurface,
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            FoxColors.bgSurface,
+            Color.alphaBlend(
+              FoxColors.brandFox.withValues(alpha: 0.055),
+              FoxColors.bgSurface,
+            ),
+          ],
+        ),
         borderRadius: BorderRadius.circular(Radii.card),
-        border: Border.all(color: FoxColors.borderSoft),
+        border: Border.all(color: FoxColors.brandFox.withValues(alpha: 0.18)),
         boxShadow: Shadows.card,
       ),
       child: Column(
@@ -1410,57 +1462,88 @@ class _StatsCard extends ConsumerWidget {
         border: Border.all(color: FoxColors.borderSoft),
         boxShadow: Shadows.card,
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            child: _Stat(
-              label: 'OFFERS',
-              value: '${s.total}',
-              // Verdict-colored counts instead of the cryptic "2·7·2".
-              subSpan: TextSpan(
-                children: [
-                  TextSpan(
-                    text: '${s.good}',
-                    style: TextStyle(color: VerdictColors.good),
+          Row(
+            children: [
+              Icon(Icons.insights_rounded, size: 16, color: FoxColors.brandFox),
+              const SizedBox(width: Gap.sm),
+              Text('SUMMARY', style: Theme.of(context).textTheme.labelSmall),
+            ],
+          ),
+          const SizedBox(height: Gap.md),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: _Stat(
+                  label: 'OFFERS',
+                  value: '${s.total}',
+                  // Verdict-colored counts instead of the cryptic "2·7·2".
+                  subSpan: TextSpan(
+                    children: [
+                      TextSpan(
+                        text: '${s.good} good',
+                        style: TextStyle(color: VerdictColors.good),
+                      ),
+                      const TextSpan(text: '  ·  '),
+                      TextSpan(
+                        text: '${s.ok} ok',
+                        style: TextStyle(color: VerdictColors.ok),
+                      ),
+                      const TextSpan(text: '  ·  '),
+                      TextSpan(
+                        text: '${s.bad} bad',
+                        style: TextStyle(color: VerdictColors.bad),
+                      ),
+                    ],
                   ),
-                  const TextSpan(text: ' · '),
-                  TextSpan(
-                    text: '${s.ok}',
-                    style: TextStyle(color: VerdictColors.ok),
-                  ),
-                  const TextSpan(text: ' · '),
-                  TextSpan(
-                    text: '${s.bad}',
-                    style: TextStyle(color: VerdictColors.bad),
-                  ),
-                ],
+                ),
               ),
-            ),
+              const SizedBox(width: Gap.md),
+              Expanded(
+                child: _Stat(
+                  label: 'GOOD AVERAGE',
+                  value: s.goodAvgPerKm > 0
+                      ? '${settings.currency.prefix}${settings.distanceUnit.rateFromPerKm(s.goodAvgPerKm).toStringAsFixed(2)}'
+                      : '—',
+                  sub: 'per ${settings.distanceUnit.shortLabel}',
+                  valueColor: VerdictColors.good,
+                ),
+              ),
+            ],
           ),
-          Expanded(
-            child: _Stat(
-              label: 'GOOD AVG',
-              value: s.goodAvgPerKm > 0
-                  ? '${settings.currency.prefix}${settings.distanceUnit.rateFromPerKm(s.goodAvgPerKm).toStringAsFixed(2)}'
-                  : '—',
-              sub: '/${settings.distanceUnit.shortLabel}',
-            ),
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: Gap.md),
+            child: Divider(height: 1),
           ),
-          Expanded(
-            child: _Stat(
-              label: 'BEST',
-              value: s.best != null && s.best!.pricePerKm > 0
-                  ? '${settings.currency.prefix}${settings.distanceUnit.rateFromPerKm(s.best!.pricePerKm).toStringAsFixed(2)}'
-                  : '—',
-              sub: s.best != null ? s.best!.platform.label : '',
-            ),
-          ),
-          Expanded(
-            child: _Stat(
-              label: 'BUSIEST',
-              value: s.busiestHour != null ? _hourLabel(s.busiestHour!) : '—',
-              sub: 'hour',
-            ),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: _Stat(
+                  label: 'BEST OFFER',
+                  value: s.best != null && s.best!.pricePerKm > 0
+                      ? '${settings.currency.prefix}${settings.distanceUnit.rateFromPerKm(s.best!.pricePerKm).toStringAsFixed(2)}'
+                      : '—',
+                  sub: s.best != null
+                      ? '${s.best!.platform.label} · per ${settings.distanceUnit.shortLabel}'
+                      : '',
+                  valueColor: FoxColors.brandFox,
+                ),
+              ),
+              const SizedBox(width: Gap.md),
+              Expanded(
+                child: _Stat(
+                  label: 'BUSIEST HOUR',
+                  value: s.busiestHour != null
+                      ? _hourLabel(s.busiestHour!)
+                      : '—',
+                  sub: 'most offers',
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -1474,12 +1557,14 @@ class _Stat extends StatelessWidget {
     required this.value,
     this.sub,
     this.subSpan,
+    this.valueColor,
   }) : assert(sub != null || subSpan != null);
 
   final String label;
   final String value;
   final String? sub;
   final TextSpan? subSpan;
+  final Color? valueColor;
 
   static bool _isInt(String s) => int.tryParse(s) != null;
   static TextStyle get _valueStyle => TextStyle(
@@ -1493,6 +1578,7 @@ class _Stat extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           label,
@@ -1504,22 +1590,41 @@ class _Stat extends StatelessWidget {
           ),
         ),
         const SizedBox(height: Gap.xs),
-        _isInt(value)
-            ? TweenAnimationBuilder<int>(
-                tween: IntTween(begin: 0, end: int.parse(value)),
-                duration: MediaQuery.of(context).disableAnimations
-                    ? Duration.zero
-                    : Motion.count,
-                curve: Motion.curve,
-                builder: (context, v, _) => Text('$v', style: _valueStyle),
-              )
-            : Text(value, style: _valueStyle),
-        Text.rich(
-          subSpan ?? TextSpan(text: sub),
-          style: TextStyle(
-            fontSize: 10.5,
-            color: FoxColors.textSecondary,
-            fontFeatures: [FontFeature.tabularFigures()],
+        SizedBox(
+          height: 28,
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: _isInt(value)
+                ? TweenAnimationBuilder<int>(
+                    tween: IntTween(begin: 0, end: int.parse(value)),
+                    duration: MediaQuery.of(context).disableAnimations
+                        ? Duration.zero
+                        : Motion.count,
+                    curve: Motion.curve,
+                    builder: (context, v, _) => Text(
+                      '$v',
+                      style: _valueStyle.copyWith(color: valueColor),
+                    ),
+                  )
+                : Text(
+                    value,
+                    maxLines: 1,
+                    style: _valueStyle.copyWith(color: valueColor),
+                  ),
+          ),
+        ),
+        const SizedBox(height: 2),
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.centerLeft,
+          child: Text.rich(
+            subSpan ?? TextSpan(text: sub),
+            maxLines: 1,
+            style: TextStyle(
+              fontSize: 10.5,
+              color: FoxColors.textSecondary,
+              fontFeatures: [FontFeature.tabularFigures()],
+            ),
           ),
         ),
       ],

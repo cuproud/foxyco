@@ -135,9 +135,9 @@ class OfferWatcher extends Notifier<Offer?> {
 
   /// A watched app just sent a frame — the driver is still in it, so restart the
   /// silence clock. No-op while no pill is up; there is nothing to time out.
-  void _touchIdle() {
+  void _touchIdle(GigPlatform platform) {
+    if (_shownKey == null || _shownPlatform != platform) return;
     _idleTimer?.cancel();
-    if (_shownKey == null) return;
     _idleTimer = Timer(idleTimeout, () {
       if (kDebugMode) {
         debugPrint('FoxyCo[watch] clear: watched apps silent, driver left');
@@ -182,9 +182,9 @@ class OfferWatcher extends Notifier<Offer?> {
         .forPackage(read.packageName);
     if (parser == null) return; // not an app we read (noise from other apps)
 
-    // Proof of life from a watched app, whatever the frame turns out to hold.
-    // Restart the silence clock before any of the parse branches below return.
-    _touchIdle();
+    // Only the app that owns the current pill may keep its idle timer alive.
+    // Background events from another watched app are unrelated.
+    _touchIdle(parser.platform);
 
     // A watched app sent a frame with ZERO readable text. Uber's offer card is
     // suspected to render on canvas/Compose with no a11y text (device
@@ -232,10 +232,36 @@ class OfferWatcher extends Notifier<Offer?> {
       }
       final joined = read.texts.join(' ');
       final samePlatform = _shownPlatform == parser.platform;
-      final accepted =
-          samePlatform &&
-          ParserPatterns.looksLikeAcceptedTrip(parser.platform, read.texts);
-      final onBrowse = samePlatform && ParserPatterns.looksLikeBrowse(joined);
+      final acceptedTrip = ParserPatterns.looksLikeAcceptedTrip(
+        parser.platform,
+        read.texts,
+      );
+      final browseScreen = ParserPatterns.looksLikeBrowse(joined);
+      if (!samePlatform) {
+        final crossAppOutcome = !ref.read(settingsProvider).trackOutcomes
+            ? OfferOutcome.unknown
+            : acceptedTrip
+            ? OfferOutcome.taken
+            : browseScreen
+            ? OfferOutcome.missed
+            : OfferOutcome.unknown;
+        if (crossAppOutcome != OfferOutcome.unknown) {
+          ref
+              .read(offerLogProvider.notifier)
+              .markLatestPlatformOutcome(parser.platform, crossAppOutcome);
+          ref
+              .read(foxLogProvider)
+              .log(
+                'outcome',
+                '${parser.platform.label} offer inferred '
+                    '${crossAppOutcome.name}',
+              );
+        }
+        // An event from one app must never clear another app's current pill.
+        return;
+      }
+      final accepted = acceptedTrip;
+      final onBrowse = browseScreen;
       if (!accepted &&
           !onBrowse &&
           ParserPatterns.looksLikeOfferCard(read.texts)) {
@@ -303,7 +329,7 @@ class OfferWatcher extends Notifier<Offer?> {
     _shownKey = key;
     _shownPlatform = offer.platform;
     _shownAt = DateTime.now();
-    _touchIdle(); // pill is up now — start the silence clock
+    _touchIdle(offer.platform); // pill is up now — start the silence clock
     state = offer; // expose the latest parsed offer (debug / future tally)
     // A successful parse also proves this platform's selectors still fit —
     // clears any card-miss streak (Settings "Parser health").
@@ -383,14 +409,17 @@ class OfferWatcher extends Notifier<Offer?> {
     _idleTimer?.cancel();
     _idleTimer = null;
     if (_shownKey == null) return;
+    final shownPlatform = _shownPlatform;
     _shownKey = null;
     _shownPlatform = null;
     _shownAt = null;
     state = null;
     final outcome = _pendingOutcome;
     _pendingOutcome = OfferOutcome.unknown;
-    if (outcome != OfferOutcome.unknown) {
-      ref.read(offerLogProvider.notifier).markLatestOutcome(outcome);
+    if (outcome != OfferOutcome.unknown && shownPlatform != null) {
+      ref
+          .read(offerLogProvider.notifier)
+          .markLatestPlatformOutcome(shownPlatform, outcome);
       ref.read(foxLogProvider).log('outcome', 'offer inferred ${outcome.name}');
     }
     ref.read(overlayControllerProvider.notifier).clearOffer();

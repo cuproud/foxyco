@@ -25,6 +25,16 @@ class _TrialAccessStore extends AccessStore {
   );
 }
 
+class _LastDayAccessStore extends AccessStore {
+  @override
+  Access build() => const Access(
+    entitled: true,
+    source: AccessSource.trial,
+    trialDaysLeft: 1,
+    trialMinutesLeft: 1422,
+  );
+}
+
 void main() {
   testWidgets('Home shows the trial countdown from day seven', (tester) async {
     await tester.pumpWidget(
@@ -41,5 +51,24 @@ void main() {
     );
 
     expect(find.text('7 days left in your free trial'), findsOneWidget);
+  });
+
+  testWidgets('Home shows hours and minutes on the last trial day', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          trialProvider.overrideWith(_ActiveTrialStore.new),
+          accessProvider.overrideWith(_LastDayAccessStore.new),
+        ],
+        child: MaterialApp(
+          theme: AppTheme.dark,
+          home: const Scaffold(body: AccessBanner()),
+        ),
+      ),
+    );
+
+    expect(find.text('23h 42m left in your free trial'), findsOneWidget);
   });
 }

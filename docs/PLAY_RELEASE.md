@@ -35,7 +35,7 @@
 
 _Added 2026-08-02. §1–§6 are the reasoning; this is the ordered list of moves.
 Everything below is a console/web action except C1. Build 15 was Play-installed
-and device-tested; current source is build 17. See `HANDOFF_2026-08-04.md` for
+and device-tested; current source is build 19. See `HANDOFF_2026-08-04.md` for
 the latest automated verification and remaining physical-device checks._
 
 ### Phase A — no Play Console needed, do it today
@@ -445,7 +445,7 @@ your call per person, never automatic.
 - Zero offer-data collection, license-clean, R8 release build green
   (⚠️ was "100% offline" — Firebase adds `INTERNET`; no offer data crosses
   the wire, only auth + a trial timestamp)
-- 259 automated tests + manual device matrix (MANUAL_TESTS.md)
+- 301 automated tests + manual device matrix (MANUAL_TESTS.md)
 - Legal pages drafted (`docs/legal/`) and linked in-app — onboarding click-wrap
   consent, About footer, affiliation disclaimer (`lib/ui/legal/`)
 - Release `.aab` builds signed by the upload key; upload-key SHA-1 is

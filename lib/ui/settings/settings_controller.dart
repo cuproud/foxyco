@@ -118,8 +118,15 @@ class SettingsController extends Notifier<FoxSettings> {
   void setDistanceUnit(DistanceUnit unit) =>
       _set(state.copyWith(distanceUnit: unit));
 
-  void setCurrency(AppCurrency currency) =>
-      _set(state.copyWith(currency: currency));
+  void setCurrency(AppCurrency currency) => _set(
+    state.copyWith(
+      currency: currency,
+      distanceUnit: switch (currency) {
+        AppCurrency.cad => DistanceUnit.kilometres,
+        AppCurrency.usd => DistanceUnit.miles,
+      },
+    ),
+  );
 
   /// UI thresholds are expressed in the selected unit; storage/scoring stays
   /// canonical in dollars per kilometre.

@@ -52,8 +52,7 @@ class VerdictPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final m = _metrics(size ?? payload.size);
-    final rate =
-        '${payload.currency.prefix}${payload.displayRate.toStringAsFixed(2)}';
+    final rate = '\$${payload.displayRate.toStringAsFixed(2)}';
 
     // Sheen goes from a lightened verdict color to the base — keeps the block
     // its verdict color (a plain white->transparent gradient would erase it,

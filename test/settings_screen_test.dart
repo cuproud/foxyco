@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:foxyco/domain/app_currency.dart';
 import 'package:foxyco/domain/fox_settings.dart';
 import 'package:foxyco/domain/distance_unit.dart';
 import 'package:foxyco/domain/rate_mode.dart';
@@ -114,6 +115,20 @@ void main() {
 
     // Preview pill is rendered on the settings screen.
     expect(find.byType(VerdictPill), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byType(VerdictPill),
+        matching: find.text(r'$1.43'),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: find.byType(VerdictPill),
+        matching: find.textContaining(r'CA$'),
+      ),
+      findsNothing,
+    );
 
     // Selecting Large re-renders the preview at the large size.
     final smallSize = tester.getSize(find.byType(VerdictPill));
@@ -327,5 +342,20 @@ void main() {
     final settings = container.read(settingsProvider);
     expect(settings.thresholds.goodAtOrAbove, closeTo(1, 1e-9));
     expect(settings.pickupNearKm, closeTo(1.609344, 1e-9));
+  });
+
+  test('currency selects its conventional distance unit', () {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+    final controller = container.read(settingsProvider.notifier);
+
+    controller.setCurrency(AppCurrency.usd);
+    expect(container.read(settingsProvider).distanceUnit, DistanceUnit.miles);
+
+    controller.setCurrency(AppCurrency.cad);
+    expect(
+      container.read(settingsProvider).distanceUnit,
+      DistanceUnit.kilometres,
+    );
   });
 }

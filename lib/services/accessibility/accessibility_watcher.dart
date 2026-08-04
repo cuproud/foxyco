@@ -63,7 +63,7 @@ class AccessibilityWatcher {
     final controller = StreamController<ScreenRead>();
     Timer? debounceTimer;
     AccessibilityEvent? pending;
-    String? lastKey;
+    final lastKeyByPackage = <String, String>{};
 
     void flush() {
       final event = pending;
@@ -83,12 +83,11 @@ class AccessibilityWatcher {
         return;
       }
       // Dedupe: skip if identical to the last emitted read for this package.
-      final key = '${event.packageName}|${texts.join('')}';
-      if (key == lastKey) return;
-      lastKey = key;
-      controller.add(
-        ScreenRead(packageName: event.packageName ?? '', texts: texts),
-      );
+      final package = event.packageName ?? '';
+      final key = texts.join('');
+      if (key == lastKeyByPackage[package]) return;
+      lastKeyByPackage[package] = key;
+      controller.add(ScreenRead(packageName: package, texts: texts));
     }
 
     if (kDebugMode) {

@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:foxyco/domain/offer_summary.dart';
 import 'package:foxyco/domain/overlay_action.dart';
 import 'package:foxyco/domain/overlay_payload.dart';
+import 'package:foxyco/domain/platform.dart';
 import 'package:foxyco/parser/parser_registry.dart';
 import 'package:foxyco/services/accessibility/accessibility_watcher.dart';
 import 'package:foxyco/services/accessibility/offer_watcher.dart';
@@ -261,6 +262,29 @@ void main() {
     expect(overlay.clears, 1);
   });
 
+  test('another app cannot keep the current pill idle timer alive', () async {
+    final previous = OfferWatcher.idleTimeout;
+    OfferWatcher.idleTimeout = const Duration(milliseconds: 30);
+    addTearDown(() => OfferWatcher.idleTimeout = previous);
+    final c = container();
+    c.read(offerWatcherProvider);
+    c.read(overlayControllerProvider);
+
+    watcher.emit(_hoppNodes);
+    await Future<void>.delayed(Duration.zero);
+    watcher.emit(
+      const ScreenRead(
+        packageName: ParserRegistry.uberPackage,
+        texts: ['UberX', r'$14.20', '18 mins (9.4 km) trip', 'Accept'],
+      ),
+    );
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+    watcher.emit(_hoppPartial);
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+
+    expect(overlay.clears, 1);
+  });
+
   test(
     'does not clear when a non-offer screen was never showing a pill',
     () async {
@@ -339,6 +363,61 @@ void main() {
       );
       await pastGrace();
       expect(c.read(offerLogProvider).first.outcome, OfferOutcome.taken);
+    });
+
+    test('accepting Hopp cannot mark a newer Uber offer accepted', () async {
+      final c = container();
+      c.read(offerWatcherProvider);
+      c.read(overlayControllerProvider);
+
+      watcher.emit(_hoppNodes);
+      await Future<void>.delayed(Duration.zero);
+      watcher.emit(
+        const ScreenRead(
+          packageName: ParserRegistry.uberPackage,
+          texts: ['UberX', r'$14.20', '18 mins (9.4 km) trip', 'Accept'],
+        ),
+      );
+      await Future<void>.delayed(Duration.zero);
+
+      watcher.emit(
+        const ScreenRead(
+          packageName: ParserRegistry.hoppPackage,
+          texts: ['Start Trip'],
+        ),
+      );
+      await Future<void>.delayed(Duration.zero);
+
+      final log = c.read(offerLogProvider);
+      expect(log.first.platform, GigPlatform.uber);
+      expect(log.first.outcome, OfferOutcome.unknown);
+      expect(log.last.platform, GigPlatform.hopp);
+      expect(log.last.outcome, OfferOutcome.taken);
+    });
+
+    test('Hopp home cannot clear or mark a newer Uber offer', () async {
+      final c = container();
+      c.read(offerWatcherProvider);
+      c.read(overlayControllerProvider);
+
+      watcher.emit(_hoppNodes);
+      await Future<void>.delayed(Duration.zero);
+      watcher.emit(
+        const ScreenRead(
+          packageName: ParserRegistry.uberPackage,
+          texts: ['UberX', r'$14.20', '18 mins (9.4 km) trip', 'Accept'],
+        ),
+      );
+      await Future<void>.delayed(Duration.zero);
+      watcher.emit(_hoppHome);
+      await pastGrace();
+
+      final log = c.read(offerLogProvider);
+      expect(log.first.platform, GigPlatform.uber);
+      expect(log.first.outcome, OfferOutcome.unknown);
+      expect(log.last.platform, GigPlatform.hopp);
+      expect(log.last.outcome, OfferOutcome.missed);
+      expect(overlay.clears, 0);
     });
 
     for (final stateText in const [

@@ -55,6 +55,9 @@ class Access {
   /// Days left in the trial, 0 when not on one. Banner copy only.
   final int trialDaysLeft;
 
+  /// Minutes left in the trial, rounded up. Drives the final-day countdown.
+  final int trialMinutesLeft;
+
   /// The cached verdict has gone [offlineGrace] - 2 days without a successful
   /// check, so the driver gets a warning before it lapses mid-shift (§3.5).
   final bool cacheGoingStale;
@@ -71,6 +74,7 @@ class Access {
     required this.entitled,
     required this.source,
     this.trialDaysLeft = 0,
+    this.trialMinutesLeft = 0,
     this.cacheGoingStale = false,
     this.graceDaysLeft = 0,
     this.licenceKeyMissing = false,
@@ -114,8 +118,12 @@ class Access {
     // A null staleness means we have NEVER reached the server. Kept permissive:
     // that is a first launch in a dead zone, not a cracker, and locking it would
     // punish the one driver who cannot do anything about it.
+    final trialLeft = trial.startedAt == null
+        ? Duration.zero
+        : trialDuration - now.difference(trial.startedAt!);
+    final trialActiveNow = trial.isActive && trialLeft > Duration.zero;
     final trialUsable =
-        trial.isActive && (trialStale == null || trialStale < offlineGrace);
+        trialActiveNow && (trialStale == null || trialStale < offlineGrace);
 
     final goingStale =
         trialUsable &&
@@ -148,7 +156,12 @@ class Access {
     return Access(
       entitled: entitled,
       source: source,
-      trialDaysLeft: trial.daysLeft,
+      trialDaysLeft: trialActiveNow
+          ? (trialLeft.inSeconds / Duration.secondsPerDay).ceil()
+          : 0,
+      trialMinutesLeft: trialActiveNow
+          ? (trialLeft.inSeconds / Duration.secondsPerMinute).ceil()
+          : 0,
       cacheGoingStale: goingStale,
       graceDaysLeft: graceLeft < 0 ? 0 : graceLeft,
       licenceKeyMissing: licenceKeyMissing,
@@ -262,6 +275,9 @@ class AccessStore extends Notifier<Access> {
     await ref.read(billingProvider.notifier).restore();
     await _derive();
   }
+
+  /// Re-evaluate time-based access without contacting Play or Firestore.
+  Future<void> tick() => _derive();
 }
 
 final accessProvider = NotifierProvider<AccessStore, Access>(AccessStore.new);

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -17,11 +19,46 @@ import 'paywall_sheet.dart';
 ///   • cached verdict about to lapse → "we need to check with Google Play"
 ///
 /// Zero height when silent, so Home's layout doesn't need to know.
-class AccessBanner extends ConsumerWidget {
+class AccessBanner extends ConsumerStatefulWidget {
   const AccessBanner({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<AccessBanner> createState() => _AccessBannerState();
+}
+
+class _AccessBannerState extends ConsumerState<AccessBanner> {
+  Timer? _tick;
+
+  @override
+  void initState() {
+    super.initState();
+    _tick = Timer.periodic(const Duration(minutes: 1), (_) {
+      if (ref.read(accessProvider).onTrial) {
+        ref.read(accessProvider.notifier).tick();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _tick?.cancel();
+    super.dispose();
+  }
+
+  static String _trialCountdown(Access access) {
+    final minutes = access.trialMinutesLeft;
+    if (minutes < 60) {
+      return '$minutes ${minutes == 1 ? 'min' : 'mins'} left in your free trial';
+    }
+    final hours = minutes ~/ 60;
+    final remainder = minutes % 60;
+    return remainder == 0
+        ? '$hours ${hours == 1 ? 'hour' : 'hours'} left in your free trial'
+        : '${hours}h ${remainder}m left in your free trial';
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final access = ref.watch(accessProvider);
     final trial = ref.watch(trialProvider);
 
@@ -54,7 +91,7 @@ class AccessBanner extends ConsumerWidget {
       // entire trial instead of making active access appear to vanish.
       Access(source: AccessSource.trial) => (
         access.trialDaysLeft <= 1
-            ? 'Last day of your free trial'
+            ? _trialCountdown(access)
             : '${access.trialDaysLeft} days left in your free trial',
         Icons.timer_outlined,
         VerdictColors.ok,

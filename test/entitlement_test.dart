@@ -60,13 +60,18 @@ void main() {
       final t = trialStartedAgo(const Duration(days: 6, hours: 20));
       expect(t.phase, TrialPhase.active);
       expect(t.daysLeft, 1);
+      final access = derive(trial: t);
+      expect(access.trialDaysLeft, 1);
+      expect(access.trialMinutesLeft, 240);
     });
 
     test('past 7 days is expired and locked', () {
       final t = trialStartedAgo(const Duration(days: 7, minutes: 1));
       expect(t.phase, TrialPhase.expired);
       expect(t.daysLeft, 0);
-      expect(derive(trial: t).entitled, isFalse);
+      final access = derive(trial: t);
+      expect(access.entitled, isFalse);
+      expect(access.trialMinutesLeft, 0);
     });
   });
 
@@ -181,13 +186,16 @@ void main() {
       expect(a.source, AccessSource.trial);
     });
 
-    test('a trial never yet verified is honoured — dead zone, not a cracker', () {
-      // First launch with no network: startedAt from cache, verifiedAt null.
-      // Locking here punishes the one driver who cannot fix it.
-      final a = derive(trial: trialStartedAgo(const Duration(days: 1)));
-      expect(a.entitled, isTrue);
-      expect(a.source, AccessSource.trial);
-    });
+    test(
+      'a trial never yet verified is honoured — dead zone, not a cracker',
+      () {
+        // First launch with no network: startedAt from cache, verifiedAt null.
+        // Locking here punishes the one driver who cannot fix it.
+        final a = derive(trial: trialStartedAgo(const Duration(days: 1)));
+        expect(a.entitled, isTrue);
+        expect(a.source, AccessSource.trial);
+      },
+    );
   });
 
   group('tester build kill date (§6)', () {

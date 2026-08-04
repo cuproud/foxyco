@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../domain/fox_settings.dart';
 import '../domain/offer_summary.dart';
+import '../domain/platform.dart';
 import '../domain/verdict.dart';
 import '../ui/home/dashboard_state.dart' show Tally;
 import '../ui/settings/settings_controller.dart';
@@ -136,14 +137,22 @@ class OfferLog extends Notifier<List<OfferSummary>> {
     _saveSoon();
   }
 
-  /// Stamp the inferred take/pass outcome onto the most recent offer (the one
-  /// the pill just showed). No-op on an empty log or if that offer already has
-  /// an outcome — an outcome, once set, is never overwritten.
-  void markLatestOutcome(OfferOutcome outcome) {
-    if (state.isEmpty) return;
-    final latest = state.first;
-    if (latest.outcome != OfferOutcome.unknown) return;
-    state = [latest.withOutcome(outcome), ...state.skip(1)];
+  /// Stamp an outcome onto the newest unresolved offer from the app that
+  /// emitted the follow-up screen. Other gig apps may log a newer offer while
+  /// this driver is accepting one, so global "latest" is not a safe identity.
+  void markLatestPlatformOutcome(GigPlatform platform, OfferOutcome outcome) {
+    final index = state.indexWhere(
+      (offer) =>
+          offer.platform == platform &&
+          offer.outcome == OfferOutcome.unknown &&
+          DateTime.now().difference(offer.seenAt).abs() < dedupeWindow,
+    );
+    if (index < 0) return;
+    state = [
+      ...state.take(index),
+      state[index].withOutcome(outcome),
+      ...state.skip(index + 1),
+    ];
     _saveSoon();
   }
 

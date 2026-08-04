@@ -616,7 +616,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ),
                 const SizedBox(height: Gap.sm),
                 Text(
-                  'Currency changes labels only. FoxyCo does not convert fares.',
+                  'USD defaults to miles; CAD defaults to kilometres. You can '
+                  'override Distance above. FoxyCo does not convert fares.',
                   style: text.bodySmall?.copyWith(
                     color: FoxColors.textSecondary,
                   ),
