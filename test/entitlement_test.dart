@@ -141,6 +141,17 @@ void main() {
         UnlockStatus.purchased,
       );
     });
+
+    test('valid one-time purchase wins over a partial query error', () {
+      expect(
+        ownedPurchaseQueryStatus(
+          current: UnlockStatus.unknown,
+          succeeded: false,
+          ownsGenuinePurchase: true,
+        ),
+        UnlockStatus.purchased,
+      );
+    });
   });
 
   group('offline grace window (§3.5)', () {

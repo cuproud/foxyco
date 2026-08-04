@@ -35,7 +35,7 @@
 
 _Added 2026-08-02. §1–§6 are the reasoning; this is the ordered list of moves.
 Everything below is a console/web action except C1. Build 22 was Play-installed
-and device-tested; current source is build 23. See `HANDOFF_2026-08-04.md` for
+and device-tested; current source is build 24. See `HANDOFF_2026-08-04.md` for
 the latest automated verification and remaining physical-device checks._
 
 ### Phase A — no Play Console needed, do it today
@@ -76,16 +76,18 @@ Artifacts are copied to `dist/` with version and timestamped names.
 Latest verified bundle:
 
 ```text
-dist/FoxyCo-v1.0.9+23-release-20260804-1015.aab
-69,904,002 bytes
-SHA-256 5275194e156544788b63456d9c2d7954da6346288b3e8f1e605d7f027e9702f1
+dist/FoxyCo-v1.0.9+24-release-20260804-1128.aab
+69,906,719 bytes
+SHA-256 6d99e274f1e3cacf32e67439a65601d4d90cd30a97369dfcc6c90f2b0848495e
 ```
 
 It byte-matches `build/app/outputs/bundle/release/app-release.aab` and contains
 the Play licensing public key. Build 22 was installed from Play: Google trial
 sign-in restored the remaining hours and a promo code granted the lifetime
-unlock (`1/20` codes used). Build 23 adds automatic paywall dismissal after
-that confirmation and the live History filter summary.
+unlock (`1/20` codes used). Build 24 adds automatic paywall dismissal, the live
+History filter summary, explicit trial-vs-Play account wording, and recovery
+when Play returns a valid one-time purchase alongside a subscription-query
+error.
 
 The licensing key is an RSA **public** key. It is extractable from any shipped
 APK, so recording it here costs nothing and makes the build reproducible:
@@ -470,7 +472,7 @@ your call per person, never automatic.
 - Zero offer-data collection, license-clean, R8 release build green
   (⚠️ was "100% offline" — Firebase adds `INTERNET`; no offer data crosses
   the wire, only auth + a trial timestamp)
-- 308 automated tests + manual device matrix (MANUAL_TESTS.md)
+- 309 automated tests + manual device matrix (MANUAL_TESTS.md)
 - Legal pages drafted (`docs/legal/`) and linked in-app — onboarding click-wrap
   consent, About footer, affiliation disclaimer (`lib/ui/legal/`)
 - Release `.aab` builds signed by the upload key; upload-key SHA-1 is
@@ -485,8 +487,8 @@ your call per person, never automatic.
 Ordered, actionable version of this list: **§0**. Estimates and code-level
 blockers: **MONETIZATION §7**.
 
-1. **Upload build 23 and repeat the short entitlement smoke test** — confirm
-   About shows build 23 and the unlock sheet closes automatically after a
+1. **Upload build 24 and repeat the short entitlement smoke test** — confirm
+   About shows build 24 and the unlock sheet closes automatically after a
    purchase, restore or promo redemption while a trial is active.
 2. **Refund/revoke propagation test** — after Play reports no owned lifetime
    product, Restore purchase must clear `Unlocked forever` while network/query
@@ -508,5 +510,5 @@ blockers: **MONETIZATION §7**.
 - Localized store listings (ES/PT = big driver demographics)
 
 ---
-_Last updated: 2026-08-04 — build 23 artifact and Play-device results refreshed.
+_Last updated: 2026-08-04 — build 24 artifact and Play-device results refreshed.
 Entitlement architecture lives in `MONETIZATION_v1.0.md`._

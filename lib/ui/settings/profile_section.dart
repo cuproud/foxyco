@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../services/billing/billing_store.dart';
 import '../../services/billing/entitlement.dart';
 import '../../services/billing/trial_store.dart';
 import '../theme/tokens.dart';
@@ -20,7 +21,7 @@ class ProfileSection extends ConsumerWidget {
       children: [
         const DriverNameCard(),
         const SizedBox(height: Gap.lg),
-        Text('GOOGLE ACCOUNT', style: text.labelSmall),
+        Text('TRIAL ACCOUNT', style: text.labelSmall),
         const SizedBox(height: Gap.sm),
         Container(
           padding: const EdgeInsets.all(Gap.md),
@@ -47,8 +48,8 @@ class ProfileSection extends ConsumerWidget {
                   children: [
                     Text(
                       trial.hasAccount
-                          ? 'Signed in with Google'
-                          : 'Not signed in',
+                          ? 'Trial account signed in'
+                          : 'No trial account',
                       style: const TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w700,
@@ -77,7 +78,7 @@ class ProfileSection extends ConsumerWidget {
               key: const ValueKey('signin-account'),
               onPressed: () => _signIn(context, ref),
               icon: const Icon(Icons.login_rounded, size: 18),
-              label: const Text('Sign in with Google'),
+              label: const Text('Sign in to trial account'),
             ),
           ),
         ] else ...[
@@ -93,7 +94,7 @@ class ProfileSection extends ConsumerWidget {
               ),
               icon: const Icon(Icons.logout_rounded, size: 18),
               label: const Text(
-                'Log out',
+                'Sign out of trial account',
                 style: TextStyle(fontWeight: FontWeight.w700),
               ),
             ),
@@ -113,6 +114,10 @@ class ProfileSection extends ConsumerWidget {
     final message = switch (result) {
       TrialSignInResult.cancelled => 'Google sign-in cancelled.',
       TrialSignInResult.failed => "Couldn't sign in. Retry.",
+      TrialSignInResult.signedIn
+          when ref.read(billingProvider) == UnlockStatus.purchased =>
+        'Trial account changed. Lifetime access stays with your Google Play '
+            'account.',
       TrialSignInResult.signedIn when trial.phase == TrialPhase.active =>
         'Signed in. Your remaining trial time was restored.',
       TrialSignInResult.signedIn when trial.phase == TrialPhase.expired =>
@@ -129,10 +134,11 @@ class ProfileSection extends ConsumerWidget {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Log out of Google?'),
+        title: const Text('Sign out of trial account?'),
         content: const Text(
           'You will need to sign into the same Google account again to use any '
-          'remaining trial days. A lifetime purchase stays with Google Play.',
+          'remaining trial days. Lifetime access is separate and stays with '
+          'your Google Play account.',
         ),
         actions: [
           TextButton(
@@ -141,7 +147,7 @@ class ProfileSection extends ConsumerWidget {
           ),
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('Log out'),
+            child: const Text('Sign out'),
           ),
         ],
       ),
@@ -155,7 +161,11 @@ class ProfileSection extends ConsumerWidget {
       ..hideCurrentSnackBar()
       ..showSnackBar(
         SnackBar(
-          content: Text(signedOut ? 'Logged out.' : "Couldn't log out. Retry."),
+          content: Text(
+            signedOut
+                ? 'Signed out of trial account.'
+                : "Couldn't sign out. Retry.",
+          ),
         ),
       );
   }

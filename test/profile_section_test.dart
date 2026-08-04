@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:foxyco/services/billing/billing_store.dart';
+import 'package:foxyco/services/billing/entitlement.dart';
 import 'package:foxyco/services/billing/trial_store.dart';
 import 'package:foxyco/ui/settings/profile_section.dart';
 import 'package:foxyco/ui/theme/app_theme.dart';
@@ -34,6 +36,19 @@ class _SignedOutTrialStore extends TrialStore {
   }
 }
 
+class _PurchasedBillingStore extends BillingStore {
+  @override
+  UnlockStatus build() => UnlockStatus.purchased;
+}
+
+class _PurchasedAccessStore extends AccessStore {
+  @override
+  Access build() => const Access(entitled: true, source: AccessSource.purchase);
+
+  @override
+  Future<void> refresh({bool sampled = false}) async {}
+}
+
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
@@ -54,12 +69,18 @@ void main() {
 
     expect(find.widgetWithText(TextField, 'Name'), findsOneWidget);
     expect(find.text('driver@example.com'), findsOneWidget);
+    expect(find.text('TRIAL ACCOUNT'), findsOneWidget);
+    expect(find.text('Trial account signed in'), findsOneWidget);
     expect(find.byKey(const ValueKey('logout-account')), findsOneWidget);
   });
 
   testWidgets('signed-out profile can select Google account', (tester) async {
     final container = ProviderContainer(
-      overrides: [trialProvider.overrideWith(_SignedOutTrialStore.new)],
+      overrides: [
+        trialProvider.overrideWith(_SignedOutTrialStore.new),
+        billingProvider.overrideWith(_PurchasedBillingStore.new),
+        accessProvider.overrideWith(_PurchasedAccessStore.new),
+      ],
     );
     addTearDown(container.dispose);
 
@@ -85,5 +106,11 @@ void main() {
       isTrue,
     );
     expect(find.text('returning@example.com'), findsOneWidget);
+    expect(
+      find.textContaining(
+        'Lifetime access stays with your Google Play account',
+      ),
+      findsOneWidget,
+    );
   });
 }

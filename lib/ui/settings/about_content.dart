@@ -36,7 +36,7 @@ const aboutIntro =
 
 /// Version string. Kept as a plain const rather than adding a native plugin for
 /// one label; `about_content_test.dart` guards it against `pubspec.yaml` drift.
-const aboutVersion = '1.0.9 (build 23)';
+const aboutVersion = '1.0.9 (build 24)';
 
 const aboutSections = <AboutSection>[
   AboutSection(
@@ -99,17 +99,19 @@ const aboutSections = <AboutSection>[
             'to a new phone does not restart the clock.',
       ),
       AboutEntry(
-        'Why do I sign in with Google?',
-        'Only to keep one trial start date attached to the same account. '
+        'What does the trial account do?',
+        'It keeps one trial start date attached to the same Google account. '
             'FoxyCo does not use the account for ads or analytics. Your Google '
             'email appears in Settings → Profile so you can see which account '
-            'is active.',
+            'manages the trial. Lifetime access is managed separately by the '
+            'Google Play account that owns the purchase.',
       ),
       AboutEntry(
-        'What happens if I log out?',
+        'What happens if I sign out of the trial account?',
         'Your name, settings, garage and offer history stay on this phone. You '
             'must sign into the same Google account again to use any remaining '
-            'trial days. A lifetime unlock remains owned by your Play account.',
+            'trial days. Lifetime access remains owned by your Google Play '
+            'account and stays active.',
       ),
       AboutEntry(
         'How do I restore a purchase?',

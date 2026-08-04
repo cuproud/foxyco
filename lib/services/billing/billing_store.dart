@@ -33,13 +33,16 @@ UnlockStatus ownedPurchaseQueryStatus({
   required bool ownsGenuinePurchase,
   bool hasPendingPurchase = false,
 }) {
+  // Android queries one-time products and subscriptions together. A device can
+  // return the valid lifetime purchase while the irrelevant subscription half
+  // errors, so evidence of ownership must win over the partial-query error.
+  if (ownsGenuinePurchase) return UnlockStatus.purchased;
+  if (hasPendingPurchase) return UnlockStatus.pending;
   if (!succeeded) {
     return current == UnlockStatus.purchased
         ? UnlockStatus.purchased
         : UnlockStatus.unavailable;
   }
-  if (ownsGenuinePurchase) return UnlockStatus.purchased;
-  if (hasPendingPurchase) return UnlockStatus.pending;
   return UnlockStatus.notPurchased;
 }
 
@@ -129,15 +132,11 @@ class BillingStore extends Notifier<UnlockStatus> {
           .getPlatformAddition<InAppPurchaseAndroidPlatformAddition>();
       final response = await addition.queryPastPurchases();
       if (response.error != null) {
-        state = ownedPurchaseQueryStatus(
-          current: state,
-          succeeded: false,
-          ownsGenuinePurchase: false,
-        );
         if (kDebugMode) {
-          debugPrint('FoxyCo owned-purchase query failed: ${response.error}');
+          debugPrint(
+            'FoxyCo owned-purchase query partially failed: ${response.error}',
+          );
         }
-        return;
       }
 
       var ownsGenuinePurchase = false;
@@ -159,7 +158,7 @@ class BillingStore extends Notifier<UnlockStatus> {
       }
       state = ownedPurchaseQueryStatus(
         current: state,
-        succeeded: true,
+        succeeded: response.error == null,
         ownsGenuinePurchase: ownsGenuinePurchase,
         hasPendingPurchase: hasPendingPurchase,
       );

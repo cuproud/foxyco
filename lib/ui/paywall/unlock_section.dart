@@ -41,7 +41,8 @@ class UnlockSection extends ConsumerWidget {
         const SizedBox(height: Gap.xs),
         Text(switch (access.source) {
           AccessSource.purchase || AccessSource.cachedPurchase =>
-            'One-time purchase. No subscription, nothing to renew.',
+            'Lifetime access is managed by your Google Play account. It is '
+                'separate from the trial account below.',
           AccessSource.trial =>
             'Everything is on. Unlock any time and the trial stops mattering.',
           AccessSource.debugBuild =>
@@ -64,7 +65,7 @@ class UnlockSection extends ConsumerWidget {
               const SizedBox(width: Gap.xs),
               Expanded(
                 child: Text(
-                  trial.email!,
+                  'Trial account · ${trial.email!}',
                   overflow: TextOverflow.ellipsis,
                   style: text.bodySmall,
                 ),
@@ -104,7 +105,7 @@ class UnlockSection extends ConsumerWidget {
         ),
         if (trial.hasAccount) ...[
           Divider(color: FoxColors.border, height: Gap.xl),
-          Text('Your Google account', style: text.titleMedium),
+          Text('Your trial account', style: text.titleMedium),
           const SizedBox(height: Gap.xs),
           Text(
             'Signing you in is what keeps your trial from resetting. Deleting '
@@ -131,16 +132,17 @@ class UnlockSection extends ConsumerWidget {
   Future<void> _restore(BuildContext context, WidgetRef ref) async {
     await ref.read(accessProvider.notifier).refresh();
     if (!context.mounted) return;
-    final found = ref.read(billingProvider) == UnlockStatus.purchased;
+    final status = ref.read(billingProvider);
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(
         SnackBar(
-          content: Text(
-            found
-                ? 'Purchase restored.'
-                : 'No lifetime purchase found in Google Play.',
-          ),
+          content: Text(switch (status) {
+            UnlockStatus.purchased => 'Purchase restored.',
+            UnlockStatus.unavailable =>
+              "Couldn't check Google Play. Check your connection and retry.",
+            _ => 'No lifetime purchase found in Google Play.',
+          }),
         ),
       );
   }
@@ -153,9 +155,9 @@ class UnlockSection extends ConsumerWidget {
         // Say the ugly part out loud: a purchase is owned by the Play account,
         // not by us, so it survives — but the trial does not come back.
         content: const Text(
-          'Your Google account is removed from FoxyCo. A purchased unlock is '
-          'held by Google Play, so it survives and can be restored. Your free '
-          'trial cannot be restarted.',
+          'Your trial account is removed from FoxyCo. Lifetime access is held '
+          'by Google Play, so it survives and can be restored. Your free trial '
+          'cannot be restarted.',
         ),
         actions: [
           TextButton(

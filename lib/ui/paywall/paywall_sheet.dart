@@ -130,8 +130,13 @@ class _PaywallSheetState extends ConsumerState<_PaywallSheet> {
   Future<void> _restore() => _run(() async {
     await ref.read(accessProvider.notifier).refresh();
     if (!mounted) return;
-    if (ref.read(billingProvider) != UnlockStatus.purchased) {
-      _say('No lifetime purchase found in Google Play.');
+    switch (ref.read(billingProvider)) {
+      case UnlockStatus.purchased:
+        break;
+      case UnlockStatus.unavailable:
+        _say("Couldn't check Google Play. Check your connection and retry.");
+      default:
+        _say('No lifetime purchase found in Google Play.');
     }
   });
 
