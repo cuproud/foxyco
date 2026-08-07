@@ -2,6 +2,7 @@ package flutter.overlay.window.flutter_overlay_window;
 
 import android.app.Notification;
 import android.app.NotificationChannel;
+import android.app.KeyguardManager;
 import android.app.NotificationManager;
 import android.app.Service;
 import android.content.Context;
@@ -14,6 +15,8 @@ import android.graphics.drawable.GradientDrawable;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.app.PendingIntent;
+import android.content.BroadcastReceiver;
+import android.content.IntentFilter;
 import android.graphics.Point;
 import android.os.Build;
 import android.os.Handler;
@@ -104,6 +107,9 @@ public class OverlayService extends Service implements View.OnTouchListener {
     @Override
     public void onDestroy() {
         Log.d("OverLay", "Destroying the overlay window service");
+        // FoxyCo patch: stop listening for lock/unlock or the receiver leaks
+        // past the service (logged as a ReceiverLeakedViolation on teardown).
+        unregisterScreenStateReceiver();
         // FoxyCo patch: dismiss-zone view is a second window — drop it too or
         // it leaks (service can die mid-drag: drop-to-close calls stopSelf).
         hideDismissZone();
@@ -286,6 +292,8 @@ public class OverlayService extends Service implements View.OnTouchListener {
         params.gravity = WindowSetup.gravity;
         flutterView.setOnTouchListener(this);
         windowManager.addView(flutterView, params);
+        // FoxyCo patch: the overlay must not appear on the lock screen.
+        registerScreenStateReceiver();
         moveOverlay(dx, dy, null);
         return START_STICKY;
     }
@@ -343,9 +351,9 @@ public class OverlayService extends Service implements View.OnTouchListener {
             } else {
                 params.alpha = 1;
             }
-            // FoxyCo: this rebuilds params.flags wholesale — re-assert transparency.
-            keepSurfaceTransparent(params);
-            windowManager.updateViewLayout(flutterView, params);
+            // FoxyCo: this rebuilds params.flags wholesale — applyLayout re-asserts
+            // transparency around the layout pass.
+            applyLayout(params);
             result.success(true);
         } else {
             result.success(false);
@@ -364,10 +372,109 @@ public class OverlayService extends Service implements View.OnTouchListener {
     ///
     /// Idempotent and cheap, so it just runs on every layout change rather than
     /// trying to detect the bad state.
+    /// FoxyCo patch (device 2026-08-06): hide the overlay while the screen is
+    /// off or the keyguard is up.
+    ///
+    /// A TYPE_APPLICATION_OVERLAY window outranks the keyguard, so the FoxyCo
+    /// bubble sat on the lock screen while Uber, Lyft and Hopp showed nothing —
+    /// it leaks that the driver is working to anyone who picks up the phone, and
+    /// it's the kind of thing Play flags. The service keeps running (the
+    /// accessibility read and the foreground notification are unaffected); only
+    /// the view's visibility changes, so there is no engine teardown and the
+    /// pill is back the instant the phone is unlocked.
+    ///
+    /// ACTION_USER_PRESENT is the unlock signal; ACTION_SCREEN_ON alone fires
+    /// while still locked, which is exactly when we must stay hidden.
+    private final BroadcastReceiver screenStateReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            final String action = intent == null ? null : intent.getAction();
+            if (Intent.ACTION_SCREEN_OFF.equals(action)) {
+                setOverlayHiddenForLock(true);
+            } else if (Intent.ACTION_USER_PRESENT.equals(action)) {
+                setOverlayHiddenForLock(false);
+            } else if (Intent.ACTION_SCREEN_ON.equals(action)) {
+                // Screen on but possibly still locked — ask the keyguard.
+                setOverlayHiddenForLock(isDeviceLocked());
+            }
+        }
+    };
+
+    private boolean screenReceiverRegistered = false;
+
+    private boolean isDeviceLocked() {
+        KeyguardManager keyguard =
+                (KeyguardManager) getSystemService(Context.KEYGUARD_SERVICE);
+        if (keyguard == null) return false;
+        return Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP_MR1
+                ? keyguard.isDeviceLocked() || keyguard.isKeyguardLocked()
+                : keyguard.isKeyguardLocked();
+    }
+
+    private void setOverlayHiddenForLock(final boolean hidden) {
+        if (flutterView == null) return;
+        new Handler(getMainLooper()).post(new Runnable() {
+            @Override
+            public void run() {
+                if (flutterView == null) return;
+                // GONE, not INVISIBLE: an INVISIBLE overlay still occupies its
+                // window and keeps eating touches over the lock screen.
+                flutterView.setVisibility(hidden ? View.GONE : View.VISIBLE);
+                if (!hidden) keepSurfaceTransparentAfterLayout();
+            }
+        });
+    }
+
+    private void registerScreenStateReceiver() {
+        if (screenReceiverRegistered) return;
+        IntentFilter filter = new IntentFilter();
+        filter.addAction(Intent.ACTION_SCREEN_OFF);
+        filter.addAction(Intent.ACTION_SCREEN_ON);
+        filter.addAction(Intent.ACTION_USER_PRESENT);
+        registerReceiver(screenStateReceiver, filter);
+        screenReceiverRegistered = true;
+        // The service can start while already locked (an offer arriving with
+        // the phone in a pocket), so seed the state instead of waiting for the
+        // next transition.
+        setOverlayHiddenForLock(isDeviceLocked());
+    }
+
+    private void unregisterScreenStateReceiver() {
+        if (!screenReceiverRegistered) return;
+        try {
+            unregisterReceiver(screenStateReceiver);
+        } catch (IllegalArgumentException ignored) {
+            // Already unregistered — nothing to undo.
+        }
+        screenReceiverRegistered = false;
+    }
+
     private void keepSurfaceTransparent(WindowManager.LayoutParams params) {
         if (params != null) params.format = PixelFormat.TRANSLUCENT;
         if (overlayTextureView != null) overlayTextureView.setOpaque(false);
         if (flutterView != null) flutterView.setBackgroundColor(Color.TRANSPARENT);
+    }
+
+    /// FoxyCo patch (device 2026-08-06): the ONLY way this service may call
+    /// updateViewLayout.
+    ///
+    /// The dark square behind the bubble came back a third time. Both earlier
+    /// rounds (2026-07-17 creation, 2026-07-26 resize) patched only the call
+    /// site that had just reproduced, and five others were left bare —
+    /// moveOverlay, the static moveOverlay, both drag handlers, and the tray
+    /// snap animation. The drag path is the frequent one: ACTION_MOVE fires per
+    /// touch frame and TrayAnimationTimerTask every 25ms, so every drag of the
+    /// bubble was dozens of unguarded surface-invalidating layout passes. That
+    /// matches the report exactly — it appears after a while of normal use and
+    /// a monitoring off/on (which builds a fresh view) clears it.
+    ///
+    /// Routing every caller through here makes the guard structural instead of
+    /// something the next edit has to remember.
+    private void applyLayout(WindowManager.LayoutParams params) {
+        if (windowManager == null || flutterView == null) return;
+        keepSurfaceTransparent(params);
+        windowManager.updateViewLayout(flutterView, params);
+        keepSurfaceTransparentAfterLayout();
     }
 
     /// Samsung can replace the TextureView's SurfaceTexture asynchronously
@@ -406,9 +513,7 @@ public class OverlayService extends Service implements View.OnTouchListener {
                 savedRestX = Integer.MIN_VALUE;
             }
             WindowSetup.enableDrag = enableDrag;
-            keepSurfaceTransparent(params);
-            windowManager.updateViewLayout(flutterView, params);
-            keepSurfaceTransparentAfterLayout();
+            applyLayout(params);
             result.success(true);
         } else {
             result.success(false);
@@ -424,7 +529,7 @@ public class OverlayService extends Service implements View.OnTouchListener {
             WindowManager.LayoutParams params = (WindowManager.LayoutParams) flutterView.getLayoutParams();
             params.x = (x == -1999 || x == -1) ? -1 : dpToPx(x);
             params.y = dpToPx(y);
-            windowManager.updateViewLayout(flutterView, params);
+            applyLayout(params);
             if (result != null)
                 result.success(true);
         } else {
@@ -451,7 +556,7 @@ public class OverlayService extends Service implements View.OnTouchListener {
                 WindowManager.LayoutParams params = (WindowManager.LayoutParams) instance.flutterView.getLayoutParams();
                 params.x = (x == -1999 || x == -1) ? -1 : instance.dpToPx(x);
                 params.y = instance.dpToPx(y);
-                instance.windowManager.updateViewLayout(instance.flutterView, params);
+                instance.applyLayout(params);
                 return true;
             } else {
                 return false;
@@ -699,7 +804,7 @@ public class OverlayService extends Service implements View.OnTouchListener {
                     params.x = xx;
                     params.y = yy;
                     if (windowManager != null) {
-                        windowManager.updateViewLayout(flutterView, params);
+                        applyLayout(params);
                     }
                     dragging = true;
                     // FoxyCo patch: surface the dismiss zone the moment a real
@@ -736,7 +841,7 @@ public class OverlayService extends Service implements View.OnTouchListener {
                     lastYPosition = params.y;
                     if (!WindowSetup.positionGravity.equals("none")) {
                         if (windowManager == null) return false;
-                        windowManager.updateViewLayout(flutterView, params);
+                        applyLayout(params);
                         mTrayTimerTask = new TrayAnimationTimerTask();
                         mTrayAnimationTimer = new Timer();
                         mTrayAnimationTimer.schedule(mTrayTimerTask, 0, 25);
@@ -781,7 +886,7 @@ public class OverlayService extends Service implements View.OnTouchListener {
                 params.x = (2 * (params.x - mDestX)) / 3 + mDestX;
                 params.y = (2 * (params.y - mDestY)) / 3 + mDestY;
                 if (windowManager != null) {
-                    windowManager.updateViewLayout(flutterView, params);
+                    applyLayout(params);
                 }
                 if (Math.abs(params.x - mDestX) < 2 && Math.abs(params.y - mDestY) < 2) {
                     TrayAnimationTimerTask.this.cancel();

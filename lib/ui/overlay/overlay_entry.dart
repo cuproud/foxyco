@@ -70,10 +70,22 @@ class _OverlayRootState extends State<_OverlayRoot> {
   // and leaves real horizontal travel so it can snap to either edge.
   //
   // Per-size boxes (spec M5 §1). Width MUST stay <360dp — see comment above.
+  //
+  // These are the SINGLE source of pill size truth: the pill is scaled to fit
+  // its window (FittedBox in [build]), so what the driver sees is exactly this
+  // box. Before that, all three sizes rendered wider than their window (natural
+  // widths 392 / 435 / 522 dp) and simply overflowed — the $/hr end was cut off
+  // and Medium and Large looked identical, because the only thing that actually
+  // differed on screen was 324 vs 348 dp of window (device 2026-08-06).
+  //
+  // Even 32dp width / 8dp height steps so each notch is a visible, equal jump.
+  // Heights are snug around the scaled pill (~35/39/43dp drawn) with room for
+  // its drop shadow — the window captures touches over its whole area, so
+  // excess transparent height steals taps from the app underneath.
   static ({int w, int h}) _pillBoxFor(PillSize size) => switch (size) {
-    PillSize.small => (w: 300, h: 72),
-    PillSize.medium => (w: 324, h: 84),
-    PillSize.large => (w: 348, h: 100),
+    PillSize.small => (w: 288, h: 48),
+    PillSize.medium => (w: 320, h: 56),
+    PillSize.large => (w: 352, h: 64),
   };
   static const _bubbleBox = (w: 72, h: 72);
 
@@ -221,7 +233,16 @@ class _OverlayRootState extends State<_OverlayRoot> {
                 key: ValueKey('pill-${payload.hashCode}'),
                 behavior: HitTestBehavior.opaque,
                 onTap: () {},
-                child: VerdictPill(payload: payload),
+                // Scale the pill to its window instead of letting it overflow.
+                // The pill's natural width is driven by its content (a 4-digit
+                // $/hr, "kilometres" vs "miles"), so it can exceed any fixed
+                // window; unscaled it was clipped and the S/M/L steps barely
+                // read. scaleDown never enlarges, so a short pill keeps its
+                // designed metrics and simply centres.
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: VerdictPill(payload: payload),
+                ),
               )
             // Not entitled: no verdict, no numbers, just the way to buy them.
             // `entitled` absent or non-true lands here — the overlay's whole

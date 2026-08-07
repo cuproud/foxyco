@@ -22,4 +22,4 @@
     android:notificationTimeout="300"
     android:accessibilityFlags="flagDefault|flagReportViewIds|flagRetrieveInteractiveWindows|flagIncludeNotImportantViews"
     android:canRetrieveWindowContent="true"
-    android:isAccessibilityTool="true" />
+    android:isAccessibilityTool="false" />

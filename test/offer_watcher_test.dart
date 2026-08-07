@@ -563,5 +563,58 @@ void main() {
       expect(c.read(offerLogProvider).first.outcome, OfferOutcome.unknown);
       expect(overlay.clears, 0);
     });
+
+    // Device 2026-08-06: the driver was inside a DIFFERENT gig app when the
+    // offer arrived, accepted it, then switched over and set up navigation —
+    // far longer than the pill lives, so the accepting app was silent and the
+    // pill timed out first. Both an accepted Uber and an accepted Lyft trip
+    // logged as not taken. Outcome must survive the pill.
+    for (final (label, card, inTrip) in [
+      (
+        'Lyft',
+        const ScreenRead(
+          packageName: ParserRegistry.lyftPackage,
+          texts: ['\$9.01', '3 mins · 0.4 km', '16 mins · 7.2 km', 'Accept'],
+        ),
+        'Arrive',
+      ),
+      (
+        'Uber',
+        const ScreenRead(
+          packageName: ParserRegistry.uberPackage,
+          texts: ['UberX', '\$9', '15 mins (4.3 km) trip', 'Accept'],
+        ),
+        'Picking up Alex',
+      ),
+    ]) {
+      test(
+        '$label trip screen after the pill timed out still marks it taken',
+        () async {
+          OfferWatcher.idleTimeout = const Duration(milliseconds: 10);
+          addTearDown(
+            () => OfferWatcher.idleTimeout = const Duration(seconds: 7),
+          );
+          final c = container();
+          c.read(offerWatcherProvider);
+          c.read(overlayControllerProvider);
+
+          watcher.emit(card);
+          await Future<void>.delayed(Duration.zero);
+          expect(c.read(offerLogProvider).first.outcome, OfferOutcome.unknown);
+
+          // The driver is still in the other app, so this one sends nothing and
+          // the pill times out.
+          await Future<void>.delayed(const Duration(milliseconds: 30));
+          expect(overlay.clears, 1);
+
+          // Only now does the driver open the app they accepted in.
+          watcher.emit(
+            ScreenRead(packageName: card.packageName, texts: [inTrip]),
+          );
+          await pastGrace();
+          expect(c.read(offerLogProvider).first.outcome, OfferOutcome.taken);
+        },
+      );
+    }
   });
 }

@@ -212,30 +212,37 @@ class VerdictPill extends StatelessWidget {
     );
   }
 
+  /// Type/padding scale per size. Every field steps by an EQUAL amount from
+  /// small→medium→large, so each notch is the same visible jump. The old table
+  /// stepped unevenly (rate 20→22→27, +2 then +5) and, worse, all three pills
+  /// rendered wider than their overlay window and got clipped rather than
+  /// scaled — so Medium and Large drew their text at the same unscaled size and
+  /// looked identical on device (2026-08-06). Keep these widths modest: the
+  /// window must stay under 360dp to remain draggable (see overlay_entry).
   static _PillMetrics _metrics(PillSize size) => switch (size) {
     PillSize.small => const _PillMetrics(
-      padH: 16,
-      padV: 11,
-      gap: 8,
-      rate: 20,
-      unit: 11,
-      sub: 13.5,
+      padH: 13,
+      padV: 9,
+      gap: 7,
+      rate: 18,
+      unit: 10,
+      sub: 12.5,
     ),
     PillSize.medium => const _PillMetrics(
-      padH: 18,
-      padV: 12,
-      gap: 10,
-      rate: 22,
-      unit: 12,
-      sub: 15,
+      padH: 16,
+      padV: 11,
+      gap: 9,
+      rate: 21,
+      unit: 11.5,
+      sub: 14.5,
     ),
     PillSize.large => const _PillMetrics(
-      padH: 22,
-      padV: 15,
-      gap: 12,
-      rate: 27,
-      unit: 14,
-      sub: 18,
+      padH: 19,
+      padV: 13,
+      gap: 11,
+      rate: 24,
+      unit: 13,
+      sub: 16.5,
     ),
   };
 }

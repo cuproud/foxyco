@@ -36,7 +36,7 @@ const aboutIntro =
 
 /// Version string. Kept as a plain const rather than adding a native plugin for
 /// one label; `about_content_test.dart` guards it against `pubspec.yaml` drift.
-const aboutVersion = '1.0.9 (build 24)';
+const aboutVersion = '1.0.9 (build 25)';
 
 const aboutSections = <AboutSection>[
   AboutSection(
@@ -72,6 +72,21 @@ const aboutSections = <AboutSection>[
             'or endorsed by any of them — those are their own companies and '
             'trademarks. FoxyCo just reads what is already on your screen and '
             'does the arithmetic you would otherwise do in your head.',
+      ),
+      AboutEntry(
+        'Does the bubble show on my lock screen?',
+        'No. FoxyCo hides the bubble and the pill whenever the screen goes off '
+            'or the phone is locked, and brings them back when you unlock. The '
+            'watcher keeps running underneath, so an offer that arrives while '
+            'the phone is locked is still scored and logged.',
+      ),
+      AboutEntry(
+        'How does History know I took an offer?',
+        'It infers it. When the offer card leaves the screen, FoxyCo looks at '
+            'what replaced it: a trip screen means taken, the browse or map '
+            'screen means passed. It works even if you accept in one app while '
+            'watching another. If neither is clear, the offer stays unmarked '
+            'rather than guessing. You can turn this off in Settings.',
       ),
       AboutEntry(
         'What is the pickup distance for?',

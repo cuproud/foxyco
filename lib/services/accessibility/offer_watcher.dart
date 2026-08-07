@@ -63,11 +63,16 @@ class OfferWatcher extends Notifier<Offer?> {
   /// it.
   Timer? _clearTimer;
 
-  /// Outcome inferred from the screen that replaced the card, applied to the
-  /// logged offer when the clear actually fires: browse/home/map → the driver
-  /// passed ([OfferOutcome.missed]); any other screen (in-trip navigation) →
+  /// Outcome inferred from the screen that replaced the card: browse/home/map →
+  /// the driver passed ([OfferOutcome.missed]); an explicit in-trip screen →
   /// taken ([OfferOutcome.taken]). Heuristic — see [OfferOutcome].
+  ///
+  /// Deliberately NOT tied to the pill (see [_inferOutcome]). Held for
+  /// [clearGrace] before it is applied so a card frame coming right back can
+  /// cancel a premature verdict.
   OfferOutcome _pendingOutcome = OfferOutcome.unknown;
+  GigPlatform? _pendingOutcomePlatform;
+  Timer? _outcomeTimer;
 
   /// How long to wait before dropping the pill once the card looks gone. Kept
   /// short: on a browse/home screen the card has DEFINITELY left (offers never
@@ -129,6 +134,7 @@ class OfferWatcher extends Notifier<Offer?> {
       _sub?.cancel();
       _clearTimer?.cancel();
       _idleTimer?.cancel();
+      _outcomeTimer?.cancel();
     });
     return null;
   }
@@ -216,6 +222,12 @@ class OfferWatcher extends Notifier<Offer?> {
       // Every offer card is free of those markers, and any ambiguous partial
       // frame — a lone button, payout-only, a half-rendered tree — is treated as
       // "still on the card" so the pill holds.
+      // Outcome first, and independent of whether a pill is up: by the time the
+      // driver has switched apps and set up navigation the pill is long gone
+      // (idle timeout), and everything below this point is pill bookkeeping
+      // that early-returns when nothing is showing.
+      _inferOutcome(parser.platform, read.texts);
+
       if (_shownKey == null) {
         // Nothing showing. Usually browse/home noise — but a frame carrying the
         // takeable-offer affordance was very likely a REAL offer card we failed
@@ -230,38 +242,15 @@ class OfferWatcher extends Notifier<Offer?> {
         if (kDebugMode) debugPrint('FoxyCo[watch] drop: parse null (low conf)');
         return; // nothing showing — browse/home noise, not a lost card
       }
+      // An event from one app must never clear another app's current pill.
+      if (_shownPlatform != parser.platform) return;
+
       final joined = read.texts.join(' ');
-      final samePlatform = _shownPlatform == parser.platform;
-      final acceptedTrip = ParserPatterns.looksLikeAcceptedTrip(
+      final accepted = ParserPatterns.looksLikeAcceptedTrip(
         parser.platform,
         read.texts,
       );
-      final browseScreen = ParserPatterns.looksLikeBrowse(joined);
-      if (!samePlatform) {
-        final crossAppOutcome = !ref.read(settingsProvider).trackOutcomes
-            ? OfferOutcome.unknown
-            : acceptedTrip
-            ? OfferOutcome.taken
-            : browseScreen
-            ? OfferOutcome.missed
-            : OfferOutcome.unknown;
-        if (crossAppOutcome != OfferOutcome.unknown) {
-          ref
-              .read(offerLogProvider.notifier)
-              .markLatestPlatformOutcome(parser.platform, crossAppOutcome);
-          ref
-              .read(foxLogProvider)
-              .log(
-                'outcome',
-                '${parser.platform.label} offer inferred '
-                    '${crossAppOutcome.name}',
-              );
-        }
-        // An event from one app must never clear another app's current pill.
-        return;
-      }
-      final accepted = acceptedTrip;
-      final onBrowse = browseScreen;
+      final onBrowse = ParserPatterns.looksLikeBrowse(joined);
       if (!accepted &&
           !onBrowse &&
           ParserPatterns.looksLikeOfferCard(read.texts)) {
@@ -269,8 +258,6 @@ class OfferWatcher extends Notifier<Offer?> {
         // pending clear so a run of partials can't age it out.
         _clearTimer?.cancel();
         _clearTimer = null;
-        _pendingOutcome =
-            OfferOutcome.unknown; // card back — verdict was premature
         return;
       }
       // Browse/home screen, or a screen with NO card hallmark at all (e.g. an
@@ -283,16 +270,6 @@ class OfferWatcher extends Notifier<Offer?> {
         final delay = (!accepted && !onBrowse && floorLeft > clearGrace)
             ? floorLeft
             : clearGrace;
-        // Where the app went tells us what the driver did: back to browse/map
-        // means the offer was passed (declined / timed out); any other screen
-        // (in-trip nav) means it was taken. Driver-optional (Settings toggle).
-        _pendingOutcome = !ref.read(settingsProvider).trackOutcomes
-            ? OfferOutcome.unknown
-            : accepted
-            ? OfferOutcome.taken
-            : onBrowse
-            ? OfferOutcome.missed
-            : OfferOutcome.unknown;
         _clearTimer = Timer(delay, _clearNow);
         if (kDebugMode) {
           debugPrint(
@@ -305,10 +282,12 @@ class OfferWatcher extends Notifier<Offer?> {
     }
 
     // A real offer parsed: whatever transient null we may have seen, the card is
-    // on screen, so cancel any pending "offer left" clear.
+    // on screen, so cancel any pending "offer left" clear — and any pending
+    // outcome, which would otherwise land on THIS offer instead of the previous
+    // one (the log is newest-first).
     _clearTimer?.cancel();
     _clearTimer = null;
-    _pendingOutcome = OfferOutcome.unknown;
+    _cancelPendingOutcome();
 
     // Flicker guard: the same offer card re-fires events constantly. Only push a
     // pill when the offer actually changes; identical re-parses are no-ops.
@@ -369,6 +348,75 @@ class OfferWatcher extends Notifier<Offer?> {
     ref.read(overlayControllerProvider.notifier).showFromOffer(offer, verdict);
   }
 
+  /// Stamp taken/missed onto [platform]'s most recent unresolved offer from
+  /// whatever that app is showing NOW — regardless of whether its pill is still
+  /// up.
+  ///
+  /// The pill is short-lived by design (5 s floor, 7 s [idleTimeout] once the
+  /// app goes quiet), but accepting is slow: the driver taps Accept inside the
+  /// gig app, switches to it, and sets up navigation. The in-trip screen that
+  /// proves the accept therefore usually arrives long after the pill died, and
+  /// with `_shownKey` already null every later frame used to be dropped as
+  /// browse noise — so real accepted Uber and Lyft trips logged as not taken
+  /// (device 2026-08-06). Outcome must outlive the pill.
+  ///
+  /// [OfferLog.markLatestPlatformOutcome] bounds this: same platform, still
+  /// `unknown`, seen within its dedupe window. So a stale screen cannot invent
+  /// an outcome and a later screen cannot rewrite one.
+  void _inferOutcome(GigPlatform platform, List<String> texts) {
+    if (!ref.read(settingsProvider).trackOutcomes) return;
+    // Card hallmarks mean the offer is still on screen — a half-rendered frame,
+    // not a decision. Cancel anything armed from the previous frame.
+    if (ParserPatterns.looksLikeOfferCard(texts)) {
+      if (_pendingOutcomePlatform == platform) _cancelPendingOutcome();
+      return;
+    }
+    final outcome = ParserPatterns.looksLikeAcceptedTrip(platform, texts)
+        ? OfferOutcome.taken
+        : ParserPatterns.looksLikeBrowse(texts.join(' '))
+        ? OfferOutcome.missed
+        : OfferOutcome.unknown;
+    if (outcome == OfferOutcome.unknown) return;
+    if (_shownPlatform != platform) {
+      // No live pill of ours for this app, so there is no card that could flick
+      // back and make this verdict premature. Stamp it now.
+      _cancelPendingOutcome();
+      _pendingOutcome = outcome;
+      _pendingOutcomePlatform = platform;
+      _applyPendingOutcome();
+      return;
+    }
+    if (_outcomeTimer != null &&
+        _pendingOutcomePlatform == platform &&
+        _pendingOutcome == outcome) {
+      return; // already armed by an identical frame — let it run
+    }
+    _outcomeTimer?.cancel();
+    _pendingOutcome = outcome;
+    _pendingOutcomePlatform = platform;
+    _outcomeTimer = Timer(clearGrace, _applyPendingOutcome);
+  }
+
+  void _cancelPendingOutcome() {
+    _outcomeTimer?.cancel();
+    _outcomeTimer = null;
+    _pendingOutcome = OfferOutcome.unknown;
+    _pendingOutcomePlatform = null;
+  }
+
+  void _applyPendingOutcome() {
+    final platform = _pendingOutcomePlatform;
+    final outcome = _pendingOutcome;
+    _cancelPendingOutcome();
+    if (platform == null || outcome == OfferOutcome.unknown) return;
+    ref
+        .read(offerLogProvider.notifier)
+        .markLatestPlatformOutcome(platform, outcome);
+    ref
+        .read(foxLogProvider)
+        .log('outcome', '${platform.label} offer inferred ${outcome.name}');
+  }
+
   void _logCardMiss(OfferParser parser, List<String> texts) {
     final joined = texts.join(' ');
     final signature =
@@ -401,27 +449,20 @@ class OfferWatcher extends Notifier<Offer?> {
         );
   }
 
-  /// The offer stayed gone for the whole grace window — really clear now. Stamp
-  /// the inferred outcome onto the logged offer, forget what we showed (so the
-  /// same offer reappearing shows again) and drop the pill back to the bubble.
+  /// The offer stayed gone for the whole grace window — really clear now.
+  /// Forget what we showed (so the same offer reappearing shows again) and drop
+  /// the pill back to the bubble. Outcome is NOT stamped here: it now runs on
+  /// its own clock in [_inferOutcome], because the screen that proves the
+  /// accept usually arrives well after the pill is gone.
   void _clearNow() {
     _clearTimer = null;
     _idleTimer?.cancel();
     _idleTimer = null;
     if (_shownKey == null) return;
-    final shownPlatform = _shownPlatform;
     _shownKey = null;
     _shownPlatform = null;
     _shownAt = null;
     state = null;
-    final outcome = _pendingOutcome;
-    _pendingOutcome = OfferOutcome.unknown;
-    if (outcome != OfferOutcome.unknown && shownPlatform != null) {
-      ref
-          .read(offerLogProvider.notifier)
-          .markLatestPlatformOutcome(shownPlatform, outcome);
-      ref.read(foxLogProvider).log('outcome', 'offer inferred ${outcome.name}');
-    }
     ref.read(overlayControllerProvider.notifier).clearOffer();
     ref.read(foxLogProvider).log('overlay', 'pill cleared — offer left screen');
     if (kDebugMode) debugPrint('FoxyCo[watch] clear: offer left screen');
