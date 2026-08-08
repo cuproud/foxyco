@@ -58,8 +58,10 @@ class OverlayController extends Notifier<void> {
       (_, next) => _queueStatus(next),
       fireImmediately: true,
     );
-    ref.listen<bool>(entitledProvider, (previous, next) {
-      if (_pillUp && previous != next) unawaited(clearOffer());
+    ref.listen<Access>(accessProvider, (previous, next) {
+      if (_pillUp && previous != null && previous.entitled != next.entitled) {
+        unawaited(clearOffer());
+      }
     });
   }
 
