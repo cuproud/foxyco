@@ -3,15 +3,32 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:foxyco/ui/home/dashboard_controller.dart';
 import 'package:foxyco/ui/home/dashboard_state.dart';
 
+class _GrantedDashboardController extends DashboardController {
+  @override
+  DashboardState build() => const DashboardState(
+    status: WatchStatus.stopped,
+    permissions: PermissionStatus(
+      overlayGranted: true,
+      accessibilityGranted: true,
+    ),
+  );
+}
+
+ProviderContainer grantedContainer() => ProviderContainer(
+  overrides: [dashboardProvider.overrideWith(_GrantedDashboardController.new)],
+);
+
 void main() {
-  test('boots stopped, never watching', () {
+  test('boots blocked until real permissions resolve', () {
     final container = ProviderContainer();
     addTearDown(container.dispose);
-    expect(container.read(dashboardProvider).status, WatchStatus.stopped);
+    expect(container.read(dashboardProvider).status, WatchStatus.blocked);
+    container.read(dashboardProvider.notifier).startMonitoring();
+    expect(container.read(dashboardProvider).status, WatchStatus.blocked);
   });
 
   test('startMonitoring → watching; stopMonitoring → stopped', () {
-    final container = ProviderContainer();
+    final container = grantedContainer();
     addTearDown(container.dispose);
     final c = container.read(dashboardProvider.notifier);
     c.startMonitoring();
@@ -21,7 +38,7 @@ void main() {
   });
 
   test('pause layers on top of running; stop from paused works', () {
-    final container = ProviderContainer();
+    final container = grantedContainer();
     addTearDown(container.dispose);
     final c = container.read(dashboardProvider.notifier);
     c.startMonitoring();
@@ -32,7 +49,7 @@ void main() {
   });
 
   test('togglePause is a no-op while stopped', () {
-    final container = ProviderContainer();
+    final container = grantedContainer();
     addTearDown(container.dispose);
     container.read(dashboardProvider.notifier).togglePause();
     expect(container.read(dashboardProvider).status, WatchStatus.stopped);

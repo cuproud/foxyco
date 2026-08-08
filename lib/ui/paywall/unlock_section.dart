@@ -155,9 +155,10 @@ class UnlockSection extends ConsumerWidget {
         // Say the ugly part out loud: a purchase is owned by the Play account,
         // not by us, so it survives — but the trial does not come back.
         content: const Text(
-          'Your trial account is removed from FoxyCo. Lifetime access is held '
-          'by Google Play, so it survives and can be restored. Your free trial '
-          'cannot be restarted.',
+          'Your Firebase account and email are deleted. FoxyCo keeps only a '
+          'random ID and trial-start date to prevent repeated free trials; it '
+          'has no email attached after deletion. Lifetime access '
+          'is held by Google Play, so it survives and can be restored.',
         ),
         actions: [
           TextButton(

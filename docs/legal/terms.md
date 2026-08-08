@@ -4,12 +4,12 @@ title: FoxyCo — Terms of Use
 
 # FoxyCo — Terms of Use
 
-**Last updated: 2 August 2026**
+**Last updated: 8 August 2026**
 
-These terms are a contract between you and **[LEGAL NAME — your name or
-registered business]** ("we", "us") covering your use of the FoxyCo Android app
-("FoxyCo"). By installing FoxyCo, tapping through its setup, or using it, you
-agree to them. If you do not agree, do not use the app.
+These terms are a contract between you and **Vamsi Naradasu** ("we", "us")
+covering your use of the FoxyCo Android app ("FoxyCo"). By installing FoxyCo,
+tapping through its setup, or using it, you agree to them. If you do not agree,
+do not use the app.
 
 ## 1. What FoxyCo is
 
@@ -132,10 +132,9 @@ you accept the updated terms.
 
 ## 13. Governing law
 
-These terms are governed by the laws of **[YOUR PROVINCE/COUNTRY — e.g. Ontario,
-Canada]**, and the courts there have jurisdiction. If you are a consumer, this
-does not deprive you of the protection of the mandatory laws of the country you
-live in.
+These terms are governed by the laws of **Ontario, Canada**, and the courts
+there have jurisdiction. If you are a consumer, this does not deprive you of
+the protection of the mandatory laws of the country you live in.
 
 ## 14. Contact
 

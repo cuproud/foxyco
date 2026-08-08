@@ -9,6 +9,7 @@ import '../domain/fox_settings.dart';
 import '../domain/offer_summary.dart';
 import '../domain/platform.dart';
 import '../domain/verdict.dart';
+import 'fox_log.dart';
 import '../ui/home/dashboard_state.dart' show Tally;
 import '../ui/settings/settings_controller.dart';
 
@@ -29,6 +30,10 @@ class OfferLog extends Notifier<List<OfferSummary>> {
   /// Hard cap so the blob can't grow unbounded if the driver keeps
   /// "forever" retention. Oldest entries fall off first.
   static const maxEntries = 2000;
+  final Completer<void> _loaded = Completer<void>();
+
+  @protected
+  Future<SharedPreferences> preferences() => SharedPreferences.getInstance();
 
   @override
   List<OfferSummary> build() {
@@ -53,18 +58,36 @@ class OfferLog extends Notifier<List<OfferSummary>> {
 
   Future<void> _load() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = await preferences();
       final raw = prefs.getString(_prefsKey);
       if (raw == null) return;
-      final list =
-          (jsonDecode(raw) as List)
-              .whereType<Map<String, dynamic>>()
-              .map(OfferSummary.fromJson)
-              .toList()
-            ..sort((a, b) => b.seenAt.compareTo(a.seenAt));
-      state = list;
+      final list = <OfferSummary>[];
+      var droppedRow = false;
+      for (final row in jsonDecode(raw) as List<dynamic>) {
+        try {
+          if (row is! Map<String, dynamic>) throw const FormatException();
+          list.add(OfferSummary.fromJson(row));
+        } catch (_) {
+          droppedRow = true;
+        }
+      }
+      list.sort((a, b) => b.seenAt.compareTo(a.seenAt));
+      if (!ref.mounted) return;
+      if (droppedRow) {
+        ref
+            .read(foxLogProvider)
+            .log('offer-log', 'skipped malformed saved row');
+      }
+      // A real accessibility event can arrive while preferences are loading.
+      // Keep those live rows and fold the older disk history behind them.
+      state = [...state, ...list]..sort((a, b) => b.seenAt.compareTo(a.seenAt));
+      if (state.length > maxEntries) {
+        state = state.take(maxEntries).toList();
+      }
     } catch (e) {
       if (kDebugMode) debugPrint('FoxyCo offer log load skipped: $e');
+    } finally {
+      if (!_loaded.isCompleted) _loaded.complete();
     }
   }
 
@@ -90,7 +113,10 @@ class OfferLog extends Notifier<List<OfferSummary>> {
     _saveTimer?.cancel();
     _saveTimer = null;
     try {
-      final prefs = await SharedPreferences.getInstance();
+      // Never replace the disk blob with a partial pre-hydration state.
+      await _loaded.future;
+      if (!ref.mounted) return;
+      final prefs = await preferences();
       await prefs.setString(
         _prefsKey,
         jsonEncode(state.map((o) => o.toJson()).toList()),
@@ -110,7 +136,7 @@ class OfferLog extends Notifier<List<OfferSummary>> {
   /// Append a freshly scored offer (newest first) and persist. Retention is
   /// enforced here too — cheap, and it means old entries age out as new ones
   /// arrive without a startup purge racing the async settings load.
-  void record(OfferSummary offer) {
+  void record(OfferSummary offer, {bool confirmedNewCard = false}) {
     // Same card, twice. OfferWatcher clears `_shownKey` whenever a frame stops
     // looking like the card (a partial read, a half-rendered tree), so a card
     // that flickers and comes back parses as brand new and lands here a second
@@ -122,7 +148,8 @@ class OfferLog extends Notifier<List<OfferSummary>> {
     // for a card that came back is correct, and this is the one sink every
     // caller of the log routes through.
     final last = state.firstOrNull;
-    if (last != null &&
+    if (!confirmedNewCard &&
+        last != null &&
         last.sameCardAs(offer) &&
         offer.seenAt.difference(last.seenAt).abs() < dedupeWindow) {
       return;
@@ -134,7 +161,10 @@ class OfferLog extends Notifier<List<OfferSummary>> {
       next = next.where((o) => o.seenAt.isAfter(cutoff)).toList();
     }
     state = next;
-    _saveSoon();
+    // A real offer is valuable data. Start the write now; only the likely
+    // follow-up outcome stamp is debounced. If hydration is still running,
+    // [_save] waits for it and persists the merged list.
+    unawaited(_save());
   }
 
   /// Stamp an outcome onto the newest unresolved offer from the app that

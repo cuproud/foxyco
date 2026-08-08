@@ -3,6 +3,19 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:foxyco/ui/home/home_screen.dart';
+import 'package:foxyco/ui/home/dashboard_controller.dart';
+import 'package:foxyco/ui/home/dashboard_state.dart';
+
+class _GrantedDashboardController extends DashboardController {
+  @override
+  DashboardState build() => const DashboardState(
+    status: WatchStatus.stopped,
+    permissions: PermissionStatus(
+      overlayGranted: true,
+      accessibilityGranted: true,
+    ),
+  );
+}
 
 void main() {
   // The dashboard is a tall scroll; give the test a tall viewport so the
@@ -17,7 +30,12 @@ void main() {
   testWidgets('Home dashboard renders its core sections', (tester) async {
     tall(tester);
     await tester.pumpWidget(
-      const ProviderScope(child: MaterialApp(home: HomeScreen())),
+      ProviderScope(
+        overrides: [
+          dashboardProvider.overrideWith(_GrantedDashboardController.new),
+        ],
+        child: const MaterialApp(home: HomeScreen()),
+      ),
     );
 
     // Brand bar + the hero status + today's tally + the last-session card.
@@ -34,7 +52,12 @@ void main() {
   testWidgets('Go live / Stop toggles monitoring', (tester) async {
     tall(tester);
     await tester.pumpWidget(
-      const ProviderScope(child: MaterialApp(home: HomeScreen())),
+      ProviderScope(
+        overrides: [
+          dashboardProvider.overrideWith(_GrantedDashboardController.new),
+        ],
+        child: const MaterialApp(home: HomeScreen()),
+      ),
     );
 
     // Boots stopped with the slide-to-go-live CTA showing.

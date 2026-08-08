@@ -4,6 +4,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:foxyco/domain/overlay_action.dart';
 import 'package:foxyco/domain/overlay_payload.dart';
+import 'package:foxyco/domain/offer.dart';
+import 'package:foxyco/domain/platform.dart';
+import 'package:foxyco/domain/verdict.dart';
+import 'package:foxyco/services/billing/entitlement.dart';
 import 'package:foxyco/services/overlay_service.dart';
 import 'package:foxyco/ui/home/dashboard_controller.dart';
 import 'package:foxyco/ui/home/dashboard_state.dart';
@@ -20,6 +24,8 @@ class _FakeOverlayService implements OverlayService {
   bool watchingStarted = false;
   Completer<void>? startGate;
   final List<String> operations = [];
+  bool throwOnShow = false;
+  int clearCount = 0;
 
   /// Drives actionStream so tests can inject bubble gestures.
   final _actions = StreamController<OverlayAction>.broadcast();
@@ -54,7 +60,10 @@ class _FakeOverlayService implements OverlayService {
   }
 
   @override
-  Future<void> showOffer(OverlayPayload payload) async => shown.add(payload);
+  Future<void> showOffer(OverlayPayload payload) async {
+    if (throwOnShow) throw StateError('show failed');
+    shown.add(payload);
+  }
 
   @override
   Future<void> update(OverlayPayload payload) async => shown.add(payload);
@@ -63,7 +72,7 @@ class _FakeOverlayService implements OverlayService {
   Future<void> setPaused(bool paused) async => pausedCalls.add(paused);
 
   @override
-  Future<void> clearPill() async {}
+  Future<void> clearPill() async => clearCount++;
 
   @override
   Future<void> hide() async {
@@ -72,9 +81,33 @@ class _FakeOverlayService implements OverlayService {
   }
 }
 
+class _MutableAccessStore extends AccessStore {
+  @override
+  Access build() => const Access(entitled: false, source: AccessSource.none);
+
+  @override
+  Future<void> tick() async {}
+
+  void setAccess(Access next) => state = next;
+}
+
+class _GrantedDashboardController extends DashboardController {
+  @override
+  DashboardState build() => const DashboardState(
+    status: WatchStatus.stopped,
+    permissions: PermissionStatus(
+      overlayGranted: true,
+      accessibilityGranted: true,
+    ),
+  );
+}
+
 ProviderContainer _containerWith(_FakeOverlayService fake) {
   final c = ProviderContainer(
-    overrides: [overlayServiceProvider.overrideWithValue(fake)],
+    overrides: [
+      overlayServiceProvider.overrideWithValue(fake),
+      dashboardProvider.overrideWith(_GrantedDashboardController.new),
+    ],
   );
   addTearDown(c.dispose);
   return c;
@@ -111,6 +144,49 @@ void main() {
 
     expect(ok, isFalse);
     expect(fake.shown, isEmpty);
+  });
+
+  test('contains native show failures', () async {
+    final fake = _FakeOverlayService()..throwOnShow = true;
+    final c = _containerWith(fake);
+
+    final ok = await c.read(overlayControllerProvider.notifier).simulateOffer();
+
+    expect(ok, isFalse);
+    expect(fake.shown, isEmpty);
+  });
+
+  test('entitlement transition clears a visible locked pill', () async {
+    final fake = _FakeOverlayService();
+    final c = ProviderContainer(
+      overrides: [
+        overlayServiceProvider.overrideWithValue(fake),
+        accessProvider.overrideWith(_MutableAccessStore.new),
+        dashboardProvider.overrideWith(_GrantedDashboardController.new),
+      ],
+    );
+    addTearDown(c.dispose);
+    c.read(overlayControllerProvider);
+    c.read(dashboardProvider.notifier).startMonitoring();
+    await c
+        .read(overlayControllerProvider.notifier)
+        .showFromOffer(
+          const Offer(
+            platform: GigPlatform.uber,
+            payout: 10,
+            pickupKm: 2,
+            dropoffKm: 8,
+          ),
+          Verdict.ok,
+        );
+    expect(fake.shown.single.entitled, isFalse);
+
+    (c.read(accessProvider.notifier) as _MutableAccessStore).setAccess(
+      const Access(entitled: true, source: AccessSource.purchase),
+    );
+    await Future<void>.delayed(Duration.zero);
+
+    expect(fake.clearCount, 1);
   });
 
   test('rotates through GOOD/OK/BAD samples on repeat taps', () async {

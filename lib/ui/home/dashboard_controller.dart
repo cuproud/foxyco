@@ -16,6 +16,7 @@ import 'dashboard_state.dart';
 class DashboardController extends Notifier<DashboardState> {
   StreamSubscription<bool>? _statusSub;
   Future<void>? _permissionRefresh;
+  bool _permissionRefreshAgain = false;
 
   /// When the current live session started; null while stopped. Read by the
   /// shift-recap sheet at stop time. Survives pause (pause ≠ end of shift).
@@ -53,10 +54,10 @@ class DashboardController extends Notifier<DashboardState> {
     ref.onDispose(() => _statusSub?.cancel());
 
     return const DashboardState(
-      status: WatchStatus.stopped,
+      status: WatchStatus.blocked,
       permissions: PermissionStatus(
-        overlayGranted: true,
-        accessibilityGranted: true,
+        overlayGranted: false,
+        accessibilityGranted: false,
       ),
     );
   }
@@ -149,22 +150,37 @@ class DashboardController extends Notifier<DashboardState> {
   /// resume watching unless the driver explicitly paused.
   ///
   /// Off-device (widget tests) the plugin channels aren't registered and
-  /// throw; we swallow and keep the current (default) state so tests that
-  /// pump the screen bare still render "watching".
+  /// throw; we swallow and keep the current fail-closed state.
   Future<void> refreshPermissions() {
     // Startup, app-resume and the accessibility status observer can all request
     // this check in the same frame. Share one platform-channel round trip so a
     // single permission transition does not produce duplicate state writes,
     // log lines and overlay `isActive` calls (device log 2026-07-30).
     final active = _permissionRefresh;
-    if (active != null) return active;
+    if (active != null) {
+      _permissionRefreshAgain = true;
+      return active;
+    }
 
     late final Future<void> refresh;
-    refresh = _refreshPermissions().whenComplete(() {
-      if (identical(_permissionRefresh, refresh)) _permissionRefresh = null;
+    refresh = _runPermissionRefreshes().whenComplete(() {
+      if (!identical(_permissionRefresh, refresh)) return;
+      _permissionRefresh = null;
+      // Close the tiny completion window: a status event can arrive after the
+      // loop's final condition but before this cleanup callback runs.
+      if (_permissionRefreshAgain && ref.mounted) {
+        unawaited(refreshPermissions());
+      }
     });
     _permissionRefresh = refresh;
     return refresh;
+  }
+
+  Future<void> _runPermissionRefreshes() async {
+    do {
+      _permissionRefreshAgain = false;
+      await _refreshPermissions();
+    } while (_permissionRefreshAgain && ref.mounted);
   }
 
   Future<void> _refreshPermissions() async {
@@ -202,6 +218,13 @@ class DashboardController extends Notifier<DashboardState> {
       final statusChanged = old.status != status;
       if (!statusChanged && !permissionsChanged) return;
 
+      if (status == WatchStatus.blocked &&
+          (old.status == WatchStatus.watching ||
+              old.status == WatchStatus.paused)) {
+        final since = liveSince;
+        liveSince = null;
+        _recordSession(since);
+      }
       state = _with(status: status, permissions: permissions);
       if (statusChanged) {
         ref.read(foxLogProvider).log('status', 'watch → ${status.name}');

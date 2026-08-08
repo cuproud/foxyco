@@ -4,8 +4,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:foxyco/domain/overlay_action.dart';
 import 'package:foxyco/domain/overlay_payload.dart';
+import 'package:foxyco/domain/session_summary.dart';
 import 'package:foxyco/services/accessibility/accessibility_watcher.dart';
 import 'package:foxyco/services/overlay_service.dart';
+import 'package:foxyco/services/session_log.dart';
 import 'package:foxyco/ui/home/dashboard_controller.dart';
 import 'package:foxyco/ui/home/dashboard_state.dart';
 import 'package:foxyco/ui/overlay/overlay_controller.dart';
@@ -20,6 +22,25 @@ class _FakeWatcher extends AccessibilityWatcher {
   Stream<bool> get statusChanges => status.stream;
   @override
   Stream<ScreenRead> reads() => const Stream.empty();
+}
+
+class _DelayedWatcher extends _FakeWatcher {
+  final checks = <Completer<bool>>[];
+
+  @override
+  Future<bool> isEnabled() {
+    final check = Completer<bool>();
+    checks.add(check);
+    return check.future;
+  }
+}
+
+class _MemorySessionLog extends SessionLog {
+  @override
+  List<SessionSummary> build() => const [];
+
+  @override
+  void record(SessionSummary session) => state = [session, ...state];
 }
 
 class _FakeOverlayService implements OverlayService {
@@ -53,14 +74,18 @@ void main() {
       overrides: [
         accessibilityWatcherProvider.overrideWithValue(watcher),
         overlayServiceProvider.overrideWithValue(_FakeOverlayService()),
+        sessionLogProvider.overrideWith(_MemorySessionLog.new),
       ],
     );
     addTearDown(container.dispose);
     addTearDown(watcher.status.close);
 
-    // Boot: stopped even with both grants (spec M5 §4 — manual start).
+    await container.read(dashboardProvider.notifier).refreshPermissions();
+    // Once real grants resolve, boot is stopped (spec M5 §4 — manual start).
     expect(container.read(dashboardProvider).status, WatchStatus.stopped);
     container.read(dashboardProvider.notifier).startMonitoring();
+    container.read(dashboardProvider.notifier).liveSince = DateTime.now()
+        .subtract(const Duration(minutes: 2));
     expect(container.read(dashboardProvider).status, WatchStatus.watching);
 
     // The OS reports the service turned OFF (user revoked it in settings, or
@@ -73,6 +98,8 @@ void main() {
       container.read(dashboardProvider).permissions.accessibilityGranted,
       isFalse,
     );
+    expect(container.read(dashboardProvider.notifier).liveSince, isNull);
+    expect(container.read(sessionLogProvider), hasLength(1));
 
     // Re-granted out-of-band → back to stopped, awaiting an explicit start
     // (the revoke ended the shift; we never auto-resume watching).
@@ -93,6 +120,7 @@ void main() {
     addTearDown(container.dispose);
     addTearDown(watcher.status.close);
 
+    await container.read(dashboardProvider.notifier).refreshPermissions();
     // Pause only exists on a running watch — start first.
     container.read(dashboardProvider.notifier).startMonitoring();
     container.read(dashboardProvider.notifier).togglePause();
@@ -103,4 +131,38 @@ void main() {
     await Future<void>.delayed(Duration.zero);
     expect(container.read(dashboardProvider).status, WatchStatus.paused);
   });
+
+  test(
+    'permission change during a check queues one final-state check',
+    () async {
+      final watcher = _DelayedWatcher();
+      final container = ProviderContainer(
+        overrides: [
+          accessibilityWatcherProvider.overrideWithValue(watcher),
+          overlayServiceProvider.overrideWithValue(_FakeOverlayService()),
+        ],
+      );
+      addTearDown(container.dispose);
+      addTearDown(watcher.status.close);
+      final dashboard = container.read(dashboardProvider.notifier);
+
+      final refresh = dashboard.refreshPermissions();
+      while (watcher.checks.isEmpty) {
+        await Future<void>.delayed(Duration.zero);
+      }
+      unawaited(dashboard.refreshPermissions());
+      watcher.checks.first.complete(true);
+      while (watcher.checks.length < 2) {
+        await Future<void>.delayed(Duration.zero);
+      }
+      watcher.checks.last.complete(false);
+      await refresh;
+
+      expect(container.read(dashboardProvider).status, WatchStatus.blocked);
+      expect(
+        container.read(dashboardProvider).permissions.accessibilityGranted,
+        isFalse,
+      );
+    },
+  );
 }

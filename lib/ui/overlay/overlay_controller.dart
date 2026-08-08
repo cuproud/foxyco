@@ -58,6 +58,9 @@ class OverlayController extends Notifier<void> {
       (_, next) => _queueStatus(next),
       fireImmediately: true,
     );
+    ref.listen<bool>(entitledProvider, (previous, next) {
+      if (_pillUp && previous != next) unawaited(clearOffer());
+    });
   }
 
   OverlayService get _service => ref.read(overlayServiceProvider);
@@ -75,6 +78,7 @@ class OverlayController extends Notifier<void> {
   /// safe to call when the window is already in the target state (the plugin
   /// calls no-op). Async but fire-and-forget from the listener.
   Future<void> _applyStatus(WatchStatus status) async {
+    if (ref.read(dashboardProvider).status != status) return;
     switch (status) {
       case WatchStatus.watching:
         // Online: bring the bubble up.
@@ -131,7 +135,7 @@ class OverlayController extends Notifier<void> {
     // A read already in flight may finish just after the driver stops. Never
     // let that stale result recreate the overlay window.
     if (ref.read(dashboardProvider).status != WatchStatus.watching) return;
-    _pillUp = true;
+    await ref.read(accessProvider.notifier).tick();
     final settings = ref.read(settingsProvider);
     // Patch site 1 of 2 (MONETIZATION §4): the payload carries entitlement, the
     // overlay isolate independently refuses to draw numbers without it. Read
@@ -143,23 +147,30 @@ class OverlayController extends Notifier<void> {
           'overlay',
           'show ${offer.platform.label} \$${offer.payout} $verdict',
         );
-    await _service.showOffer(
-      OverlayPayload(
-        verdict: verdict,
-        totalKm: offer.totalKm,
-        payout: offer.payout,
-        totalMinutes: offer.totalMinutes,
-        pickupKm: offer.pickupKm,
-        pickupNearKm: settings.pickupNearKm,
-        hourGoodAt: settings.hourThresholds.goodAtOrAbove,
-        hourBadBelow: settings.hourThresholds.badBelow,
-        size: settings.pillSize,
-        moneyFont: settings.moneyFont,
-        distanceUnit: settings.distanceUnit,
-        currency: settings.currency,
-        entitled: entitled,
-      ),
-    );
+    try {
+      await _service.showOffer(
+        OverlayPayload(
+          verdict: verdict,
+          totalKm: offer.totalKm,
+          payout: offer.payout,
+          totalMinutes: offer.totalMinutes,
+          pickupKm: offer.pickupKm,
+          pickupNearKm: settings.pickupNearKm,
+          hourGoodAt: settings.hourThresholds.goodAtOrAbove,
+          hourBadBelow: settings.hourThresholds.badBelow,
+          size: settings.pillSize,
+          moneyFont: settings.moneyFont,
+          distanceUnit: settings.distanceUnit,
+          currency: settings.currency,
+          entitled: entitled,
+        ),
+      );
+      _pillUp = true;
+    } catch (e) {
+      _pillUp = false;
+      ref.read(foxLogProvider).log('error', 'overlay show offer: $e');
+      return;
+    }
     // Stop/pause may have landed while native showOverlay was starting. Clean
     // up immediately; the serialized status queue will also converge on hide.
     if (ref.read(dashboardProvider).status != WatchStatus.watching) {
@@ -173,9 +184,13 @@ class OverlayController extends Notifier<void> {
   /// stays up in its bubble state — only the pill content drops. The pipeline
   /// calls this when a watched app is foregrounded but the screen no longer
   /// parses as an offer, so a stale verdict never sits over a browse map.
-  Future<void> clearOffer() {
+  Future<void> clearOffer() async {
     _pillUp = false;
-    return _service.clearPill();
+    try {
+      await _service.clearPill();
+    } catch (e) {
+      ref.read(foxLogProvider).log('error', 'overlay clear offer: $e');
+    }
   }
 
   /// A rotating set of fake offers so repeated taps show different verdicts.
@@ -226,7 +241,12 @@ class OverlayController extends Notifier<void> {
     }
     final sample = _samples[_next % _samples.length];
     _next++;
-    await _service.showOffer(sample);
+    try {
+      await _service.showOffer(sample);
+    } catch (e) {
+      ref.read(foxLogProvider).log('error', 'overlay demo: $e');
+      return false;
+    }
     // Demo only: no real offer will "leave the screen" to clear this, so
     // auto-retract after a few seconds instead of leaving the pill stuck.
     // (A real pill is cleared either by the card leaving or by
@@ -239,17 +259,21 @@ class OverlayController extends Notifier<void> {
     Timer(const Duration(seconds: 5), () async {
       final status = ref.read(dashboardProvider).status;
       if (status == WatchStatus.watching || status == WatchStatus.paused) {
-        await _service.clearPill();
+        await clearOffer();
       } else {
-        await _service.hide();
+        await hide();
       }
     });
     return true;
   }
 
-  Future<void> hide() {
+  Future<void> hide() async {
     _pillUp = false;
-    return _service.hide();
+    try {
+      await _service.hide();
+    } catch (e) {
+      ref.read(foxLogProvider).log('error', 'overlay hide: $e');
+    }
   }
 }
 

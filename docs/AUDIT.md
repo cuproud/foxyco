@@ -161,7 +161,8 @@ Full pass against every risk above, ahead of the first Play submission.
 
 - **#1 accessibility policy (🟡 ready, needs listing text):** `@xml/accessibilityservice`
   declares the real purpose in `android:description`, is scoped to the 3 gig packages
-  only, READ-ONLY (`canPerformGestures` never requested), `isAccessibilityTool=true`.
+  only, READ-ONLY (`canPerformGestures` is not requested), and truthfully sets
+  `isAccessibilityTool=false` because FoxyCo is not a disability aid.
   Onboarding has the explicit consent/grant screen. ⏳ Play Console: fill the
   AccessibilityService declaration form + prominent-disclosure video at submission.
 - **#2 ToS / no automation (🟢):** read-and-advise only; no click/gesture APIs anywhere
@@ -310,9 +311,10 @@ test count and release findings, see `HANDOFF_2026-08-04.md`.
   is behind `kDebugMode`; `allowBackup=false`; Firestore rules are write-once and own-uid only.
 
 **Still open (console/device work, not code)**
-- `isAccessibilityTool="true"` is required to read Uber's `accessibilityDataSensitive` card views
-  and is simultaneously the single biggest Play-review risk. Write the justification and record
-  the review video BEFORE submitting.
+- Android may hide `accessibilityDataSensitive` card views from a service with
+  `isAccessibilityTool=false`; claiming `true` is not an acceptable workaround
+  for a non-disability app. Keep the truthful flag, document current app/OS
+  compatibility, and record the disclosure review video before submitting.
 - Firebase App Check + a Firestore budget alert. Anonymous auth is open by design; without App
   Check the abuse ceiling is quota cost, not data.
 - Battery/memory profile over a real shift — the vendored listener walks every same-package

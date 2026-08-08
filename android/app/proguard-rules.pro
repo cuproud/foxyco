@@ -4,7 +4,9 @@
 # GeneratedPluginRegistrant + AndroidManifest service entries.
 
 -keep class flutter.overlay.window.flutter_overlay_window.** { *; }
--keep class slayer.accessibility.service.flutter_accessibility_service.** { *; }
+-keep class slayer.accessibility.service.flutter_accessibility_service.FlutterAccessibilityServicePlugin { *; }
+-keep class slayer.accessibility.service.flutter_accessibility_service.AccessibilityListener { *; }
+-keep class slayer.accessibility.service.flutter_accessibility_service.AccessibilityReceiver { *; }
 
 # flutter_overlay_window resolves the overlay dart entrypoint through the
 # FlutterEngineGroup/DartExecutor — keep engine loader surface intact.

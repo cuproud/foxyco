@@ -1,8 +1,7 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../services/billing/billing_store.dart';
 import '../../services/billing/entitlement.dart';
 import '../../services/billing/trial_store.dart';
 import '../theme/tokens.dart';
@@ -19,31 +18,8 @@ import 'paywall_sheet.dart';
 ///   • cached verdict about to lapse → "we need to check with Google Play"
 ///
 /// Zero height when silent, so Home's layout doesn't need to know.
-class AccessBanner extends ConsumerStatefulWidget {
+class AccessBanner extends ConsumerWidget {
   const AccessBanner({super.key});
-
-  @override
-  ConsumerState<AccessBanner> createState() => _AccessBannerState();
-}
-
-class _AccessBannerState extends ConsumerState<AccessBanner> {
-  Timer? _tick;
-
-  @override
-  void initState() {
-    super.initState();
-    _tick = Timer.periodic(const Duration(minutes: 1), (_) {
-      if (ref.read(accessProvider).onTrial) {
-        ref.read(accessProvider.notifier).tick();
-      }
-    });
-  }
-
-  @override
-  void dispose() {
-    _tick?.cancel();
-    super.dispose();
-  }
 
   static String _trialCountdown(Access access) {
     final minutes = access.trialMinutesLeft;
@@ -58,9 +34,13 @@ class _AccessBannerState extends ConsumerState<AccessBanner> {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final unlock = ref.watch(billingProvider);
     final access = ref.watch(accessProvider);
     final trial = ref.watch(trialProvider);
+
+    // Play ownership is authoritative and can update one frame before Access.
+    if (unlock == UnlockStatus.purchased) return const SizedBox.shrink();
 
     // Mid-boot: say nothing rather than flash "trial ended" at a paying driver.
     if (!access.resolved) return const SizedBox.shrink();

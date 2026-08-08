@@ -2,11 +2,13 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:foxyco/services/fox_log.dart';
 import 'package:foxyco/ui/settings/logs_screen.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
   late Directory tmp;
   late FoxLog log;
 
@@ -36,9 +38,28 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byIcon(Icons.delete_outline_rounded));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Clear')); // confirm dialog action
+    await tester.tap(find.text('Clear'));
     await tester.pumpAndSettle();
     expect(find.textContaining('doomed'), findsNothing);
     expect(find.textContaining('No logs yet'), findsOneWidget);
+  });
+
+  test('diagnostic copy uses the sensitive native clipboard path', () async {
+    const channel = MethodChannel('foxyco/clipboard');
+    MethodCall? call;
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(channel, (value) async {
+          call = value;
+          return null;
+        });
+    addTearDown(
+      () => TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, null),
+    );
+
+    await setSensitiveClipboard('diagnostic');
+
+    expect(call?.method, 'setSensitiveText');
+    expect(call?.arguments, {'text': 'diagnostic'});
   });
 }

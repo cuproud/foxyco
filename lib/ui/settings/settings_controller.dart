@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
@@ -22,6 +23,12 @@ import '../../domain/thresholds.dart';
 /// soft to defaults and saves are best-effort, so tests see [FoxSettings.defaults].
 class SettingsController extends Notifier<FoxSettings> {
   static const _prefsKey = 'foxyco.settings.v1';
+  final Completer<void> _ready = Completer<void>();
+  final List<FoxSettings Function(FoxSettings)> _pending = [];
+  bool _hydrated = false;
+
+  @protected
+  Future<SharedPreferences> preferences() => SharedPreferences.getInstance();
 
   @override
   FoxSettings build() {
@@ -31,95 +38,120 @@ class SettingsController extends Notifier<FoxSettings> {
 
   Future<void> _load() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = await preferences();
       final raw = prefs.getString(_prefsKey);
-      if (raw == null) return;
-      state = FoxSettings.fromJson(jsonDecode(raw) as Map<String, dynamic>);
+      var loaded = raw == null
+          ? FoxSettings.defaults
+          : FoxSettings.fromJson(jsonDecode(raw) as Map<String, dynamic>);
+      for (final change in _pending) {
+        loaded = change(loaded);
+      }
+      if (ref.mounted) state = loaded;
     } catch (e) {
       if (kDebugMode) debugPrint('FoxyCo settings load skipped: $e');
+    } finally {
+      _hydrated = true;
+      _pending.clear();
+      if (!_ready.isCompleted) _ready.complete();
     }
   }
 
   Future<void> _save() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
+      await _ready.future;
+      if (!ref.mounted) return;
+      final prefs = await preferences();
       await prefs.setString(_prefsKey, jsonEncode(state.toJson()));
     } catch (e) {
       if (kDebugMode) debugPrint('FoxyCo settings save skipped: $e');
     }
   }
 
-  void _set(FoxSettings next) {
-    state = next;
-    _save();
+  void _change(FoxSettings Function(FoxSettings) change) {
+    if (!_hydrated) _pending.add(change);
+    state = change(state);
+    unawaited(_save());
   }
 
   /// GOOD cut for the ACTIVE rate mode. Clamped so it can never dip below the
   /// BAD cut (keeps the band coherent — see [Thresholds.isValid]); the slider
   /// also enforces this.
   void setGood(double value) {
-    final t = state.activeThresholds;
-    final clamped = value < t.badBelow ? t.badBelow : value;
-    _setActive(t.copyWith(goodAtOrAbove: clamped));
+    _change((current) {
+      final t = current.activeThresholds;
+      final clamped = value < t.badBelow ? t.badBelow : value;
+      return _withActive(current, t.copyWith(goodAtOrAbove: clamped));
+    });
   }
 
   /// BAD cut for the ACTIVE rate mode. Clamped so it can never rise above the
   /// GOOD cut.
   void setBad(double value) {
-    final t = state.activeThresholds;
-    final clamped = value > t.goodAtOrAbove ? t.goodAtOrAbove : value;
-    _setActive(t.copyWith(badBelow: clamped));
+    _change((current) {
+      final t = current.activeThresholds;
+      final clamped = value > t.goodAtOrAbove ? t.goodAtOrAbove : value;
+      return _withActive(current, t.copyWith(badBelow: clamped));
+    });
   }
 
   /// Write [next] into whichever thresholds pair the active mode uses.
-  void _setActive(Thresholds next) => _set(switch (state.rateMode) {
-    RateMode.perKm => state.copyWith(thresholds: next),
-    RateMode.perHour => state.copyWith(hourThresholds: next),
-  });
+  FoxSettings _withActive(FoxSettings current, Thresholds next) =>
+      switch (current.rateMode) {
+        RateMode.perKm => current.copyWith(thresholds: next),
+        RateMode.perHour => current.copyWith(hourThresholds: next),
+      };
 
   /// Apply a whole cut-point pair at once (threshold presets — onboarding and
   /// the Settings preset chips). Ignores invalid pairs.
   void applyPreset(Thresholds t) {
-    if (t.isValid) _setActive(t);
+    if (t.isValid) _change((current) => _withActive(current, t));
   }
 
   /// Score by $/km or $/hr. Each mode keeps its own cut points.
-  void setRateMode(RateMode mode) => _set(state.copyWith(rateMode: mode));
+  void setRateMode(RateMode mode) =>
+      _change((current) => current.copyWith(rateMode: mode));
 
   /// Pickup-near cutoff (km) — at/under paints the pill's km green, over red.
   void setPickupNearKm(double km) =>
-      _set(state.copyWith(pickupNearKm: km.clamp(0.5, 10.0)));
+      _change((current) => current.copyWith(pickupNearKm: km.clamp(0.5, 10.0)));
 
   /// Toggle a gig app on/off. The last remaining app can't be turned off —
   /// FoxyCo watching nothing is just confusing.
   void toggleApp(GigPlatform app) {
-    final next = Set<GigPlatform>.from(state.watchedApps);
-    if (next.contains(app)) {
-      if (next.length == 1) return;
-      next.remove(app);
-    } else {
-      next.add(app);
-    }
-    _set(state.copyWith(watchedApps: next));
+    _change((current) {
+      final next = Set<GigPlatform>.from(current.watchedApps);
+      if (next.contains(app)) {
+        if (next.length == 1) return current;
+        next.remove(app);
+      } else {
+        next.add(app);
+      }
+      return current.copyWith(watchedApps: next);
+    });
   }
 
-  void setRetentionDays(int days) => _set(state.copyWith(retentionDays: days));
+  void setRetentionDays(int days) =>
+      _change((current) => current.copyWith(retentionDays: days));
 
-  void setPillSize(PillSize size) => _set(state.copyWith(pillSize: size));
+  void setPillSize(PillSize size) =>
+      _change((current) => current.copyWith(pillSize: size));
 
-  void reset() => _set(FoxSettings.defaults);
+  void reset() => _change((_) => FoxSettings.defaults);
 
-  void setTrackOutcomes(bool on) => _set(state.copyWith(trackOutcomes: on));
+  void setTrackOutcomes(bool on) =>
+      _change((current) => current.copyWith(trackOutcomes: on));
 
-  void setMoneyFont(MoneyFont font) => _set(state.copyWith(moneyFont: font));
+  void setMoneyFont(MoneyFont font) =>
+      _change((current) => current.copyWith(moneyFont: font));
 
-  void setSkin(AppSkin skin) => _set(state.copyWith(skin: skin));
+  void setSkin(AppSkin skin) =>
+      _change((current) => current.copyWith(skin: skin));
 
   void setDistanceUnit(DistanceUnit unit) =>
-      _set(state.copyWith(distanceUnit: unit));
+      _change((current) => current.copyWith(distanceUnit: unit));
 
-  void setCurrency(AppCurrency currency) => _set(
-    state.copyWith(
+  void setCurrency(AppCurrency currency) => _change(
+    (current) => current.copyWith(
       currency: currency,
       distanceUnit: switch (currency) {
         AppCurrency.cad => DistanceUnit.kilometres,
@@ -130,14 +162,25 @@ class SettingsController extends Notifier<FoxSettings> {
 
   /// UI thresholds are expressed in the selected unit; storage/scoring stays
   /// canonical in dollars per kilometre.
-  void setDisplayedGood(double value) =>
-      setGood(state.distanceUnit.rateToPerKm(value));
+  void setDisplayedGood(double value) => _change((current) {
+    final canonical = current.distanceUnit.rateToPerKm(value);
+    final t = current.activeThresholds;
+    final clamped = canonical < t.badBelow ? t.badBelow : canonical;
+    return _withActive(current, t.copyWith(goodAtOrAbove: clamped));
+  });
 
-  void setDisplayedBad(double value) =>
-      setBad(state.distanceUnit.rateToPerKm(value));
+  void setDisplayedBad(double value) => _change((current) {
+    final canonical = current.distanceUnit.rateToPerKm(value);
+    final t = current.activeThresholds;
+    final clamped = canonical > t.goodAtOrAbove ? t.goodAtOrAbove : canonical;
+    return _withActive(current, t.copyWith(badBelow: clamped));
+  });
 
-  void setDisplayedPickupNear(double value) =>
-      setPickupNearKm(state.distanceUnit.distanceToKm(value));
+  void setDisplayedPickupNear(double value) => _change(
+    (current) => current.copyWith(
+      pickupNearKm: current.distanceUnit.distanceToKm(value).clamp(0.5, 10.0),
+    ),
+  );
 }
 
 final settingsProvider = NotifierProvider<SettingsController, FoxSettings>(

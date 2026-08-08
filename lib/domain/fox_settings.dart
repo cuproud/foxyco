@@ -147,29 +147,34 @@ class FoxSettings {
 
   factory FoxSettings.fromJson(Map<String, dynamic> j) {
     final d = defaults;
-    final apps = (j['watchedApps'] as List?)
+    double number(String key, double fallback, double min, double max) =>
+        ((j[key] as num?)?.toDouble() ?? fallback)
+            .clamp(min, max)
+            .toDouble();
+    final good = number('good', d.thresholds.goodAtOrAbove, 0.5, 3.0);
+    final bad = number('bad', d.thresholds.badBelow, 0.5, 3.0);
+    final hourGood = number('hourGood', d.hourThresholds.goodAtOrAbove, 10, 60);
+    final hourBad = number('hourBad', d.hourThresholds.badBelow, 10, 60);
+    final retention = (j['retentionDays'] as num?)?.toInt();
+    final apps = (j['watchedApps'] as List<dynamic>?)
         ?.map((n) => GigPlatform.values.where((p) => p.name == n))
         .expand((e) => e)
         .toSet();
     return FoxSettings(
-      thresholds: Thresholds(
-        goodAtOrAbove:
-            (j['good'] as num?)?.toDouble() ?? d.thresholds.goodAtOrAbove,
-        badBelow: (j['bad'] as num?)?.toDouble() ?? d.thresholds.badBelow,
-      ),
-      hourThresholds: Thresholds(
-        goodAtOrAbove:
-            (j['hourGood'] as num?)?.toDouble() ??
-            d.hourThresholds.goodAtOrAbove,
-        badBelow:
-            (j['hourBad'] as num?)?.toDouble() ?? d.hourThresholds.badBelow,
-      ),
+      thresholds: good >= bad
+          ? Thresholds(goodAtOrAbove: good, badBelow: bad)
+          : d.thresholds,
+      hourThresholds: hourGood >= hourBad
+          ? Thresholds(goodAtOrAbove: hourGood, badBelow: hourBad)
+          : d.hourThresholds,
       rateMode:
           RateMode.values.where((m) => m.name == j['rateMode']).firstOrNull ??
           d.rateMode,
-      pickupNearKm: (j['pickupNearKm'] as num?)?.toDouble() ?? d.pickupNearKm,
+      pickupNearKm: number('pickupNearKm', d.pickupNearKm, 0.5, 10),
       watchedApps: (apps == null || apps.isEmpty) ? d.watchedApps : apps,
-      retentionDays: (j['retentionDays'] as num?)?.toInt() ?? d.retentionDays,
+      retentionDays: const [7, 30, 90, keepForever].contains(retention)
+          ? retention!
+          : d.retentionDays,
       pillSize:
           PillSize.values.where((s) => s.name == j['pillSize']).firstOrNull ??
           d.pillSize,

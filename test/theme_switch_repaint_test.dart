@@ -8,6 +8,7 @@ import 'package:foxyco/ui/settings/settings_controller.dart';
 import 'package:foxyco/ui/shell/root_shell.dart';
 import 'package:foxyco/ui/theme/app_theme.dart';
 import 'package:foxyco/ui/theme/tokens.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// Palette tokens are statics, so changing them signals nothing to the element
 /// tree — a subtree that isn't rebuilt for some other reason keeps painting the
@@ -28,9 +29,10 @@ void main() {
   testWidgets('switching skin repaints subtrees that nothing else rebuilds', (
     tester,
   ) async {
+    SharedPreferences.setMockInitialValues({});
     final container = ProviderContainer();
     addTearDown(container.dispose);
-    container.read(driverNameProvider.notifier).setName('Vamsi');
+    await container.read(driverNameProvider.notifier).setName('Vamsi');
     container.read(settingsProvider.notifier).setSkin(AppSkin.light);
 
     // Mirror main.dart: apply the palette, then build the theme from it.
@@ -40,7 +42,10 @@ void main() {
           : FoxPalette.dark;
       return UncontrolledProviderScope(
         container: container,
-        child: MaterialApp(theme: AppTheme.of(palette), home: const RootShell()),
+        child: MaterialApp(
+          theme: AppTheme.of(palette),
+          home: const RootShell(),
+        ),
       );
     }
 

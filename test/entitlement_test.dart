@@ -20,6 +20,12 @@ void main() {
         email: 'driver@example.com',
         now: now,
       );
+  final preTrial = TrialState.from(
+    startedAt: null,
+    verifiedAt: null,
+    email: null,
+    now: now,
+  );
 
   Access derive({
     UnlockStatus unlock = UnlockStatus.notPurchased,
@@ -28,7 +34,7 @@ void main() {
     DateTime? buildExpiry,
   }) => Access.derive(
     unlock: unlock,
-    trial: trial ?? TrialState.initial,
+    trial: trial ?? preTrial,
     now: now,
     purchasedAt: purchasedAt,
     debugUnlocked: false,
@@ -104,10 +110,28 @@ void main() {
     });
 
     test('mid-boot stays unresolved rather than flashing a paywall', () {
-      final a = derive(unlock: UnlockStatus.unknown);
+      final a = derive(unlock: UnlockStatus.unknown, trial: TrialState.initial);
       expect(a.source, AccessSource.unknown);
       expect(a.resolved, isFalse);
       expect(a.entitled, isFalse);
+    });
+
+    test('resolved expired trial still waits for Play ownership', () {
+      final a = derive(
+        unlock: UnlockStatus.unknown,
+        trial: trialStartedAgo(const Duration(days: 8)),
+      );
+      expect(a.resolved, isFalse);
+      expect(a.source, AccessSource.unknown);
+    });
+
+    test('resolved empty Play ownership still waits for trial state', () {
+      final a = derive(
+        unlock: UnlockStatus.notPurchased,
+        trial: TrialState.initial,
+      );
+      expect(a.resolved, isFalse);
+      expect(a.source, AccessSource.unknown);
     });
 
     test('Play unreachable with no trial and no cache is LOCKED, not open', () {
@@ -152,6 +176,21 @@ void main() {
         UnlockStatus.purchased,
       );
     });
+
+    test(
+      'stale empty query cannot overwrite newer purchase-stream evidence',
+      () {
+        expect(
+          ownedPurchaseQueryStatus(
+            current: UnlockStatus.purchased,
+            succeeded: true,
+            ownsGenuinePurchase: false,
+            queryIsCurrent: false,
+          ),
+          UnlockStatus.purchased,
+        );
+      },
+    );
   });
 
   group('offline grace window (§3.5)', () {
@@ -168,6 +207,25 @@ void main() {
       final a = derive(
         unlock: UnlockStatus.unavailable,
         purchasedAt: now.subtract(const Duration(days: 7, minutes: 1)),
+      );
+      expect(a.entitled, isFalse);
+      expect(a.source, AccessSource.none);
+    });
+
+    test('warns before a cached purchase verification lapses', () {
+      final a = derive(
+        unlock: UnlockStatus.unavailable,
+        purchasedAt: now.subtract(const Duration(days: 5, hours: 1)),
+      );
+      expect(a.source, AccessSource.cachedPurchase);
+      expect(a.cacheGoingStale, isTrue);
+      expect(a.graceDaysLeft, 1);
+    });
+
+    test('rejects a future-dated purchase cache', () {
+      final a = derive(
+        unlock: UnlockStatus.unavailable,
+        purchasedAt: now.add(const Duration(minutes: 1)),
       );
       expect(a.entitled, isFalse);
       expect(a.source, AccessSource.none);
@@ -256,6 +314,11 @@ void main() {
         buildExpiry: now.add(const Duration(days: 30)),
       );
       expect(a.entitled, isTrue);
+    });
+
+    test('locks exactly at the kill-date boundary', () {
+      final a = derive(unlock: UnlockStatus.purchased, buildExpiry: now);
+      expect(a.entitled, isFalse);
     });
   });
 

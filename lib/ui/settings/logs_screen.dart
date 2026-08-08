@@ -1,9 +1,37 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../services/fox_log.dart';
 import '../theme/tokens.dart';
+
+const _clipboardChannel = MethodChannel('foxyco/clipboard');
+Timer? _fallbackClipboardTimer;
+
+Future<void> _setFallbackClipboard(String text) async {
+  await Clipboard.setData(ClipboardData(text: text));
+  _fallbackClipboardTimer?.cancel();
+  _fallbackClipboardTimer = Timer(const Duration(minutes: 1), () async {
+    final current = await Clipboard.getData(Clipboard.kTextPlain);
+    if (current?.text == text) {
+      await Clipboard.setData(const ClipboardData(text: ''));
+    }
+  });
+}
+
+Future<void> setSensitiveClipboard(String text) async {
+  try {
+    await _clipboardChannel.invokeMethod<void>('setSensitiveText', {
+      'text': text,
+    });
+  } on MissingPluginException {
+    await _setFallbackClipboard(text);
+  } on PlatformException {
+    await _setFallbackClipboard(text);
+  }
+}
 
 /// Scrollable tail of the persistent log (spec M5 §2). Newest at bottom;
 /// copy-to-clipboard export (no share dep) and a confirm-gated Clear.
@@ -39,11 +67,14 @@ class _LogsScreenState extends ConsumerState<LogsScreen> {
   }
 
   Future<void> _copy() async {
-    await Clipboard.setData(ClipboardData(text: _tail));
+    final copied = _tail;
+    await setSensitiveClipboard(copied);
     if (!mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Logs copied to clipboard')));
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Sensitive logs copied — clipboard clears in 1 minute'),
+      ),
+    );
   }
 
   Future<void> _clear() async {

@@ -151,9 +151,10 @@ Page 2 — "Draw over other apps"
   [ Grant "Display over other apps" ]  → opens system settings, returns
 
 Page 3 — "Read the offer on screen"   ← the sensitive one
-  Explains PLAINLY: FoxyCo uses Android's accessibility service ONLY to read the
-  offer's pay + distance on screen, to score it. It does not read anything else,
-  sends nothing anywhere, and never taps buttons for you.
+  Explains PLAINLY: FoxyCo temporarily reads on-screen text in Uber Driver, Lyft
+  Driver and Hopp Driver to identify pay, distance and duration. Only extracted
+  offer numbers are stored locally; raw screen text is not saved or sent. It
+  never taps buttons for you.
   [ Grant Accessibility Access ]  → system settings, returns
   small link: "Why FoxyCo needs this" → full-screen plain-language explainer
 ```

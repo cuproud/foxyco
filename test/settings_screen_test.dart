@@ -358,4 +358,26 @@ void main() {
       DistanceUnit.kilometres,
     );
   });
+
+  test('persisted settings are clamped to supported controls', () {
+    final settings = FoxSettings.fromJson({
+      'good': 99,
+      'bad': -4,
+      'hourGood': 1000,
+      'hourBad': -1,
+      'pickupNearKm': 500,
+      'retentionDays': 13,
+    });
+
+    expect(
+      settings.thresholds,
+      const Thresholds(goodAtOrAbove: 3, badBelow: 0.5),
+    );
+    expect(
+      settings.hourThresholds,
+      const Thresholds(goodAtOrAbove: 60, badBelow: 10),
+    );
+    expect(settings.pickupNearKm, 10);
+    expect(settings.retentionDays, FoxSettings.defaults.retentionDays);
+  });
 }

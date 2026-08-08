@@ -4,20 +4,16 @@ import static slayer.accessibility.service.flutter_accessibility_service.Constan
 import static slayer.accessibility.service.flutter_accessibility_service.FlutterAccessibilityServicePlugin.CACHED_TAG;
 
 import android.accessibilityservice.AccessibilityService;
-import android.accessibilityservice.GestureDescription;
 import android.annotation.TargetApi;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Color;
-import android.graphics.Path;
 import android.graphics.PixelFormat;
 import android.graphics.Rect;
 import android.os.Build;
 import android.os.Handler;
 import android.os.HandlerThread;
-import android.os.Looper;
 import android.util.Log;
-import android.util.LruCache;
 import android.view.Gravity;
 import android.view.WindowManager;
 import android.view.accessibility.AccessibilityEvent;
@@ -32,12 +28,9 @@ import com.google.gson.Gson;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.HashSet;
 import java.util.Objects;
 import java.util.stream.Collectors;
-
-import io.flutter.plugin.common.MethodChannel;
 
 import io.flutter.embedding.android.FlutterTextureView;
 import io.flutter.embedding.android.FlutterView;
@@ -54,14 +47,6 @@ public class AccessibilityListener extends AccessibilityService {
     private static WindowManager mWindowManager;
     private static FlutterView mOverlayView;
     static private boolean isOverlayShown = false;
-    // FoxyCo patch: LruCache's ctor arg is ENTRY COUNT (default sizeOf() == 1),
-    // not bytes — the old 4*1024*1024 retained ~4M AccessibilityNodeInfo
-    // snapshots, an unbounded leak in practice (every node of every walk is
-    // stored). FoxyCo never taps gig-app nodes, so a small cache is plenty.
-    private static final int CACHE_SIZE = 512;
-    private static final int maxDepth = 20;
-    private static LruCache<String, AccessibilityNodeInfo> nodeMap =
-            new LruCache<>(CACHE_SIZE);
     // FoxyCo patch: was 15 — too shallow for Uber Driver, whose RIBs UI nests
     // views 20–40 deep. Chrome (tab bar) sits shallow and was captured; the
     // offer card's $/legs/Accept sit deeper and were truncated away, so Uber
@@ -69,10 +54,6 @@ public class AccessibilityListener extends AccessibilityService {
     // recursion-bomb guard, not a tuning knob.
     private static final int DEFAULT_MAX_TREE_DEPTH = 60;
     private int maximumTreeDepth = DEFAULT_MAX_TREE_DEPTH;
-
-    public static AccessibilityNodeInfo getNodeInfo(String id) {
-        return nodeMap.get(id);
-    }
 
     // FoxyCo patch — the "everything hangs" root cause. All of this processing
     // (a depth-60 recursive walk of EVERY same-package window, per-node binder
@@ -154,7 +135,6 @@ public class AccessibilityListener extends AccessibilityService {
             }
             String nodeId = generateNodeId(parentNodeInfo);
             String packageName = parentNodeInfo.getPackageName().toString();
-            storeNode(nodeId, parentNodeInfo);
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
                 windowInfo = parentNodeInfo.getWindow();
             }
@@ -279,18 +259,6 @@ public class AccessibilityListener extends AccessibilityService {
             Log.w("CMD_STARTED", "Restarted without an intent; ignoring command");
             return START_NOT_STICKY;
         }
-        boolean globalAction = intent.getBooleanExtra(INTENT_GLOBAL_ACTION, false);
-        boolean systemActions = intent.getBooleanExtra(INTENT_SYSTEM_GLOBAL_ACTIONS, false);
-        if (systemActions && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
-            List<Integer> actions = getSystemActions().stream().map(AccessibilityNodeInfo.AccessibilityAction::getId).collect(Collectors.toList());
-            Intent broadcastIntent = new Intent(BROD_SYSTEM_GLOBAL_ACTIONS);
-            broadcastIntent.putIntegerArrayListExtra("actions", new ArrayList<>(actions));
-            sendBroadcast(broadcastIntent);
-        }
-        if (globalAction) {
-            int actionId = intent.getIntExtra(INTENT_GLOBAL_ACTION_ID, 8);
-            performGlobalAction(actionId);
-        }
         Log.d("CMD_STARTED", "onStartCommand: " + startId);
         return START_STICKY;
     }
@@ -348,7 +316,6 @@ public class AccessibilityListener extends AccessibilityService {
                 nested.put("windowType", windowInfo.getType());
             }
             arr.add(nested);
-            storeNode(mapId, node);
             for (int i = 0; i < node.getChildCount(); i++) {
                 AccessibilityNodeInfo child = node.getChild(i);
                 if (child == null)
@@ -508,60 +475,8 @@ public class AccessibilityListener extends AccessibilityService {
     public void onInterrupt() {
     }
 
-    @SuppressWarnings("unchecked")
-    @RequiresApi(api = Build.VERSION_CODES.N)
-    public static void performDispatchGesture(List<Object> strokes, MethodChannel.Result result) {
-        if (instance == null) {
-            result.success(false);
-            return;
-        }
-        try {
-            GestureDescription.Builder gestureBuilder = new GestureDescription.Builder();
-            for (Object strokeObj : strokes) {
-                Map<String, Object> stroke = (Map<String, Object>) strokeObj;
-                List<Object> pointObjs = (List<Object>) stroke.get("path");
-                int startTime = ((Number) stroke.get("startTime")).intValue();
-                int duration = ((Number) stroke.get("duration")).intValue();
-
-                Path path = new Path();
-                if (pointObjs != null && !pointObjs.isEmpty()) {
-                    Map<String, Object> first = (Map<String, Object>) pointObjs.get(0);
-                    path.moveTo(((Number) first.get("x")).floatValue(), ((Number) first.get("y")).floatValue());
-                    for (int i = 1; i < pointObjs.size(); i++) {
-                        Map<String, Object> pt = (Map<String, Object>) pointObjs.get(i);
-                        path.lineTo(((Number) pt.get("x")).floatValue(), ((Number) pt.get("y")).floatValue());
-                    }
-                }
-                gestureBuilder.addStroke(new GestureDescription.StrokeDescription(path, startTime, duration));
-            }
-
-            instance.dispatchGesture(gestureBuilder.build(), new AccessibilityService.GestureResultCallback() {
-                @Override
-                public void onCompleted(GestureDescription gestureDescription) {
-                    new Handler(Looper.getMainLooper()).post(() -> result.success(true));
-                }
-
-                @Override
-                public void onCancelled(GestureDescription gestureDescription) {
-                    new Handler(Looper.getMainLooper()).post(() -> result.success(false));
-                }
-            }, null);
-        } catch (Exception e) {
-            Log.e("GESTURE", "performDispatchGesture: " + e.getMessage());
-            result.success(false);
-        }
-    }
-
-
     private String generateNodeId(AccessibilityNodeInfo node) {
         return node.getWindowId() + "_" + node.getClassName() + "_" + node.getText() + "_" + node.getContentDescription(); //UUID.randomUUID().toString();
-    }
-
-    private void storeNode(String uuid, AccessibilityNodeInfo node) {
-        if (node == null) {
-            return;
-        }
-        nodeMap.put(uuid, node);
     }
 
     // FoxyCo: one Gson for the service — was allocated per event (~3/s while a

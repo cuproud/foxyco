@@ -48,6 +48,26 @@ void main() {
     expect(tester.widget<FilledButton>(saveBtn).onPressed, isNull);
   });
 
+  testWidgets('implausible year is rejected and text fields are capped', (
+    tester,
+  ) async {
+    _tall(tester);
+    await tester.pumpWidget(_app(const VehicleEditorScreen()));
+    await tester.enterText(
+      find.byKey(const ValueKey('editor-make')),
+      List.filled(40, 'A').join(),
+    );
+    await tester.enterText(find.byKey(const ValueKey('editor-year')), '1979');
+    await tester.pump();
+
+    final make = tester.widget<TextField>(
+      find.byKey(const ValueKey('editor-make')),
+    );
+    expect(make.controller!.text, hasLength(30));
+    final saveBtn = find.widgetWithText(FilledButton, 'Save');
+    expect(tester.widget<FilledButton>(saveBtn).onPressed, isNull);
+  });
+
   testWidgets('nothing persists until Save, then the vehicle lands active', (
     tester,
   ) async {

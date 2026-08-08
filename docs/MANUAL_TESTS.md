@@ -155,7 +155,7 @@ plain-language, read-only disclosure). "Skip for now" always exits to Home.
 | # | How | PASS bar | Status |
 |---|-----|----------|--------|
 | O.1 | Fresh install (or clear app data), open app | Boots into onboarding "Meet FoxyCo", NOT Home — no Home flash first | [ ] |
-| O.2 | Page 3 text | States plainly: reads ONLY pay+distance, sends nothing anywhere, **never taps buttons / accepts rides** | [ ] |
+| O.2 | Accessibility page text | States plainly: temporarily reads on-screen text in Uber/Lyft/Hopp to identify pay, distance and duration; stores only extracted offer numbers locally; raw text is not saved or sent; **never taps buttons / accepts rides** | [ ] |
 | O.3 | Page 2 "Grant Display over other apps" | System overlay settings opens; grant; return → button becomes **✅ Granted** | [ ] |
 | O.4 | Page 3 "Grant Accessibility Access" | Accessibility settings opens; enable FoxyCo; return → **✅ Granted** | [ ] |
 | O.5 | Both granted → "Start driving smarter" | Lands on Home, status **watching**, bubble up | [ ] |
@@ -589,7 +589,7 @@ Use a **release** build: `flutter build apk --release --dart-define=PLAY_PUBLIC_
 | M18.4 | Tap that locked pill | FoxyCo comes to the foreground, lands on the **Home** tab, paywall sheet is already open | [ ] |
 | M18.5 | Settings → Look & feel → the sample pill; and Home's demo pill | Both still show full numbers — the demo pill is free forever, only the LIVE pill locks | [ ] |
 | M18.6 | Paywall → "Start 7-day free trial" | Google account sheet appears. Pick an account → sheet closes → snackbar "Trial started — 7 days of everything" | [ ] |
-| M18.7 | Home top, right after that | Banner is GONE (7 days left is not the last 3, so nothing to nag about) | [ ] |
+| M18.7 | Home top, right after that | Banner calmly reads **"7 days left in your free trial"**; it does not say ended or ask you to unlock | [ ] |
 | M18.8 | Go live again, real offer | Full verdict pill: verdict color, `$/km`, km, `$/hr` | [ ] |
 | M18.9 | Settings → Your unlock → Unlock | Header summary reads **"Trial — 7 days left"**; the signed-in Gmail is shown | [ ] |
 | M18.10 | **The reinstall test.** Clear app data (or uninstall + reinstall), start trial again with the SAME Google account | Snackbar: **"This Google account already used its free trial."** Pill stays locked. *If this hands out a fresh 7 days, the whole Firestore design has failed — see MONETIZATION §3.4.1* | [ ] |
@@ -607,3 +607,26 @@ Use a **release** build: `flutter build apk --release --dart-define=PLAY_PUBLIC_
 | M18.22 | Airplane mode for 5+ days mid-trial (or fake it by clearing only the verify timestamp) | Banner: "Couldn't reach Google Play — unlock check needed in N days". Still usable | [ ] |
 
 _Last updated: 2026-07-28 (M18: trial, paywall, locked pill — needs Firebase console setup before any row can run). 2026-07-27 (M17: offer detail sheet scroll + header). 2026-07-26 (M13: shell navigation — back-to-Home, deep-linked Settings sections, tab re-tap, Logs route, bubble → offer. M14: Settings banded into five sections; shared SectionLabel. M15: overlay surface transparency, bubble-tap resume, offer-log de-dupe. M16: Foxy brand art — 2-layer car, gold wordmark, sleeping fox)._
+
+## Build 27 — audit-closure recording and device matrix (2026-08-07)
+
+Use the Play-installed `1.0.9 (build 27)` release. Keep the upload unlisted and
+blur rider names plus pickup/drop-off addresses before sharing it.
+
+| # | Step | Evidence required | Pass |
+|---|---|---|---|
+| B27.1 | Start recording on Android Settings → About phone, then FoxyCo → About | Android version, device model and FoxyCo build 27 are visible | [ ] |
+| B27.2 | Show Uber Driver, Lyft Driver and Hopp Driver app-info/version screens | Exact tested driver-app versions are visible | [ ] |
+| B27.3 | With a redeemed license-test code or completed test purchase, cold-start FoxyCo and return after backgrounding it | Home has **no trial, trial-ended or unlock banner**; Settings says **Unlocked forever** | [ ] |
+| B27.4 | Start watching and capture one real Hopp offer | Correct payout, total distance, verdict and optional hourly rate appear; the pill clears when the card leaves | [ ] |
+| B27.5 | Capture one Uber and one Lyft offer | Values match each source card; raw rider/address text never appears in FoxyCo history or logs | [ ] |
+| B27.6 | While one app's pill is visible, foreground another watched driver app | Previous app's pill clears immediately; it never sits over the newly active app | [ ] |
+| B27.7 | Revoke Accessibility while watching, then return to FoxyCo | Watching becomes blocked, bubble disappears, and exactly one bounded session is recorded | [ ] |
+| B27.8 | Restore the permission, start again, pause/resume, drag and dismiss the bubble | State, bubble and dashboard remain synchronized; overlay is draggable and touch-through works | [ ] |
+| B27.9 | Copy diagnostics, leave Logs immediately, wait one minute, then inspect/paste clipboard | Clip is marked sensitive and clears if it was not replaced | [ ] |
+| B27.10 | Run M18.10 and M18.16–M18.20 on Play-installed builds/accounts | Reinstall, purchase/redeem, acknowledgment, restore, missing-key and build-expiry evidence is retained | [ ] |
+| B27.11 | Run Uber/Lyft/Hopp for 30–60 minutes | No crash/ANR, ghost overlay, runaway battery use or stale cross-app pill; retain ADB/Play Vitals evidence | [ ] |
+
+Repeat B27.3–B27.8 on Android 14, 15 and 16 where devices are available. The
+existing 2026-08-06 recording supports Uber/Lyft behavior on one unidentified
+Android version; it does not replace this versioned matrix.

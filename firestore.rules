@@ -7,18 +7,23 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    function hasAccountIdentity() {
+      return request.auth != null
+          && request.auth.token.firebase.sign_in_provider != 'anonymous';
+    }
+
     // One document per user, holding nothing but when their trial started.
     match /trials/{uid} {
       // Write-once. Only the owning user can create their own document, it may
       // hold only `startedAt`, and that value must be Google's server clock —
       // so the client cannot choose its own trial start. The client MUST send
       // FieldValue.serverTimestamp(); a DateTime.now() is rejected here.
-      allow create: if request.auth != null
+      allow create: if hasAccountIdentity()
                  && request.auth.uid == uid
                  && request.resource.data.keys().hasOnly(['startedAt'])
                  && request.resource.data.startedAt == request.time;
 
-      allow read: if request.auth != null && request.auth.uid == uid;
+      allow read: if hasAccountIdentity() && request.auth.uid == uid;
 
       // Never. Clearing app data, reinstalling or swapping devices must not be
       // able to reset the trial — that is the whole point of this collection.

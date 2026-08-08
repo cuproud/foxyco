@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,6 +9,34 @@ import 'package:foxyco/ui/settings/garage_controller.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 Future<void> _settle() => Future<void>.delayed(const Duration(milliseconds: 1));
+
+class _DelayedGarageController extends GarageController {
+  final loadPreferences = Completer<SharedPreferences>();
+  var _firstRead = true;
+
+  @override
+  Future<SharedPreferences> preferences() {
+    if (_firstRead) {
+      _firstRead = false;
+      return loadPreferences.future;
+    }
+    return SharedPreferences.getInstance();
+  }
+}
+
+class _DelayedDriverNameController extends DriverNameController {
+  final loadPreferences = Completer<SharedPreferences>();
+  var _firstRead = true;
+
+  @override
+  Future<SharedPreferences> preferences() {
+    if (_firstRead) {
+      _firstRead = false;
+      return loadPreferences.future;
+    }
+    return SharedPreferences.getInstance();
+  }
+}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -115,5 +144,60 @@ void main() {
     await container.read(driverNameProvider.notifier).setName('Neo');
     final prefs = await SharedPreferences.getInstance();
     expect(prefs.getString(DriverNameController.prefsKey), 'Neo');
+  });
+
+  test('startup vehicle save waits for and preserves disk garage', () async {
+    SharedPreferences.setMockInitialValues({
+      GarageController.prefsKey: jsonEncode(
+        const Garage(
+          vehicles: [Vehicle(id: 'saved', make: 'Kia')],
+          activeId: 'saved',
+        ).toJson(),
+      ),
+    });
+    final container = ProviderContainer(
+      overrides: [garageProvider.overrideWith(_DelayedGarageController.new)],
+    );
+    addTearDown(container.dispose);
+    container.read(garageProvider);
+    final garage =
+        container.read(garageProvider.notifier) as _DelayedGarageController;
+
+    final save = garage.saveVehicle(const Vehicle(id: 'new', make: 'Honda'));
+    expect(container.read(garageProvider).vehicles, isEmpty);
+    garage.loadPreferences.complete(await SharedPreferences.getInstance());
+    await save;
+
+    expect(container.read(garageProvider).vehicles.map((v) => v.make), [
+      'Kia',
+      'Honda',
+    ]);
+    final prefs = await SharedPreferences.getInstance();
+    expect(prefs.getString(GarageController.prefsKey), contains('Kia'));
+    expect(prefs.getString(GarageController.prefsKey), contains('Honda'));
+  });
+
+  test('startup name save cannot be overwritten by disk load', () async {
+    SharedPreferences.setMockInitialValues({
+      DriverNameController.prefsKey: 'Old name',
+    });
+    final container = ProviderContainer(
+      overrides: [
+        driverNameProvider.overrideWith(_DelayedDriverNameController.new),
+      ],
+    );
+    addTearDown(container.dispose);
+    container.read(driverNameProvider);
+    final names =
+        container.read(driverNameProvider.notifier)
+            as _DelayedDriverNameController;
+
+    final save = names.setName('New name');
+    names.loadPreferences.complete(await SharedPreferences.getInstance());
+    await save;
+
+    expect(container.read(driverNameProvider), 'New name');
+    final prefs = await SharedPreferences.getInstance();
+    expect(prefs.getString(DriverNameController.prefsKey), 'New name');
   });
 }

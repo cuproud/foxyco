@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -6,6 +9,20 @@ import 'package:foxyco/ui/settings/reminder_controller.dart';
 import 'package:foxyco/ui/settings/reminder_section.dart';
 import 'package:foxyco/ui/theme/app_theme.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+class _DelayedReminderController extends ReminderController {
+  final loadPreferences = Completer<SharedPreferences>();
+  var _firstRead = true;
+
+  @override
+  Future<SharedPreferences> preferences() {
+    if (_firstRead) {
+      _firstRead = false;
+      return loadPreferences.future;
+    }
+    return SharedPreferences.getInstance();
+  }
+}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -73,6 +90,14 @@ void main() {
       ctl.remove('near');
       expect(c.read(reminderProvider).length, 1);
 
+      final prefs = await SharedPreferences.getInstance();
+      for (
+        var i = 0;
+        i < 100 && prefs.getString(ReminderController.prefsKey) == null;
+        i++
+      ) {
+        await Future<void>.delayed(const Duration(milliseconds: 1));
+      }
       // Persisted: a fresh container reloads the same list.
       final c2 = ProviderContainer();
       addTearDown(c2.dispose);
@@ -96,6 +121,34 @@ void main() {
         r(id: 'far', date: DateTime.now().add(const Duration(days: 300))),
       );
       expect(c.read(dueRemindersProvider).single.id, 'soon');
+    });
+
+    test('startup add merges with reminders still loading from disk', () async {
+      final saved = r(id: 'saved', title: 'Saved');
+      SharedPreferences.setMockInitialValues({
+        ReminderController.prefsKey: jsonEncode([saved.toJson()]),
+      });
+      final c = ProviderContainer(
+        overrides: [
+          reminderProvider.overrideWith(_DelayedReminderController.new),
+        ],
+      );
+      addTearDown(c.dispose);
+      c.read(reminderProvider);
+      final ctl =
+          c.read(reminderProvider.notifier) as _DelayedReminderController;
+
+      ctl.add(r(id: 'new', title: 'New'));
+      ctl.loadPreferences.complete(await SharedPreferences.getInstance());
+      await Future<void>.delayed(const Duration(milliseconds: 1));
+
+      expect(
+        c.read(reminderProvider).map((e) => e.id),
+        containsAll(['saved', 'new']),
+      );
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getString(ReminderController.prefsKey), contains('saved'));
+      expect(prefs.getString(ReminderController.prefsKey), contains('new'));
     });
   });
 

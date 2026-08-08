@@ -5,10 +5,8 @@ import 'dart:io';
 
 import 'package:flutter/services.dart';
 import 'package:flutter_accessibility_service/accessibility_event.dart';
-import 'package:flutter_accessibility_service/constants.dart';
 
 import 'config/overlay_config.dart';
-import 'gesture_description.dart';
 
 class FlutterAccessibilityService {
   FlutterAccessibilityService._();
@@ -69,31 +67,6 @@ class FlutterAccessibilityService {
     }
   }
 
-  /// An action that can be performed on an `AccessibilityNodeInfo` by nodeId
-  /// pass the necessary arguments depends on each action to avoid any errors
-  /// See more: https://developer.android.com/reference/android/view/accessibility/AccessibilityNodeInfo.AccessibilityAction
-  static Future<bool> performAction(
-    AccessibilityEvent event,
-    NodeAction action, [
-    dynamic arguments,
-  ]) async {
-    try {
-      if (action == NodeAction.unknown) return false;
-      return await _methodChannel.invokeMethod<bool?>(
-            'performActionById',
-            {
-              "nodeId": event.mapId,
-              "nodeAction": action.id,
-              "extras": arguments,
-            },
-          ) ??
-          false;
-    } on PlatformException catch (error) {
-      log("$error");
-      return false;
-    }
-  }
-
   /// Show an overlay window of `TYPE_ACCESSIBILITY_OVERLAY`
   ///
   /// Don't forget to add the overlay entrypoint in the main level.
@@ -129,95 +102,6 @@ class FlutterAccessibilityService {
   static Future<bool> hideOverlayWindow() async {
     try {
       return await _methodChannel.invokeMethod<bool?>('hideOverlayWindow') ??
-          false;
-    } on PlatformException catch (error) {
-      log("$error");
-      return false;
-    }
-  }
-
-  /// Returns a list of system actions available in the system right now.
-  /// System actions that correspond to the `GlobalAction`
-  static Future<List<GlobalAction>> getSystemActions() async {
-    try {
-      final list = await _methodChannel
-              .invokeMethod<List<dynamic>>('getSystemActions') ??
-          [];
-      return list
-          .map(
-            (e) => GlobalAction.values.firstWhere(
-              (element) => element.id == e,
-              orElse: () => GlobalAction.unknown,
-            ),
-          )
-          .toList();
-    } on PlatformException catch (error) {
-      log("$error");
-      return [];
-    }
-  }
-
-  /// Dispatches a gesture on the screen via the accessibility service.
-  ///
-  /// Requires Android 7.0 (API 24) or higher. Returns `true` when the gesture
-  /// completes successfully, or `false` if it was cancelled or the service is
-  /// not running.
-  ///
-  /// Example — tap at (500, 1000):
-  /// ```dart
-  /// await FlutterAccessibilityService.dispatchGesture(
-  ///   GestureDescription(
-  ///     strokes: [
-  ///       GestureStroke(
-  ///         path: [GesturePoint(500, 1000)],
-  ///         startTime: 0,
-  ///         duration: 100,
-  ///       ),
-  ///     ],
-  ///   ),
-  /// );
-  /// ```
-  ///
-  /// Example — swipe up from (500, 1500) to (500, 300):
-  /// ```dart
-  /// await FlutterAccessibilityService.dispatchGesture(
-  ///   GestureDescription(
-  ///     strokes: [
-  ///       GestureStroke(
-  ///         path: [GesturePoint(500, 1500), GesturePoint(500, 300)],
-  ///         startTime: 0,
-  ///         duration: 400,
-  ///       ),
-  ///     ],
-  ///   ),
-  /// );
-  /// ```
-  static Future<bool> dispatchGesture(GestureDescription gesture) async {
-    try {
-      return await _methodChannel.invokeMethod<bool?>(
-            'dispatchGesture',
-            {'strokes': gesture.toJson()},
-          ) ??
-          false;
-    } on PlatformException catch (error) {
-      log("$error");
-      return false;
-    }
-  }
-
-  /// Performs a global action.
-  /// Such an action can be performed at any moment regardless of the current application or user location in that application
-  /// For example going back, going home, opening recents, etc.
-  ///
-  /// Note: The global action themselves give no information about the current availability of their corresponding actions.
-  /// To determine if a global action is available, use `getSystemActions()`
-  static Future<bool> performGlobalAction(GlobalAction action) async {
-    try {
-      if (action == GlobalAction.unknown) return false;
-      return await _methodChannel.invokeMethod<bool?>(
-            'performGlobalAction',
-            {"action": action.id},
-          ) ??
           false;
     } on PlatformException catch (error) {
       log("$error");

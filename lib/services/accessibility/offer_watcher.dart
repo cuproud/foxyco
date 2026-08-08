@@ -56,6 +56,7 @@ class OfferWatcher extends Notifier<Offer?> {
   /// ([minVisible]) so a card that vanishes almost immediately can't blink the
   /// pill away before the driver can read it.
   DateTime? _shownAt;
+  bool _confirmedCardLeft = false;
 
   /// Pending "the offer card is gone" clear. Armed only once the card's payout
   /// has left the screen (see [_onRead]), never on a mere failed full-parse. It
@@ -158,7 +159,9 @@ class OfferWatcher extends Notifier<Offer?> {
   /// Stable identity for an offer: same card ⇒ same key. Rounded km so tiny
   /// live-distance jitter doesn't count as a new offer.
   static String _keyFor(Offer o) =>
-      '${o.platform.name}|${o.payout}|${o.totalKm.toStringAsFixed(1)}';
+      '${o.platform.name}|${o.payout}|${o.bonus}|${o.pickupKm.toStringAsFixed(1)}|'
+      '${o.totalKm.toStringAsFixed(1)}|${o.totalMinutes.toStringAsFixed(1)}|'
+      '${o.category}|${o.isQueued}';
 
   void _onRead(ScreenRead read) {
     // Trace EVERY read so a broken parse is diagnosable from logcat. Debug
@@ -187,6 +190,16 @@ class OfferWatcher extends Notifier<Offer?> {
         .read(parserRegistryProvider)
         .forPackage(read.packageName);
     if (parser == null) return; // not an app we read (noise from other apps)
+
+    // A confirmed foreground switch must not leave the previous app's offer
+    // over the newly active app while its next card frame is still rendering.
+    // Ignore background events: watched apps can emit those while another gig
+    // app legitimately owns the pill.
+    if (read.isActive &&
+        _shownPlatform != null &&
+        _shownPlatform != parser.platform) {
+      _clearNow();
+    }
 
     // Only the app that owns the current pill may keep its idle timer alive.
     // Background events from another watched app are unrelated.
@@ -278,6 +291,7 @@ class OfferWatcher extends Notifier<Offer?> {
           );
         }
       }
+      if (accepted || onBrowse) _confirmedCardLeft = true;
       return; // fail safe — show nothing rather than a wrong verdict
     }
 
@@ -287,6 +301,7 @@ class OfferWatcher extends Notifier<Offer?> {
     // one (the log is newest-first).
     _clearTimer?.cancel();
     _clearTimer = null;
+    if (_shownKey != null) _confirmedCardLeft = false;
     _cancelPendingOutcome();
 
     // Flicker guard: the same offer card re-fires events constantly. Only push a
@@ -343,7 +358,9 @@ class OfferWatcher extends Notifier<Offer?> {
             category: offer.category,
             isQueued: offer.isQueued,
           ),
+          confirmedNewCard: _confirmedCardLeft,
         );
+    _confirmedCardLeft = false;
 
     ref.read(overlayControllerProvider.notifier).showFromOffer(offer, verdict);
   }

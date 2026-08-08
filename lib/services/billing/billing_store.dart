@@ -32,11 +32,16 @@ UnlockStatus ownedPurchaseQueryStatus({
   required bool succeeded,
   required bool ownsGenuinePurchase,
   bool hasPendingPurchase = false,
+  bool queryIsCurrent = true,
 }) {
   // Android queries one-time products and subscriptions together. A device can
   // return the valid lifetime purchase while the irrelevant subscription half
   // errors, so evidence of ownership must win over the partial-query error.
   if (ownsGenuinePurchase) return UnlockStatus.purchased;
+  // A purchase-stream event can land while an older owned-products query is
+  // still in flight. That event is newer Play evidence; the old query must not
+  // undo it when its stale empty snapshot eventually completes.
+  if (!queryIsCurrent) return current;
   if (hasPendingPurchase) return UnlockStatus.pending;
   if (!succeeded) {
     return current == UnlockStatus.purchased
@@ -66,6 +71,8 @@ class BillingStore extends Notifier<UnlockStatus> {
 
   StreamSubscription<List<PurchaseDetails>>? _sub;
   ProductDetails? _product;
+  int _purchaseEvidenceGeneration = 0;
+  int _refreshGeneration = 0;
 
   /// Shop price straight from Play, already localized to the user's currency.
   /// Null until [_loadProduct] returns — show the hardcoded price until then.
@@ -112,16 +119,21 @@ class BillingStore extends Notifier<UnlockStatus> {
   /// existing owner must not be locked merely because the shop listing is
   /// temporarily unavailable.
   Future<void> _refreshFromPlay() async {
+    final refreshGeneration = ++_refreshGeneration;
+    final purchaseEvidenceGeneration = _purchaseEvidenceGeneration;
+    bool isCurrent() =>
+        refreshGeneration == _refreshGeneration &&
+        purchaseEvidenceGeneration == _purchaseEvidenceGeneration;
     try {
       if (!await _iap.isAvailable()) {
-        if (state != UnlockStatus.purchased) {
+        if (isCurrent() && state != UnlockStatus.purchased) {
           state = UnlockStatus.unavailable;
         }
         return;
       }
 
       final productLoaded = _product != null || await _loadProduct();
-      if (productLoaded && state == UnlockStatus.unavailable) {
+      if (isCurrent() && productLoaded && state == UnlockStatus.unavailable) {
         // Play recovered. `unknown` keeps entitlement conservative while the
         // owned-purchase query below resolves, but immediately lets the shop
         // use the freshly loaded ProductDetails.
@@ -161,9 +173,12 @@ class BillingStore extends Notifier<UnlockStatus> {
         succeeded: response.error == null,
         ownsGenuinePurchase: ownsGenuinePurchase,
         hasPendingPurchase: hasPendingPurchase,
+        queryIsCurrent: isCurrent(),
       );
     } catch (e) {
-      if (state != UnlockStatus.purchased) state = UnlockStatus.unavailable;
+      if (isCurrent() && state != UnlockStatus.purchased) {
+        state = UnlockStatus.unavailable;
+      }
       if (kDebugMode) debugPrint('FoxyCo Play refresh failed: $e');
     }
   }
@@ -194,6 +209,7 @@ class BillingStore extends Notifier<UnlockStatus> {
         case PurchaseStatus.purchased:
         case PurchaseStatus.restored:
           if (_isGenuine(p)) {
+            _purchaseEvidenceGeneration++;
             state = UnlockStatus.purchased;
           } else {
             if (kDebugMode) debugPrint('FoxyCo purchase failed signature');

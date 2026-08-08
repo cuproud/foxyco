@@ -4,8 +4,21 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:foxyco/router.dart';
+import 'package:foxyco/ui/home/dashboard_controller.dart';
+import 'package:foxyco/ui/home/dashboard_state.dart';
 import 'package:foxyco/ui/onboarding/onboarding_screen.dart';
 import 'package:foxyco/ui/settings/settings_controller.dart';
+
+class _GrantedDashboardController extends DashboardController {
+  @override
+  DashboardState build() => const DashboardState(
+    status: WatchStatus.stopped,
+    permissions: PermissionStatus(
+      overlayGranted: true,
+      accessibilityGranted: true,
+    ),
+  );
+}
 
 void main() {
   // The wizard now AWAITS its prefs writes (driver name + the onboarded flag)
@@ -13,6 +26,9 @@ void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
   Widget app({required bool showOnboarding}) => ProviderScope(
+    overrides: [
+      dashboardProvider.overrideWith(_GrantedDashboardController.new),
+    ],
     child: MaterialApp.router(
       routerConfig: createRouter(showOnboarding: showOnboarding),
     ),
@@ -37,7 +53,11 @@ void main() {
 
   testWidgets('Next walks the 5 pages; preset applies; grant state shows; '
       'last page CTA exits to Home', (tester) async {
-    final container = ProviderContainer();
+    final container = ProviderContainer(
+      overrides: [
+        dashboardProvider.overrideWith(_GrantedDashboardController.new),
+      ],
+    );
     addTearDown(container.dispose);
     await tester.pumpWidget(
       UncontrolledProviderScope(

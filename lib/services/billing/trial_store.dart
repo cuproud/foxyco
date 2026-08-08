@@ -159,6 +159,16 @@ class TrialStore extends Notifier<TrialState> {
   /// True once a Google sign-in flow is in flight, so a double tap on the
   /// paywall button can't open two sheets.
   bool _busy = false;
+  int _stateRevision = 0;
+
+  @protected
+  Future<SharedPreferences> preferences() => SharedPreferences.getInstance();
+
+  @protected
+  void setResolvedState(TrialState next) {
+    _stateRevision++;
+    state = next;
+  }
 
   /// Google Play Services' established account chooser. The newer Credential
   /// Manager button flow used by google_sign_in 7.x returned `canceled` on a
@@ -200,11 +210,12 @@ class TrialStore extends Notifier<TrialState> {
   FirebaseAuth get _auth => FirebaseAuth.instance;
 
   Future<void> _loadCache() async {
+    final revision = _stateRevision;
     try {
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = await preferences();
       final startedMs = prefs.getInt(_keyStartedAt);
       final verifiedMs = prefs.getInt(_keyVerifiedAt);
-      state = await _resolve(
+      final cached = await _resolve(
         startedAt: startedMs == null
             ? null
             : DateTime.fromMillisecondsSinceEpoch(startedMs, isUtc: true),
@@ -213,6 +224,9 @@ class TrialStore extends Notifier<TrialState> {
             : DateTime.fromMillisecondsSinceEpoch(verifiedMs, isUtc: true),
         email: prefs.getString(_keyEmail),
       );
+      if (revision == _stateRevision && ref.mounted) {
+        setResolvedState(cached);
+      }
     } catch (e) {
       if (kDebugMode) debugPrint('FoxyCo trial cache read skipped: $e');
     }
@@ -220,16 +234,8 @@ class TrialStore extends Notifier<TrialState> {
 
   Future<void> _saveCache(TrialState next) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final started = next.startedAt;
-      final verified = next.verifiedAt;
-      if (started != null) {
-        await prefs.setInt(_keyStartedAt, started.millisecondsSinceEpoch);
-      }
-      if (verified != null) {
-        await prefs.setInt(_keyVerifiedAt, verified.millisecondsSinceEpoch);
-      }
-      if (next.email != null) await prefs.setString(_keyEmail, next.email!);
+      final prefs = await preferences();
+      await replaceTrialCache(prefs, next);
     } catch (e) {
       if (kDebugMode) debugPrint('FoxyCo trial cache write skipped: $e');
     }
@@ -269,17 +275,17 @@ class TrialStore extends Notifier<TrialState> {
 
       // Google's own view of "now", used to heal a poisoned clock high-water
       // mark. Free — the token refresh happens anyway.
-      final token = await user.getIdTokenResult(true);
-      final issued = token.issuedAtTime;
-      if (issued != null) await FoxClock.syncFromServer(issued);
+      await _syncClock(user);
 
       if (user.isAnonymous) {
         // No Google account yet: PRE_TRIAL, and there is no doc to read.
-        state = await _resolve(
+        final next = await _resolve(
           startedAt: null,
-          verifiedAt: state.verifiedAt,
+          verifiedAt: null,
           email: null,
         );
+        setResolvedState(next);
+        await _saveCache(next);
         return;
       }
       await _readTrialDoc(user);
@@ -317,10 +323,10 @@ class TrialStore extends Notifier<TrialState> {
       // whose serverTimestamp is still pending proves nothing about the clock.
       verifiedAt: startedAt == null && snap.exists
           ? state.verifiedAt
-          : DateTime.now().toUtc(),
+          : await FoxClock.now(),
       email: user.email,
     );
-    state = next;
+    setResolvedState(next);
     await _saveCache(next);
   }
 
@@ -354,6 +360,8 @@ class TrialStore extends Notifier<TrialState> {
         return TrialStartResult.cancelled;
       }
 
+      stage = 'trusted-clock';
+      await _syncClock(user);
       stage = 'firestore-read';
       final doc = FirebaseFirestore.instance.collection('trials').doc(user.uid);
       var snap = await doc.get(const GetOptions(source: Source.server));
@@ -369,10 +377,10 @@ class TrialStore extends Notifier<TrialState> {
 
       final next = await _resolve(
         startedAt: _startedAtOf(snap),
-        verifiedAt: DateTime.now().toUtc(),
+        verifiedAt: await FoxClock.now(),
         email: user.email,
       );
-      state = next;
+      setResolvedState(next);
       await _saveCache(next);
 
       return switch (next.phase) {
@@ -405,6 +413,8 @@ class TrialStore extends Notifier<TrialState> {
     try {
       final user = await _signInGoogleAccount((value) => stage = value);
       if (user == null) return TrialSignInResult.cancelled;
+      stage = 'trusted-clock';
+      await _syncClock(user);
       stage = 'firestore-read';
       await _readTrialDoc(user);
       return TrialSignInResult.signedIn;
@@ -453,6 +463,12 @@ class TrialStore extends Notifier<TrialState> {
     return _auth.currentUser;
   }
 
+  Future<void> _syncClock(User user) async {
+    final token = await user.getIdTokenResult(true);
+    final issued = token.issuedAtTime;
+    if (issued != null) await FoxClock.syncFromServer(issued);
+  }
+
   /// Record why the trial start failed and return the failure. Only [tag]
   /// reaches the paywall: plugin messages are free-form and can contain account
   /// details. Debug builds still log [detail] for local diagnosis.
@@ -479,7 +495,7 @@ class TrialStore extends Notifier<TrialState> {
       await _auth.currentUser?.delete();
       await _disconnectGoogle();
       await _clearCache();
-      state = TrialState.initial;
+      setResolvedState(TrialState.initial);
       await refresh(); // straight back to a fresh anonymous identity
       return true;
     } catch (e) {
@@ -500,7 +516,7 @@ class TrialStore extends Notifier<TrialState> {
       await _auth.signOut();
       await _disconnectGoogle();
       await _clearCache();
-      state = TrialState.initial;
+      setResolvedState(TrialState.initial);
       await refresh(); // mint a fresh anonymous session for normal app boot
       return true;
     } catch (e) {
@@ -521,13 +537,41 @@ class TrialStore extends Notifier<TrialState> {
 
   Future<void> _clearCache() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = await preferences();
       await prefs.remove(_keyStartedAt);
       await prefs.remove(_keyVerifiedAt);
       await prefs.remove(_keyEmail);
     } catch (e) {
       if (kDebugMode) debugPrint('FoxyCo trial cache clear skipped: $e');
     }
+  }
+}
+
+@visibleForTesting
+Future<void> replaceTrialCache(SharedPreferences prefs, TrialState next) async {
+  final started = next.startedAt;
+  final verified = next.verifiedAt;
+  final email = next.email;
+  if (started == null) {
+    await prefs.remove(TrialStore._keyStartedAt);
+  } else {
+    await prefs.setInt(
+      TrialStore._keyStartedAt,
+      started.millisecondsSinceEpoch,
+    );
+  }
+  if (verified == null) {
+    await prefs.remove(TrialStore._keyVerifiedAt);
+  } else {
+    await prefs.setInt(
+      TrialStore._keyVerifiedAt,
+      verified.millisecondsSinceEpoch,
+    );
+  }
+  if (email == null) {
+    await prefs.remove(TrialStore._keyEmail);
+  } else {
+    await prefs.setString(TrialStore._keyEmail, email);
   }
 }
 

@@ -4,26 +4,19 @@ import static slayer.accessibility.service.flutter_accessibility_service.Constan
 
 import android.annotation.SuppressLint;
 import android.app.Activity;
-import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.database.ContentObserver;
 import android.net.Uri;
 import android.os.Build;
-import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.provider.Settings;
 import android.util.Log;
-import android.view.accessibility.AccessibilityNodeInfo;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.RequiresApi;
-
-import java.util.List;
-import java.util.stream.Collectors;
-import java.util.Map;
 
 import io.flutter.FlutterInjector;
 import io.flutter.embedding.engine.FlutterEngine;
@@ -61,9 +54,7 @@ public class FlutterAccessibilityServicePlugin implements FlutterPlugin, Activit
     private Context context;
     private Activity mActivity;
     private boolean supportOverlay = false;
-    private boolean isReceiverRegistered = false;
     private Result pendingResult;
-    private Result pendingActionsResult;
     final int REQUEST_CODE_FOR_ACCESSIBILITY = 167;
 
     @Override
@@ -103,23 +94,6 @@ public class FlutterAccessibilityServicePlugin implements FlutterPlugin, Activit
         });
     }
 
-    private final BroadcastReceiver actionsReceiver = new BroadcastReceiver() {
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            if (isReceiverRegistered) {
-                context.unregisterReceiver(this);
-                isReceiverRegistered = false;
-            }
-            if (pendingActionsResult != null) {
-                List<Integer> actions = intent.getIntegerArrayListExtra("actions");
-                pendingActionsResult.success(actions);
-                pendingActionsResult = null;
-            }
-        }
-    };
-
-
-    @SuppressLint("UnspecifiedRegisterReceiverFlag")
     @RequiresApi(api = Build.VERSION_CODES.LOLLIPOP)
     @Override
     public void onMethodCall(@NonNull MethodCall call, @NonNull Result result) {
@@ -129,53 +103,6 @@ public class FlutterAccessibilityServicePlugin implements FlutterPlugin, Activit
             pendingResult = result;
             Intent intent = new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS);
             mActivity.startActivityForResult(intent, REQUEST_CODE_FOR_ACCESSIBILITY);
-        } else if (call.method.equals("getSystemActions")) {
-            if (Utils.isAccessibilitySettingsOn(context)) {
-                if (isReceiverRegistered) {
-                    context.unregisterReceiver(actionsReceiver);
-                    isReceiverRegistered = false;
-                }
-                pendingActionsResult = result;
-                IntentFilter filter = new IntentFilter(BROD_SYSTEM_GLOBAL_ACTIONS);
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-                    context.registerReceiver(actionsReceiver, filter, Context.RECEIVER_EXPORTED);
-                } else {
-                    context.registerReceiver(actionsReceiver, filter);
-                }
-                isReceiverRegistered = true;
-                Intent serviceIntent = new Intent(context, AccessibilityListener.class);
-                serviceIntent.putExtra(INTENT_SYSTEM_GLOBAL_ACTIONS, true);
-                context.startService(serviceIntent);
-            } else {
-                result.error("SDK_INT_ERROR", "Invalid SDK_INT", null);
-            }
-        } else if (call.method.equals("performGlobalAction")) {
-            Integer actionId = call.argument("action");
-            if (Utils.isAccessibilitySettingsOn(context)) {
-                final Intent i = new Intent(context, AccessibilityListener.class);
-                i.putExtra(INTENT_GLOBAL_ACTION, true);
-                i.putExtra(INTENT_GLOBAL_ACTION_ID, actionId);
-                context.startService(i);
-                result.success(true);
-            } else {
-                result.success(false);
-            }
-        } else if (call.method.equals("performActionById")) {
-            String nodeId = call.argument("nodeId");
-            Integer action = (Integer) call.argument("nodeAction");
-            Object extras = call.argument("extras");
-            Bundle arguments = Utils.bundleIdentifier(action, extras);
-            AccessibilityNodeInfo nodeInfo = AccessibilityListener.getNodeInfo(nodeId);
-            if (nodeInfo != null) {
-                if (arguments == null) {
-                    nodeInfo.performAction(action);
-                } else {
-                    nodeInfo.performAction(action, arguments);
-                }
-                result.success(true);
-            } else {
-                result.success(false);
-            }
         } else if (call.method.equals("showOverlayWindow")) {
             if (!supportOverlay) {
                 result.error("ERR:OVERLAY", "Add the overlay entry point to be able of using it", null);
@@ -194,13 +121,6 @@ public class FlutterAccessibilityServicePlugin implements FlutterPlugin, Activit
         } else if (call.method.equals("hideOverlayWindow")) {
             AccessibilityListener.removeOverlay();
             result.success(true);
-        } else if (call.method.equals("dispatchGesture")) {
-            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) {
-                result.success(false);
-                return;
-            }
-            List<Object> strokes = call.argument("strokes");
-            AccessibilityListener.performDispatchGesture(strokes, result);
         } else {
             result.notImplemented();
         }
@@ -213,10 +133,6 @@ public class FlutterAccessibilityServicePlugin implements FlutterPlugin, Activit
             accessibilityReceiver.setEventSink(null);
         }
         eventChannel.setStreamHandler(null);
-        if (isReceiverRegistered) {
-            context.unregisterReceiver(actionsReceiver);
-            isReceiverRegistered = false;
-        }
         statusEventSink = null;
         if (accessibilityObserver != null) {
             context.getContentResolver().unregisterContentObserver(accessibilityObserver);

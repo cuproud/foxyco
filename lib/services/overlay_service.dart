@@ -31,7 +31,7 @@ class OverlayService {
   /// Decoded from the raw overlay channel; non-action messages are filtered out.
   Stream<OverlayAction> get actionStream => FlutterOverlayWindow.overlayListener
       .where((d) => d is Map)
-      .map((d) => OverlayAction.fromMap(d as Map))
+      .map((d) => OverlayAction.fromMap(d as Map<dynamic, dynamic>))
       .where((a) => a != null)
       .cast<OverlayAction>();
 

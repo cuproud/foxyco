@@ -20,7 +20,12 @@ final accessibilityWatcherProvider = Provider<AccessibilityWatcher>(
 class ScreenRead {
   final String packageName;
   final List<String> texts;
-  const ScreenRead({required this.packageName, required this.texts});
+  final bool isActive;
+  const ScreenRead({
+    required this.packageName,
+    required this.texts,
+    this.isActive = false,
+  });
 }
 
 /// Thin wrapper over `flutter_accessibility_service` (docs/ARCHITECTURE
@@ -78,7 +83,11 @@ class AccessibilityWatcher {
         // count textless frames per platform, so logcat/Settings can tell
         // "Uber sends nothing" apart from "Uber sends unreadable frames".
         controller.add(
-          ScreenRead(packageName: event.packageName ?? '', texts: const []),
+          ScreenRead(
+            packageName: event.packageName ?? '',
+            texts: const [],
+            isActive: event.isActive ?? false,
+          ),
         );
         return;
       }
@@ -87,7 +96,13 @@ class AccessibilityWatcher {
       final key = texts.join('');
       if (key == lastKeyByPackage[package]) return;
       lastKeyByPackage[package] = key;
-      controller.add(ScreenRead(packageName: package, texts: texts));
+      controller.add(
+        ScreenRead(
+          packageName: package,
+          texts: texts,
+          isActive: event.isActive ?? false,
+        ),
+      );
     }
 
     if (kDebugMode) {

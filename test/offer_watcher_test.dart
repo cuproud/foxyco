@@ -93,6 +93,17 @@ const _hoppButtonOnly = ScreenRead(
   texts: ['Accept'],
 );
 
+class _GrantedDashboardController extends DashboardController {
+  @override
+  DashboardState build() => const DashboardState(
+    status: WatchStatus.stopped,
+    permissions: PermissionStatus(
+      overlayGranted: true,
+      accessibilityGranted: true,
+    ),
+  );
+}
+
 void main() {
   late _FakeWatcher watcher;
   late _FakeOverlayService overlay;
@@ -102,6 +113,7 @@ void main() {
       overrides: [
         accessibilityWatcherProvider.overrideWithValue(watcher),
         overlayServiceProvider.overrideWithValue(overlay),
+        dashboardProvider.overrideWith(_GrantedDashboardController.new),
       ],
     );
     addTearDown(c.dispose);
@@ -168,6 +180,11 @@ void main() {
       await Future<void>.delayed(Duration.zero);
 
       expect(overlay.shown, hasLength(2));
+      expect(
+        c.read(offerLogProvider),
+        hasLength(2),
+        reason: 'a confirmed card exit makes identical values a new offer',
+      );
     },
   );
 
@@ -284,6 +301,28 @@ void main() {
 
     expect(overlay.clears, 1);
   });
+
+  test(
+    'foreground app switch clears the previous app pill immediately',
+    () async {
+      final c = container();
+      c.read(offerWatcherProvider);
+      c.read(overlayControllerProvider);
+
+      watcher.emit(_hoppNodes);
+      await Future<void>.delayed(Duration.zero);
+      watcher.emit(
+        const ScreenRead(
+          packageName: ParserRegistry.uberPackage,
+          texts: ['Map'],
+          isActive: true,
+        ),
+      );
+      await Future<void>.delayed(Duration.zero);
+
+      expect(overlay.clears, 1);
+    },
+  );
 
   test(
     'does not clear when a non-offer screen was never showing a pill',

@@ -122,7 +122,8 @@ class _OverlayRootState extends State<_OverlayRoot> {
     if (data is! Map) return;
 
     if (OverlayControl.isControl(data)) {
-      if (data['paused'] is bool) setState(() => _paused = data['paused']);
+      final paused = data['paused'];
+      if (paused is bool) setState(() => _paused = paused);
       if (data['clearPill'] == true) _clearPill();
       return;
     }

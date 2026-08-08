@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -101,8 +103,13 @@ class Access {
     DateTime? buildExpiry,
     bool licenceKeyMissing = false,
   }) {
+    final purchaseAge = purchasedAt == null
+        ? null
+        : now.difference(purchasedAt);
     final cachedPurchase =
-        purchasedAt != null && now.difference(purchasedAt) < offlineGrace;
+        purchaseAge != null &&
+        !purchaseAge.isNegative &&
+        purchaseAge < offlineGrace;
 
     // Age of the trial check, for the day-5 warning. Only worth warning about
     // while the driver actually has something to lose.
@@ -125,19 +132,11 @@ class Access {
     final trialUsable =
         trialActiveNow && (trialStale == null || trialStale < offlineGrace);
 
-    final goingStale =
-        trialUsable &&
-        trialStale != null &&
-        trialStale > offlineGrace - const Duration(days: 2);
-    final graceLeft = trialStale == null
-        ? 0
-        : (offlineGrace - trialStale).inHours ~/ 24;
-
     final (bool entitled, AccessSource source) = switch (null) {
       // Debug first: a dev build must work with neither Play nor Firebase.
       _ when debugUnlocked => (true, AccessSource.debugBuild),
       // The kill date beats anything a tester build could otherwise claim.
-      _ when buildExpiry != null && now.isAfter(buildExpiry) => (
+      _ when buildExpiry != null && !now.isBefore(buildExpiry) => (
         false,
         AccessSource.none,
       ),
@@ -147,11 +146,22 @@ class Access {
       // Still asking both sides: stay unresolved rather than flashing a paywall
       // at a driver who is only mid-boot.
       _
-          when unlock == UnlockStatus.unknown &&
+          when unlock == UnlockStatus.unknown ||
               trial.phase == TrialPhase.unknown =>
         (false, AccessSource.unknown),
       _ => (false, AccessSource.none),
     };
+    final warningAge = switch (source) {
+      AccessSource.trial => trialStale,
+      AccessSource.cachedPurchase => purchaseAge,
+      _ => null,
+    };
+    final goingStale =
+        warningAge != null &&
+        warningAge > offlineGrace - const Duration(days: 2);
+    final graceLeft = warningAge == null
+        ? 0
+        : (offlineGrace - warningAge).inHours ~/ 24;
 
     return Access(
       entitled: entitled,
@@ -189,21 +199,47 @@ class AccessStore extends Notifier<Access> {
   static const _keyPurchasedAt = 'foxyco.unlock.verifiedAt.v1';
 
   DateTime? _purchasedAt;
+  int _purchaseRevision = 0;
+  // Defaults true for focused test subclasses that override [build]. The real
+  // provider flips it false while its purchase cache is loading.
+  bool _cacheLoaded = true;
+  Future<void>? _deriveInFlight;
+  bool _deriveAgain = false;
+  Timer? _timeBoundaryTimer;
+
+  @protected
+  Future<DateTime> currentTime() => FoxClock.now();
+
+  @protected
+  Future<SharedPreferences> preferences() => SharedPreferences.getInstance();
+
+  @protected
+  bool get debugUnlocked => kDebugUnlocked;
+
+  @protected
+  Timer createTimer(Duration delay, void Function() callback) =>
+      Timer(delay, callback);
 
   @override
   Access build() {
+    _cacheLoaded = false;
     // Both halves feed the same verdict; either changing re-derives it.
     ref.listen(billingProvider, (_, _) => _derive());
     ref.listen(trialProvider, (_, _) => _derive());
-    _loadCache().then((_) => _derive());
+    ref.onDispose(() => _timeBoundaryTimer?.cancel());
+    _loadCache().whenComplete(() {
+      _cacheLoaded = true;
+      if (ref.mounted) unawaited(_derive());
+    });
     return Access.resolving;
   }
 
   Future<void> _loadCache() async {
+    final revision = _purchaseRevision;
     try {
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = await preferences();
       final ms = prefs.getInt(_keyPurchasedAt);
-      if (ms != null) {
+      if (ms != null && revision == _purchaseRevision) {
         _purchasedAt = DateTime.fromMillisecondsSinceEpoch(ms, isUtc: true);
       }
     } catch (e) {
@@ -212,9 +248,10 @@ class AccessStore extends Notifier<Access> {
   }
 
   Future<void> _setPurchasedAt(DateTime? at) async {
+    _purchaseRevision++;
     _purchasedAt = at;
     try {
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = await preferences();
       if (at == null) {
         await prefs.remove(_keyPurchasedAt);
       } else {
@@ -225,35 +262,97 @@ class AccessStore extends Notifier<Access> {
     }
   }
 
-  /// Recompute from whatever both stores currently say. Cheap and idempotent.
-  Future<void> _derive() async {
-    final unlock = ref.read(billingProvider);
-    final trial = ref.read(trialProvider);
-    final now = await FoxClock.now();
+  /// Recompute from whatever both stores currently say. Concurrent requests
+  /// coalesce into one final pass so an older async clock/cache operation can
+  /// never overwrite newer Play or trial evidence.
+  Future<void> _derive() {
+    _deriveAgain = true;
+    return _deriveInFlight ??= _runDerivations().whenComplete(() {
+      _deriveInFlight = null;
+    });
+  }
 
-    if (unlock == UnlockStatus.purchased) {
-      // Refresh the grace anchor every time Play confirms it.
-      if (_purchasedAt == null || now.difference(_purchasedAt!).inHours > 12) {
-        await _setPurchasedAt(now);
+  Future<void> _runDerivations() async {
+    while (_deriveAgain) {
+      _deriveAgain = false;
+      final now = await currentTime();
+      if (!ref.mounted) return;
+      final unlock = ref.read(billingProvider);
+      final trial = ref.read(trialProvider);
+
+      // A slow SharedPreferences read must not publish a false lock and flash
+      // “Trial ended” before a valid cached purchase is known.
+      if (!_cacheLoaded) continue;
+
+      if (unlock == UnlockStatus.purchased) {
+        // Refresh the grace anchor every time Play confirms it.
+        if (_purchasedAt == null ||
+            now.difference(_purchasedAt!).inHours > 12) {
+          await _setPurchasedAt(now);
+          if (!ref.mounted) return;
+        }
+      } else if (unlock == UnlockStatus.notPurchased) {
+        // Play answered and owns no purchase for this account — a refund, or a
+        // receipt that stopped verifying. Drop the cache; keeping it would
+        // extend access past a refund by the whole grace window.
+        if (_purchasedAt != null) {
+          await _setPurchasedAt(null);
+          if (!ref.mounted) return;
+        }
       }
-    } else if (unlock == UnlockStatus.notPurchased) {
-      // Play answered and owns no purchase for this account — a refund, or a
-      // receipt that stopped verifying. Drop the cache; keeping it would extend
-      // access past a refund by the whole grace window.
-      if (_purchasedAt != null) await _setPurchasedAt(null);
+
+      if (_deriveAgain) continue;
+      final next = Access.derive(
+        unlock: unlock,
+        trial: trial,
+        now: now,
+        purchasedAt: _purchasedAt,
+        debugUnlocked: debugUnlocked,
+        buildExpiry: _buildExpiry,
+        // A release build with no licensing key compiled in can verify nothing,
+        // so nobody can buy anything (§3.9 — fails closed, and says so).
+        licenceKeyMissing:
+            !kDebugMode && PurchaseVerifier.publicKeyBase64.isEmpty,
+      );
+      state = next;
+      _scheduleTimeCheck(access: next, trial: trial, now: now);
+    }
+  }
+
+  void _scheduleTimeCheck({
+    required Access access,
+    required TrialState trial,
+    required DateTime now,
+  }) {
+    _timeBoundaryTimer?.cancel();
+    _timeBoundaryTimer = null;
+    DateTime? boundary;
+    void consider(DateTime? candidate) {
+      if (candidate == null || !candidate.isAfter(now)) return;
+      if (boundary == null || candidate.isBefore(boundary!)) {
+        boundary = candidate;
+      }
     }
 
-    state = Access.derive(
-      unlock: unlock,
-      trial: trial,
-      now: now,
-      purchasedAt: _purchasedAt,
-      buildExpiry: _buildExpiry,
-      // A release build with no licensing key compiled in can verify nothing,
-      // so nobody can buy anything (§3.9 — fails closed, and says so).
-      licenceKeyMissing:
-          !kDebugMode && PurchaseVerifier.publicKeyBase64.isEmpty,
-    );
+    if (!debugUnlocked) consider(_buildExpiry);
+    switch (access.source) {
+      case AccessSource.trial:
+        consider(now.add(const Duration(minutes: 1)));
+        consider(trial.startedAt?.add(trialDuration));
+        consider(trial.verifiedAt?.add(offlineGrace));
+      case AccessSource.cachedPurchase:
+        consider(_purchasedAt?.add(offlineGrace));
+      case AccessSource.unknown:
+      case AccessSource.debugBuild:
+      case AccessSource.purchase:
+      case AccessSource.none:
+        break;
+    }
+    final next = boundary;
+    if (next == null) return;
+    _timeBoundaryTimer = createTimer(next.difference(now), () {
+      unawaited(_derive());
+    });
   }
 
   /// Kill date for closed-track builds (§6 layer 3), or null in production.

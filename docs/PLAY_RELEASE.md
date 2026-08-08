@@ -1,6 +1,6 @@
 # FoxyCo — Google Play Release & Monetization Guide
 
-**Audience:** first-time Play Store publisher. Written 2026-07-20, updated 2026-08-04.
+**Audience:** first-time Play Store publisher. Written 2026-07-20, updated 2026-08-07.
 **Companion docs:** `MONETIZATION_v1.0.md` (entitlement architecture — **authoritative**), `AUDIT.md` (policy risks + release checklist), `MANUAL_TESTS.md` (device test matrix).
 
 > ## ⚠️ Superseded sections
@@ -35,8 +35,9 @@
 
 _Added 2026-08-02. §1–§6 are the reasoning; this is the ordered list of moves.
 Everything below is a console/web action except C1. Build 22 was Play-installed
-and device-tested; current source is build 24. See `HANDOFF_2026-08-04.md` for
-the latest automated verification and remaining physical-device checks._
+and device-tested; current source is audit-remediated build 26. See
+`FULL_APP_AUDIT_2026-08-07.md` for current verification and remaining gates;
+`HANDOFF_2026-08-04.md` documents the historical build-24 artifact._
 
 ### Phase A — no Play Console needed, do it today
 
@@ -63,12 +64,14 @@ the latest automated verification and remaining physical-device checks._
 ### Phase C — build and upload
 
 Use the repository build helper so the build code and About label stay in
-sync. `--bump` increments the build code before compiling; `apk` is optional
-for an explicit release APK. The AAB command requires the Play public key:
+sync. Install the rules-test tools once with `npm install`. `--bump` increments
+the build code only after analysis, the full Flutter suite, and Firestore rules
+tests pass; `apk` is optional for an explicit release APK. Every AAB build runs
+the same preflight and requires the Play public key:
 
 ```bash
-./scripts/build.sh apk --bump
 ./scripts/build.sh aab --bump
+./scripts/build.sh apk # optional phone-installable APK at the same version
 ```
 
 Artifacts are copied to `dist/` with version and timestamped names.
@@ -250,20 +253,21 @@ The math drivers do in their head: *"one avoided bad ride ≈ saved 30 dead minu
    - **Store listing:** title (30 chars), short desc (80), full desc (4000), screenshots (min 2, take from the new showroom UI — splash ignition, home hero, pill over a fake offer), feature graphic 1024×500.
    - **Privacy policy URL** — mandatory. Host on GitHub Pages, free.
      ⚠️ **Changed 2026-07-28.** The old text ("collects nothing, no network
-     permission") is no longer true. Declare exactly: **Google account email**
-     (trial identity) and **trial/purchase state**. No offer data, no
-     location, no analytics. Must also state that a non-identifying record of
-     the trial start date is retained after account deletion (MONETIZATION
-     §5.1).
+     permission") is no longer true. Declare exactly: an anonymous Firebase
+     **user ID** created on first launch, **Google account email** when a trial
+     is started or account sign-in is chosen, and **trial/purchase state**. Firebase Authentication also
+     processes IP address and user-agent data for security/abuse prevention.
+     No offer data, location or analytics. State that a non-identifying trial
+     timestamp is retained after account deletion (MONETIZATION §5.1).
    - **Data safety form** — ⚠️ **Changed 2026-07-28.** No longer "no data
-     collected". Declare **Account info (email)** and **App activity
-     (trial/purchase state)**. Not location, not financial data — Play handles
-     payment and we never see card data. `AUDIT.md` still verifies the old
-     no-INTERNET claim and must be updated alongside (MONETIZATION §7 step 9).
+     collected". Declare **Personal info (user ID; email only after Google
+     sign-in)** and **App activity (trial/purchase state)**, including the
+     applicable service/security and fraud-prevention purposes. Not location or
+     financial data — Play handles payment and we never see card data.
    - **Account deletion** — required once you collect accounts: an in-app path
      AND a public web URL. See MONETIZATION §5.1 — the trial doc is
      deliberately retained, and the privacy policy has to say so.
-   - **Accessibility declaration** — because we use an AccessibilityService, a special form asks WHY. Answer: "Reads ride-offer text from supported driver apps to display an on-screen earnings verdict. Core functionality; read-only; user-enabled with in-app disclosure." Expect possible human review + a request for a screen-recording of the consent flow (our onboarding IS that flow — record it).
+   - **Accessibility declaration** — because we use an AccessibilityService, a special form asks WHY. Answer: "Temporarily reads on-screen text in Uber Driver, Lyft Driver and Hopp Driver to identify offer pay, distance and duration and display an earnings verdict. Only extracted offer numbers are stored locally; raw text is not saved or sent. Read-only; never acts inside another app; user-enabled after in-app disclosure." Expect possible human review + a request for a screen-recording of the consent flow (our onboarding IS that flow — record it).
    - **Content rating questionnaire** → "Everyone".
    - **Target audience** → 18+ (drivers).
 4. **Signing** — generate upload keystore (command in AUDIT.md §blockers), enroll in **Play App Signing** (Google keeps the app signing key, you keep the upload key — lose-proof).

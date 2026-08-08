@@ -44,6 +44,9 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 dist/
+node_modules/
+firebase-debug.log
+firestore-debug.log
 
 # Local tooling
 .tokensave/

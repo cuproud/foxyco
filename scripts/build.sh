@@ -59,6 +59,15 @@ if [[ "$BUNDLE" == "1" ]]; then
   SPLIT=""
 fi
 
+# Uploadable/versioned artifacts must prove both app behavior and backend
+# access control before the version changes or Gradle starts.
+if [[ "$BUMP" == "1" || "$BUNDLE" == "1" ]]; then
+  echo "▶ Preflight: analyze + Flutter tests + Firestore rules tests"
+  flutter analyze
+  flutter test
+  npm run test:rules
+fi
+
 # --- optionally bump the build number in pubspec.yaml -------------------------
 if [[ "$BUMP" == "1" ]]; then
   cur="$(grep -E '^version:' pubspec.yaml | head -1 | awk '{print $2}')"

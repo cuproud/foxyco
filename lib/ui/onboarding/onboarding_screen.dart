@@ -154,11 +154,12 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                     hero: const _GlowIcon(Icons.visibility_rounded),
                     title: 'Read the offer on screen',
                     body:
-                        'FoxyCo uses Android\'s accessibility service ONLY to '
-                        'read an offer\'s pay and distance on screen, to score '
-                        'it for you. It does not read anything else, sends '
-                        'nothing off your phone, and never taps buttons or '
-                        'accepts/declines rides for you.',
+                        'FoxyCo temporarily reads on-screen text in Uber '
+                        'Driver, Lyft Driver and Hopp Driver to identify pay, '
+                        'distance and duration. Only those extracted offer '
+                        'numbers are stored locally; raw screen text is not '
+                        'saved or sent. FoxyCo never taps buttons or accepts '
+                        'or declines rides for you.',
                     granted: perms.accessibilityGranted,
                     buttonLabel: 'Grant Accessibility Access',
                     onGrant: _grantAccessibility,

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/services.dart';
 
 import '../../domain/driver_profile.dart';
 import '../../domain/garage.dart';
@@ -39,10 +40,12 @@ class _VehicleEditorScreenState extends ConsumerState<VehicleEditorScreen> {
     super.dispose();
   }
 
-  /// Year is optional; when present it must be exactly four digits.
+  /// Year is optional; when present it must be plausible for a working car.
   bool get _yearOk {
     final y = _year.text.trim();
-    return y.isEmpty || RegExp(r'^\d{4}$').hasMatch(y);
+    if (y.isEmpty) return true;
+    final value = int.tryParse(y);
+    return value != null && value >= 1980 && value <= DateTime.now().year + 1;
   }
 
   /// Save needs a make OR model, plus a valid year.
@@ -145,9 +148,11 @@ class _VehicleEditorScreenState extends ConsumerState<VehicleEditorScreen> {
                   key: const ValueKey('editor-make'),
                   controller: _make,
                   onChanged: (_) => setState(() {}),
+                  maxLength: 30,
                   decoration: const InputDecoration(
                     labelText: 'Make',
                     isDense: true,
+                    counterText: '',
                   ),
                 ),
               ),
@@ -157,9 +162,11 @@ class _VehicleEditorScreenState extends ConsumerState<VehicleEditorScreen> {
                   key: const ValueKey('editor-model'),
                   controller: _model,
                   onChanged: (_) => setState(() {}),
+                  maxLength: 30,
                   decoration: const InputDecoration(
                     labelText: 'Model',
                     isDense: true,
+                    counterText: '',
                   ),
                 ),
               ),
@@ -174,10 +181,15 @@ class _VehicleEditorScreenState extends ConsumerState<VehicleEditorScreen> {
                   controller: _year,
                   onChanged: (_) => setState(() {}),
                   keyboardType: TextInputType.number,
+                  maxLength: 4,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                   decoration: InputDecoration(
                     labelText: 'Year',
                     isDense: true,
-                    errorText: _yearOk ? null : '4 digits',
+                    counterText: '',
+                    errorText: _yearOk
+                        ? null
+                        : '1980–${DateTime.now().year + 1}',
                   ),
                 ),
               ),
@@ -187,9 +199,11 @@ class _VehicleEditorScreenState extends ConsumerState<VehicleEditorScreen> {
                   key: const ValueKey('editor-plate'),
                   controller: _plate,
                   onChanged: (_) => setState(() {}),
+                  maxLength: 12,
                   decoration: const InputDecoration(
                     labelText: 'Plate',
                     isDense: true,
+                    counterText: '',
                   ),
                 ),
               ),
