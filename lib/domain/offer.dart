@@ -33,6 +33,9 @@ class Offer {
   /// "Add to queue". It is still a normal offer, but useful context later.
   final bool isQueued;
 
+  /// Number of Uber Eats deliveries bundled into this card; 0 for rides.
+  final int deliveryCount;
+
   final String? rawText;
 
   const Offer({
@@ -46,6 +49,7 @@ class Offer {
     this.payIsNet = false,
     this.category,
     this.isQueued = false,
+    this.deliveryCount = 0,
     this.rawText,
   });
 

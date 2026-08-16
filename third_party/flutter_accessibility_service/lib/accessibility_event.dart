@@ -42,6 +42,10 @@ class AccessibilityEvent {
   /// https://developer.android.com/reference/android/view/accessibility/AccessibilityWindowInfo#getType()
   WindowType? windowType;
 
+  /// Stable window identity and z-order supplied for top-level snapshots.
+  int? windowId;
+  int? windowLayer;
+
   /// check if this window is active. An active window is the one the user is currently touching or the window has input focus and the user is not touching any window.
   /// https://developer.android.com/reference/android/view/accessibility/AccessibilityWindowInfo#isActive()
   bool? isActive;
@@ -84,6 +88,11 @@ class AccessibilityEvent {
   /// https://developer.android.com/reference/android/view/accessibility/AccessibilityNodeInfo#getViewIdResourceName()
   List<AccessibilityEvent>? subNodes;
 
+  /// Interactive application windows, kept separate and ordered top-first.
+  /// FoxyCo uses these snapshots to avoid mixing a stale/lower offer card with
+  /// the visible browse or trip window from the same driver app.
+  List<AccessibilityEvent>? windows;
+
   AccessibilityEvent({
     this.mapId,
     this.nodeId,
@@ -95,6 +104,8 @@ class AccessibilityEvent {
     this.contentChangeTypes,
     this.movementGranularity,
     this.windowType,
+    this.windowId,
+    this.windowLayer,
     this.isActive,
     this.isFocused,
     this.isClickable,
@@ -106,6 +117,7 @@ class AccessibilityEvent {
     this.isPip,
     this.screenBounds,
     this.actions,
+    this.windows,
   });
 
   AccessibilityEvent.fromMap(Map<dynamic, dynamic> map) {
@@ -133,6 +145,8 @@ class AccessibilityEvent {
         ? null
         : WindowType.values
             .firstWhereOrNull((element) => element.id == map['windowType']);
+    windowId = map['windowId'];
+    windowLayer = map['windowLayer'];
     isActive = map['isActive'];
     isFocused = map['isFocused'];
     isClickable = map['isClickable'];
@@ -147,6 +161,11 @@ class AccessibilityEvent {
         : null;
     subNodes = map['subNodesActions'] != null
         ? (map['subNodesActions'] as List<dynamic>)
+            .map((e) => AccessibilityEvent.fromMap(e))
+            .toList()
+        : [];
+    windows = map['windows'] != null
+        ? (map['windows'] as List<dynamic>)
             .map((e) => AccessibilityEvent.fromMap(e))
             .toList()
         : [];

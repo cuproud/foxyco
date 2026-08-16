@@ -14,6 +14,7 @@ void main() {
         payout: 12,
         totalMinutes: 24,
         size: PillSize.large,
+        deliveryCount: 3,
       );
       final back = OverlayPayload.fromMap(p.toMap());
       expect(back.verdict, Verdict.good);
@@ -21,6 +22,7 @@ void main() {
       expect(back.payout, 12);
       expect(back.totalMinutes, 24);
       expect(back.size, PillSize.large);
+      expect(back.deliveryCount, 3);
     });
 
     test('carries \$/hr; drops it when time is unknown', () {

@@ -202,6 +202,24 @@ class VerdictPill extends StatelessWidget {
                         ),
                       ),
                     ],
+                    if (payload.deliveryCount > 0) ...[
+                      SizedBox(width: m.gap),
+                      Container(
+                        width: 1,
+                        height: m.sub,
+                        color: const Color(0x52F4EFE1),
+                      ),
+                      SizedBox(width: m.gap),
+                      Text(
+                        '${payload.deliveryCount} ${payload.deliveryCount == 1 ? 'delivery' : 'deliveries'}',
+                        style: TextStyle(
+                          fontFamily: FoxFonts.sans,
+                          fontWeight: FontWeight.w700,
+                          fontSize: m.sub,
+                          color: _dimCream,
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),

@@ -1,0 +1,45 @@
+import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+final ocrCaptureProvider = Provider<OcrCapture>((ref) => const OcrCapture());
+
+/// Android Accessibility screenshot OCR. Each requested frame is processed in
+/// memory by bundled ML Kit; only recognized lines cross into Dart.
+class OcrCapture {
+  const OcrCapture();
+
+  static const _channel = MethodChannel('foxyco/ocr');
+
+  Future<bool> start() async {
+    try {
+      return await _channel.invokeMethod<bool>('start') ?? false;
+    } on PlatformException {
+      return false;
+    } on MissingPluginException {
+      return false;
+    }
+  }
+
+  Future<void> stop() async {
+    try {
+      await _channel.invokeMethod<void>('stop');
+    } on PlatformException {
+      // Accessibility may already have disconnected or cancelled the request.
+    } on MissingPluginException {
+      // Off-device tests.
+    }
+  }
+
+  Future<List<String>> capture() async {
+    try {
+      final lines = await _channel
+          .invokeListMethod<String>('capture')
+          .timeout(const Duration(seconds: 2), onTimeout: () => const []);
+      return lines ?? const [];
+    } on PlatformException {
+      return const [];
+    } on MissingPluginException {
+      return const [];
+    }
+  }
+}

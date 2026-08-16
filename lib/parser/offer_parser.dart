@@ -64,13 +64,15 @@ class ParserPatterns {
 
   /// A timeline leg: "N min · X km" / "N mins • X km". Shared by Hopp and Lyft,
   /// which use the same dot-line pickup→dropoff card. Tolerant of min/mins and
-  /// the separator (middot / bullet / hyphen) between time and distance.
+  /// the separator (middot / bullet / hyphen) between time and distance. The
+  /// separator is optional because on-device OCR routinely omits that tiny
+  /// decorative glyph while preserving both labelled values.
   ///
   /// Note the REQUIRED distance unit: a map bubble like "$12 Lyft · 1 min away" has a
   /// time but no distance, so it never counts as a leg — that browse-map noise
   /// (bug1 (8)) can't be stitched into a fake trip.
   static final leg = RegExp(
-    r'(\d+)\s*mins?\s*[·•⋅\-]\s*([\d.]+)\s*(km|mi|miles?)\b',
+    r'(\d+)\s*mins?\s*(?:[·•⋅\-]\s*)?([\d.]+)\s*(km|mi|miles?)\b',
     caseSensitive: false,
   );
 
@@ -186,6 +188,13 @@ class ParserPatterns {
   /// Strong positive evidence that an offer from [platform] was accepted.
   /// These phrases come from the supplied live-trip screenshots and avoid
   /// rider names/addresses. Ambiguous blank/navigation frames stay unknown.
+  static bool looksLikeQueuedOfferAccepted(
+    GigPlatform platform,
+    List<String> nodeTexts,
+  ) =>
+      platform == GigPlatform.lyft &&
+      nodeTexts.any((node) => node.trim().toLowerCase() == 'added to queue');
+
   static bool looksLikeAcceptedTrip(
     GigPlatform platform,
     List<String> nodeTexts,
@@ -201,6 +210,7 @@ class ParserPatterns {
       // in the whole screen can misread instructional or address text.
       return normalized.any(
         (node) =>
+            node == 'added to queue' ||
             node == 'arrive' ||
             RegExp(r'\bpassenger notified\b').hasMatch(node) ||
             RegExp(r'\bslide to (?:pick up|drop off)\b').hasMatch(node),

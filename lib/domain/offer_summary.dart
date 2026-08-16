@@ -1,14 +1,14 @@
 import 'platform.dart';
 import 'verdict.dart';
 
-/// What happened to an offer after FoxyCo scored it — INFERRED from the screen
-/// the app landed on when the card left (read-only; FoxyCo never taps):
+/// What happened to an offer after FoxyCo scored it — inferred from the screen
+/// the app landed on when the card left, or corrected manually in History:
 ///   - the app returned to browse/home/map → the driver passed (declined or
 ///     let it time out) → [missed];
 ///   - the app moved to a non-browse screen (in-trip navigation) → the driver
 ///     took it → [taken].
-/// A heuristic, not ground truth (app switch / kill mid-card → [unknown]), so
-/// the UI presents it as an estimate.
+/// Automatic values are heuristic (app switch / kill mid-card → [unknown]); a
+/// manual correction is stored separately and wins over later inference.
 enum OfferOutcome { unknown, taken, missed }
 
 /// A scored offer as logged to the offer repository and shown on the dashboard
@@ -24,11 +24,13 @@ class OfferSummary {
   final double totalMinutes; // pickup + trip; 0 when unknown
   final DateTime seenAt;
   final OfferOutcome outcome; // inferred take/pass — see [OfferOutcome]
+  final bool outcomeIsManual;
 
   /// Product tier / ride type ("UberX", "Comfort", "Radar match", …) or null.
   /// Display only — see [Offer.category].
   final String? category;
   final bool isQueued;
+  final int deliveryCount;
 
   const OfferSummary({
     required this.platform,
@@ -40,43 +42,47 @@ class OfferSummary {
     this.pickupKm = 0,
     this.totalMinutes = 0,
     this.outcome = OfferOutcome.unknown,
+    this.outcomeIsManual = false,
     this.category,
     this.isQueued = false,
+    this.deliveryCount = 0,
   });
 
   /// Same CARD as [other]? Compares what the parser read off the screen, not
   /// when we read it — so one offer card seen twice reads as one offer.
   ///
-  /// Deliberately excludes [seenAt], [verdict] and [outcome]: the first is what
-  /// differs between the two reads, and the last two are ours, not the card's.
+  /// Labels that may arrive late (bonus, category, queued) are excluded too.
+  /// The stable economics identify the live card; a confirmed card exit is what
+  /// allows identical values to be recorded as a later offer.
   bool sameCardAs(OfferSummary other) =>
       platform == other.platform &&
       payout == other.payout &&
-      bonus == other.bonus &&
       totalKm == other.totalKm &&
       pickupKm == other.pickupKm &&
       totalMinutes == other.totalMinutes &&
-      category == other.category &&
-      isQueued == other.isQueued;
+      deliveryCount == other.deliveryCount;
 
   double get pricePerKm => totalKm > 0 ? payout / totalKm : 0;
 
   /// Dollars per hour; 0 when no time was parsed (UI hides it, no ∞).
   double get pricePerHour => totalMinutes > 0 ? payout / totalMinutes * 60 : 0;
 
-  OfferSummary withOutcome(OfferOutcome o) => OfferSummary(
-    platform: platform,
-    verdict: verdict,
-    payout: payout,
-    bonus: bonus,
-    pickupKm: pickupKm,
-    totalKm: totalKm,
-    totalMinutes: totalMinutes,
-    seenAt: seenAt,
-    outcome: o,
-    category: category,
-    isQueued: isQueued,
-  );
+  OfferSummary withOutcome(OfferOutcome o, {bool manual = false}) =>
+      OfferSummary(
+        platform: platform,
+        verdict: verdict,
+        payout: payout,
+        bonus: bonus,
+        pickupKm: pickupKm,
+        totalKm: totalKm,
+        totalMinutes: totalMinutes,
+        seenAt: seenAt,
+        outcome: o,
+        outcomeIsManual: manual,
+        category: category,
+        isQueued: isQueued,
+        deliveryCount: deliveryCount,
+      );
 
   Map<String, dynamic> toJson() => {
     'platform': platform.name,
@@ -88,8 +94,10 @@ class OfferSummary {
     'totalMinutes': totalMinutes,
     'seenAt': seenAt.millisecondsSinceEpoch,
     'outcome': outcome.name,
+    if (outcomeIsManual) 'outcomeIsManual': true,
     if (category != null) 'category': category,
     if (isQueued) 'isQueued': true,
+    if (deliveryCount > 0) 'deliveryCount': deliveryCount,
   };
 
   factory OfferSummary.fromJson(Map<String, dynamic> j) => OfferSummary(
@@ -111,7 +119,9 @@ class OfferSummary {
     outcome:
         OfferOutcome.values.where((o) => o.name == j['outcome']).firstOrNull ??
         OfferOutcome.unknown,
+    outcomeIsManual: j['outcomeIsManual'] == true,
     category: j['category'] is String ? j['category'] as String : null,
     isQueued: j['isQueued'] == true,
+    deliveryCount: (j['deliveryCount'] as num?)?.toInt() ?? 0,
   );
 }

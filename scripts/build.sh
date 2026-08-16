@@ -63,9 +63,40 @@ fi
 # access control before the version changes or Gradle starts.
 if [[ "$BUMP" == "1" || "$BUNDLE" == "1" ]]; then
   echo "▶ Preflight: analyze + Flutter tests + Firestore rules tests"
-  flutter analyze
-  flutter test
-  npm run test:rules
+  test_log="$(mktemp)"
+  if flutter pub get >"$test_log" 2>&1; then
+    echo "✓ Dependencies ready"
+  else
+    echo "✗ Dependency resolution failed"
+    tail -40 "$test_log"
+    rm -f "$test_log"
+    exit 1
+  fi
+  if flutter analyze --no-pub >"$test_log" 2>&1; then
+    echo "✓ Analysis passed"
+  else
+    echo "✗ Analysis failed"
+    tail -60 "$test_log"
+    rm -f "$test_log"
+    exit 1
+  fi
+  if flutter test --no-pub >"$test_log" 2>&1; then
+    echo "✓ Flutter tests passed"
+  else
+    echo "✗ Flutter tests failed"
+    tail -120 "$test_log"
+    rm -f "$test_log"
+    exit 1
+  fi
+  if npm run test:rules >"$test_log" 2>&1; then
+    echo "✓ Firestore rules tests passed"
+  else
+    echo "✗ Firestore rules tests failed"
+    tail -60 "$test_log"
+    rm -f "$test_log"
+    exit 1
+  fi
+  rm -f "$test_log"
 fi
 
 # --- optionally bump the build number in pubspec.yaml -------------------------
@@ -133,7 +164,7 @@ elif [[ "$MODE" == "release" ]]; then
 fi
 
 if [[ "$BUNDLE" == "1" ]]; then
-  flutter build appbundle --release "${DEFINE_ARGS[@]}"
+  flutter build appbundle --release --no-pub "${DEFINE_ARGS[@]}"
   src="$ROOT/build/app/outputs/bundle/release/app-release.aab"
   dest="$DIST/FoxyCo-${LABEL}.aab"
   cp "$src" "$dest"

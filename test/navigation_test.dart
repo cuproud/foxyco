@@ -9,7 +9,7 @@ import 'package:foxyco/ui/theme/platform_badge.dart';
 import 'package:foxyco/ui/settings/logs_screen.dart';
 import 'package:foxyco/ui/shell/root_shell.dart';
 
-/// Shell navigation: the connective tissue between the three tabs. Everything
+/// Shell navigation: the connective tissue between the four tabs. Everything
 /// here used to be a dead end — back left the app, tab jumps landed on a
 /// collapsed accordion, and Logs had no route at all.
 void main() {
@@ -84,26 +84,26 @@ void main() {
     final container = scope();
     await pumpShell(tester, container);
 
-    container.read(tabIndexProvider.notifier).go(2);
+    container.read(tabIndexProvider.notifier).go(3);
     await beat(tester);
-    expect(container.read(tabIndexProvider), 2);
+    expect(container.read(tabIndexProvider), 3);
 
     await systemBack(tester);
     expect(container.read(tabIndexProvider), 0, reason: 'back lands on Home');
   });
 
-  testWidgets('deep link opens the Settings group it was aimed at', (
+  testWidgets('deep link opens the Rules group it was aimed at', (
     tester,
   ) async {
     // A REAL phone viewport (360×780 logical), not the tall one: Watched apps
-    // is the sixth group and falls past the fold at this height, so the jump
+    // falls past the fold at this height, so the jump
     // genuinely has to scroll. On a 3200px view it lands on screen either way
     // and the assertion passes without ensureVisible ever running.
     phone(tester);
     final container = scope();
     await pumpShell(tester, container);
 
-    container.read(tabIndexProvider.notifier).go(2, section: 5);
+    container.read(tabIndexProvider.notifier).go(1, section: 3);
     // TWO beats: the first lands the rebuild whose post-frame callback KICKS OFF
     // ensureVisible's animation — nothing has ticked it yet at that point, and
     // AnimatedSize is still growing the group (maxScrollExtent is still moving).
@@ -123,20 +123,20 @@ void main() {
     expect(header.top, greaterThanOrEqualTo(0.0));
     expect(header.bottom, lessThanOrEqualTo(780.0));
 
-    // One-shot: consumed, so a later hand-switch to Settings leaves it alone.
+    // One-shot: consumed, so a later hand-switch to Rules leaves it alone.
     expect(container.read(tabIndexProvider.notifier).pendingSection, isNull);
   });
 
-  testWidgets('switching to Settings by hand leaves the accordion alone', (
+  testWidgets('switching to Rules by hand leaves the accordion alone', (
     tester,
   ) async {
     phone(tester);
     final container = scope();
     await pumpShell(tester, container);
 
-    // No section → no jump, no scroll: Profile (group 0) stays open as it boots
-    // and Watched apps stays shut.
-    container.read(tabIndexProvider.notifier).go(2);
+    // No section → no jump, no scroll: thresholds stay open as Rules boots and
+    // Watched apps stays shut.
+    container.read(tabIndexProvider.notifier).go(1);
     await beat(tester);
     expect(watchedAppSwitches, findsNothing);
     final list = tester.widget<Scrollable>(find.byType(Scrollable).first);
@@ -182,7 +182,7 @@ void main() {
 
     await tester.tap(find.textContaining('offers scored'));
     await beat(tester);
-    expect(container.read(tabIndexProvider), 1);
+    expect(container.read(tabIndexProvider), 2);
   });
 
   testWidgets('re-tapping the active tab scrolls it back to the top', (

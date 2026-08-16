@@ -7,6 +7,7 @@ import 'package:foxyco/domain/overlay_payload.dart';
 import 'package:foxyco/domain/session_summary.dart';
 import 'package:foxyco/services/accessibility/accessibility_watcher.dart';
 import 'package:foxyco/services/overlay_service.dart';
+import 'package:foxyco/services/ocr/ocr_capture.dart';
 import 'package:foxyco/services/session_log.dart';
 import 'package:foxyco/ui/home/dashboard_controller.dart';
 import 'package:foxyco/ui/home/dashboard_state.dart';
@@ -43,6 +44,13 @@ class _MemorySessionLog extends SessionLog {
   void record(SessionSummary session) => state = [session, ...state];
 }
 
+class _FakeOcrCapture extends OcrCapture {
+  var stops = 0;
+
+  @override
+  Future<void> stop() async => stops++;
+}
+
 class _FakeOverlayService implements OverlayService {
   @override
   Future<bool> isPermissionGranted() async => true;
@@ -67,6 +75,8 @@ class _FakeOverlayService implements OverlayService {
 }
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   test('mid-shift accessibility revoke flips the dashboard to blocked '
       '(and re-grant lands on stopped, not auto-watching)', () async {
     final watcher = _FakeWatcher();
@@ -130,6 +140,29 @@ void main() {
     watcher.status.add(true);
     await Future<void>.delayed(Duration.zero);
     expect(container.read(dashboardProvider).status, WatchStatus.paused);
+  });
+
+  test('unexpected overlay shutdown also stops OCR capture', () async {
+    final watcher = _FakeWatcher();
+    final ocr = _FakeOcrCapture();
+    final container = ProviderContainer(
+      overrides: [
+        accessibilityWatcherProvider.overrideWithValue(watcher),
+        overlayServiceProvider.overrideWithValue(_FakeOverlayService()),
+        ocrCaptureProvider.overrideWithValue(ocr),
+      ],
+    );
+    addTearDown(container.dispose);
+    addTearDown(watcher.status.close);
+
+    final dashboard = container.read(dashboardProvider.notifier);
+    await dashboard.refreshPermissions();
+    dashboard.startMonitoring();
+    await dashboard.refreshPermissions();
+    await Future<void>.delayed(Duration.zero);
+
+    expect(container.read(dashboardProvider).status, WatchStatus.stopped);
+    expect(ocr.stops, 1);
   });
 
   test(

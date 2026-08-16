@@ -7,8 +7,10 @@ import '../../domain/session_summary.dart';
 import '../../services/accessibility/accessibility_watcher.dart';
 import '../../services/fox_log.dart';
 import '../../services/offer_log.dart';
+import '../../services/ocr/ocr_capture.dart';
 import '../../services/session_log.dart';
 import '../overlay/overlay_controller.dart';
+import '../settings/settings_controller.dart';
 import 'dashboard_state.dart';
 
 /// Watch/permission state holder. Tally, last offer and watched platforms are
@@ -17,6 +19,7 @@ class DashboardController extends Notifier<DashboardState> {
   StreamSubscription<bool>? _statusSub;
   Future<void>? _permissionRefresh;
   bool _permissionRefreshAgain = false;
+  bool _starting = false;
 
   /// When the current live session started; null while stopped. Read by the
   /// shift-recap sheet at stop time. Survives pause (pause ≠ end of shift).
@@ -24,6 +27,7 @@ class DashboardController extends Notifier<DashboardState> {
 
   @override
   DashboardState build() {
+    final ocr = ref.read(ocrCaptureProvider);
     // Resilience: the OS pushes accessibility on/off changes (user revoked it
     // in system settings mid-shift, or Android killed the service). Without
     // this the dashboard only notices on the next app resume — the bubble sat
@@ -51,7 +55,10 @@ class DashboardController extends Notifier<DashboardState> {
     } catch (e) {
       if (kDebugMode) debugPrint('FoxyCo statusChanges skipped: $e');
     }
-    ref.onDispose(() => _statusSub?.cancel());
+    ref.onDispose(() {
+      _statusSub?.cancel();
+      unawaited(ocr.stop());
+    });
 
     return const DashboardState(
       status: WatchStatus.blocked,
@@ -63,13 +70,28 @@ class DashboardController extends Notifier<DashboardState> {
   }
 
   /// Start Monitoring (spec M5 §4): opens the parse gate and summons the
-  /// bubble (overlay controller listens on status). No-op while blocked.
-  void startMonitoring() {
-    if (state.status == WatchStatus.blocked) return;
-    liveSince = DateTime.now();
-    state = _with(status: WatchStatus.watching);
-    ref.read(foxLogProvider).log('status', 'watch → watching (started)');
-    if (kDebugMode) debugPrint('FoxyCo watch status → watching (started)');
+  /// bubble (overlay controller listens on status). Only a stopped session can
+  /// start; duplicate starts cannot initialize OCR twice.
+  Future<void> startMonitoring() async {
+    if (state.status != WatchStatus.stopped || _starting) return;
+    _starting = true;
+    try {
+      final settings = ref.read(settingsProvider);
+      if (settings.ocrEnabled) {
+        final started = await ref.read(ocrCaptureProvider).start();
+        if (!ref.mounted) return;
+        ref
+            .read(foxLogProvider)
+            .log('ocr', started ? 'capture ready' : 'capture unavailable');
+      }
+      if (!ref.mounted || state.status == WatchStatus.blocked) return;
+      liveSince = DateTime.now();
+      state = _with(status: WatchStatus.watching);
+      ref.read(foxLogProvider).log('status', 'watch → watching (started)');
+      if (kDebugMode) debugPrint('FoxyCo watch status → watching (started)');
+    } finally {
+      _starting = false;
+    }
   }
 
   /// Full stop: overlay torn down, parse gate closed. Works from watching
@@ -81,6 +103,7 @@ class DashboardController extends Notifier<DashboardState> {
       return null;
     }
     final since = liveSince;
+    unawaited(ref.read(ocrCaptureProvider).stop());
     liveSince = null;
     _recordSession(since);
     state = _with(status: WatchStatus.stopped);
@@ -121,6 +144,9 @@ class DashboardController extends Notifier<DashboardState> {
     final next = state.status == WatchStatus.paused
         ? WatchStatus.watching
         : WatchStatus.paused;
+    if (next == WatchStatus.paused) {
+      unawaited(ref.read(ocrCaptureProvider).stop());
+    }
     state = _with(status: next);
     ref.read(foxLogProvider).log('status', 'watch → ${next.name}');
     if (kDebugMode) debugPrint('FoxyCo watch status → ${next.name}');
@@ -134,6 +160,7 @@ class DashboardController extends Notifier<DashboardState> {
       return;
     }
     final since = liveSince;
+    unawaited(ref.read(ocrCaptureProvider).stop());
     liveSince = null; // session over — no recap for a bubble-drop stop
     _recordSession(since); // …but it still counts as a session
     state = _with(status: WatchStatus.stopped);
@@ -218,10 +245,11 @@ class DashboardController extends Notifier<DashboardState> {
       final statusChanged = old.status != status;
       if (!statusChanged && !permissionsChanged) return;
 
-      if (status == WatchStatus.blocked &&
+      if ((status == WatchStatus.blocked || status == WatchStatus.stopped) &&
           (old.status == WatchStatus.watching ||
               old.status == WatchStatus.paused)) {
         final since = liveSince;
+        unawaited(ref.read(ocrCaptureProvider).stop());
         liveSince = null;
         _recordSession(since);
       }
@@ -248,12 +276,15 @@ class DashboardController extends Notifier<DashboardState> {
   /// page after our disclosure). Each request routes through the plugin and
   /// resolves once the user returns; [refreshPermissions] on resume also keeps
   /// the card honest if they grant it out of band.
-  Future<void> requestMissingPermissions() async {
+  Future<void> requestMissingPermissions({
+    required Future<bool> Function() confirmAccessibility,
+  }) async {
     try {
       if (!state.permissions.overlayGranted) {
         await ref.read(overlayServiceProvider).requestPermission();
       }
       if (!state.permissions.accessibilityGranted) {
+        if (!await confirmAccessibility()) return;
         await ref.read(accessibilityWatcherProvider).requestPermission();
       }
       await refreshPermissions();

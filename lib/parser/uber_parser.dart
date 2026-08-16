@@ -45,6 +45,15 @@ class UberParser implements OfferParser {
     'trip',
     caseSensitive: false,
   );
+  static final _total = RegExp(
+    '$_leg'
+    'total',
+    caseSensitive: false,
+  );
+  static final _delivery = RegExp(
+    r'\bdelivery(?:\s*\((\d+)\))?(?!\w)',
+    caseSensitive: false,
+  );
 
   static double _minutes(RegExpMatch m) {
     final hr = m.group(1) != null ? (double.tryParse(m.group(1)!) ?? 0) : 0;
@@ -103,6 +112,23 @@ class UberParser implements OfferParser {
     if (ParserPatterns.looksLikeBrowse(joined)) return null;
 
     final payout = ParserPatterns.findPayout(nodeTexts);
+    final delivery = _delivery.firstMatch(joined);
+    final total = _total.firstMatch(joined);
+    if (payout != null && delivery != null && total != null) {
+      final distance = _kilometres(total);
+      if (distance <= 0) return null;
+      final count = int.tryParse(delivery.group(1) ?? '') ?? 1;
+      return Offer(
+        platform: GigPlatform.uber,
+        payout: payout,
+        pickupKm: 0,
+        dropoffKm: distance,
+        dropoffMinutes: _minutes(total),
+        category: 'Eats · $count ${count == 1 ? 'delivery' : 'deliveries'}',
+        deliveryCount: count,
+        rawText: joined,
+      );
+    }
     final pickup = _pickup.firstMatch(joined);
     final trip = _trip.firstMatch(joined);
 

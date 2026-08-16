@@ -19,7 +19,7 @@ whether it's worth taking. Your clever co-driver: spots the good ones, ignores t
 ```
 Offer appears on Uber / Lyft / Hopp
         ↓
-Accessibility plugin reads it (payout, pickup, trip distance/time)
+Accessibility reads it first; optional on-device OCR handles unreadable cards
         ↓
 total km = pickup + dropoff
 rate = payout / total distance (km or mi), or payout / hour
@@ -53,7 +53,8 @@ maintained Flutter plugins that wrap the native Android APIs:
 | Native capability | Handled by |
 |---|---|
 | Draw the pill/bubble on top of other apps | [`flutter_overlay_window`](https://pub.dev/packages/flutter_overlay_window) |
-| Read the offer off the Uber/Hopp screen | [`flutter_accessibility_service`](https://pub.dev/packages/flutter_accessibility_service) |
+| Read the offer off Uber/Lyft/Hopp first | [`flutter_accessibility_service`](https://pub.dev/packages/flutter_accessibility_service) |
+| Optional in-memory OCR fallback | Accessibility screenshot + bundled ML Kit Text Recognition |
 
 The **brain** (parse → score → verdict) is plain Dart with zero Android dependencies, so it's
 unit-testable with no emulator. That's the one rule that pays off later. See

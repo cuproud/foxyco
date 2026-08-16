@@ -3,12 +3,19 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../services/fox_log.dart';
 import '../theme/tokens.dart';
 
 const _clipboardChannel = MethodChannel('foxyco/clipboard');
 Timer? _fallbackClipboardTimer;
+
+Uri logEmailUri(String logs) => Uri(
+  scheme: 'mailto',
+  path: 'foxyco.dev@gmail.com',
+  queryParameters: {'subject': 'FoxyCo diagnostic logs', 'body': logs},
+);
 
 Future<void> _setFallbackClipboard(String text) async {
   await Clipboard.setData(ClipboardData(text: text));
@@ -77,6 +84,21 @@ class _LogsScreenState extends ConsumerState<LogsScreen> {
     );
   }
 
+  Future<void> _email() async {
+    try {
+      if (await launchUrl(
+        logEmailUri(_tail),
+        mode: LaunchMode.externalApplication,
+      )) {
+        return;
+      }
+    } catch (_) {}
+    if (!mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('No email app is available')));
+  }
+
   Future<void> _clear() async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -112,6 +134,12 @@ class _LogsScreenState extends ConsumerState<LogsScreen> {
       appBar: AppBar(
         title: const Text('Logs'),
         actions: [
+          IconButton(
+            key: const ValueKey('email-logs'),
+            icon: const Icon(Icons.email_outlined),
+            tooltip: 'Email logs to FoxyCo support',
+            onPressed: _tail.isEmpty ? null : _email,
+          ),
           IconButton(
             icon: const Icon(Icons.copy_rounded),
             tooltip: 'Copy to clipboard',

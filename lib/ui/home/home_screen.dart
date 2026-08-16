@@ -11,6 +11,7 @@ import '../../services/offer_log.dart';
 import '../../services/session_log.dart';
 import '../overlay/overlay_controller.dart';
 import '../paywall/access_banner.dart';
+import '../legal/accessibility_disclosure.dart';
 import '../settings/reminder_controller.dart';
 import '../settings/settings_controller.dart';
 import '../shell/root_shell.dart';
@@ -41,6 +42,10 @@ class HomeScreen extends ConsumerWidget {
     final state = ref.watch(dashboardProvider);
     final controller = ref.read(dashboardProvider.notifier);
     final blocked = state.status == WatchStatus.blocked;
+    Future<void> requestMissingPermissions() =>
+        controller.requestMissingPermissions(
+          confirmAccessibility: () => showAccessibilityDisclosure(context),
+        );
 
     return ListView(
       // Bottom pad must clear the floating nav: 64 bar + margins PLUS the
@@ -88,7 +93,7 @@ class HomeScreen extends ConsumerWidget {
             platforms: ref.watch(settingsProvider).watchedApps.toList(),
             // Slide-to-go-live is the Start/Stop outer gate (spec M6 §3.2);
             // pause stays on the bubble long-press.
-            onStart: controller.startMonitoring,
+            onStart: () => unawaited(controller.startMonitoring()),
             onStop: () {
               final since = controller.stopMonitoring();
               maybeShowShiftRecap(
@@ -97,19 +102,17 @@ class HomeScreen extends ConsumerWidget {
                 allOffers: ref.read(offerLogProvider),
               );
             },
-            onFix: controller.requestMissingPermissions,
-            // Section 5 is "Watched apps" — the badges' own settings. Landing
+            onFix: requestMissingPermissions,
+            // Rules section 3 is "Watched apps" — the badges' own controls.
             // on Settings with it still collapsed and off-screen isn't a jump,
             // it's a hint.
             onOpenSettings: () =>
-                ref.read(tabIndexProvider.notifier).go(2, section: 5),
+                ref.read(tabIndexProvider.notifier).go(1, section: 3),
           ),
         ),
         const SizedBox(height: Gap.lg),
         if (blocked) ...[
-          _Padded(
-            child: _AccessAlert(onFix: controller.requestMissingPermissions),
-          ),
+          _Padded(child: _AccessAlert(onFix: requestMissingPermissions)),
           const SizedBox(height: Gap.lg),
         ],
         // Car reminder inside its lead window — tap through to Settings' Garage
@@ -119,7 +122,7 @@ class HomeScreen extends ConsumerWidget {
             child: _ReminderBanner(
               reminder: ref.watch(dueRemindersProvider).first,
               onTap: () =>
-                  ref.read(tabIndexProvider.notifier).go(2, section: 1),
+                  ref.read(tabIndexProvider.notifier).go(3, section: 1),
             ),
           ),
           const SizedBox(height: Gap.lg),
@@ -131,7 +134,7 @@ class HomeScreen extends ConsumerWidget {
         _Padded(
           child: _SessionCard(
             session: ref.watch(lastSessionProvider),
-            onTap: () => ref.read(tabIndexProvider.notifier).go(1),
+            onTap: () => ref.read(tabIndexProvider.notifier).go(2),
           ),
         ),
         const SizedBox(height: Gap.lg),

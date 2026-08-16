@@ -97,10 +97,10 @@ void main() {
     // Page 5 — accessibility grant, with the plain-language disclosure.
     await tester.tap(find.text('Next'));
     await tester.pumpAndSettle();
-    expect(find.text('Read the offer on screen'), findsOneWidget);
+    expect(find.text('Read-only offer access'), findsOneWidget);
     expect(find.text('✅ Granted'), findsOneWidget);
     expect(
-      find.textContaining('never taps buttons'),
+      find.textContaining('cannot tap, accept, decline'),
       findsOneWidget,
       reason: 'strictly-manual disclosure must be on the accessibility page',
     );

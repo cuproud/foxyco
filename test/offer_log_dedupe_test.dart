@@ -74,7 +74,17 @@ void main() {
     expect(l.state, hasLength(2));
   });
 
-  test('a genuinely different offer inside the window still records', () {
+  test('a confirmed card exit allows identical next-offer values', () {
+    final l = log();
+    l.record(offer(seenAt: t));
+    l.record(
+      offer(seenAt: t.add(const Duration(seconds: 1))),
+      confirmedNewCard: true,
+    );
+    expect(l.state, hasLength(2));
+  });
+
+  test('different economics or platform inside the window still record', () {
     final l = log();
     l.record(offer(seenAt: t));
     // One cent apart is enough — the guard compares what the parser read.
@@ -89,20 +99,36 @@ void main() {
     );
     expect(l.state, hasLength(3));
 
-    l.record(
-      offer(seenAt: t.add(const Duration(seconds: 3)), category: 'UberX'),
-    );
-    expect(l.state, hasLength(4));
+    expect(l.state, hasLength(3));
   });
 
-  test('only the newest entry is compared — no scan of the whole log', () {
+  test('an interleaved app frame cannot duplicate an earlier live card', () {
     final l = log();
     l.record(offer(seenAt: t));
     l.record(offer(seenAt: t.add(const Duration(seconds: 1)), payout: 4.18));
-    // Matches the entry two back, but the one in front of it differs, so this
-    // is the card coming round again rather than a flicker. Records.
+    // Matches the entry two back. Accessibility windows can interleave reads,
+    // so it remains the same card until a positive card exit says otherwise.
     l.record(offer(seenAt: t.add(const Duration(seconds: 2))));
-    expect(l.state, hasLength(3));
+    expect(l.state, hasLength(2));
+  });
+
+  test('late labels still identify the same card', () {
+    final l = log();
+    l.record(offer(seenAt: t, category: null));
+    l.record(
+      OfferSummary(
+        platform: GigPlatform.uber,
+        verdict: Verdict.bad,
+        payout: 10.19,
+        bonus: 2,
+        totalKm: 11.7,
+        totalMinutes: 24,
+        seenAt: t.add(const Duration(seconds: 1)),
+        category: 'Share',
+        isQueued: true,
+      ),
+    );
+    expect(l.state, hasLength(1));
   });
 
   test('sameCardAs ignores when we saw it, and our own verdict', () {
@@ -119,6 +145,43 @@ void main() {
     );
     expect(a.sameCardAs(b), isTrue);
   });
+
+  test('repeated trip frames update one exact offer only', () {
+    final l = log();
+    final now = DateTime.now();
+    final smaller = l.record(
+      offer(seenAt: now.subtract(const Duration(seconds: 20)), payout: 5.36),
+    );
+    final accepted = l.record(
+      offer(seenAt: now.subtract(const Duration(seconds: 5)), payout: 19.94),
+    );
+
+    expect(l.markOutcome(accepted, OfferOutcome.taken), isTrue);
+    expect(l.markOutcome(accepted, OfferOutcome.taken), isFalse);
+    expect(l.state.map((o) => o.outcome), [
+      OfferOutcome.taken,
+      OfferOutcome.unknown,
+    ]);
+    expect(smaller.outcome, OfferOutcome.unknown);
+  });
+
+  test(
+    'manual correction works after inference window and cannot be overwritten',
+    () {
+      final l = log();
+      final candidate = l.record(
+        offer(
+          seenAt: DateTime.now().subtract(const Duration(minutes: 3)),
+          payout: 17.06,
+        ),
+      );
+
+      expect(l.setOutcome(candidate, OfferOutcome.missed), isTrue);
+      expect(l.state.single.outcomeIsManual, isTrue);
+      expect(l.markOutcome(candidate, OfferOutcome.taken), isFalse);
+      expect(l.state.single.outcome, OfferOutcome.missed);
+    },
+  );
 
   test('offer received during hydration survives with disk history', () async {
     final stored = offer(seenAt: t.subtract(const Duration(hours: 1)));

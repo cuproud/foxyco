@@ -162,6 +162,8 @@ plain-language, read-only disclosure). "Skip for now" always exits to Home.
 | O.6 | Kill + reopen app | Boots straight to Home — onboarding never shows again | [ ] |
 | O.7 | Fresh install, tap "Skip for now" | Lands on Home, status **blocked**, "Fix permissions" visible | [ ] |
 | O.8 | After O.7, kill + reopen | Still boots to Home (skip also marks onboarding done) | [ ] |
+| O.9 | After O.7, tap **Fix permissions** with Accessibility off | FoxyCo shows the full read-only offer-access disclosure before Android Accessibility settings | [ ] |
+| O.10 | Tap **Not now**, then **Fix permissions** again | Settings does not open after declining; the disclosure appears again on the next attempt | [ ] |
 
 ## Resilience — live permission revoke (2026-07-16)
 
@@ -518,16 +520,16 @@ _Last updated: 2026-07-25 (M12: polish pass + light theme; white car card + abov
 | M13.13 | Let the pill clear (offer leaves the screen), then tap the bubble | App comes forward on whatever tab you left it on — no stale sheet | [ ] |
 | M13.14 | Tap the bubble after **Show a demo pill** | Same: no sheet (demo pills are never logged, so there's nothing to open) | [ ] |
 
-## M14 — Settings structure
+## M14 — Rules and Settings structure
 
 | # | Step | Expect | Pass |
 |---|------|--------|------|
-| M14.1 | Open Settings and scroll top to bottom | Groups sit under **five** small-caps bands with a hairline rule: **You & your car**, **Scoring**, **Watching**, **Look & feel**, **Your data**. No group is orphaned between bands | [ ] |
-| M14.2 | The **Watching** band | Three groups in this order: Watched apps → Parser health → Outcome tracking. Parser health no longer sits down by History | [ ] |
-| M14.3 | Tap a group open, then another | Still single-open — the first collapses. Band headers don't move except by the height the accordion gives back | [ ] |
-| M14.4 | Open Settings fresh and watch the entrance | The first six groups fade+slide in one after another; everything below appears already in place. Nothing lands out of order or jitters | [ ] |
+| M14.1 | Inspect the bottom navigation | Four one-tap destinations appear in order: **Home · Rules · History · Settings** | [ ] |
+| M14.2 | Open Rules | **Verdict thresholds** is open; Live preview, Pickup guard and Watched apps are on the same page and save immediately | [ ] |
+| M14.3 | Tap a Rules group open, then another | Still single-open — the first collapses. Band headers don't move except by the height the accordion gives back | [ ] |
+| M14.4 | Open Settings and scroll top to bottom | Scoring controls are absent; account/car, diagnostics, look & feel, data and unlock controls remain | [ ] |
 | M14.5 | Accessibility → Remove animations ON, open Settings | Every group is in place on the first frame; band rules render normally | [ ] |
-| M14.6 | Home → tap the app badges (M13.4) | Still lands on Watched apps, now under the **Watching** rule | [ ] |
+| M14.6 | Home → tap the app badges (M13.4) | Lands on Rules with **Watched apps** expanded and scrolled into view | [ ] |
 | M14.7 | Compare the band rules against Home's "LAST SESSION" and History's date headers | Identical treatment — same small-caps weight, same gap, same hairline (all three now come from one widget) | [ ] |
 
 ## M15 — 2026-07-26 device bugs
@@ -540,7 +542,33 @@ _Last updated: 2026-07-25 (M12: polish pass + light theme; white car card + abov
 | M15.4 | Mid-session, switch to History, scroll down, then tap the bubble | FoxyCo comes forward **on History, still scrolled** — not a fresh Home. Losing your place was the "it crashed" report | [ ] |
 | M15.5 | Take ~10 real offers, open History | No two adjacent rows identical (same app, tier, fare, distance, minute). Was two `Uber Share $10.19 · 11.7 km · 2:49 PM` rows | [ ] |
 | M15.6 | Compare Home's today tally against the History row count | Match. The duplicate rows were double-counting the tally, good-average $/km, busiest hour and the by-hour chart | [ ] |
-| M15.7 | Two genuinely different offers seconds apart (e.g. $10.19 and $10.20) | Both logged — the de-dupe compares fare, both distances, duration and tier, not just timing | [ ] |
+| M15.7 | Two genuinely different offers seconds apart (e.g. $10.19 and $10.20) | Both logged — de-dupe compares platform, fare, distances and duration, not just timing or late labels | [ ] |
+| M15.8 | On one active Lyft card, wait while bonus / queue labels finish rendering | One verdict pill and one History row only | [ ] |
+| M15.9 | Let a Hopp card disappear within two seconds of its verdict | The verdict remains visible for at least five seconds total, then clears | [ ] |
+| M15.10 | Capture an offer whose fields animate in after the first window event | A complete frame is picked up by the bounded follow-up reads; logcat does not continue scanning between events | [ ] |
+| M15.11 | Keep FoxyCo, Uber and Lyft open; switch between them through 10+ pill→bubble cycles | Bubble and pill remain fully transparent outside their shapes — no grey window-sized mask | [ ] |
+| M15.12 | Receive two Uber offers close together, accept only the newer one, then stay on its pickup/trip screen for several accessibility events | Only the newer History row becomes **Accepted**; the older row remains **Unconfirmed** | [ ] |
+| M15.13 | History → tap an offer's status pill → choose Accepted, Not taken, then Unconfirmed | Card updates immediately, survives app restart, and later app events do not overwrite the manual choice | [ ] |
+| M15.14 | Rules → Voice verdict → Preview voice | Android speaks one short sample using the phone's configured system voice | [ ] |
+| M15.15 | Turn Voice verdict ON; receive GOOD, OK and BAD offers | Only each new GOOD offer is spoken; re-rendering one card does not repeat it | [ ] |
+| M15.16 | With voice ON, trigger several GOOD offers quickly | The newest announcement replaces the previous speech; no delayed spoken backlog remains | [ ] |
+| M15.17 | Fresh install from a Play testing track in each supported country, then open Settings → Appearance | Currency defaults from the Play storefront (USD/CAD/AUD/NZD/MXN/BRL); changing it only relabels fares and thresholds—no FX conversion | [ ] |
+
+## M15A — optional Pixel Capture OCR
+
+| # | Step | Expect | Pass |
+|---|---|---|---|
+| OCR.1 | Leave Settings → Parser health → Pixel Capture OFF; capture readable Uber/Lyft/Hopp cards | Accessibility produces each verdict; no OCR log entry | [ ] |
+| OCR.2 | Tap Pixel Capture, then choose **Not now** on FoxyCo's disclosure | Toggle remains off; monitoring still works through Accessibility | [ ] |
+| OCR.3 | Tap Pixel Capture again and choose **Enable OCR**, then start monitoring | Toggle turns on; no Android screen-share prompt, indicator, or Pixel Capture notification appears | [ ] |
+| OCR.4 | Present an accessibility-readable offer while OCR is approved | One verdict/history row from Accessibility; logs contain no OCR request | [ ] |
+| OCR.5 | Present a card known to expose an empty/incomplete accessibility tree | One rate-limited OCR frame is recognized on-device and feeds the same strict parser; one verdict/history row | [ ] |
+| OCR.6 | Keep the card active through repeated accessibility events | No overlapping OCR work, repeated audio/verdict, or duplicate History row | [ ] |
+| OCR.7 | Pause or stop FoxyCo, kill its overlay, swipe FoxyCo away, and revoke Accessibility in separate runs; also trigger OCR while the screen locks | Lifecycle cancellations discard pending OCR; a protected/unavailable screen produces no verdict; Accessibility works after re-enable | [ ] |
+| OCR.8 | Inspect app-private storage and exported diagnostics after OCR offers | No PNG/JPEG/screenshot/cache file and no raw recognized text; logs contain only consent/status and line counts | [ ] |
+| OCR.9 | Test Android 11, 14, 15 and 16, then Android 10 or an API-29 emulator | Android 11+ can OCR without a sharing prompt; Android 10 safely uses Accessibility text only | [ ] |
+| OCR.10 | Let an old verdict remain while a new unreadable card triggers OCR | The visible bubble/pill does not flicker; its rectangle is redacted only in memory, the new card is scored from its own text, and no duplicate verdict/history row is created | [ ] |
+| OCR.11 | Debug APK only: enable Pixel Capture and **Force OCR test mode**, restart monitoring, then show a readable watched-app offer | One OCR verdict/audio/history row appears without a sharing prompt; disabling test mode restores Accessibility-first parsing; restarting FoxyCo resets test mode off | [ ] |
 
 ## M16 — Foxy brand art
 
@@ -617,16 +645,35 @@ blur rider names plus pickup/drop-off addresses before sharing it.
 |---|---|---|---|
 | B27.1 | Start recording on Android Settings → About phone, then FoxyCo → About | Android version, device model and FoxyCo build 27 are visible | [ ] |
 | B27.2 | Show Uber Driver, Lyft Driver and Hopp Driver app-info/version screens | Exact tested driver-app versions are visible | [ ] |
-| B27.3 | With a redeemed license-test code or completed test purchase, cold-start FoxyCo and return after backgrounding it | Home has **no trial, trial-ended or unlock banner**; Settings says **Unlocked forever** | [ ] |
-| B27.4 | Start watching and capture one real Hopp offer | Correct payout, total distance, verdict and optional hourly rate appear; the pill clears when the card leaves | [ ] |
-| B27.5 | Capture one Uber and one Lyft offer | Values match each source card; raw rider/address text never appears in FoxyCo history or logs | [ ] |
+| B27.3 | With a redeemed license-test code or completed test purchase, cold-start FoxyCo and return after backgrounding it | Home has **no trial, trial-ended or unlock banner**; Settings says **Unlocked forever** | [x] verified 2026-08-08 |
+| B27.4 | Start watching and capture one real Hopp offer | Correct payout, total distance, verdict and optional hourly rate appear; the pill clears when the card leaves | [x] verified 2026-08-08 |
+| B27.5 | Capture one Uber and one Lyft offer | Values match each source card; raw rider/address text never appears in FoxyCo history or logs | [x] verified 2026-08-08 |
 | B27.6 | While one app's pill is visible, foreground another watched driver app | Previous app's pill clears immediately; it never sits over the newly active app | [ ] |
 | B27.7 | Revoke Accessibility while watching, then return to FoxyCo | Watching becomes blocked, bubble disappears, and exactly one bounded session is recorded | [ ] |
 | B27.8 | Restore the permission, start again, pause/resume, drag and dismiss the bubble | State, bubble and dashboard remain synchronized; overlay is draggable and touch-through works | [ ] |
 | B27.9 | Copy diagnostics, leave Logs immediately, wait one minute, then inspect/paste clipboard | Clip is marked sensitive and clears if it was not replaced | [ ] |
 | B27.10 | Run M18.10 and M18.16–M18.20 on Play-installed builds/accounts | Reinstall, purchase/redeem, acknowledgment, restore, missing-key and build-expiry evidence is retained | [ ] |
 | B27.11 | Run Uber/Lyft/Hopp for 30–60 minutes | No crash/ANR, ghost overlay, runaway battery use or stale cross-app pill; retain ADB/Play Vitals evidence | [ ] |
+| B27.12 | Lock the screen while FoxyCo is active, then unlock it | FoxyCo/overlay is hidden on the lock screen and active again after unlock | [x] verified 2026-08-08 |
 
 Repeat B27.3–B27.8 on Android 14, 15 and 16 where devices are available. The
 existing 2026-08-06 recording supports Uber/Lyft behavior on one unidentified
 Android version; it does not replace this versioned matrix.
+
+_2026-08-08: No issues noticed in the three-app smoke test. Multi-day soak is
+still in progress; leave B27.11 open until it finishes._
+
+## Build 30 — multi-app outcome tracking (2026-08-10)
+
+Use `1.0.9 (build 30)` and enable outcome tracking. Keep Uber Driver, Lyft
+Driver and Hopp Driver open; obscure rider names and addresses in evidence.
+
+| # | Step | Expect | Pass |
+|---|---|---|---|
+| B30.1 | While browsing Reels or YouTube, receive one offer from each driver app without accepting | All readable offers enter History; background home/browse frames do not assign taken or missed | [ ] |
+| B30.2 | Accept an Uber offer, then open Uber and progress through Picking up, Waiting for rider, Start UberX, Dropping off and Complete UberX | The matching recent Uber History row becomes **Taken** on the first active trip state; newer Lyft/Hopp rows are untouched | [ ] |
+| B30.3 | Accept a Lyft offer and reach Arrive, Passenger notified, Slide to pick up, then Slide to drop off | The matching recent Lyft row becomes **Taken**; Uber/Hopp rows are untouched | [ ] |
+| B30.4 | Accept a Hopp offer and reach You have arrived, Waiting/Start Trip, End Trip, Confirm Price, then Rate passenger | The matching recent Hopp row becomes **Taken**; Uber/Lyft rows are untouched | [ ] |
+| B30.5 | Let an offer disappear while its driver app remains in the background | Its outcome stays **Unknown**; FoxyCo does not guess from an inactive window | [ ] |
+| B30.6 | After completing or ignoring other offers, leave or reopen Uber's LAST TRIP `$13.21` carousel card | No History row changes merely because the popup and fare are visible | [ ] |
+| B30.7 | While already carrying a trip, receive a Lyft Add to queue card; first leave it untouched, then accept another and wait for **Added to queue** | The untouched card stays **Unknown**; only the card followed by active **Added to queue** becomes **Taken**. The existing trip screen alone proves neither | [ ] |

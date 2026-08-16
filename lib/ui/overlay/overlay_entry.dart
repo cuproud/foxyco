@@ -146,8 +146,7 @@ class _OverlayRootState extends State<_OverlayRoot> {
   void _clearPill() {
     if (!mounted) return;
     if (_payload == null) {
-      // Already a bubble (e.g. clearPill's belt-and-braces second send) —
-      // just make sure the window is bubble-sized.
+      // Already a bubble; just make sure the window is bubble-sized.
       _resize(_bubbleBox);
       return;
     }

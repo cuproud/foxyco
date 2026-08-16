@@ -29,6 +29,33 @@ void main() {
       ]),
       isTrue,
     );
+    for (final state in const [
+      'Picking up RIWAJ',
+      'Waiting for rider',
+      'Dropping off RIWAJ',
+      'Complete UberX',
+    ]) {
+      expect(
+        ParserPatterns.looksLikeAcceptedTrip(GigPlatform.uber, [state]),
+        isTrue,
+        reason: state,
+      );
+    }
+  });
+
+  test('Lyft queued acceptance requires the completed label', () {
+    expect(
+      ParserPatterns.looksLikeQueuedOfferAccepted(GigPlatform.lyft, const [
+        'Added to queue',
+      ]),
+      isTrue,
+    );
+    expect(
+      ParserPatterns.looksLikeQueuedOfferAccepted(GigPlatform.lyft, const [
+        'Add to queue',
+      ]),
+      isFalse,
+    );
   });
 
   test('real Hopp pickup, trip and completion states count as accepted', () {

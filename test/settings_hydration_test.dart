@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:foxyco/domain/app_skin.dart';
+import 'package:foxyco/domain/app_currency.dart';
 import 'package:foxyco/domain/fox_settings.dart';
 import 'package:foxyco/ui/settings/settings_controller.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -58,5 +59,20 @@ void main() {
       await Future<void>.delayed(Duration.zero);
     }
     expect(disk()['retentionDays'], 7);
+  });
+
+  test('new install defaults to the Google Play storefront currency', () async {
+    SharedPreferences.setMockInitialValues({});
+    final container = ProviderContainer(
+      overrides: [playStoreCountryProvider.overrideWithValue(() async => 'AU')],
+    );
+    addTearDown(container.dispose);
+    container.read(settingsProvider);
+
+    while (container.read(settingsProvider).currency != AppCurrency.aud) {
+      await Future<void>.delayed(Duration.zero);
+    }
+
+    expect(container.read(settingsProvider).currency, AppCurrency.aud);
   });
 }

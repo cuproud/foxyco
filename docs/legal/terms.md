@@ -4,7 +4,7 @@ title: FoxyCo — Terms of Use
 
 # FoxyCo — Terms of Use
 
-**Last updated: 8 August 2026**
+**Last updated: 9 August 2026**
 
 These terms are a contract between you and **Vamsi Naradasu** ("we", "us")
 covering your use of the FoxyCo Android app ("FoxyCo"). By installing FoxyCo,
@@ -13,9 +13,10 @@ do not use the app.
 
 ## 1. What FoxyCo is
 
-FoxyCo reads the pay and distance shown on a ride-offer card in a supported
-driver app, compares those numbers against thresholds **you** set, and displays
-an advisory verdict — good, ok or bad.
+FoxyCo reads offer-related text in Uber Driver, Lyft Driver and Hopp Driver,
+compares the extracted pay, distance and duration against thresholds **you**
+set, and displays an advisory verdict — good, ok or bad. Supporting another
+driver app requires an explicit FoxyCo update.
 
 FoxyCo is an information tool. It does not accept, decline, book, cancel or
 alter any offer, and it has no ability to do so.
@@ -38,11 +39,12 @@ FoxyCo is compatible with.
 
 You are responsible for complying with the terms of any platform you drive for.
 FoxyCo is designed to stay on the safe side of those terms — it only reads what
-is already on your screen and never automates, scripts or simulates any action
-inside a driver app — but we cannot and do not guarantee how any platform will
-interpret its own rules. **You use FoxyCo with your platform accounts at your
-own risk.** We are not responsible for any suspension, deactivation or loss of
-access to a platform.
+is already on your screen, optionally recognizes an opt-in, memory-only
+Accessibility screenshot when screen text is incomplete, and never automates, scripts
+or simulates any action inside a driver app — but we cannot and do not guarantee
+how any platform will interpret its own rules. **You use FoxyCo with your
+platform accounts at your own risk.** We are not responsible for any suspension,
+deactivation or loss of access to a platform.
 
 ## 4. Accuracy — read this one
 

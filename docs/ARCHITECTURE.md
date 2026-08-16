@@ -48,8 +48,12 @@ hard rule. (A quick `grep -r "package:flutter" lib/domain` in CI keeps us honest
 ## Data flow (MVP)
 
 ```
-AccessibilityWatcher (Uber/Hopp window event via flutter_accessibility_service)
-   │  receives screen nodes (text + bounds)
+AccessibilityWatcher (watched-app window event + two bounded native re-reads)
+   │  receives screen nodes (text/content description + bounds)
+   │  if active frame is empty/incomplete and OCR is opted in
+   ├──── AccessibilityService.takeScreenshot (Android 11+, bundled ML Kit)
+   │       ├── redacts FoxyCo's overlay rectangle in memory before OCR
+   │       └── recognized lines only; pixels discarded, never persisted
    ▼
 UberParser.parse(nodes) : Offer?                 [parser]
    │  Offer(payout: 10.55, pickupKm: 0.8, dropoffKm: 4.3, platform: uber)
@@ -170,9 +174,9 @@ Riverpod providers are the seams: `decisionEngineProvider`, `thresholdsProvider`
 | Min SDK | 26 (Android 8 — needed for `TYPE_APPLICATION_OVERLAY`, which the overlay plugin uses) |
 | Target SDK | 35 |
 
-Deferred deps (don't add until their milestone): `google_maps_flutter`, `google_mlkit_text_recognition`
-(OCR), `camera`, `fl_chart` (analytics), Firebase. YAGNI — every unused dep is app size + a
-permission to justify on the Play listing.
+Deferred deps (don't add until their milestone): `google_maps_flutter`, `camera`, and
+`fl_chart` (analytics). OCR uses the native bundled ML Kit dependency above; no Dart OCR
+package or camera permission is needed.
 
 > **iOS:** out of scope. Even though Flutter *can* target iOS, Apple blocks system overlays and
 > accessibility automation of other apps — the two things FoxyCo is built on. Android-only, like

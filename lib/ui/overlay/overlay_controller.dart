@@ -19,7 +19,7 @@ import '../shell/root_shell.dart';
 /// DI seam for the overlay plugin wrapper, so widgets/tests depend on the
 /// interface, not the plugin. Overridden in tests with a fake.
 final overlayServiceProvider = Provider<OverlayService>(
-  (ref) => const OverlayService(),
+  (ref) => OverlayService(),
 );
 
 /// Drives the overlay from the main isolate. Two responsibilities:
@@ -111,7 +111,7 @@ class OverlayController extends Notifier<void> {
         // log entry: OfferWatcher records it immediately before showing it.
         final log = ref.read(offerLogProvider);
         if (!_pillUp || log.isEmpty) break;
-        ref.read(tabIndexProvider.notifier).go(1);
+        ref.read(tabIndexProvider.notifier).go(2);
         ref.read(pendingOfferProvider.notifier).set(log.first);
       case OverlayAction.openPaywall:
         // Locked pill tapped: the driver just tried to read a verdict they
@@ -138,6 +138,10 @@ class OverlayController extends Notifier<void> {
     // let that stale result recreate the overlay window.
     if (ref.read(dashboardProvider).status != WatchStatus.watching) return;
     await ref.read(accessProvider.notifier).tick();
+    // Entitlement refresh crosses an async boundary. Watching may have stopped
+    // while it ran; reject that stale show before it reaches the ordered native
+    // command queue, otherwise the window can flash back after hide.
+    if (ref.read(dashboardProvider).status != WatchStatus.watching) return;
     final settings = ref.read(settingsProvider);
     // Patch site 1 of 2 (MONETIZATION §4): the payload carries entitlement, the
     // overlay isolate independently refuses to draw numbers without it. Read
@@ -164,6 +168,7 @@ class OverlayController extends Notifier<void> {
           moneyFont: settings.moneyFont,
           distanceUnit: settings.distanceUnit,
           currency: settings.currency,
+          deliveryCount: offer.deliveryCount,
           entitled: entitled,
         ),
       );

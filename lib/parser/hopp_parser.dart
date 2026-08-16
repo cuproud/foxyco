@@ -31,6 +31,10 @@ class HoppParser implements OfferParser {
 
   // Net-pay marker. Hopp prints "(NET, tax included)" beside the payout.
   static final _net = RegExp(r'\bnet\b|tax\s*included', caseSensitive: false);
+  static final _multiplier = RegExp(
+    r'\b(\d+(?:\.\d+)?)\s*[x×](?:\s*(high\s+demand|rates?))?',
+    caseSensitive: false,
+  );
 
   @override
   Offer? parse(List<String> nodeTexts) {
@@ -49,6 +53,7 @@ class HoppParser implements OfferParser {
     // of rides) → null. First row = pickup, the rest = trip.
     final t = ParserPatterns.foldLegs(legs);
     if (payout == null || t == null) return null;
+    final multiplier = _multiplier.firstMatch(joined);
 
     return Offer(
       platform: GigPlatform.hopp,
@@ -58,6 +63,9 @@ class HoppParser implements OfferParser {
       pickupMinutes: t.pickupMin,
       dropoffMinutes: t.tripMin,
       payIsNet: _net.hasMatch(joined),
+      category: multiplier == null
+          ? null
+          : '${multiplier.group(1)}× ${multiplier.group(2) ?? 'rate'}',
       rawText: joined,
     );
   }

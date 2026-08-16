@@ -12,6 +12,18 @@ class _FixedLog extends OfferLog {
   final List<OfferSummary> _offers;
   @override
   List<OfferSummary> build() => _offers;
+
+  @override
+  bool setOutcome(OfferSummary offer, OfferOutcome outcome) {
+    final index = state.indexOf(offer);
+    if (index < 0) return false;
+    state = [
+      ...state.take(index),
+      offer.withOutcome(outcome, manual: true),
+      ...state.skip(index + 1),
+    ];
+    return true;
+  }
 }
 
 OfferSummary _offer(
@@ -118,6 +130,30 @@ void main() {
     await tester.tap(find.text('Accepted'));
     await tester.pumpAndSettle();
     expect(find.text('3 today'), findsOneWidget);
+  });
+
+  testWidgets('status pill manually corrects a History offer', (tester) async {
+    final offer = _offer(DateTime.now(), outcome: OfferOutcome.unknown);
+    await tester.pumpWidget(_app([offer]));
+    await tester.pumpAndSettle();
+
+    final status = find.byKey(
+      ValueKey('offer_outcome_${offer.seenAt.microsecondsSinceEpoch}'),
+    );
+    await tester.scrollUntilVisible(
+      status,
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(status);
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.widgetWithText(PopupMenuItem<OfferOutcome>, 'Accepted'),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Accepted'), findsOneWidget);
   });
 
   testWidgets('filters use one All and fit a narrow phone', (tester) async {

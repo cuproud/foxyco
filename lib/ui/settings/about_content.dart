@@ -30,13 +30,13 @@ class AboutSection {
 
 /// Shown at the top of the screen, above the sections.
 const aboutIntro =
-    'FoxyCo reads the offer card on your screen, scores it against the numbers '
-    'you set, and shows you a verdict — good, ok, or bad — before you decide. '
-    'That is the whole job. It never touches the offer itself.';
+    'FoxyCo reads offer-related text only in Uber Driver, Lyft Driver and Hopp '
+    'Driver, scores the offer against your settings, and shows a verdict. Raw '
+    'screen text never leaves your phone, and FoxyCo never touches the offer.';
 
 /// Version string. Kept as a plain const rather than adding a native plugin for
 /// one label; `about_content_test.dart` guards it against `pubspec.yaml` drift.
-const aboutVersion = '1.0.9 (build 27)';
+const aboutVersion = '1.0.9 (build 32)';
 
 const aboutSections = <AboutSection>[
   AboutSection(
@@ -44,8 +44,10 @@ const aboutSections = <AboutSection>[
     entries: [
       AboutEntry(
         'What FoxyCo actually does',
-        'While the watcher is live, FoxyCo reads the text of the offer card '
-            'showing in Uber Driver, Hopp or Lyft. It works out the pay per '
+        'While the watcher is live, FoxyCo uses screen text from Uber Driver, '
+            'Lyft Driver or Hopp Driver only to detect and score offers and, '
+            'if enabled, infer whether an offer was taken or passed. It works '
+            'out the pay per '
             'kilometre, mile (or per hour, your choice), compares that to your '
             'thresholds, and paints a floating pill green, amber or red. You '
             'still accept or decline the offer yourself, exactly as before.',
@@ -165,7 +167,8 @@ const aboutSections = <AboutSection>[
   AboutSection(
     title: 'Privacy',
     blurb:
-        'Offer text, history, garage data and settings stay on your phone. '
+        'Raw offer text is processed in memory and never saved or sent. Offer '
+        'history, garage data and settings stay on your phone. '
         'Firebase stores only the identity and timestamp needed for the trial. '
         'There is no Firebase Analytics. The full Privacy Policy and Terms are '
         'linked at the bottom of this screen.',
@@ -181,9 +184,27 @@ const aboutSections = <AboutSection>[
       AboutEntry(
         'Why does it need the accessibility permission?',
         'It is the only way on Android to read what another app is drawing on '
-            'screen. FoxyCo asks for the narrowest version of it: read-only, '
-            'and scoped to the three gig apps, so it is not woken by anything '
-            'else you do on your phone.',
+            'screen. FoxyCo is read-only and restricted to Uber Driver, Lyft '
+            'Driver and Hopp Driver, so it receives nothing from your browser, '
+            'messages, banking apps or other apps. Supporting another driver '
+            'app requires a FoxyCo update that explicitly adds it.',
+      ),
+      AboutEntry(
+        'What is Pixel Capture (OCR)?',
+        'An optional fallback for offer cards Accessibility cannot read. It is '
+            'off by default and Accessibility always runs first. If enabled, '
+            'Android 11 and newer can take one Accessibility screenshot only '
+            'after an active card read is empty or incomplete. There is no '
+            'continuous recording or screen-sharing session. The frame is '
+            'recognized on-device, immediately cleared, and never saved, '
+            'uploaded or written to FoxyCo logs.',
+      ),
+      AboutEntry(
+        'Does offer data leave my phone?',
+        'No. Raw screen text is used briefly in memory and is never saved, '
+            'uploaded or shared. Extracted pay, distance, duration, platform '
+            'and verdict may be saved only in FoxyCo\'s private local history. '
+            'Firebase never receives offer text, offer history or earnings.',
       ),
     ],
   ),

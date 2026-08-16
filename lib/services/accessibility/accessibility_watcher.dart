@@ -17,14 +17,39 @@ final accessibilityWatcherProvider = Provider<AccessibilityWatcher>(
 ///
 /// [texts] is the flattened node text (this node + every descendant), in view
 /// order — exactly what an [OfferParser] expects. [packageName] picks the parser.
+enum CaptureSource { accessibility, ocr }
+
+/// One driver-app accessibility window. Android returns these top-layer first;
+/// keeping them separate prevents a dismissed lower card from being flattened
+/// into the visible browse/trip screen.
+class ScreenWindow {
+  final List<String> texts;
+  final bool isActive;
+  final bool isFocused;
+  final int layer;
+  final int id;
+
+  const ScreenWindow({
+    required this.texts,
+    this.isActive = false,
+    this.isFocused = false,
+    this.layer = 0,
+    this.id = -1,
+  });
+}
+
 class ScreenRead {
   final String packageName;
   final List<String> texts;
   final bool isActive;
+  final CaptureSource source;
+  final List<ScreenWindow> windows;
   const ScreenRead({
     required this.packageName,
     required this.texts,
     this.isActive = false,
+    this.source = CaptureSource.accessibility,
+    this.windows = const [],
   });
 }
 
@@ -74,7 +99,23 @@ class AccessibilityWatcher {
       final event = pending;
       pending = null;
       if (event == null) return;
-      final texts = _flatten(event);
+      final windows = [
+        for (final window in event.windows ?? const <AccessibilityEvent>[])
+          ScreenWindow(
+            texts: _flatten(window),
+            isActive: window.isActive ?? false,
+            isFocused: window.isFocused ?? false,
+            layer: window.windowLayer ?? 0,
+            id: window.windowId ?? -1,
+          ),
+      ].where((window) => window.texts.isNotEmpty).toList();
+      // Native snapshots are top-layer first. The first one is what the driver
+      // can currently see; OfferWatcher may inspect lower windows only to find
+      // a complete offer, without using them as lifecycle/outcome evidence.
+      final texts = windows.isNotEmpty ? windows.first.texts : _flatten(event);
+      final isActive = windows.isNotEmpty
+          ? windows.any((window) => window.isActive)
+          : event.isActive ?? false;
       if (texts.isEmpty) {
         // Do NOT stay silent here. A window frame with ZERO readable text from
         // a watched app is the signature of a canvas/Compose-rendered screen
@@ -86,7 +127,8 @@ class AccessibilityWatcher {
           ScreenRead(
             packageName: event.packageName ?? '',
             texts: const [],
-            isActive: event.isActive ?? false,
+            isActive: isActive,
+            windows: windows,
           ),
         );
         return;
@@ -100,7 +142,8 @@ class AccessibilityWatcher {
         ScreenRead(
           packageName: package,
           texts: texts,
-          isActive: event.isActive ?? false,
+          isActive: isActive,
+          windows: windows,
         ),
       );
     }

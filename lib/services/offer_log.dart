@@ -7,7 +7,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../domain/fox_settings.dart';
 import '../domain/offer_summary.dart';
-import '../domain/platform.dart';
 import '../domain/verdict.dart';
 import 'fox_log.dart';
 import '../ui/home/dashboard_state.dart' show Tally;
@@ -136,7 +135,7 @@ class OfferLog extends Notifier<List<OfferSummary>> {
   /// Append a freshly scored offer (newest first) and persist. Retention is
   /// enforced here too — cheap, and it means old entries age out as new ones
   /// arrive without a startup purge racing the async settings load.
-  void record(OfferSummary offer, {bool confirmedNewCard = false}) {
+  OfferSummary record(OfferSummary offer, {bool confirmedNewCard = false}) {
     // Same card, twice. OfferWatcher clears `_shownKey` whenever a frame stops
     // looking like the card (a partial read, a half-rendered tree), so a card
     // that flickers and comes back parses as brand new and lands here a second
@@ -147,12 +146,13 @@ class OfferLog extends Notifier<List<OfferSummary>> {
     // Guarding here rather than in the watcher on purpose: re-showing the PILL
     // for a card that came back is correct, and this is the one sink every
     // caller of the log routes through.
-    final last = state.firstOrNull;
-    if (!confirmedNewCard &&
-        last != null &&
-        last.sameCardAs(offer) &&
-        offer.seenAt.difference(last.seenAt).abs() < dedupeWindow) {
-      return;
+    if (!confirmedNewCard) {
+      for (final seen in state) {
+        if (seen.sameCardAs(offer) &&
+            offer.seenAt.difference(seen.seenAt).abs() < dedupeWindow) {
+          return seen;
+        }
+      }
     }
     var next = [offer, ...state.take(maxEntries - 1)];
     final days = ref.read(settingsProvider).retentionDays;
@@ -165,26 +165,46 @@ class OfferLog extends Notifier<List<OfferSummary>> {
     // follow-up outcome stamp is debounced. If hydration is still running,
     // [_save] waits for it and persists the merged list.
     unawaited(_save());
+    return offer;
   }
 
-  /// Stamp an outcome onto the newest unresolved offer from the app that
-  /// emitted the follow-up screen. Other gig apps may log a newer offer while
-  /// this driver is accepting one, so global "latest" is not a safe identity.
-  void markLatestPlatformOutcome(GigPlatform platform, OfferOutcome outcome) {
+  /// Stamp the exact offer that produced the follow-up screen. Repeated
+  /// accessibility frames therefore update one row instead of walking backward
+  /// through every unresolved offer from the same app.
+  bool markOutcome(
+    OfferSummary candidate,
+    OfferOutcome outcome, {
+    bool includeQueued = false,
+    bool manual = false,
+  }) {
     final index = state.indexWhere(
       (offer) =>
-          offer.platform == platform &&
-          offer.outcome == OfferOutcome.unknown &&
-          DateTime.now().difference(offer.seenAt).abs() < dedupeWindow,
+          offer.seenAt == candidate.seenAt &&
+          offer.sameCardAs(candidate) &&
+          (manual || !offer.outcomeIsManual) &&
+          !(outcome == OfferOutcome.taken &&
+              offer.isQueued &&
+              !includeQueued) &&
+          (manual ||
+              offer.outcome == OfferOutcome.unknown ||
+              outcome == OfferOutcome.taken &&
+                  offer.outcome == OfferOutcome.missed) &&
+          (manual ||
+              DateTime.now().difference(offer.seenAt).abs() < dedupeWindow),
     );
-    if (index < 0) return;
+    if (index < 0) return false;
     state = [
       ...state.take(index),
-      state[index].withOutcome(outcome),
+      state[index].withOutcome(outcome, manual: manual),
       ...state.skip(index + 1),
     ];
     _saveSoon();
+    return true;
   }
+
+  /// Driver corrections are ground truth and automation must not overwrite them.
+  bool setOutcome(OfferSummary offer, OfferOutcome outcome) =>
+      markOutcome(offer, outcome, includeQueued: true, manual: true);
 
   /// Drop entries older than [days] (retention purge). Returns removed count.
   int purgeOlderThan(int days) {

@@ -21,6 +21,7 @@ class OverlayPayload {
   final PillSize size;
   final DistanceUnit distanceUnit;
   final AppCurrency currency;
+  final int deliveryCount;
 
   /// Dead mileage to the rider; 0 when the parser couldn't split it out.
   final double pickupKm;
@@ -58,6 +59,7 @@ class OverlayPayload {
     this.size = PillSize.medium,
     this.distanceUnit = DistanceUnit.kilometres,
     this.currency = AppCurrency.cad,
+    this.deliveryCount = 0,
     this.pickupKm = 0,
     this.pickupNearKm = 0,
     this.hourGoodAt = 0,
@@ -103,6 +105,7 @@ class OverlayPayload {
     'size': size.name,
     'distanceUnit': distanceUnit.name,
     'currency': currency.name,
+    'deliveryCount': deliveryCount,
     'pickupKm': pickupKm,
     'pickupNearKm': pickupNearKm,
     'hourGoodAt': hourGoodAt,
@@ -128,6 +131,7 @@ class OverlayPayload {
     ),
     distanceUnit: DistanceUnit.fromName(map['distanceUnit'] as String?),
     currency: AppCurrency.fromName(map['currency'] as String?),
+    deliveryCount: (map['deliveryCount'] as num?)?.toInt() ?? 0,
     pickupKm: (map['pickupKm'] as num?)?.toDouble() ?? 0,
     pickupNearKm: (map['pickupNearKm'] as num?)?.toDouble() ?? 0,
     hourGoodAt: (map['hourGoodAt'] as num?)?.toDouble() ?? 0,

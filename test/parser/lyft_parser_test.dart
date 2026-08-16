@@ -54,6 +54,21 @@ void main() {
     expect(offer.bonus, 4.87);
   });
 
+  test('parses OCR lines when the tiny separator is omitted', () {
+    final offer = parser.parse([
+      '\$3.96 Incl. CA\$1 bonus',
+      '\$29.70/hr est. rate for this ride',
+      '3 mins 0.4 km',
+      '5 mins 1.5 km',
+      'Accept',
+    ])!;
+
+    expect(offer.payout, 3.96);
+    expect(offer.bonus, 1);
+    expect(offer.totalKm, 1.9);
+    expect(offer.totalMinutes, 8);
+  });
+
   test('keeps the total when total and bonus share one accessibility node', () {
     final offer = parser.parse([
       'Total \$15.00 + \$3.00 bonus included',

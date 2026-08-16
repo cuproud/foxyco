@@ -15,7 +15,16 @@ import '../domain/overlay_payload.dart';
 /// window, pushes messages across with `shareData`, and surfaces the bubble's
 /// gestures back as an [actionStream].
 class OverlayService {
-  const OverlayService();
+  Future<void> _commands = Future<void>.value();
+
+  /// Native window starts, payloads, resizes and clears must keep invocation
+  /// order. Previously only dashboard status changes were serialized, so a
+  /// slow first show could land after a clear and resurrect the pill/window.
+  Future<T> _enqueue<T>(Future<T> Function() command) {
+    final result = _commands.then((_) => command());
+    _commands = result.then<void>((_) {}).catchError((_) {});
+    return result;
+  }
 
   /// Is "Display over other apps" granted?
   Future<bool> isPermissionGranted() =>
@@ -65,7 +74,10 @@ class OverlayService {
   /// (`centerRight`) — safely on-screen, clear of the status bar / camera cutout
   /// that made a top-anchored window clip off the top. `enableDrag` +
   /// `positionGravity.auto` let the user fling it to either edge.
-  Future<void> startWatching({bool paused = false}) async {
+  Future<void> startWatching({bool paused = false}) =>
+      _enqueue(() => _startWatching(paused: paused));
+
+  Future<void> _startWatching({bool paused = false}) async {
     final wasActive = await FlutterOverlayWindow.isActive();
     if (!wasActive) {
       await FlutterOverlayWindow.showOverlay(
@@ -83,55 +95,49 @@ class OverlayService {
       // fresh window is bubble-sized, so a stale `_payload` from before the
       // teardown renders as pill text clipped into the 72 dp box (device
       // 2026-07-18: offline demo → go live → garbled bubble). Reset it the
-      // moment the window is (re)created. Skipped when already active so a
-      // live pill is never wiped mid-offer.
-      await clearPill();
+      // moment the window is (re)created. Wait for the overlay isolate's first
+      // frame so this one reset is ordered before every later offer.
+      await Future<void>.delayed(const Duration(milliseconds: 250));
+      await FlutterOverlayWindow.shareData(OverlayControl.clearPill());
     }
-    await setPaused(paused);
+    await FlutterOverlayWindow.shareData(OverlayControl.paused(paused));
   }
 
   /// Show an offer: ensure the window is up, then push the pill payload into the
   /// overlay isolate. `shareData` reaches the overlay's `overlayListener`.
   ///
   /// The overlay runs in a fresh isolate whose listener only attaches after its
-  /// first frame — a `shareData` sent the instant `showOverlay` returns can land
-  /// before anyone is listening and get dropped (bubble still shows; pill never
-  /// does). [startWatching] already spends 250 ms sending its two reset controls,
-  /// so the listener has normally attached by the time it returns. Send the
-  /// offer immediately, then repeat it once only for a newly-created window.
+  /// first frame. [startWatching] waits for that listener when it creates a
+  /// window, so one ordered payload is enough.
   Future<void> showOffer(OverlayPayload payload) async {
-    final wasActive = await FlutterOverlayWindow.isActive();
-    await startWatching();
-    await FlutterOverlayWindow.shareData(payload.toMap());
-    if (!wasActive) {
-      await Future<void>.delayed(const Duration(milliseconds: 120));
+    await _enqueue(() async {
+      await _startWatching();
       await FlutterOverlayWindow.shareData(payload.toMap());
-    }
+    });
   }
 
   /// Update an already-active overlay to a new offer without re-showing.
   Future<void> update(OverlayPayload payload) =>
-      FlutterOverlayWindow.shareData(payload.toMap());
+      _enqueue(() => FlutterOverlayWindow.shareData(payload.toMap()));
 
   /// Tell the overlay whether we're watching or paused (dims the bubble).
-  Future<void> setPaused(bool paused) =>
-      FlutterOverlayWindow.shareData(OverlayControl.paused(paused));
+  Future<void> setPaused(bool paused) => _enqueue(
+    () => FlutterOverlayWindow.shareData(OverlayControl.paused(paused)),
+  );
 
-  /// Drop the current pill without tearing the overlay down. Sent twice, like
-  /// [showOffer]'s belt-and-braces: a single `shareData` can be dropped while
-  /// the overlay isolate is waking from idle (plugin characteristic, worse in
-  /// debug), which left a stale pill hanging until the safety timer.
-  Future<void> clearPill() async {
-    await FlutterOverlayWindow.shareData(OverlayControl.clearPill());
-    await Future<void>.delayed(const Duration(milliseconds: 250));
-    await FlutterOverlayWindow.shareData(OverlayControl.clearPill());
-  }
+  /// Drop the current pill without tearing the overlay down. One ordered clear
+  /// only: a delayed duplicate can arrive after the next offer and erase it.
+  Future<void> clearPill() => _enqueue(
+    () => FlutterOverlayWindow.shareData(OverlayControl.clearPill()),
+  );
 
   /// Tear the overlay window down entirely (stop watching). The isolate (and
   /// its widget state) outlives the window, so drop any shown pill first —
   /// second line of defense alongside [startWatching]'s reset for the same
   /// stale-pill-in-bubble-window bug.
-  Future<void> hide() async {
+  Future<void> hide() => _enqueue(_hide);
+
+  Future<void> _hide() async {
     // The vendored plugin historically never completed closeOverlay's method
     // result when no service was running. Besides being unnecessary, calling it
     // in that state could permanently block the serialized lifecycle queue at

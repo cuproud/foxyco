@@ -9,8 +9,13 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.res.Configuration;
 import android.content.res.Resources;
+import android.graphics.Bitmap;
+import android.graphics.Canvas;
 import android.graphics.Color;
+import android.graphics.Paint;
 import android.graphics.PixelFormat;
+import android.graphics.PorterDuff;
+import android.graphics.PorterDuffXfermode;
 import android.graphics.drawable.GradientDrawable;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -39,8 +44,8 @@ import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
 
-import io.flutter.embedding.android.FlutterTextureView;
 import io.flutter.embedding.android.FlutterView;
+import io.flutter.embedding.android.TransparencyMode;
 import io.flutter.FlutterInjector;
 import io.flutter.embedding.engine.FlutterEngine;
 import io.flutter.embedding.engine.FlutterEngineCache;
@@ -61,8 +66,30 @@ public class OverlayService extends Service implements View.OnTouchListener {
     public static final String INTENT_EXTRA_IS_CLOSE_WINDOW = "IsCloseWindow";
 
     private static OverlayService instance;
+    private static long nextGeneration = 0;
+    private long generation;
     public static boolean isRunning = false;
     private WindowManager windowManager = null;
+
+    /** Clear FoxyCo's visible window from an in-memory OCR screenshot. */
+    public static void redactCapture(Bitmap bitmap) {
+        OverlayService current = instance;
+        if (bitmap == null || bitmap.isRecycled() || current == null
+                || current.flutterView == null || !current.flutterView.isShown()) return;
+        int[] location = new int[2];
+        current.flutterView.getLocationOnScreen(location);
+        int left = Math.max(0, location[0] - 2);
+        int top = Math.max(0, location[1] - 2);
+        int right = Math.min(bitmap.getWidth(),
+                location[0] + current.flutterView.getWidth() + 2);
+        int bottom = Math.min(bitmap.getHeight(),
+                location[1] + current.flutterView.getHeight() + 2);
+        if (left >= right || top >= bottom) return;
+        Paint clear = new Paint();
+        clear.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.CLEAR));
+        new Canvas(bitmap).drawRect(left, top, right, bottom, clear);
+        clear.setXfermode(null);
+    }
     /** FoxyCo patch: true when the window is attached through the accessibility
      *  service's WindowManager as TYPE_ACCESSIBILITY_OVERLAY (immune to Uber's
      *  FLAG_HIDE_NON_SYSTEM_OVERLAY_WINDOWS on Accept cards). */
@@ -80,9 +107,6 @@ public class OverlayService extends Service implements View.OnTouchListener {
         }
     }
     private FlutterView flutterView;
-    /// FoxyCo: kept so the transparency flags can be re-asserted after a resize
-    /// (see keepSurfaceTransparent).
-    private FlutterTextureView overlayTextureView;
     private MethodChannel flutterChannel;
     private BasicMessageChannel<Object> overlayMessageChannel;
     private int clickableFlag = WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE | WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE |
@@ -106,7 +130,9 @@ public class OverlayService extends Service implements View.OnTouchListener {
     @RequiresApi(api = Build.VERSION_CODES.M)
     @Override
     public void onDestroy() {
-        Log.d("OverLay", "Destroying the overlay window service");
+        traceWindow("destroy", flutterView == null
+                ? null
+                : (WindowManager.LayoutParams) flutterView.getLayoutParams());
         // FoxyCo patch: stop listening for lock/unlock or the receiver leaks
         // past the service (logged as a ReceiverLeakedViolation on teardown).
         unregisterScreenStateReceiver();
@@ -131,6 +157,9 @@ public class OverlayService extends Service implements View.OnTouchListener {
     private void removeFlutterView() {
         WindowManager manager = windowManager;
         FlutterView view = flutterView;
+        if (view != null) {
+            traceWindow("remove", (WindowManager.LayoutParams) view.getLayoutParams());
+        }
         windowManager = null;
         flutterView = null;
         if (manager != null && view != null) {
@@ -188,6 +217,7 @@ public class OverlayService extends Service implements View.OnTouchListener {
             // A second start command reconfigures the existing service. Calling
             // stopSelf() here and then adding a new view made onDestroy race the
             // new window, a plausible intermittent Samsung crash source.
+            traceWindow("replace", (WindowManager.LayoutParams) flutterView.getLayoutParams());
             removeFlutterView();
         }
         isRunning = true;
@@ -200,19 +230,29 @@ public class OverlayService extends Service implements View.OnTouchListener {
             return START_NOT_STICKY;
         }
         engine.getLifecycleChannel().appIsResumed();
-        // FoxyCo patch: TextureView defaults to OPAQUE — the window's transparent
-        // area then composites as a dark box/gradient behind the bubble and pill
-        // (bug screenshots 2026-07-17). setOpaque(false) makes the surface truly
-        // translucent so only our widgets paint.
-        FlutterTextureView textureView = new FlutterTextureView(getApplicationContext());
-        textureView.setOpaque(false);
-        overlayTextureView = textureView;
-        flutterView = new FlutterView(getApplicationContext(), textureView);
+        // FoxyCo: use Flutter's supported transparent SurfaceView. The previous
+        // TextureView repeatedly lost its translucent SurfaceTexture after
+        // resize/app-window transitions on Samsung, exposing the grey overlay
+        // window behind the bubble. SurfaceView owns its transparent holder for
+        // its full lifecycle instead of relying on setOpaque(false) retries.
+        flutterView = new FlutterView(
+                getApplicationContext(), TransparencyMode.transparent);
         flutterView.attachToFlutterEngine(FlutterEngineCache.getInstance().get(OverlayConstants.CACHED_TAG));
         flutterView.setFitsSystemWindows(true);
         flutterView.setFocusable(true);
         flutterView.setFocusableInTouchMode(true);
         flutterView.setBackgroundColor(Color.TRANSPARENT);
+        flutterView.addOnAttachStateChangeListener(new View.OnAttachStateChangeListener() {
+            @Override
+            public void onViewAttachedToWindow(View view) {
+                traceWindow("surface-attached", (WindowManager.LayoutParams) view.getLayoutParams());
+            }
+
+            @Override
+            public void onViewDetachedFromWindow(View view) {
+                traceWindow("surface-detached", (WindowManager.LayoutParams) view.getLayoutParams());
+            }
+        });
         flutterChannel.setMethodCallHandler((call, result) -> {
             if (call.method.equals("updateFlag")) {
                 String flag = call.argument("flag").toString();
@@ -292,6 +332,7 @@ public class OverlayService extends Service implements View.OnTouchListener {
         params.gravity = WindowSetup.gravity;
         flutterView.setOnTouchListener(this);
         windowManager.addView(flutterView, params);
+        traceWindow("add", params);
         // FoxyCo patch: the overlay must not appear on the lock screen.
         registerScreenStateReceiver();
         moveOverlay(dx, dy, null);
@@ -360,18 +401,6 @@ public class OverlayService extends Service implements View.OnTouchListener {
         }
     }
 
-    /// FoxyCo patch (device 2026-07-26): re-assert the transparent-surface flags.
-    ///
-    /// The setOpaque(false) in onStartCommand runs ONCE, at service start.
-    /// updateViewLayout re-creates the TextureView's SurfaceTexture at the new
-    /// size, and the window came back compositing as an opaque grey box behind
-    /// the bubble and pill — the exact symptom the 2026-07-17 patch fixed, back
-    /// again because that call only covered creation. It reproduced after a
-    /// pill -> bubble cycle and cleared on a service restart, which is precisely
-    /// "a resize broke it, a fresh view fixed it".
-    ///
-    /// Idempotent and cheap, so it just runs on every layout change rather than
-    /// trying to detect the bad state.
     /// FoxyCo patch (device 2026-08-06): hide the overlay while the screen is
     /// off or the keyguard is up.
     ///
@@ -420,7 +449,6 @@ public class OverlayService extends Service implements View.OnTouchListener {
                 // GONE, not INVISIBLE: an INVISIBLE overlay still occupies its
                 // window and keeps eating touches over the lock screen.
                 flutterView.setVisibility(hidden ? View.GONE : View.VISIBLE);
-                if (!hidden) keepSurfaceTransparentAfterLayout();
             }
         });
     }
@@ -451,7 +479,6 @@ public class OverlayService extends Service implements View.OnTouchListener {
 
     private void keepSurfaceTransparent(WindowManager.LayoutParams params) {
         if (params != null) params.format = PixelFormat.TRANSLUCENT;
-        if (overlayTextureView != null) overlayTextureView.setOpaque(false);
         if (flutterView != null) flutterView.setBackgroundColor(Color.TRANSPARENT);
     }
 
@@ -474,25 +501,6 @@ public class OverlayService extends Service implements View.OnTouchListener {
         if (windowManager == null || flutterView == null) return;
         keepSurfaceTransparent(params);
         windowManager.updateViewLayout(flutterView, params);
-        keepSurfaceTransparentAfterLayout();
-    }
-
-    /// Samsung can replace the TextureView's SurfaceTexture asynchronously
-    /// *after* updateViewLayout returns. Re-applying transparency only before
-    /// the resize therefore still leaves an intermittent grey window-sized box
-    /// around the bubble. Re-assert it on the next frame and once more after
-    /// the compositor has settled; both calls are idempotent.
-    private void keepSurfaceTransparentAfterLayout() {
-        if (flutterView == null) return;
-        Runnable restore = () -> {
-            if (overlayTextureView != null) overlayTextureView.setOpaque(false);
-            if (flutterView != null) {
-                flutterView.setBackgroundColor(Color.TRANSPARENT);
-                flutterView.invalidate();
-            }
-        };
-        flutterView.post(restore);
-        flutterView.postDelayed(restore, 120);
     }
 
     private void resizeOverlay(int width, int height, boolean enableDrag, boolean centerX, MethodChannel.Result result) {
@@ -514,6 +522,7 @@ public class OverlayService extends Service implements View.OnTouchListener {
             }
             WindowSetup.enableDrag = enableDrag;
             applyLayout(params);
+            traceWindow("resize", params);
             result.success(true);
         } else {
             result.success(false);
@@ -569,6 +578,8 @@ public class OverlayService extends Service implements View.OnTouchListener {
 
     @Override
     public void onCreate() {
+        generation = ++nextGeneration;
+        traceWindow("create", null);
         // Get the cached FlutterEngine
         FlutterEngine flutterEngine = FlutterEngineCache.getInstance().get(OverlayConstants.CACHED_TAG);
 
@@ -613,6 +624,19 @@ public class OverlayService extends Service implements View.OnTouchListener {
                 .build();
         startForeground(OverlayConstants.NOTIFICATION_ID, notification);
         instance = this;
+    }
+
+    /** Privacy-safe lifecycle evidence for device logcat. No offer text, rider
+     * names, addresses or payload values are recorded. */
+    private void traceWindow(String event, WindowManager.LayoutParams params) {
+        String details = params == null
+                ? ""
+                : " type=" + params.type
+                + " format=" + params.format
+                + " flags=0x" + Integer.toHexString(params.flags)
+                + " alpha=" + params.alpha
+                + " size=" + params.width + "x" + params.height;
+        Log.i("FOXYCO_OVERLAY", "g=" + generation + " event=" + event + details);
     }
 
     private void createNotificationChannel() {

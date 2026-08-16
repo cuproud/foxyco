@@ -202,7 +202,7 @@ Device verification: MANUAL_TESTS.md rows M10.1–M10.30.
 
 Profit engine (fuel/wear/tax) · ~~auto-accept/decline~~ (**NEVER — product rule 2026-07-16:
 FoxyCo is strictly manual/read-only; it never acts inside another app. ToS risk, see AUDIT**) ·
-voice announce ·
+~~voice announce~~ (GOOD-only system voice shipped 2026-08-15) ·
 mileage GPS tracking · expense manager + OCR · analytics/heatmaps · AI insights · goals ·
 cloud backup · more platforms (Lyft, Skip, Instacart, Flex, Spark). Full list in the
 original `project.txt`. Each is a new layer hanging off the same clean core.

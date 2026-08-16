@@ -6,14 +6,19 @@ import 'package:foxyco/domain/offer_summary.dart';
 import 'package:foxyco/domain/overlay_action.dart';
 import 'package:foxyco/domain/overlay_payload.dart';
 import 'package:foxyco/domain/platform.dart';
+import 'package:foxyco/domain/verdict.dart';
 import 'package:foxyco/parser/parser_registry.dart';
 import 'package:foxyco/services/accessibility/accessibility_watcher.dart';
 import 'package:foxyco/services/accessibility/offer_watcher.dart';
 import 'package:foxyco/services/offer_log.dart';
+import 'package:foxyco/services/ocr/ocr_capture.dart';
 import 'package:foxyco/services/overlay_service.dart';
+import 'package:foxyco/services/verdict_voice.dart';
 import 'package:foxyco/ui/home/dashboard_controller.dart';
 import 'package:foxyco/ui/home/dashboard_state.dart';
 import 'package:foxyco/ui/overlay/overlay_controller.dart';
+import 'package:foxyco/ui/settings/settings_controller.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// Feeds a scripted stream of screen reads instead of the real plugin.
 class _FakeWatcher extends AccessibilityWatcher {
@@ -21,6 +26,29 @@ class _FakeWatcher extends AccessibilityWatcher {
   void emit(ScreenRead r) => _controller.add(r);
   @override
   Stream<ScreenRead> reads() => _controller.stream;
+}
+
+class _FakeOcrCapture extends OcrCapture {
+  var captures = 0;
+  List<String> lines = const [];
+
+  @override
+  Future<List<String>> capture() async {
+    captures++;
+    return lines;
+  }
+
+  @override
+  Future<void> stop() async {}
+}
+
+class _FakeVerdictVoice extends VerdictVoice {
+  final spoken = <(Verdict, int)>[];
+
+  @override
+  Future<void> speak(Verdict verdict, int cooldownSeconds) async {
+    spoken.add((verdict, cooldownSeconds));
+  }
 }
 
 /// Records what the overlay was asked to show; no platform channels.
@@ -64,6 +92,12 @@ const _hoppNodes = ScreenRead(
 const _hoppHome = ScreenRead(
   packageName: ParserRegistry.hoppPackage,
   texts: ['Home', 'Go online', 'Current shift'],
+  isActive: true,
+);
+
+const _hoppBackgroundHome = ScreenRead(
+  packageName: ParserRegistry.hoppPackage,
+  texts: ['Home', 'Go online', 'Current shift'],
 );
 
 /// A frame WHILE the offer card is still up but the full parse fails — the
@@ -105,14 +139,20 @@ class _GrantedDashboardController extends DashboardController {
 }
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   late _FakeWatcher watcher;
   late _FakeOverlayService overlay;
+  late _FakeOcrCapture ocr;
+  late _FakeVerdictVoice voice;
 
   ProviderContainer container() {
     final c = ProviderContainer(
       overrides: [
         accessibilityWatcherProvider.overrideWithValue(watcher),
         overlayServiceProvider.overrideWithValue(overlay),
+        ocrCaptureProvider.overrideWithValue(ocr),
+        verdictVoiceProvider.overrideWithValue(voice),
         dashboardProvider.overrideWith(_GrantedDashboardController.new),
       ],
     );
@@ -123,8 +163,11 @@ void main() {
   }
 
   setUp(() {
+    SharedPreferences.setMockInitialValues({});
     watcher = _FakeWatcher();
     overlay = _FakeOverlayService();
+    ocr = _FakeOcrCapture();
+    voice = _FakeVerdictVoice();
     // Shrink the "offer left screen" grace + min-visible floor so tests don't
     // wait real seconds.
     OfferWatcher.clearGrace = const Duration(milliseconds: 20);
@@ -151,6 +194,201 @@ void main() {
     expect(pill.verdict.name, 'bad');
   });
 
+  test('voice announces each new GOOD offer only when enabled', () async {
+    final c = container();
+    c.read(settingsProvider.notifier).setAnnounceGoodOffers(true);
+    c.read(offerWatcherProvider);
+    c.read(overlayControllerProvider);
+
+    const good = ScreenRead(
+      packageName: ParserRegistry.hoppPackage,
+      texts: [
+        r'$20.00',
+        '(NET, tax included)',
+        '11 min · 5.2 km',
+        '11 min · 7.7 km',
+        'Match',
+      ],
+    );
+    watcher.emit(good);
+    await Future<void>.delayed(Duration.zero);
+    watcher.emit(good);
+    await Future<void>.delayed(Duration.zero);
+    watcher.emit(_hoppNodes); // BAD is never spoken.
+    await Future<void>.delayed(Duration.zero);
+
+    expect(voice.spoken, [(Verdict.good, 15)]);
+  });
+
+  test('accessibility success remains primary and never invokes OCR', () async {
+    final c = container();
+    c.read(settingsProvider.notifier).setOcrEnabled(true);
+    c.read(offerWatcherProvider);
+    c.read(overlayControllerProvider);
+
+    watcher.emit(_hoppNodes);
+    await Future<void>.delayed(Duration.zero);
+
+    expect(overlay.shown, hasLength(1));
+    expect(ocr.captures, 0);
+  });
+
+  test(
+    'debug test mode bypasses Accessibility text for active frames',
+    () async {
+      final c = container();
+      final settings = c.read(settingsProvider.notifier);
+      settings.setOcrEnabled(true);
+      settings.setOcrTestMode(true);
+      ocr.lines = _hoppNodes.texts;
+      c.read(offerWatcherProvider);
+      c.read(overlayControllerProvider);
+
+      watcher.emit(_hoppNodes); // background frames cannot trigger capture
+      await Future<void>.delayed(Duration.zero);
+      expect(ocr.captures, 0);
+      expect(overlay.shown, isEmpty);
+
+      watcher.emit(
+        ScreenRead(
+          packageName: _hoppNodes.packageName,
+          texts: _hoppNodes.texts,
+          isActive: true,
+        ),
+      );
+      await Future<void>.delayed(Duration.zero);
+      await Future<void>.delayed(Duration.zero);
+
+      expect(ocr.captures, 1);
+      expect(overlay.shown, hasLength(1));
+      expect(c.read(offerLogProvider), hasLength(1));
+    },
+  );
+
+  test('active textless accessibility frame falls back to OCR once', () async {
+    final c = container();
+    c.read(settingsProvider.notifier).setOcrEnabled(true);
+    ocr.lines = _hoppNodes.texts;
+    c.read(offerWatcherProvider);
+    c.read(overlayControllerProvider);
+
+    watcher.emit(
+      const ScreenRead(
+        packageName: ParserRegistry.hoppPackage,
+        texts: [],
+        isActive: true,
+      ),
+    );
+    watcher.emit(
+      const ScreenRead(
+        packageName: ParserRegistry.hoppPackage,
+        texts: [],
+        isActive: true,
+      ),
+    );
+    await Future<void>.delayed(Duration.zero);
+    await Future<void>.delayed(Duration.zero);
+    watcher.emit(
+      const ScreenRead(
+        packageName: ParserRegistry.hoppPackage,
+        texts: [],
+        isActive: true,
+      ),
+    );
+    await Future<void>.delayed(Duration.zero);
+
+    expect(ocr.captures, 1);
+    expect(overlay.shown, hasLength(1));
+    expect(c.read(offerLogProvider), hasLength(1));
+  });
+
+  test('OCR result stays bound to the active triggering platform', () async {
+    final c = container();
+    c.read(settingsProvider.notifier).setOcrEnabled(true);
+    ocr.lines = const [
+      '\$4.40 (NET, tax included)',
+      '8 min 3.1 km',
+      '6 min 2.7 km',
+      'Match',
+      // The old global parser loop still chose Uber because its labelled trip
+      // shape was present, even though Hopp triggered the screenshot.
+      '\$99.00',
+      '10 mins (5.0 km) trip',
+      'Accept',
+    ];
+    c.read(offerWatcherProvider);
+    c.read(overlayControllerProvider);
+
+    watcher.emit(
+      const ScreenRead(
+        packageName: ParserRegistry.hoppPackage,
+        texts: [],
+        isActive: true,
+      ),
+    );
+    await Future<void>.delayed(Duration.zero);
+    await Future<void>.delayed(Duration.zero);
+
+    expect(c.read(offerLogProvider).single.platform, GigPlatform.hopp);
+    expect(c.read(offerLogProvider).single.payout, 4.40);
+  });
+
+  test(
+    'active incomplete card falls back but background frames do not',
+    () async {
+      final c = container();
+      c.read(settingsProvider.notifier).setOcrEnabled(true);
+      ocr.lines = _hoppNodes.texts;
+      c.read(offerWatcherProvider);
+      c.read(overlayControllerProvider);
+
+      const incomplete = [r'$8.00', 'Accept'];
+      watcher.emit(
+        const ScreenRead(
+          packageName: ParserRegistry.hoppPackage,
+          texts: incomplete,
+        ),
+      );
+      await Future<void>.delayed(Duration.zero);
+      expect(ocr.captures, 0);
+
+      watcher.emit(
+        const ScreenRead(
+          packageName: ParserRegistry.hoppPackage,
+          texts: incomplete,
+          isActive: true,
+        ),
+      );
+      await Future<void>.delayed(Duration.zero);
+      await Future<void>.delayed(Duration.zero);
+
+      expect(ocr.captures, 1);
+      expect(overlay.shown, hasLength(1));
+    },
+  );
+
+  test('OCR results are discarded after the driver disables OCR', () async {
+    final c = container();
+    final settings = c.read(settingsProvider.notifier);
+    settings.setOcrEnabled(true);
+    c.read(offerWatcherProvider);
+    c.read(overlayControllerProvider);
+    settings.setOcrEnabled(false);
+
+    watcher.emit(
+      ScreenRead(
+        packageName: '',
+        texts: _hoppNodes.texts,
+        isActive: true,
+        source: CaptureSource.ocr,
+      ),
+    );
+    await Future<void>.delayed(Duration.zero);
+
+    expect(overlay.shown, isEmpty);
+    expect(c.read(offerLogProvider), isEmpty);
+  });
+
   test(
     'same offer re-firing shows the pill only once (flicker guard)',
     () async {
@@ -173,6 +411,7 @@ void main() {
         const ScreenRead(
           packageName: ParserRegistry.hoppPackage,
           texts: ['Home', 'Go online'],
+          isActive: true,
         ),
       );
       await pastGrace();
@@ -185,6 +424,40 @@ void main() {
         hasLength(2),
         reason: 'a confirmed card exit makes identical values a new offer',
       );
+    },
+  );
+
+  test(
+    'late Lyft labels do not create a second verdict or history row',
+    () async {
+      final c = container();
+      c.read(offerWatcherProvider);
+      c.read(overlayControllerProvider);
+
+      const base = ScreenRead(
+        packageName: ParserRegistry.lyftPackage,
+        texts: [r'$12.40', '4 min · 1.2 km', '18 min · 8.6 km', 'Accept'],
+        isActive: true,
+      );
+      const enriched = ScreenRead(
+        packageName: ParserRegistry.lyftPackage,
+        texts: [
+          r'$12.40',
+          r'Incl. CA$2 bonus',
+          '4 min · 1.2 km',
+          '18 min · 8.6 km',
+          'Add to queue',
+        ],
+        isActive: true,
+      );
+
+      watcher.emit(base);
+      await Future<void>.delayed(Duration.zero);
+      watcher.emit(enriched);
+      await Future<void>.delayed(Duration.zero);
+
+      expect(overlay.shown, hasLength(1));
+      expect(c.read(offerLogProvider), hasLength(1));
     },
   );
 
@@ -239,6 +512,42 @@ void main() {
     expect(overlay.shown, hasLength(1)); // and never re-shown
   });
 
+  test('Lyft browse chrome cannot clear a still-active offer card', () async {
+    final c = container();
+    c.read(offerWatcherProvider);
+    c.read(overlayControllerProvider);
+
+    watcher.emit(
+      const ScreenRead(
+        packageName: ParserRegistry.lyftPackage,
+        texts: [
+          'Ride Finder',
+          r'$12.40',
+          '4 min · 1.2 km',
+          '18 min · 8.6 km',
+          'Accept',
+        ],
+        isActive: true,
+      ),
+    );
+    await Future<void>.delayed(Duration.zero);
+
+    // During animation Lyft may expose only its background chrome plus the
+    // card action. The card is still present, so this must cancel any clear.
+    watcher.emit(
+      const ScreenRead(
+        packageName: ParserRegistry.lyftPackage,
+        texts: ['Ride Finder', 'Earnings Goal', 'Accept'],
+        isActive: true,
+      ),
+    );
+    await pastGrace();
+
+    expect(overlay.clears, 0);
+    expect(overlay.shown, hasLength(1));
+    expect(c.read(offerLogProvider), hasLength(1));
+  });
+
   test('clears promptly once the offer card (payout) is gone', () async {
     final c = container();
     c.read(offerWatcherProvider);
@@ -254,6 +563,58 @@ void main() {
     watcher.emit(_hoppHome);
     await pastGrace();
     expect(overlay.clears, 1);
+  });
+
+  test('a confirmed card exit is not held by minimum visibility', () async {
+    final previous = OfferWatcher.minVisible;
+    OfferWatcher.minVisible = const Duration(milliseconds: 80);
+    addTearDown(() => OfferWatcher.minVisible = previous);
+    final c = container();
+    c.read(offerWatcherProvider);
+    c.read(overlayControllerProvider);
+
+    watcher.emit(_hoppNodes);
+    await Future<void>.delayed(Duration.zero);
+    watcher.emit(_hoppHome);
+    await pastGrace();
+    expect(overlay.clears, 1);
+  });
+
+  test('visible browse window wins over a stale lower offer window', () async {
+    final c = container();
+    c.read(offerWatcherProvider);
+    c.read(overlayControllerProvider);
+
+    watcher.emit(_hoppNodes);
+    await Future<void>.delayed(Duration.zero);
+    watcher.emit(
+      const ScreenRead(
+        packageName: ParserRegistry.hoppPackage,
+        texts: ['Home', 'Go online', 'Current shift'],
+        isActive: true,
+        windows: [
+          ScreenWindow(
+            texts: ['Home', 'Go online', 'Current shift'],
+            isActive: true,
+            layer: 2,
+          ),
+          ScreenWindow(
+            texts: [
+              '\$8.50',
+              '(NET, tax included)',
+              '11 min · 5.2 km',
+              '11 min · 7.7 km',
+              'Match',
+            ],
+            layer: 1,
+          ),
+        ],
+      ),
+    );
+    await pastGrace();
+
+    expect(overlay.clears, 1);
+    expect(overlay.shown, hasLength(1));
   });
 
   test('clears the pill when the offer leaves a watched screen', () async {
@@ -324,6 +685,27 @@ void main() {
     },
   );
 
+  test('valid top offer replaces another platform without clearing', () async {
+    final c = container();
+    c.read(offerWatcherProvider);
+    c.read(overlayControllerProvider);
+
+    watcher.emit(_hoppNodes);
+    await Future<void>.delayed(Duration.zero);
+    watcher.emit(
+      const ScreenRead(
+        packageName: ParserRegistry.uberPackage,
+        texts: ['UberX', '\$14.20', '18 mins (9.4 km) trip', 'Accept'],
+        isActive: true,
+      ),
+    );
+    await Future<void>.delayed(Duration.zero);
+
+    expect(overlay.shown, hasLength(2));
+    expect(overlay.clears, 0);
+    expect(c.read(offerLogProvider).first.platform, GigPlatform.uber);
+  });
+
   test(
     'does not clear when a non-offer screen was never showing a pill',
     () async {
@@ -368,6 +750,29 @@ void main() {
     expect(overlay.shown, isEmpty);
   });
 
+  test('parses an Uber card attributed to foreground Lyft', () async {
+    final c = container();
+    c.read(offerWatcherProvider);
+    c.read(overlayControllerProvider);
+
+    watcher.emit(
+      const ScreenRead(
+        packageName: ParserRegistry.lyftPackage,
+        texts: [
+          'UberX',
+          '\$7.06',
+          '5 mins (2.1 km) away',
+          '13 mins (6.4 km) trip',
+          'Accept',
+        ],
+      ),
+    );
+    await Future<void>.delayed(Duration.zero);
+
+    expect(overlay.shown.single.payout, 7.06);
+    expect(c.read(offerLogProvider).single.platform, GigPlatform.uber);
+  });
+
   group('outcome inference', () {
     test('card → browse screen marks the offer missed', () async {
       final c = container();
@@ -398,6 +803,7 @@ void main() {
         const ScreenRead(
           packageName: ParserRegistry.hoppPackage,
           texts: ['Navigate to rider', '3 min', 'Main St'],
+          isActive: true,
         ),
       );
       await pastGrace();
@@ -423,6 +829,7 @@ void main() {
         const ScreenRead(
           packageName: ParserRegistry.hoppPackage,
           texts: ['Start Trip'],
+          isActive: true,
         ),
       );
       await Future<void>.delayed(Duration.zero);
@@ -434,7 +841,7 @@ void main() {
       expect(log.last.outcome, OfferOutcome.taken);
     });
 
-    test('Hopp home cannot clear or mark a newer Uber offer', () async {
+    test('background Hopp home cannot clear or mark newer offers', () async {
       final c = container();
       c.read(offerWatcherProvider);
       c.read(overlayControllerProvider);
@@ -448,14 +855,14 @@ void main() {
         ),
       );
       await Future<void>.delayed(Duration.zero);
-      watcher.emit(_hoppHome);
+      watcher.emit(_hoppBackgroundHome);
       await pastGrace();
 
       final log = c.read(offerLogProvider);
       expect(log.first.platform, GigPlatform.uber);
       expect(log.first.outcome, OfferOutcome.unknown);
       expect(log.last.platform, GigPlatform.hopp);
-      expect(log.last.outcome, OfferOutcome.missed);
+      expect(log.last.outcome, OfferOutcome.unknown);
       expect(overlay.clears, 0);
     });
 
@@ -479,6 +886,7 @@ void main() {
           ScreenRead(
             packageName: ParserRegistry.hoppPackage,
             texts: [stateText],
+            isActive: true,
           ),
         );
         await pastGrace();
@@ -486,6 +894,118 @@ void main() {
         expect(c.read(offerLogProvider).first.outcome, OfferOutcome.taken);
       });
     }
+
+    test('an old Uber LAST TRIP popup never rewrites History', () async {
+      final c = container();
+      c.read(offerWatcherProvider);
+      c.read(overlayControllerProvider);
+
+      watcher.emit(
+        const ScreenRead(
+          packageName: ParserRegistry.uberPackage,
+          texts: ['UberX', '\$13.21', '20 mins (20.9 km) trip', 'Match'],
+        ),
+      );
+      await Future<void>.delayed(Duration.zero);
+      watcher.emit(
+        const ScreenRead(
+          packageName: ParserRegistry.uberPackage,
+          texts: ['Home', 'Finding trips'],
+          isActive: true,
+        ),
+      );
+      await pastGrace();
+      expect(c.read(offerLogProvider).single.outcome, OfferOutcome.missed);
+
+      watcher.emit(
+        const ScreenRead(
+          packageName: ParserRegistry.uberPackage,
+          texts: ['\$13.21', 'LAST TRIP', 'Today at 4:29 p.m.', 'UberX'],
+          isActive: true,
+        ),
+      );
+      await Future<void>.delayed(Duration.zero);
+      expect(c.read(offerLogProvider).single.outcome, OfferOutcome.missed);
+    });
+
+    test('a background browse frame cannot mark an offer missed', () async {
+      final c = container();
+      c.read(offerWatcherProvider);
+      c.read(overlayControllerProvider);
+
+      watcher.emit(_hoppNodes);
+      await Future<void>.delayed(Duration.zero);
+      watcher.emit(_hoppBackgroundHome);
+      await pastGrace();
+
+      expect(c.read(offerLogProvider).single.outcome, OfferOutcome.unknown);
+      expect(overlay.clears, 0);
+    });
+
+    test('a background trip frame cannot mark an offer taken', () async {
+      final c = container();
+      c.read(offerWatcherProvider);
+      c.read(overlayControllerProvider);
+
+      watcher.emit(_hoppNodes);
+      await Future<void>.delayed(Duration.zero);
+      watcher.emit(
+        const ScreenRead(
+          packageName: ParserRegistry.hoppPackage,
+          texts: ['Start Trip'],
+        ),
+      );
+      await pastGrace();
+
+      expect(c.read(offerLogProvider).single.outcome, OfferOutcome.unknown);
+      expect(overlay.clears, 0);
+    });
+
+    test('active trip evidence corrects a weak missed inference', () async {
+      final c = container();
+      c.read(offerWatcherProvider);
+      c.read(overlayControllerProvider);
+
+      watcher.emit(_hoppNodes);
+      await Future<void>.delayed(Duration.zero);
+      watcher.emit(_hoppHome);
+      await pastGrace();
+      expect(c.read(offerLogProvider).single.outcome, OfferOutcome.missed);
+
+      watcher.emit(
+        const ScreenRead(
+          packageName: ParserRegistry.hoppPackage,
+          texts: ['You have arrived'],
+          isActive: true,
+        ),
+      );
+      await Future<void>.delayed(Duration.zero);
+      expect(c.read(offerLogProvider).single.outcome, OfferOutcome.taken);
+    });
+
+    test('Hopp Confirm Price wins over its fare card hallmark', () async {
+      final c = container();
+      c.read(offerWatcherProvider);
+      c.read(overlayControllerProvider);
+
+      watcher.emit(_hoppNodes);
+      await Future<void>.delayed(Duration.zero);
+      watcher.emit(
+        const ScreenRead(
+          packageName: ParserRegistry.hoppPackage,
+          texts: [
+            'Confirm Price',
+            '\$7.26',
+            'In-app payment. Don\'t take money.',
+            'Confirm price',
+          ],
+          isActive: true,
+        ),
+      );
+      await Future<void>.delayed(Duration.zero);
+
+      expect(c.read(offerLogProvider).single.outcome, OfferOutcome.taken);
+    });
 
     test('ambiguous non-card screen leaves the outcome unknown', () async {
       final c = container();
@@ -498,6 +1018,7 @@ void main() {
         const ScreenRead(
           packageName: ParserRegistry.hoppPackage,
           texts: ['Main St', '3 min'],
+          isActive: true,
         ),
       );
       await pastGrace();
@@ -526,12 +1047,71 @@ void main() {
           ScreenRead(
             packageName: ParserRegistry.lyftPackage,
             texts: [stateText],
+            isActive: true,
           ),
         );
         await pastGrace();
         expect(c.read(offerLogProvider).first.outcome, OfferOutcome.taken);
       });
     }
+
+    test('an active trip screen cannot confirm a queued Lyft card', () async {
+      final c = container();
+      c.read(offerWatcherProvider);
+      c.read(overlayControllerProvider);
+
+      watcher.emit(
+        const ScreenRead(
+          packageName: ParserRegistry.lyftPackage,
+          texts: [
+            'Add to queue',
+            '\$15.04',
+            '3 mins · 1 km',
+            '31 mins · 12.5 km',
+          ],
+        ),
+      );
+      await Future<void>.delayed(Duration.zero);
+      watcher.emit(
+        const ScreenRead(
+          packageName: ParserRegistry.lyftPackage,
+          texts: ['Slide to drop off'],
+          isActive: true,
+        ),
+      );
+      await Future<void>.delayed(Duration.zero);
+
+      expect(c.read(offerLogProvider).single.outcome, OfferOutcome.unknown);
+    });
+
+    test('active Lyft Added to queue confirms the queued card', () async {
+      final c = container();
+      c.read(offerWatcherProvider);
+      c.read(overlayControllerProvider);
+
+      watcher.emit(
+        const ScreenRead(
+          packageName: ParserRegistry.lyftPackage,
+          texts: [
+            'Add to queue',
+            '\$15.04',
+            '3 mins · 1 km',
+            '31 mins · 12.5 km',
+          ],
+        ),
+      );
+      await Future<void>.delayed(Duration.zero);
+      watcher.emit(
+        const ScreenRead(
+          packageName: ParserRegistry.lyftPackage,
+          texts: ['Added to queue'],
+          isActive: true,
+        ),
+      );
+      await Future<void>.delayed(Duration.zero);
+
+      expect(c.read(offerLogProvider).single.outcome, OfferOutcome.taken);
+    });
 
     for (final stateText in const [
       'Picking up Alex',
@@ -557,12 +1137,105 @@ void main() {
           ScreenRead(
             packageName: ParserRegistry.uberPackage,
             texts: [stateText],
+            isActive: true,
           ),
         );
         await pastGrace();
         expect(c.read(offerLogProvider).first.outcome, OfferOutcome.taken);
       });
     }
+
+    test('repeated Uber trip frames cannot accept two recent offers', () async {
+      final c = container();
+      c.read(offerWatcherProvider);
+      c.read(overlayControllerProvider);
+
+      watcher.emit(
+        const ScreenRead(
+          packageName: ParserRegistry.uberPackage,
+          texts: ['UberX', '\$5.36', '8 mins (4.8 km) trip', 'Accept'],
+          isActive: true,
+        ),
+      );
+      await Future<void>.delayed(Duration.zero);
+      watcher.emit(
+        const ScreenRead(
+          packageName: ParserRegistry.uberPackage,
+          texts: ['UberX', '\$19.94', '30 mins (22.4 km) trip', 'Accept'],
+          isActive: true,
+        ),
+      );
+      await Future<void>.delayed(Duration.zero);
+
+      const trip = ScreenRead(
+        packageName: ParserRegistry.uberPackage,
+        texts: ['Picking up Sarah'],
+        isActive: true,
+      );
+      watcher.emit(trip);
+      watcher.emit(trip);
+      await pastGrace();
+
+      final log = c.read(offerLogProvider);
+      expect(log, hasLength(2));
+      expect(log.first.payout, 19.94);
+      expect(log.first.outcome, OfferOutcome.taken);
+      expect(log.last.payout, 5.36);
+      expect(log.last.outcome, OfferOutcome.unknown);
+    });
+
+    test('accepted Uber window cannot stamp stale lower offers', () async {
+      final c = container();
+      c.read(offerWatcherProvider);
+      c.read(overlayControllerProvider);
+
+      for (final payout in const ['\$5.36', '\$8.72', '\$30.70']) {
+        watcher.emit(
+          ScreenRead(
+            packageName: ParserRegistry.uberPackage,
+            texts: ['UberX', payout, '15 mins (8.4 km) trip', 'Accept'],
+            isActive: true,
+          ),
+        );
+        await Future<void>.delayed(Duration.zero);
+      }
+
+      for (final stalePayout in const ['\$8.72', '\$5.36']) {
+        watcher.emit(
+          ScreenRead(
+            packageName: ParserRegistry.uberPackage,
+            texts: const ['Picking up Sarah'],
+            isActive: true,
+            windows: [
+              const ScreenWindow(
+                texts: ['Picking up Sarah'],
+                isActive: true,
+                layer: 2,
+              ),
+              ScreenWindow(
+                texts: [
+                  'UberX',
+                  stalePayout,
+                  '15 mins (8.4 km) trip',
+                  'Accept',
+                ],
+                layer: 1,
+              ),
+            ],
+          ),
+        );
+        await Future<void>.delayed(Duration.zero);
+      }
+
+      final log = c.read(offerLogProvider);
+      expect(log, hasLength(3));
+      expect(log.first.payout, 30.70);
+      expect(log.first.outcome, OfferOutcome.taken);
+      expect(log.skip(1).map((offer) => offer.outcome), [
+        OfferOutcome.unknown,
+        OfferOutcome.unknown,
+      ]);
+    });
 
     test('a different gig app cannot stamp the shown offer outcome', () async {
       final c = container();
@@ -575,13 +1248,14 @@ void main() {
         const ScreenRead(
           packageName: ParserRegistry.uberPackage,
           texts: ['Picking up a rider'],
+          isActive: true,
         ),
       );
       await pastGrace();
       expect(c.read(offerLogProvider).first.outcome, OfferOutcome.unknown);
     });
 
-    test('card frame returning cancels a pending outcome', () async {
+    test('card frame returning cancels a pending missed outcome', () async {
       final c = container();
       c.read(offerWatcherProvider);
       c.read(overlayControllerProvider);
@@ -589,15 +1263,16 @@ void main() {
       watcher.emit(_hoppNodes);
       await Future<void>.delayed(Duration.zero);
 
-      // A stray non-card frame arms taken… but the card comes right back
-      // before the grace elapses — no outcome may be stamped.
+      // A browse frame weakly arms missed, but the card comes right back before
+      // the grace elapses — no outcome may be stamped.
+      watcher.emit(_hoppHome);
       watcher.emit(
         const ScreenRead(
           packageName: ParserRegistry.hoppPackage,
-          texts: ['Navigate to rider'],
+          texts: ['\$8.50', '(NET, tax included)', '11 min · 5.2 km', 'Match'],
+          isActive: true,
         ),
       );
-      watcher.emit(_hoppPartial); // card hallmark → cancel
       await pastGrace();
       expect(c.read(offerLogProvider).first.outcome, OfferOutcome.unknown);
       expect(overlay.clears, 0);
@@ -648,7 +1323,11 @@ void main() {
 
           // Only now does the driver open the app they accepted in.
           watcher.emit(
-            ScreenRead(packageName: card.packageName, texts: [inTrip]),
+            ScreenRead(
+              packageName: card.packageName,
+              texts: [inTrip],
+              isActive: true,
+            ),
           );
           await pastGrace();
           expect(c.read(offerLogProvider).first.outcome, OfferOutcome.taken);

@@ -495,16 +495,14 @@ class _OutcomeChip extends StatelessWidget {
         child: AnimatedContainer(
           duration: Motion.base,
           curve: Motion.curve,
-          constraints: const BoxConstraints(minHeight: 40),
+          constraints: const BoxConstraints(minHeight: 48),
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
           decoration: BoxDecoration(
-            color: active
-                ? activeColor.withValues(alpha: 0.12)
-                : FoxColors.bgSurface,
+            color: active ? FoxColors.brandFoxSoft : FoxColors.bgSurface,
             borderRadius: BorderRadius.circular(Radii.pill),
             border: Border.all(
               color: active
-                  ? activeColor.withValues(alpha: 0.32)
+                  ? FoxColors.brandFox.withValues(alpha: 0.6)
                   : FoxColors.borderSoft,
             ),
             boxShadow: active ? null : Shadows.soft,
@@ -552,7 +550,7 @@ class _RangeControl extends StatelessWidget {
     final items = HistoryRange.values;
     final index = items.indexOf(value);
     return Container(
-      height: 44, // was 40 — a11y minimum for a tap row
+      height: 48,
       decoration: BoxDecoration(
         color: FoxColors.bgSurface,
         borderRadius: BorderRadius.circular(Radii.pill),
@@ -574,8 +572,11 @@ class _RangeControl extends StatelessWidget {
                 width: slot,
                 child: Container(
                   decoration: BoxDecoration(
-                    color: FoxColors.bgSurface2,
+                    color: FoxColors.brandFoxSoft,
                     borderRadius: BorderRadius.circular(Radii.pill),
+                    border: Border.all(
+                      color: FoxColors.brandFox.withValues(alpha: 0.6),
+                    ),
                   ),
                 ),
               ),
@@ -642,13 +643,15 @@ class _AppChips extends StatelessWidget {
         onToggle(app);
       },
       child: Container(
-        constraints: const BoxConstraints(minHeight: 40),
+        constraints: const BoxConstraints(minHeight: 48),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
-          color: active ? FoxColors.bgSurface2 : FoxColors.bgSurface,
+          color: active ? FoxColors.brandFoxSoft : FoxColors.bgSurface,
           borderRadius: BorderRadius.circular(Radii.pill),
           border: Border.all(
-            color: active ? FoxColors.border : FoxColors.borderSoft,
+            color: active
+                ? FoxColors.brandFox.withValues(alpha: 0.6)
+                : FoxColors.borderSoft,
           ),
           boxShadow: active ? null : Shadows.soft,
         ),
@@ -707,13 +710,15 @@ class _VerdictChips extends StatelessWidget {
         onToggle(v);
       },
       child: Container(
-        constraints: const BoxConstraints(minHeight: 40),
+        constraints: const BoxConstraints(minHeight: 48),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
-          color: active ? FoxColors.bgSurface2 : FoxColors.bgSurface,
+          color: active ? FoxColors.brandFoxSoft : FoxColors.bgSurface,
           borderRadius: BorderRadius.circular(Radii.pill),
           border: Border.all(
-            color: active ? FoxColors.border : FoxColors.borderSoft,
+            color: active
+                ? FoxColors.brandFox.withValues(alpha: 0.6)
+                : FoxColors.borderSoft,
           ),
           boxShadow: active ? null : Shadows.soft,
         ),
@@ -1353,34 +1358,7 @@ class _OfferRow extends ConsumerWidget {
                     runSpacing: 4,
                     crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 3,
-                        ),
-                        decoration: BoxDecoration(
-                          color: outcome.color.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(Radii.pill),
-                          border: Border.all(
-                            color: outcome.color.withValues(alpha: 0.30),
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(outcome.icon, size: 12, color: outcome.color),
-                            const SizedBox(width: 4),
-                            Text(
-                              outcome.label,
-                              style: TextStyle(
-                                fontSize: 10.5,
-                                fontWeight: FontWeight.w700,
-                                color: outcome.color,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+                      _OutcomeMenu(offer: offer, style: outcome),
                       if (offer.isQueued)
                         Text(
                           'QUEUED',
@@ -1462,6 +1440,77 @@ class _OfferRow extends ConsumerWidget {
               ],
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _OutcomeMenu extends ConsumerWidget {
+  const _OutcomeMenu({required this.offer, required this.style});
+
+  final OfferSummary offer;
+  final OutcomeStyle style;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return PopupMenuButton<OfferOutcome>(
+      key: ValueKey('offer_outcome_${offer.seenAt.microsecondsSinceEpoch}'),
+      tooltip: 'Change trip status',
+      onSelected: (value) =>
+          ref.read(offerLogProvider.notifier).setOutcome(offer, value),
+      itemBuilder: (context) => [
+        for (final value in const [
+          OfferOutcome.taken,
+          OfferOutcome.missed,
+          OfferOutcome.unknown,
+        ])
+          PopupMenuItem(
+            value: value,
+            child: Row(
+              children: [
+                Icon(
+                  OutcomeStyle.of(value).icon,
+                  size: 18,
+                  color: OutcomeStyle.of(value).color,
+                ),
+                const SizedBox(width: Gap.sm),
+                Text(OutcomeStyle.of(value).label),
+                if (value == offer.outcome) ...[
+                  const Spacer(),
+                  const Icon(Icons.check_rounded, size: 18),
+                ],
+              ],
+            ),
+          ),
+      ],
+      child: Semantics(
+        button: true,
+        label: '${style.label}. Change trip status',
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+          decoration: BoxDecoration(
+            color: style.color.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(Radii.pill),
+            border: Border.all(color: style.color.withValues(alpha: 0.30)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(style.icon, size: 12, color: style.color),
+              const SizedBox(width: 4),
+              Text(
+                style.label,
+                style: TextStyle(
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w700,
+                  color: style.color,
+                ),
+              ),
+              const SizedBox(width: 3),
+              Icon(Icons.edit_rounded, size: 11, color: style.color),
+            ],
+          ),
         ),
       ),
     );

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:foxyco/domain/app_currency.dart';
@@ -6,11 +7,14 @@ import 'package:foxyco/domain/fox_settings.dart';
 import 'package:foxyco/domain/distance_unit.dart';
 import 'package:foxyco/domain/rate_mode.dart';
 import 'package:foxyco/domain/thresholds.dart';
+import 'package:foxyco/domain/verdict.dart';
 import 'package:foxyco/ui/settings/garage_controller.dart';
 import 'package:foxyco/ui/settings/settings_controller.dart';
 import 'package:foxyco/ui/overlay/verdict_pill.dart';
+import 'package:foxyco/ui/rules/rules_screen.dart';
 import 'package:foxyco/ui/settings/settings_screen.dart';
 import 'package:foxyco/ui/theme/app_theme.dart';
+import 'package:foxyco/ui/theme/tokens.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 // SettingsScreen lives inside RootShell's Scaffold (which supplies the Material
@@ -22,11 +26,57 @@ Widget _host() => ProviderScope(
   ),
 );
 
+Widget _rulesHost() => ProviderScope(
+  child: MaterialApp(
+    theme: AppTheme.dark,
+    home: const Scaffold(body: RulesScreen()),
+  ),
+);
+
 /// Groups start collapsed (except Driver); open one before asserting on its
 /// body widgets. Single-open means opening a group closes the previous one.
 Future<void> openGroup(WidgetTester tester, String title) async {
   await tester.tap(find.text(title));
   await tester.pumpAndSettle();
+}
+
+void expectNoLayoutError(WidgetTester tester, String phase) {
+  final error = tester.takeException();
+  expect(
+    error,
+    isNull,
+    reason:
+        '$phase\n${error is FlutterError ? error.toStringDeep() : error}'
+        '${error == null ? '' : _overflowingRows()}',
+  );
+}
+
+String _overflowingRows() {
+  final found = <String>[];
+  for (final element in find.byType(Row).evaluate()) {
+    final render = element.renderObject;
+    if (render is! RenderFlex || !render.hasSize) continue;
+    var left = 0.0;
+    var right = render.size.width;
+    var child = render.firstChild;
+    while (child != null) {
+      final data = child.parentData! as FlexParentData;
+      left = left < data.offset.dx ? left : data.offset.dx;
+      final childRight = data.offset.dx + child.size.width;
+      right = right > childRight ? right : childRight;
+      child = data.nextSibling;
+    }
+    final overflow = (-left) + (right - render.size.width);
+    if (overflow > 0.1) {
+      found.add(
+        '\nOverflowing Row (${overflow.toStringAsFixed(1)} px): '
+        '${render.debugCreator}\n${render.toStringDeep()}',
+      );
+    }
+  }
+  return found.isEmpty
+      ? '\nNo explicit Row bounds exceeded; inspect an internal Flex.'
+      : found.join();
 }
 
 void main() {
@@ -38,11 +88,11 @@ void main() {
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
-    await tester.pumpWidget(_host());
+    await tester.pumpWidget(_rulesHost());
 
-    expect(find.text('Settings'), findsOneWidget);
+    expect(find.text('My Rules'), findsOneWidget);
 
-    await openGroup(tester, 'Verdict thresholds');
+    // Core controls are open by default for one-tap access from the nav.
     expect(find.text('GOOD at or above'), findsOneWidget);
     expect(find.text('BAD below'), findsOneWidget);
 
@@ -50,6 +100,47 @@ void main() {
     await openGroup(tester, 'Live preview');
     // Default band: GOOD ≥ 1.50, sample offer at 1.25 ⇒ OK.
     expect(find.text('OK'), findsOneWidget);
+  });
+
+  testWidgets('voice verdict is a separate GOOD-only Rules toggle', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1080, 3200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(_rulesHost());
+
+    await openGroup(tester, 'Voice verdict');
+    final toggle = find.byKey(const Key('rules_voice_toggle'));
+    expect(toggle, findsOneWidget);
+    expect(tester.widget<SwitchListTile>(toggle).value, isTrue);
+    expect(find.byKey(const Key('rules_voice_preview')), findsOneWidget);
+
+    await tester.tap(toggle);
+    await tester.pump();
+    expect(tester.widget<SwitchListTile>(toggle).value, isFalse);
+    expect(find.byKey(const Key('rules_voice_ok_toggle')), findsOneWidget);
+    expect(find.byKey(const Key('rules_voice_cooldown')), findsOneWidget);
+  });
+
+  testWidgets('minimum payout rule exposes amount and verdict', (tester) async {
+    tester.view.physicalSize = const Size(1080, 3200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(_rulesHost());
+
+    final toggle = find.byKey(const Key('rules_minimum_payout_toggle'));
+    expect(toggle, findsOneWidget);
+    expect(find.byKey(const Key('rules_minimum_payout_verdict')), findsNothing);
+    await tester.tap(toggle);
+    await tester.pumpAndSettle();
+    expect(find.text('Offers below'), findsOneWidget);
+    expect(
+      find.byKey(const Key('rules_minimum_payout_verdict')),
+      findsOneWidget,
+    );
   });
 
   testWidgets('Reset restores defaults', (tester) async {
@@ -136,6 +227,18 @@ void main() {
     await tester.pumpAndSettle();
     final largeSize = tester.getSize(find.byType(VerdictPill));
     expect(largeSize.height, greaterThan(smallSize.height));
+    final selected = tester.widget<AnimatedContainer>(
+      find
+          .ancestor(
+            of: find.text('Large'),
+            matching: find.byType(AnimatedContainer),
+          )
+          .first,
+    );
+    expect(
+      (selected.decoration! as BoxDecoration).color,
+      FoxColors.brandFoxSoft,
+    );
   });
 
   testWidgets('driver name saves on the check button, not live', (
@@ -208,12 +311,56 @@ void main() {
     expect(find.text('Space Grotesk'), findsWidgets);
   });
 
+  testWidgets('Pixel Capture is an opt-in parser fallback', (tester) async {
+    tester.view.physicalSize = const Size(1080, 3600);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(_host());
+    await tester.pumpAndSettle();
+
+    await openGroup(tester, 'Parser health');
+    expect(find.text('Pixel Capture (OCR)'), findsOneWidget);
+    final toggle = tester.widget<SwitchListTile>(
+      find.widgetWithText(SwitchListTile, 'Pixel Capture (OCR)'),
+    );
+    expect(toggle.value, isFalse);
+    expect(
+      tester
+          .widget<SwitchListTile>(find.byKey(const Key('ocr_test_mode_toggle')))
+          .onChanged,
+      isNull,
+    );
+    await tester.tap(find.text('Pixel Capture (OCR)'));
+    await tester.pumpAndSettle();
+    expect(find.text('Enable on-device Pixel Capture?'), findsOneWidget);
+    await tester.tap(find.text('Not now'));
+    await tester.pumpAndSettle();
+    expect(find.text('This session'), findsOneWidget);
+
+    await tester.tap(find.text('Pixel Capture (OCR)'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Enable OCR'));
+    await tester.pumpAndSettle();
+    expect(find.text('This session · OCR enabled'), findsOneWidget);
+
+    final testToggle = find.byKey(const Key('ocr_test_mode_toggle'));
+    expect(tester.widget<SwitchListTile>(testToggle).onChanged, isNotNull);
+    await tester.tap(testToggle);
+    await tester.pumpAndSettle();
+    final context = tester.element(find.byType(SettingsScreen));
+    expect(
+      ProviderScope.containerOf(context).read(settingsProvider).ocrTestMode,
+      isTrue,
+    );
+  });
+
   testWidgets('accordion opens one group at a time', (tester) async {
     tester.view.physicalSize = const Size(1080, 3600);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
-    await tester.pumpWidget(_host());
+    await tester.pumpWidget(_rulesHost());
     await tester.pumpAndSettle();
 
     // Watched apps' switch tiles are hidden while the group is collapsed.
@@ -223,9 +370,9 @@ void main() {
     expect(find.text('Uber'), findsOneWidget);
 
     // Opening another group collapses the previous one.
-    await openGroup(tester, 'History');
+    await openGroup(tester, 'Live preview');
     expect(find.text('Uber'), findsNothing);
-    expect(find.text('Keep offers for'), findsOneWidget);
+    expect(find.text('Try a sample rate'), findsOneWidget);
   });
 
   testWidgets('groups are filed under named bands, in band order', (
@@ -238,29 +385,67 @@ void main() {
     await tester.pumpWidget(_host());
     await tester.pumpAndSettle();
 
-    // Eleven groups in one flat stack was the complaint; five bands answer it.
+    // Operational settings remain grouped after scoring rules move out.
     for (final band in const [
       'YOU & YOUR CAR',
-      'SCORING',
-      'WATCHING',
+      'DIAGNOSTICS',
       'LOOK & FEEL',
       'YOUR DATA',
     ]) {
       expect(find.text(band), findsOneWidget, reason: band);
     }
 
-    // Vertical order is the contract — a band header must sit above every group
-    // it claims. Parser health is the one that moved (it was stranded down by
-    // History); assert it now reads inside the Watching band.
+    // Vertical order is the contract — a band header sits above its groups.
     double y(String label) => tester.getTopLeft(find.text(label)).dy;
     expect(y('YOU & YOUR CAR'), lessThan(y('Profile')));
-    expect(y('SCORING'), lessThan(y('Verdict thresholds')));
-    expect(y('WATCHING'), lessThan(y('Watched apps')));
-    expect(y('Watched apps'), lessThan(y('Parser health')));
+    expect(y('DIAGNOSTICS'), lessThan(y('Parser health')));
     expect(y('Parser health'), lessThan(y('Outcome tracking')));
     expect(y('LOOK & FEEL'), greaterThan(y('Outcome tracking')));
     expect(y('YOUR DATA'), lessThan(y('History')));
     expect(y('History'), lessThan(y('Logs')));
+  });
+
+  testWidgets('History actions fit narrow screens', (tester) async {
+    tester.view.physicalSize = const Size(360, 800);
+    tester.view.devicePixelRatio = 1;
+    tester.platformDispatcher.textScaleFactorTestValue = 1.2;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+
+    await tester.pumpWidget(_host());
+    await tester.pumpAndSettle();
+    expectNoLayoutError(tester, 'Initial Settings layout');
+    final settingsScroll = find.descendant(
+      of: find.byKey(const Key('settings_scroll')),
+      matching: find.byWidgetPredicate(
+        (widget) =>
+            widget is Scrollable && widget.axisDirection == AxisDirection.down,
+      ),
+    );
+    expect(settingsScroll, findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('History'),
+      300,
+      scrollable: settingsScroll,
+    );
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('History'));
+    await tester.pump();
+    expectNoLayoutError(tester, 'Collapsed History header');
+    await tester.tap(find.text('History'));
+    await tester.pumpAndSettle();
+    expectNoLayoutError(tester, 'Expanded History controls');
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('history_actions')),
+      200,
+      scrollable: settingsScroll,
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Export CSV'), findsOneWidget);
+    expect(find.text('Clear offer history'), findsOneWidget);
+    expectNoLayoutError(tester, 'Visible History actions');
   });
 
   test('controller clamps GOOD above BAD (band stays coherent)', () {
@@ -320,6 +505,63 @@ void main() {
     expect(back.thresholds, s.thresholds);
   });
 
+  test('OCR opt-in survives a JSON round-trip and defaults off', () {
+    expect(FoxSettings.fromJson(const {}).ocrEnabled, isFalse);
+    final back = FoxSettings.fromJson(
+      FoxSettings.defaults.copyWith(ocrEnabled: true).toJson(),
+    );
+    expect(back.ocrEnabled, isTrue);
+    expect(
+      FoxSettings.fromJson(
+        FoxSettings.defaults.copyWith(ocrTestMode: true).toJson(),
+      ).ocrTestMode,
+      isFalse,
+      reason: 'debug test mode must not persist',
+    );
+  });
+
+  test('voice settings survive a JSON round-trip with GOOD default on', () {
+    expect(FoxSettings.fromJson(const {}).announceGoodOffers, isTrue);
+    final back = FoxSettings.fromJson(
+      FoxSettings.defaults
+          .copyWith(
+            announceGoodOffers: false,
+            announceOkOffers: true,
+            voiceCooldownSeconds: 45,
+          )
+          .toJson(),
+    );
+    expect(back.announceGoodOffers, isFalse);
+    expect(back.announceOkOffers, isTrue);
+    expect(back.voiceCooldownSeconds, 45);
+  });
+
+  test('minimum payout rule round-trips and defaults disabled', () {
+    expect(FoxSettings.fromJson(const {}).minimumPayoutEnabled, isFalse);
+    final settings = FoxSettings.defaults.copyWith(
+      minimumPayoutEnabled: true,
+      minimumPayout: 7.5,
+      minimumPayoutVerdict: Verdict.ok,
+    );
+    final back = FoxSettings.fromJson(settings.toJson());
+    expect(back.minimumPayoutEnabled, isTrue);
+    expect(back.minimumPayout, 7.5);
+    expect(back.minimumPayoutVerdict, Verdict.ok);
+  });
+
+  test('disabling OCR also clears its test override', () {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+    final controller = container.read(settingsProvider.notifier);
+
+    controller.setOcrEnabled(true);
+    controller.setOcrTestMode(true);
+    expect(container.read(settingsProvider).ocrTestMode, isTrue);
+
+    controller.setOcrEnabled(false);
+    expect(container.read(settingsProvider).ocrTestMode, isFalse);
+  });
+
   test(r'old saved blobs (no rateMode keys) load with $/km defaults', () {
     // A pre-rate-mode settings blob: only km cuts present.
     final back = FoxSettings.fromJson({'good': 1.8, 'bad': 0.9});
@@ -348,6 +590,7 @@ void main() {
     final container = ProviderContainer();
     addTearDown(container.dispose);
     final controller = container.read(settingsProvider.notifier);
+    final thresholds = container.read(settingsProvider).thresholds;
 
     controller.setCurrency(AppCurrency.usd);
     expect(container.read(settingsProvider).distanceUnit, DistanceUnit.miles);
@@ -357,6 +600,34 @@ void main() {
       container.read(settingsProvider).distanceUnit,
       DistanceUnit.kilometres,
     );
+
+    for (final currency in const [
+      AppCurrency.aud,
+      AppCurrency.nzd,
+      AppCurrency.mxn,
+      AppCurrency.brl,
+    ]) {
+      controller.setCurrency(currency);
+      expect(
+        container.read(settingsProvider).distanceUnit,
+        DistanceUnit.kilometres,
+      );
+    }
+    expect(
+      container.read(settingsProvider).thresholds,
+      thresholds,
+      reason: 'currency selection labels values; it never performs FX',
+    );
+  });
+
+  test('supported storefront countries map to requested currencies', () {
+    expect(AppCurrency.fromCountryCode('US'), AppCurrency.usd);
+    expect(AppCurrency.fromCountryCode('ca'), AppCurrency.cad);
+    expect(AppCurrency.fromCountryCode('AU'), AppCurrency.aud);
+    expect(AppCurrency.fromCountryCode('NZ'), AppCurrency.nzd);
+    expect(AppCurrency.fromCountryCode('MX'), AppCurrency.mxn);
+    expect(AppCurrency.fromCountryCode('BR'), AppCurrency.brl);
+    expect(AppCurrency.fromCountryCode('GB'), AppCurrency.cad);
   });
 
   test('persisted settings are clamped to supported controls', () {

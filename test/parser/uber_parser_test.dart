@@ -199,4 +199,31 @@ void main() {
     expect(offer.pickupKm, closeTo(1.609344, 1e-9));
     expect(offer.dropoffKm, closeTo(6.437376, 1e-9));
   });
+
+  test('parses Uber Eats totals and bundled delivery count', () {
+    for (final (label, fare, duration, km, count, action) in [
+      ('Delivery (2)', 14.10, '54 min', 26.6, 2, 'Accept'),
+      ('Delivery', 4.54, '20 min', 5.7, 1, 'Accept'),
+      ('Delivery (3)', 17.02, '1 hr 7 min', 32.1, 3, 'Match'),
+    ]) {
+      final offer = parser.parse([
+        label,
+        '\$$fare',
+        'including estimated tip',
+        '$duration ($km km) total',
+        action,
+      ])!;
+      expect(offer.payout, fare);
+      expect(offer.totalKm, km);
+      expect(
+        offer.totalMinutes,
+        count == 3 ? 67 : double.parse(duration.split(' ').first),
+      );
+      expect(offer.deliveryCount, count);
+      expect(
+        offer.category,
+        'Eats · $count ${count == 1 ? 'delivery' : 'deliveries'}',
+      );
+    }
+  });
 }

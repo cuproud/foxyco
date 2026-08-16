@@ -73,6 +73,20 @@ void main() {
     expect(offer.dropoffKm, 46.3);
   });
 
+  test('parses Aug 14 OCR lines when the tiny separator is omitted', () {
+    final offer = parser.parse([
+      'Hopp Card Out of radius',
+      '\$4.40 (NET, tax included)',
+      '8 min 3.1 km',
+      '6 min 2.7 km',
+      'Match',
+    ])!;
+
+    expect(offer.pickupKm, 3.1);
+    expect(offer.dropoffKm, 2.7);
+    expect(offer.totalMinutes, 14);
+  });
+
   test('returns null with only one leg (half-rendered card, fail safe)', () {
     expect(
       parser.parse(['\$8.50', '(NET)', '11 min · 5.2 km', 'Match']),
@@ -148,5 +162,22 @@ void main() {
     ])!;
     expect(offer.pickupKm, closeTo(1.609344, 1e-9));
     expect(offer.dropoffKm, closeTo(4.828032, 1e-9));
+  });
+
+  test('real Aug 9 card keeps the high-demand multiplier for History', () {
+    final offer = parser.parse([
+      'Priority',
+      'Hopp',
+      'Card',
+      '1.2x High demand',
+      'Out of radius',
+      '\$14.94 (NET, tax included)',
+      '10 min • 5.2 km',
+      '22 min • 15 km',
+      'Accept',
+    ])!;
+    expect(offer.payout, 14.94);
+    expect(offer.totalKm, 20.2);
+    expect(offer.category, '1.2× High demand');
   });
 }

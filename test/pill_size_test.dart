@@ -94,9 +94,28 @@ void main() {
       expect(
         (stepA - stepB).abs() / ((stepA + stepB) / 2),
         lessThan(0.4),
-        reason: 'uneven size steps: S→M ${stepA.toStringAsFixed(1)}dp, '
+        reason:
+            'uneven size steps: S→M ${stepA.toStringAsFixed(1)}dp, '
             'M→L ${stepB.toStringAsFixed(1)}dp',
       );
     });
   }
+
+  testWidgets('Uber Eats pill shows the number of deliveries', (tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: VerdictPill(
+          animate: false,
+          payload: OverlayPayload(
+            verdict: Verdict.ok,
+            totalKm: 26.6,
+            payout: 14.10,
+            totalMinutes: 54,
+            deliveryCount: 2,
+          ),
+        ),
+      ),
+    );
+    expect(find.text('2 deliveries'), findsOneWidget);
+  });
 }

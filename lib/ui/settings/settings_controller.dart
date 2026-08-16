@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:in_app_purchase/in_app_purchase.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../domain/app_skin.dart';
@@ -14,6 +16,9 @@ import '../../domain/overlay_payload.dart' show PillSize;
 import '../../domain/platform.dart';
 import '../../domain/rate_mode.dart';
 import '../../domain/thresholds.dart';
+import '../../domain/verdict.dart';
+import '../../services/ocr/ocr_capture.dart';
+import '../../services/verdict_voice.dart';
 
 /// Holds every driver-tunable knob ([FoxSettings]) and persists it as one
 /// SharedPreferences JSON blob. The overlay isolate gets the values it needs
@@ -41,7 +46,7 @@ class SettingsController extends Notifier<FoxSettings> {
       final prefs = await preferences();
       final raw = prefs.getString(_prefsKey);
       var loaded = raw == null
-          ? FoxSettings.defaults
+          ? await _storeDefaults()
           : FoxSettings.fromJson(jsonDecode(raw) as Map<String, dynamic>);
       for (final change in _pending) {
         loaded = change(loaded);
@@ -56,6 +61,20 @@ class SettingsController extends Notifier<FoxSettings> {
     }
   }
 
+  Future<FoxSettings> _storeDefaults() async {
+    final country = await ref.read(playStoreCountryProvider)();
+    final currency = AppCurrency.fromCountryCode(country);
+    return FoxSettings.defaults.copyWith(
+      currency: currency,
+      distanceUnit: _distanceFor(currency),
+    );
+  }
+
+  static DistanceUnit _distanceFor(AppCurrency currency) =>
+      currency == AppCurrency.usd
+      ? DistanceUnit.miles
+      : DistanceUnit.kilometres;
+
   Future<void> _save() async {
     try {
       await _ready.future;
@@ -68,8 +87,18 @@ class SettingsController extends Notifier<FoxSettings> {
   }
 
   void _change(FoxSettings Function(FoxSettings) change) {
+    final previous = state;
+    final next = change(previous);
     if (!_hydrated) _pending.add(change);
-    state = change(state);
+    state = next;
+    if (previous.ocrEnabled && !next.ocrEnabled) {
+      unawaited(ref.read(ocrCaptureProvider).stop());
+    }
+    if ((previous.announceGoodOffers || previous.announceOkOffers) &&
+        !next.announceGoodOffers &&
+        !next.announceOkOffers) {
+      unawaited(ref.read(verdictVoiceProvider).stop());
+    }
     unawaited(_save());
   }
 
@@ -111,6 +140,18 @@ class SettingsController extends Notifier<FoxSettings> {
   void setRateMode(RateMode mode) =>
       _change((current) => current.copyWith(rateMode: mode));
 
+  void setMinimumPayoutEnabled(bool enabled) =>
+      _change((current) => current.copyWith(minimumPayoutEnabled: enabled));
+
+  void setMinimumPayout(double amount) => _change(
+    (current) => current.copyWith(minimumPayout: amount.clamp(0, 500)),
+  );
+
+  void setMinimumPayoutVerdict(Verdict verdict) {
+    if (verdict == Verdict.unknown) return;
+    _change((current) => current.copyWith(minimumPayoutVerdict: verdict));
+  }
+
   /// Pickup-near cutoff (km) — at/under paints the pill's km green, over red.
   void setPickupNearKm(double km) =>
       _change((current) => current.copyWith(pickupNearKm: km.clamp(0.5, 10.0)));
@@ -141,6 +182,28 @@ class SettingsController extends Notifier<FoxSettings> {
   void setTrackOutcomes(bool on) =>
       _change((current) => current.copyWith(trackOutcomes: on));
 
+  void setAnnounceGoodOffers(bool on) =>
+      _change((current) => current.copyWith(announceGoodOffers: on));
+
+  void setAnnounceOkOffers(bool on) =>
+      _change((current) => current.copyWith(announceOkOffers: on));
+
+  void setVoiceCooldownSeconds(int seconds) => _change(
+    (current) => current.copyWith(voiceCooldownSeconds: seconds.clamp(5, 120)),
+  );
+
+  void setOcrEnabled(bool on) => _change(
+    (current) => current.copyWith(
+      ocrEnabled: on,
+      ocrTestMode: on ? current.ocrTestMode : false,
+    ),
+  );
+
+  void setOcrTestMode(bool on) => _change(
+    (current) =>
+        current.copyWith(ocrTestMode: kDebugMode && current.ocrEnabled && on),
+  );
+
   void setMoneyFont(MoneyFont font) =>
       _change((current) => current.copyWith(moneyFont: font));
 
@@ -153,10 +216,7 @@ class SettingsController extends Notifier<FoxSettings> {
   void setCurrency(AppCurrency currency) => _change(
     (current) => current.copyWith(
       currency: currency,
-      distanceUnit: switch (currency) {
-        AppCurrency.cad => DistanceUnit.kilometres,
-        AppCurrency.usd => DistanceUnit.miles,
-      },
+      distanceUnit: _distanceFor(currency),
     ),
   );
 
@@ -186,6 +246,19 @@ class SettingsController extends Notifier<FoxSettings> {
 final settingsProvider = NotifierProvider<SettingsController, FoxSettings>(
   SettingsController.new,
 );
+
+/// Google Play's storefront country for first-run defaults. Tests and
+/// non-Android builds never initialize the billing plugin.
+final playStoreCountryProvider = Provider<Future<String?> Function()>((ref) {
+  return () async {
+    if (!Platform.isAndroid) return null;
+    try {
+      return await InAppPurchase.instance.countryCode();
+    } catch (_) {
+      return null;
+    }
+  };
+});
 
 /// The $/km cut points alone — what the decision engine consumes.
 final thresholdsProvider = Provider<Thresholds>(

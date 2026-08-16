@@ -7,19 +7,20 @@ import '../history/history_screen.dart';
 import '../history/offer_detail_sheet.dart';
 import '../home/home_screen.dart';
 import '../paywall/paywall_sheet.dart';
+import '../rules/rules_screen.dart';
 import '../settings/settings_controller.dart';
 import '../settings/settings_screen.dart';
 import '../theme/tokens.dart';
 
 /// Active tab index — a provider so any screen can deep-link to another tab
-/// (e.g. Home's platform badges → Settings watched-apps).
+/// (e.g. Home's platform badges → Rules watched-apps).
 final tabIndexProvider = NotifierProvider<TabIndex, int>(TabIndex.new);
 
 class TabIndex extends Notifier<int> {
   @override
   int build() => 0;
 
-  /// Which [SettingsScreen] accordion group the pending jump should expand,
+  /// Which destination accordion group the pending jump should expand,
   /// consumed once by that screen. A tab jump that lands on a collapsed
   /// accordion, two scrolls above the thing you actually tapped for, isn't a
   /// deep link — it's a shrug.
@@ -45,7 +46,7 @@ class PendingOffer extends Notifier<OfferSummary?> {
   void set(OfferSummary? offer) => state = offer;
 }
 
-/// The app's three tabs behind one floating pill nav (references/*.html
+/// The app's four tabs behind one floating pill nav (references/*.html
 /// `.bottom-nav`). An [IndexedStack] keeps each tab's scroll + filter state
 /// alive when you switch, matching the mockups' instant tab feel.
 class RootShell extends ConsumerStatefulWidget {
@@ -61,7 +62,7 @@ class _RootShellState extends ConsumerState<RootShell> {
   /// (a vertical ListView with no controller of its own takes the primary one).
   /// Re-tapping the ACTIVE tab then scrolls it home — the standard bottom-nav
   /// affordance, which the shell had no way to offer before.
-  final _scrolls = List.generate(3, (_) => ScrollController());
+  final _scrolls = List.generate(4, (_) => ScrollController());
 
   @override
   void dispose() {
@@ -113,7 +114,7 @@ class _RootShellState extends ConsumerState<RootShell> {
     //
     // So make the switch an explicit teardown: watch both inputs that can
     // change the resolved palette, and key the pages on them. A change discards
-    // the three tab subtrees and rebuilds them against the new statics. Costs
+    // the four tab subtrees and rebuilds them against the new statics. Costs
     // the tabs' scroll offsets on a theme switch, which is a fair price and
     // roughly what a user expects from one.
     final skin = ref.watch(settingsProvider.select((s) => s.skin));
@@ -168,13 +169,20 @@ class _RootShellState extends ConsumerState<RootShell> {
                     enabled: index == 1,
                     child: PrimaryScrollController(
                       controller: _scrolls[1],
-                      child: const HistoryScreen(),
+                      child: const RulesScreen(),
                     ),
                   ),
                   TickerMode(
                     enabled: index == 2,
                     child: PrimaryScrollController(
                       controller: _scrolls[2],
+                      child: const HistoryScreen(),
+                    ),
+                  ),
+                  TickerMode(
+                    enabled: index == 3,
+                    child: PrimaryScrollController(
+                      controller: _scrolls[3],
                       child: const SettingsScreen(),
                     ),
                   ),
@@ -203,6 +211,7 @@ class _NavDest {
 // "receipt" hero metaphor rather than a generic clock.
 const _dests = [
   _NavDest(Icons.home_rounded, Icons.home_outlined, 'Home'),
+  _NavDest(Icons.tune_rounded, Icons.tune_outlined, 'Rules'),
   _NavDest(Icons.receipt_long_rounded, Icons.receipt_long_outlined, 'History'),
   _NavDest(Icons.settings_rounded, Icons.settings_outlined, 'Settings'),
 ];

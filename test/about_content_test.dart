@@ -26,6 +26,8 @@ void main() {
     expect(copy, contains('one non-consumable Google Play purchase'));
     expect(copy, contains('There is no monthly or annual renewal'));
     expect(copy, contains('one server-stamped trial start time'));
+    expect(copy, contains('Raw screen text is used briefly in memory'));
+    expect(copy, contains('Firebase never receives offer text'));
     expect(copy, isNot(contains('There is no account, no server')));
   });
 }

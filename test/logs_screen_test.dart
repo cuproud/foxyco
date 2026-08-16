@@ -62,4 +62,26 @@ void main() {
     expect(call?.method, 'setSensitiveText');
     expect(call?.arguments, {'text': 'diagnostic'});
   });
+
+  test('email URI targets support and includes the logs', () {
+    final uri = logEmailUri('line one\nline two');
+    expect(uri.scheme, 'mailto');
+    expect(uri.path, 'foxyco.dev@gmail.com');
+    expect(uri.queryParameters['subject'], 'FoxyCo diagnostic logs');
+    expect(uri.queryParameters['body'], 'line one\nline two');
+  });
+
+  testWidgets('email action is before copy', (tester) async {
+    log.log('watch', 'mail-me');
+    await log.flush();
+    await tester.pumpWidget(app());
+    await tester.pumpAndSettle();
+
+    final email = find.byKey(const ValueKey('email-logs'));
+    expect(email, findsOneWidget);
+    expect(
+      tester.getCenter(email).dx,
+      lessThan(tester.getCenter(find.byIcon(Icons.copy_rounded)).dx),
+    );
+  });
 }

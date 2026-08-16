@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../domain/thresholds.dart';
 import '../../services/accessibility/accessibility_watcher.dart';
 import '../home/dashboard_controller.dart';
+import '../legal/accessibility_disclosure.dart';
 import '../legal/legal_links.dart';
 import '../overlay/overlay_controller.dart';
 import '../settings/garage_controller.dart';
@@ -152,14 +153,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                   ),
                   _GrantPage(
                     hero: const _GlowIcon(Icons.visibility_rounded),
-                    title: 'Read the offer on screen',
-                    body:
-                        'FoxyCo temporarily reads on-screen text in Uber '
-                        'Driver, Lyft Driver and Hopp Driver to identify pay, '
-                        'distance and duration. Only those extracted offer '
-                        'numbers are stored locally; raw screen text is not '
-                        'saved or sent. FoxyCo never taps buttons or accepts '
-                        'or declines rides for you.',
+                    title: accessibilityDisclosureTitle,
+                    body: accessibilityDisclosureBody,
                     granted: perms.accessibilityGranted,
                     buttonLabel: 'Grant Accessibility Access',
                     onGrant: _grantAccessibility,

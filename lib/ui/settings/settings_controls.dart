@@ -165,37 +165,41 @@ class ChoiceRow<T> extends StatelessWidget {
       children: [
         for (final v in values) ...[
           Expanded(
-            child: GestureDetector(
-              onTap: () {
-                HapticFeedback.selectionClick();
-                onChanged(v);
-              },
-              child: AnimatedContainer(
-                duration: Motion.base,
-                padding: const EdgeInsets.symmetric(vertical: 9),
-                decoration: BoxDecoration(
-                  color: v == selected
-                      ? FoxColors.bgSurface2
-                      : FoxColors.bgSurface,
-                  borderRadius: BorderRadius.circular(Radii.pill),
-                  border: Border.all(
+            child: Semantics(
+              button: true,
+              selected: v == selected,
+              label: labelOf(v),
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () {
+                  HapticFeedback.selectionClick();
+                  onChanged(v);
+                },
+                child: AnimatedContainer(
+                  duration: Motion.base,
+                  constraints: const BoxConstraints(minHeight: 48),
+                  padding: const EdgeInsets.symmetric(vertical: 9),
+                  decoration: BoxDecoration(
                     color: v == selected
-                        ? FoxColors.border
-                        : FoxColors.borderSoft,
-                  ),
-                ),
-                child: Center(
-                  child: Text(
-                    labelOf(v),
-                    style: TextStyle(
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.w700,
-                      // textPrimary, not cream: this row sits on page chrome,
-                      // which flips with the theme (cream would vanish on
-                      // paper).
+                        ? FoxColors.brandFoxSoft
+                        : FoxColors.bgSurface,
+                    borderRadius: BorderRadius.circular(Radii.pill),
+                    border: Border.all(
                       color: v == selected
-                          ? FoxColors.textPrimary
-                          : FoxColors.textSecondary,
+                          ? FoxColors.brandFox.withValues(alpha: 0.6)
+                          : FoxColors.borderSoft,
+                    ),
+                  ),
+                  child: Center(
+                    child: Text(
+                      labelOf(v),
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w700,
+                        color: v == selected
+                            ? FoxColors.textPrimary
+                            : FoxColors.textSecondary,
+                      ),
                     ),
                   ),
                 ),

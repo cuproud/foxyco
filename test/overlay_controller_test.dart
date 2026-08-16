@@ -8,6 +8,7 @@ import 'package:foxyco/domain/offer.dart';
 import 'package:foxyco/domain/platform.dart';
 import 'package:foxyco/domain/verdict.dart';
 import 'package:foxyco/services/billing/entitlement.dart';
+import 'package:foxyco/services/ocr/ocr_capture.dart';
 import 'package:foxyco/services/overlay_service.dart';
 import 'package:foxyco/ui/home/dashboard_controller.dart';
 import 'package:foxyco/ui/home/dashboard_state.dart';
@@ -82,11 +83,13 @@ class _FakeOverlayService implements OverlayService {
 }
 
 class _MutableAccessStore extends AccessStore {
+  Completer<void>? tickGate;
+
   @override
   Access build() => const Access(entitled: false, source: AccessSource.none);
 
   @override
-  Future<void> tick() async {}
+  Future<void> tick() async => tickGate?.future;
 
   void setAccess(Access next) => state = next;
 }
@@ -102,10 +105,18 @@ class _GrantedDashboardController extends DashboardController {
   );
 }
 
+class _FakeOcrCapture extends OcrCapture {
+  const _FakeOcrCapture();
+
+  @override
+  Future<void> stop() async {}
+}
+
 ProviderContainer _containerWith(_FakeOverlayService fake) {
   final c = ProviderContainer(
     overrides: [
       overlayServiceProvider.overrideWithValue(fake),
+      ocrCaptureProvider.overrideWithValue(const _FakeOcrCapture()),
       dashboardProvider.overrideWith(_GrantedDashboardController.new),
     ],
   );
@@ -161,6 +172,7 @@ void main() {
     final c = ProviderContainer(
       overrides: [
         overlayServiceProvider.overrideWithValue(fake),
+        ocrCaptureProvider.overrideWithValue(const _FakeOcrCapture()),
         accessProvider.overrideWith(_MutableAccessStore.new),
         dashboardProvider.overrideWith(_GrantedDashboardController.new),
       ],
@@ -188,6 +200,46 @@ void main() {
 
     expect(fake.clearCount, 1);
   });
+
+  test(
+    'stopping during entitlement refresh cannot resurrect overlay',
+    () async {
+      final fake = _FakeOverlayService();
+      final c = ProviderContainer(
+        overrides: [
+          overlayServiceProvider.overrideWithValue(fake),
+          ocrCaptureProvider.overrideWithValue(const _FakeOcrCapture()),
+          accessProvider.overrideWith(_MutableAccessStore.new),
+          dashboardProvider.overrideWith(_GrantedDashboardController.new),
+        ],
+      );
+      addTearDown(c.dispose);
+      c.read(overlayControllerProvider);
+      c.read(dashboardProvider.notifier).startMonitoring();
+      await Future<void>.delayed(Duration.zero);
+
+      final access = c.read(accessProvider.notifier) as _MutableAccessStore;
+      access.tickGate = Completer<void>();
+      final show = c
+          .read(overlayControllerProvider.notifier)
+          .showFromOffer(
+            const Offer(
+              platform: GigPlatform.uber,
+              payout: 10,
+              pickupKm: 2,
+              dropoffKm: 8,
+            ),
+            Verdict.ok,
+          );
+      await Future<void>.delayed(Duration.zero);
+      c.read(dashboardProvider.notifier).stopMonitoring();
+      await Future<void>.delayed(Duration.zero);
+      access.tickGate!.complete();
+      await show;
+
+      expect(fake.shown, isEmpty);
+    },
+  );
 
   test('rotates through GOOD/OK/BAD samples on repeat taps', () async {
     final fake = _FakeOverlayService(granted: true);

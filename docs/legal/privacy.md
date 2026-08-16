@@ -4,7 +4,7 @@ title: FoxyCo — Privacy Policy
 
 # FoxyCo — Privacy Policy
 
-**Last updated: 7 August 2026**
+**Last updated: 9 August 2026**
 
 FoxyCo ("the app") is published by **Vamsi Naradasu**
 ("we", "us"), contactable at **foxyco.dev@gmail.com**.
@@ -15,10 +15,11 @@ package name `com.foxyco.app`.
 
 ## The short version
 
-FoxyCo reads ride-offer text off your screen to score it, and that reading never
-leaves your phone. On first launch, Firebase creates a random anonymous identity
-for trial-abuse prevention. If you start a trial, Google account identity and
-the server-recorded trial date also reach Firebase.
+FoxyCo reads offer-related text only in Uber Driver, Lyft Driver and Hopp Driver
+to score offers, and that reading never leaves your phone. On first launch,
+Firebase creates a random anonymous identity for trial-abuse prevention. If you
+start a trial, Google account identity and the server-recorded trial date also
+reach Firebase.
 
 ## What stays on your device, always
 
@@ -40,17 +41,36 @@ it at any time.
 
 ## What FoxyCo reads on screen, and what it does with it
 
-FoxyCo uses Android's AccessibilityService API. This is the only way on Android
-for one app to read what another app is drawing.
+FoxyCo primarily uses Android's AccessibilityService API to read supported
+driver-app offer cards. You can separately enable **Pixel Capture (OCR)** as a
+fallback when a card exposes too little Accessibility text.
 
-- It is **restricted to three apps**: Uber Driver, Lyft Driver and Hopp Driver.
-  FoxyCo receives no events at all from any other app, including your browser,
-  messages, banking apps or launcher.
+- The Accessibility event stream is **restricted to three apps**: Uber Driver,
+  Lyft Driver and Hopp Driver. A Pixel Capture frame can contain whatever is
+  visible at that instant; FoxyCo requests one only after an active
+  supported-app frame is unreadable.
+  FoxyCo's Accessibility service receives no events from any other app,
+  including your browser, messages, banking apps or launcher. Supporting
+  another driver app requires a FoxyCo update that explicitly adds and
+  discloses that app.
 - It is **read-only**. FoxyCo never requests the ability to perform gestures and
   cannot tap, accept, decline or otherwise act inside those apps.
-- The text read is used **in memory**, immediately, to calculate a verdict. The
-  numbers extracted (pay, distance, duration) are saved to your local offer
-  history. The raw screen text is not saved and is not transmitted.
+- Screen text is used only to detect and score offers and, if outcome tracking
+  is enabled, infer whether an offer was taken or passed. The numbers extracted
+  (pay, distance, duration) are saved to your local offer history. Raw screen
+  text is processed in memory and is never saved, uploaded or shared.
+- Pixel Capture is off by default. Enabling it shows a separate FoxyCo
+  disclosure and requires an affirmative choice. On Android 11 and newer, OCR
+  requests one Accessibility screenshot only after an active
+  supported-driver-app frame is empty or card-like but incomplete. There is no
+  continuous recording or MediaProjection screen-sharing session. The bundled
+  recognition model runs on the device. Captured pixels are cleared immediately
+  after recognition and are never written to a file, added to History, uploaded
+  or included in logs. On Android 10 and older, FoxyCo continues with
+  Accessibility text only.
+- Pausing or stopping FoxyCo, swiping its task away, or revoking Accessibility
+  cancels pending OCR results. Protected or unavailable screens produce no OCR
+  result.
 
 ## What leaves your device
 

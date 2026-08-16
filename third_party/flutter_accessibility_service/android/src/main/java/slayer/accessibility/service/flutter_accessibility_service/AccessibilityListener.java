@@ -4,16 +4,22 @@ import static slayer.accessibility.service.flutter_accessibility_service.Constan
 import static slayer.accessibility.service.flutter_accessibility_service.FlutterAccessibilityServicePlugin.CACHED_TAG;
 
 import android.accessibilityservice.AccessibilityService;
+import android.accessibilityservice.AccessibilityServiceInfo;
 import android.annotation.TargetApi;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.graphics.PixelFormat;
 import android.graphics.Rect;
+import android.hardware.HardwareBuffer;
 import android.os.Build;
 import android.os.Handler;
 import android.os.HandlerThread;
+import android.os.Looper;
+import android.os.SystemClock;
 import android.util.Log;
+import android.view.Display;
 import android.view.Gravity;
 import android.view.WindowManager;
 import android.view.accessibility.AccessibilityEvent;
@@ -24,8 +30,14 @@ import androidx.annotation.RequiresApi;
 
 
 import com.google.gson.Gson;
+import com.google.mlkit.vision.common.InputImage;
+import com.google.mlkit.vision.text.Text;
+import com.google.mlkit.vision.text.TextRecognition;
+import com.google.mlkit.vision.text.TextRecognizer;
+import com.google.mlkit.vision.text.latin.TextRecognizerOptions;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.HashSet;
@@ -39,7 +51,7 @@ import io.flutter.embedding.engine.FlutterEngineCache;
 
 
 public class AccessibilityListener extends AccessibilityService {
-    private static AccessibilityListener instance;
+    private static volatile AccessibilityListener instance;
     // FoxyCo: per-event walk diagnostics (FOXYCO_WALK logcat). Costs a full
     // extra node scan + per-window getRoot() IPC on every a11y event — keep
     // OFF outside active parser debugging.
@@ -66,6 +78,7 @@ public class AccessibilityListener extends AccessibilityService {
     // Queue depth 1: a new event evicts any not-yet-started walk, so we always
     // parse the freshest frame instead of grinding through a stale backlog.
     private static final Handler sWorker;
+    private static final Handler sMain = new Handler(Looper.getMainLooper());
     static {
         HandlerThread thread = new HandlerThread("foxyco-a11y");
         thread.start();
@@ -75,6 +88,25 @@ public class AccessibilityListener extends AccessibilityService {
     private AccessibilityEvent pendingEvent;
     private boolean eventDrainScheduled = false;
     private final Runnable eventDrain = this::drainLatestEvent;
+    // Offer windows can finish attaching just after the event that announced
+    // them. Re-read twice, then stop; a cooldown prevents animated maps from
+    // turning this into continuous polling.
+    private static final long POLL_BURST_COOLDOWN_MS = 1500;
+    private static final long[] POLL_BURST_DELAYS_MS = {180, 450};
+    private long lastPollBurstAt = 0;
+
+    // FoxyCo opt-in OCR. Accessibility nodes remain primary; this path takes
+    // one screenshot only when Dart requests a fallback. The bitmap never
+    // leaves memory and is cleared immediately after ML Kit finishes.
+    public interface OcrCallback {
+        void onResult(List<String> lines);
+    }
+    private static final long OCR_TIMEOUT_MS = 1500;
+    private OcrCallback pendingOcr;
+    private Runnable ocrTimeout;
+    private long ocrToken = 0;
+    private TextRecognizer ocrRecognizer;
+    private Bitmap activeOcrBitmap;
 
     @RequiresApi(api = Build.VERSION_CODES.N)
     @Override
@@ -100,7 +132,13 @@ public class AccessibilityListener extends AccessibilityService {
             event = pendingEvent;
             pendingEvent = null;
         }
-        if (event != null) processEvent(event); // processEvent recycles it
+        if (event != null) {
+            // Keep one framework-safe copy as the package/window seed for the
+            // bounded follow-up reads; processEvent recycles its own argument.
+            AccessibilityEvent pollSeed = AccessibilityEvent.obtain(event);
+            processEvent(event);
+            schedulePollBurst(pollSeed);
+        }
         synchronized (eventLock) {
             if (pendingEvent != null) {
                 sWorker.post(eventDrain);
@@ -108,6 +146,26 @@ public class AccessibilityListener extends AccessibilityService {
                 eventDrainScheduled = false;
             }
         }
+    }
+
+    private void schedulePollBurst(AccessibilityEvent seed) {
+        final long now = SystemClock.uptimeMillis();
+        if (now - lastPollBurstAt < POLL_BURST_COOLDOWN_MS) {
+            seed.recycle();
+            return;
+        }
+        lastPollBurstAt = now;
+        for (long delay : POLL_BURST_DELAYS_MS) {
+            final AccessibilityEvent poll = AccessibilityEvent.obtain(seed);
+            sWorker.postDelayed(() -> {
+                if (instance == this) {
+                    processEvent(poll);
+                } else {
+                    poll.recycle();
+                }
+            }, delay);
+        }
+        seed.recycle();
     }
 
     @RequiresApi(api = Build.VERSION_CODES.N)
@@ -168,42 +226,28 @@ public class AccessibilityListener extends AccessibilityService {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR2) {
                 data.put("nodeId", parentNodeInfo.getViewIdResourceName());
             }
-            getSubNodes(parentNodeInfo, subNodeActions, traversedNodes, 0);
-            final int nAfterSource = subNodeActions.size();
-            // FoxyCo patch: ALSO walk the active window's ROOT. The event source
-            // is only the subtree that fired the event — on Uber that's the map
-            // container, while the offer card is a SIBLING subtree that never
-            // fires its own events. uiautomator (which dumps from the active
-            // root) sees the card fine; source-only traversal never does
-            // (ground-truth dump 2026-07-16, $15.18 card present at depth 19).
-            // traversedNodes dedupes the overlap with the source subtree.
-            AccessibilityNodeInfo activeRoot = getRootInActiveWindow();
-            if (activeRoot != null && packageName.equals(String.valueOf(activeRoot.getPackageName()))) {
-                getSubNodes(activeRoot, subNodeActions, traversedNodes, 0);
+            // Preserve Android's top-first window ownership. The old code walked
+            // the source, active root and every same-package window into one bag;
+            // a dismissed lower offer could then be combined with the visible
+            // browse/trip window and look live forever.
+            List<HashMap<String, Object>> windowSnapshots =
+                    collectSamePackageWindows(subNodeActions, packageName);
+            // Some OEMs do not expose interactive windows for every event. Keep
+            // the source/root walk as a compatibility fallback only.
+            if (windowSnapshots.isEmpty()) {
+                getSubNodes(parentNodeInfo, subNodeActions, traversedNodes, 0);
+                AccessibilityNodeInfo activeRoot = getRootInActiveWindow();
+                if (activeRoot != null
+                        && packageName.equals(String.valueOf(activeRoot.getPackageName()))) {
+                    getSubNodes(activeRoot, subNodeActions, traversedNodes, 0);
+                }
             }
-            final int nAfterActive = subNodeActions.size();
-            // FoxyCo patch: the event source is only ONE node's subtree. An offer
-            // card that lives in a SEPARATE window (e.g. Uber's card drawn over the
-            // map) is never in that subtree when the event fires from another window,
-            // so it never reaches the parser (Uber gap) and a valid pill flickers
-            // out the instant a map-window event yields no card. Traverse EVERY
-            // window that belongs to the same package and merge its nodes into the
-            // same flat list. The shared traversedNodes set dedupes overlaps, so the
-            // active window isn't double-counted (which would e.g. give Lyft 4 legs
-            // instead of 2). Package-scoped so our own overlay pill, the status/nav
-            // bars, and the IME never leak their text into the gig app's read.
-            // NOTE: a bisect once shipped with this line commented out — that broke
-            // Uber AND Hopp parsing entirely (their cards are separate windows).
-            // Keep it enabled.
-            collectSamePackageWindows(subNodeActions, traversedNodes, packageName);
             // FoxyCo diagnostic (2026-07-19, root causes fixed same day): stage
             // counts + text scan proved where card text was lost. Gated OFF now —
             // this ran a full node scan + string build on EVERY a11y event, real
             // battery/CPU load over a shift. Flip DEBUG_WALK to re-arm.
             if (DEBUG_WALK) {
-                Log.i("FOXYCO_WALK", "src=" + nAfterSource
-                        + " active=" + (nAfterActive - nAfterSource)
-                        + " windows=" + (subNodeActions.size() - nAfterActive)
+                Log.i("FOXYCO_WALK", "windows=" + windowSnapshots.size()
                         + " total=" + subNodeActions.size()
                         + " srcNull=" + (accessibilityEvent.getSource() == null)
                         + " type=" + eventType);
@@ -224,6 +268,7 @@ public class AccessibilityListener extends AccessibilityService {
             actions.addAll(parentNodeInfo.getActionList().stream().map(AccessibilityNodeInfo.AccessibilityAction::getId).collect(Collectors.toList()));
             data.put("parentActions", actions);
             data.put("subNodesActions", subNodeActions);
+            data.put("windows", windowSnapshots);
             data.put("isClickable", parentNodeInfo.isClickable());
             data.put("isScrollable", parentNodeInfo.isScrollable());
             data.put("isFocusable", parentNodeInfo.isFocusable());
@@ -330,23 +375,16 @@ public class AccessibilityListener extends AccessibilityService {
         }
     }
 
-    /// FoxyCo patch: walk every window that belongs to `packageName` and append
-    /// its nodes into the same flat list the event-source traversal filled. This
-    /// is what surfaces an offer card living in its own window (Uber draws its
-    /// card as a separate window over the map, so it never appears under the map
-    /// window's event source). Package-scoped so system windows, the IME, and our
-    /// own overlay bubble/pill never bleed their text into the gig app's read; the
-    /// shared `traversedNodes` set means the active window that fired the event is
-    /// not traversed twice. Fails soft — any window error is swallowed so a single
-    /// bad window can't drop the whole read.
+    /// Walk every same-package window once, preserving Android's descending
+    /// layer order while also filling the legacy flat node list.
     @RequiresApi(api = Build.VERSION_CODES.N)
-    private void collectSamePackageWindows(List<HashMap<String, Object>> arr,
-                                           HashSet<AccessibilityNodeInfo> traversedNodes,
-                                           String packageName) {
-        if (packageName == null) return;
+    private List<HashMap<String, Object>> collectSamePackageWindows(
+            List<HashMap<String, Object>> arr, String packageName) {
+        List<HashMap<String, Object>> snapshots = new ArrayList<>();
+        if (packageName == null) return snapshots;
         try {
             List<AccessibilityWindowInfo> windows = getWindows();
-            if (windows == null) return;
+            if (windows == null) return snapshots;
             // FoxyCo diagnostic (2026-07-19, gated with DEBUG_WALK): list every
             // window the service can see. getRoot() is an IPC round-trip per
             // window — too dear to pay on every event once the bug was fixed.
@@ -361,23 +399,30 @@ public class AccessibilityListener extends AccessibilityService {
                 }
                 Log.i("FOXYCO_WALK", "windows=" + windows.size() + " " + sb);
             }
-            // FoxyCo: MUST pass the SHARED traversedNodes set. A diagnostic build
-            // once walked each window into a separate set — every node the event
-            // source already captured was appended AGAIN, so every leg line
-            // appeared twice and foldLegs summed doubled distances (the
-            // "39.2 km for a 19.6 km ride" pill-math bug, screenshots 2026-07-17).
             for (AccessibilityWindowInfo window : windows) {
                 if (window == null) continue;
                 AccessibilityNodeInfo root = window.getRoot();
                 if (root == null) continue;
                 CharSequence pkg = root.getPackageName();
                 if (pkg != null && packageName.equals(pkg.toString())) {
-                    getSubNodes(root, arr, traversedNodes, 0);
+                    List<HashMap<String, Object>> nodes = new ArrayList<>();
+                    getSubNodes(root, nodes, new HashSet<>(), 0);
+                    if (nodes.isEmpty()) continue;
+                    arr.addAll(nodes);
+                    HashMap<String, Object> snapshot = new HashMap<>();
+                    snapshot.put("windowId", window.getId());
+                    snapshot.put("windowLayer", window.getLayer());
+                    snapshot.put("isActive", window.isActive());
+                    snapshot.put("isFocused", window.isFocused());
+                    snapshot.put("windowType", window.getType());
+                    snapshot.put("subNodesActions", nodes);
+                    snapshots.add(snapshot);
                 }
             }
         } catch (Exception ex) {
             Log.e("EVENT", "collectSamePackageWindows: " + ex.getMessage());
         }
+        return snapshots;
     }
 
     private HashMap<String, Integer> getBoundingPoints(Rect rect) {
@@ -389,6 +434,172 @@ public class AccessibilityListener extends AccessibilityService {
         frame.put("width", rect.width());
         frame.put("height", rect.height());
         return frame;
+    }
+
+    /** True only while Android has this service connected with screenshot capability. */
+    public static boolean isOcrAvailable() {
+        AccessibilityListener service = instance;
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R || service == null) return false;
+        AccessibilityServiceInfo info = service.getServiceInfo();
+        return info != null
+                && (info.getCapabilities()
+                & AccessibilityServiceInfo.CAPABILITY_CAN_TAKE_SCREENSHOT) != 0;
+    }
+
+    /** Requests one memory-only screenshot and returns recognized lines. */
+    public static boolean captureOcr(OcrCallback callback) {
+        AccessibilityListener service = instance;
+        return service != null && service.requestOcr(callback);
+    }
+
+    /** Invalidates any pending screenshot/result; late bitmaps are still wiped. */
+    public static void cancelOcr() {
+        AccessibilityListener service = instance;
+        if (service != null) sMain.post(service::cancelOcrInternal);
+    }
+
+    private boolean requestOcr(OcrCallback callback) {
+        if (callback == null || !isOcrAvailable() || pendingOcr != null) return false;
+        final long token = ++ocrToken;
+        pendingOcr = callback;
+        ocrTimeout = () -> finishOcr(token, Collections.emptyList());
+        sMain.postDelayed(ocrTimeout, OCR_TIMEOUT_MS);
+        try {
+            takeScreenshot(
+                    Display.DEFAULT_DISPLAY,
+                    getMainExecutor(),
+                    new TakeScreenshotCallback() {
+                        @Override
+                        public void onSuccess(ScreenshotResult screenshot) {
+                            handleScreenshot(token, screenshot);
+                        }
+
+                        @Override
+                        public void onFailure(int errorCode) {
+                            finishOcr(token, Collections.emptyList());
+                        }
+                    }
+            );
+        } catch (RuntimeException error) {
+            finishOcr(token, Collections.emptyList());
+        }
+        return true;
+    }
+
+    @TargetApi(Build.VERSION_CODES.R)
+    private void handleScreenshot(long token, ScreenshotResult screenshot) {
+        Bitmap hardwareBitmap = null;
+        Bitmap bitmap = null;
+        HardwareBuffer buffer = screenshot.getHardwareBuffer();
+        try {
+            hardwareBitmap = Bitmap.wrapHardwareBuffer(buffer, screenshot.getColorSpace());
+            if (hardwareBitmap != null) {
+                bitmap = hardwareBitmap.copy(Bitmap.Config.ARGB_8888, true);
+            }
+        } catch (RuntimeException ignored) {
+            // A protected/vanished window can invalidate the hardware buffer.
+        } finally {
+            if (hardwareBitmap != null) hardwareBitmap.recycle();
+            buffer.close();
+        }
+        if (bitmap == null) {
+            finishOcr(token, Collections.emptyList());
+            return;
+        }
+        if (!isCurrentOcr(token)) {
+            wipeAndRecycle(bitmap);
+            return;
+        }
+        redactFoxyOverlay(bitmap);
+        activeOcrBitmap = bitmap;
+        try {
+            if (ocrRecognizer == null) {
+                ocrRecognizer = TextRecognition.getClient(
+                        TextRecognizerOptions.DEFAULT_OPTIONS
+                );
+            }
+            final Bitmap captured = bitmap;
+            ocrRecognizer.process(InputImage.fromBitmap(captured, 0))
+                    .addOnSuccessListener(result -> {
+                        List<Text.Line> lines = new ArrayList<>();
+                        for (Text.TextBlock block : result.getTextBlocks()) {
+                            lines.addAll(block.getLines());
+                        }
+                        lines.sort((left, right) -> {
+                            Rect a = left.getBoundingBox();
+                            Rect b = right.getBoundingBox();
+                            int top = Integer.compare(
+                                    a == null ? Integer.MAX_VALUE : a.top,
+                                    b == null ? Integer.MAX_VALUE : b.top
+                            );
+                            if (top != 0) return top;
+                            return Integer.compare(
+                                    a == null ? Integer.MAX_VALUE : a.left,
+                                    b == null ? Integer.MAX_VALUE : b.left
+                            );
+                        });
+                        List<String> text = new ArrayList<>();
+                        for (Text.Line line : lines) {
+                            String value = line.getText().trim();
+                            if (!value.isEmpty()) text.add(value);
+                        }
+                        finishOcr(token, text);
+                    })
+                    .addOnFailureListener(error ->
+                            finishOcr(token, Collections.emptyList()))
+                    .addOnCompleteListener(task -> {
+                        if (activeOcrBitmap == captured) activeOcrBitmap = null;
+                        wipeAndRecycle(captured);
+                    });
+        } catch (RuntimeException error) {
+            activeOcrBitmap = null;
+            wipeAndRecycle(bitmap);
+            finishOcr(token, Collections.emptyList());
+        }
+    }
+
+    private boolean isCurrentOcr(long token) {
+        return instance == this && pendingOcr != null && ocrToken == token;
+    }
+
+    private void finishOcr(long token, List<String> lines) {
+        if (!isCurrentOcr(token)) return;
+        OcrCallback callback = pendingOcr;
+        pendingOcr = null;
+        if (ocrTimeout != null) sMain.removeCallbacks(ocrTimeout);
+        ocrTimeout = null;
+        callback.onResult(lines);
+    }
+
+    private void cancelOcrInternal() {
+        OcrCallback callback = pendingOcr;
+        pendingOcr = null;
+        ++ocrToken;
+        if (ocrTimeout != null) sMain.removeCallbacks(ocrTimeout);
+        ocrTimeout = null;
+        if (callback != null) callback.onResult(Collections.emptyList());
+    }
+
+    private static void redactFoxyOverlay(Bitmap bitmap) {
+        try {
+            Class<?> overlay = Class.forName(
+                    "flutter.overlay.window.flutter_overlay_window.OverlayService"
+            );
+            overlay.getMethod("redactCapture", Bitmap.class).invoke(null, bitmap);
+        } catch (ReflectiveOperationException | RuntimeException ignored) {
+            // The fox bubble carries no text; strict parsing still fails safe.
+        }
+    }
+
+    private static void wipeAndRecycle(Bitmap bitmap) {
+        if (bitmap == null || bitmap.isRecycled()) return;
+        try {
+            bitmap.eraseColor(Color.TRANSPARENT);
+        } catch (RuntimeException ignored) {
+            // Recycling still releases an unexpectedly immutable bitmap.
+        } finally {
+            bitmap.recycle();
+        }
     }
 
 
@@ -457,6 +668,11 @@ public class AccessibilityListener extends AccessibilityService {
 
     @Override
     public void onDestroy() {
+        cancelOcrInternal();
+        if (ocrRecognizer != null) ocrRecognizer.close();
+        ocrRecognizer = null;
+        if (activeOcrBitmap != null) wipeAndRecycle(activeOcrBitmap);
+        activeOcrBitmap = null;
         synchronized (eventLock) {
             sWorker.removeCallbacks(eventDrain);
             if (pendingEvent != null) pendingEvent.recycle();
@@ -473,6 +689,7 @@ public class AccessibilityListener extends AccessibilityService {
 
     @Override
     public void onInterrupt() {
+        cancelOcrInternal();
     }
 
     private String generateNodeId(AccessibilityNodeInfo node) {

@@ -54,7 +54,20 @@ continuously. Done naively this drains battery and gets FoxyCo blamed.
 - Scope `packageNames` to Uber + Hopp only — events don't fire system-wide.
 - Debounce `typeWindowContentChanged` (it machine-guns). Parse on a short debounce + dedupe.
 - Only run the heavy watching while the driver is "on" (bubble long-press pause; auto-idle).
-- No polling, no wakelocks beyond what the overlay/foreground task needs. Target <300 ms detect→verdict.
+- No continuous polling or wakelocks. A rate-limited two-read burst (180/450 ms)
+  after a signal catches late-attaching offer windows, then stops. Target <300 ms
+  first detect→verdict.
+- Pixel Capture OCR is opt-in and fallback-only: Accessibility runs first, OCR
+  requests are rate-limited and non-overlapping, the bundled model works
+  offline, and screenshots exist only as an in-memory Bitmap until recognition
+  completes. FoxyCo's overlay rectangle is cleared from the mutable in-memory
+  bitmap before recognition, without hiding or resizing the visible overlay.
+  There is no MediaProjection session,
+  screen-sharing indicator, capture foreground service, or continuous capture.
+  Pause, stop, overlay loss, task removal, and Accessibility shutdown cancel
+  pending results. Protected or unavailable screens fail closed. Test explicit
+  opt-in, those stop paths, Android 10 fallback, and zero screenshot files
+  before release.
 - **Flutter-specific:** the overlay runs a **second Flutter engine/isolate** (see ARCHITECTURE).
   That's extra baseline memory vs a native View overlay. Keep the overlay entrypoint's widget tree
   tiny (a pill is a Row + a dot), don't pull the whole app's providers into it, and close the
@@ -311,10 +324,11 @@ test count and release findings, see `HANDOFF_2026-08-04.md`.
   is behind `kDebugMode`; `allowBackup=false`; Firestore rules are write-once and own-uid only.
 
 **Still open (console/device work, not code)**
-- Android may hide `accessibilityDataSensitive` card views from a service with
-  `isAccessibilityTool=false`; claiming `true` is not an acceptable workaround
-  for a non-disability app. Keep the truthful flag, document current app/OS
-  compatibility, and record the disclosure review video before submitting.
+- **Current 2026-08-14 state:** `isAccessibilityTool=true` is intentionally
+  retained for device compatibility, overriding the historical M9 snapshot
+  above. FoxyCo is not a disability aid, so this remains a Play-policy review
+  risk and must be resolved as a distribution/legal decision before submission;
+  adding opt-in OCR does not change that classification.
 - Firebase App Check + a Firestore budget alert. Anonymous auth is open by design; without App
   Check the abuse ceiling is quota cost, not data.
 - Battery/memory profile over a real shift — the vendored listener walks every same-package

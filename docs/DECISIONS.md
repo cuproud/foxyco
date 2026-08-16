@@ -38,8 +38,9 @@ Append-only. Every locked choice + why, so we don't re-argue it. Open items at b
 - **Package name** — locked and published as `com.foxyco.app`.
 - **Distribution** — Play Store (with accessibility disclosure) vs sideload/direct APK. Decide by M4. See AUDIT #1.
 - **Visual direction** — Kinetic HUD / Aurora Glass / Neo-Tactile (see UI_DESIGN.md). Lock at M5.
-- **Units/currency** — kilometres + CAD default; Settings supports miles and
-  USD labels without FX conversion.
+- **Units/currency** — Settings supports USD, CAD, AUD, NZD, MXN, and BRL
+  labels without FX conversion. New installs default from the Google Play
+  storefront country; unsupported/unavailable countries fall back to CAD.
 - **Platforms** — Uber, Lyft and Hopp.
 
 ---

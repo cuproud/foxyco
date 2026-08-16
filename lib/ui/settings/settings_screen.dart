@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,22 +8,19 @@ import 'package:share_plus/share_plus.dart';
 
 import '../../domain/app_skin.dart';
 import '../../domain/app_currency.dart';
-import '../../domain/decision_engine.dart';
 import '../../domain/distance_unit.dart';
 import '../../domain/fox_settings.dart';
 import '../../domain/money_font.dart';
 import '../../domain/overlay_payload.dart' show OverlayPayload, PillSize;
 import '../../domain/platform.dart';
-import '../../domain/rate_mode.dart';
-import '../../domain/thresholds.dart';
 import '../../domain/verdict.dart';
 import '../../services/billing/entitlement.dart';
 import '../../services/offer_log.dart';
 import '../../services/parse_health.dart';
 import '../overlay/verdict_pill.dart';
 import '../paywall/unlock_section.dart';
+import '../legal/ocr_disclosure.dart';
 import '../shell/root_shell.dart';
-import '../theme/platform_badge.dart';
 import '../theme/section_label.dart';
 import '../theme/tokens.dart';
 import 'about_content.dart';
@@ -34,9 +32,7 @@ import 'reminder_section.dart';
 import 'settings_controller.dart';
 import 'settings_controls.dart';
 
-/// Settings — every driver-tunable knob in [FoxSettings]: verdict thresholds
-/// (with live preview), pickup-distance guard, watched apps, pill size, theme +
-/// money font, and history retention / clear.
+/// Account, appearance, diagnostics, history, and app-level preferences.
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
 
@@ -45,56 +41,39 @@ class SettingsScreen extends ConsumerStatefulWidget {
 }
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
-  // Slider ranges per rate mode ($/km vs $/hr scales differ ~20×).
-  static const _minKm = 0.5;
-  static const _maxKm = 3.0;
-  static const _minHr = 10.0;
-  static const _maxHr = 60.0;
-  static const _engine = DecisionEngine();
-
-  /// Per-group accent hues, index-matched to the GROUP INDEX rather than the
-  /// on-screen order (Parser health, 9, is shown up with Watched apps) — flat
-  /// same-orange tiles read boring (device 2026-07-21). Muted; green/red stay
-  /// reserved for verdicts except the thresholds group, whose whole point is
-  /// the verdict band.
-  ///
-  /// A getter, not a `const` list: the verdict green below is theme-varying, so
-  /// the list has to be rebuilt after a palette switch.
+  /// Muted per-group accents; green/red remain reserved for verdicts.
   static List<Color> get _accents => [
     FoxColors.brandFox, // 0 Profile — brand orange
     const Color(0xFFE8B44F), // 1 Garage — amber
-    VerdictColors.good, // 2 Verdict thresholds — the band's green
-    const Color(0xFF5EC2CD), // 3 Live preview — teal
-    const Color(0xFF4FA3E8), // 4 Pickup guard — blue
-    const Color(0xFFB48AE8), // 5 Watched apps — violet
-    const Color(0xFFEF7BA8), // 6 Outcome tracking — rose
-    const Color(0xFFD08954), // 7 Pill size — copper
-    const Color(0xFFC8C87A), // 8 Appearance — olive gold
-    const Color(0xFF6ABF9E), // 9 Parser health — mint
-    const Color(0xFF9AA7B8), // 10 History — slate
-    // 11 Unlock — brand orange, same as Driver. Deliberate: this is the one
-    // group that IS the brand action, and the two sit at opposite ends of a
-    // long list, so they never read as a repeated tile.
+    const Color(0xFF6ABF9E), // 2 Parser health — mint
+    const Color(0xFFEF7BA8), // 3 Outcome tracking — rose
+    const Color(0xFFD08954), // 4 Pill size — copper
+    const Color(0xFFC8C87A), // 5 Appearance — olive gold
+    const Color(0xFF9AA7B8), // 6 History — slate
     FoxColors.brandFox,
   ];
 
-  /// Live-preview sample rate, one per mode so flipping modes lands on a
-  /// sensible sample instead of an out-of-range one.
-  double _samplePpk = 1.25;
-  double _samplePph = 25.0;
-
-  /// Single-open accordion index (-1 = all collapsed); Profile open by default.
+  /// Single-open accordion index (-1 = all collapsed); Profile opens by default.
   int _open = 0;
   void _toggle(int i) => setState(() => _open = _open == i ? -1 : i);
+
+  Future<void> _setOcrEnabled(bool enabled) async {
+    if (!enabled) {
+      ref.read(settingsProvider.notifier).setOcrEnabled(false);
+      return;
+    }
+    if (!await showOcrDisclosure(context) || !mounted) return;
+    ref.read(settingsProvider.notifier).setOcrEnabled(true);
+  }
 
   /// One key per row so a deep link can scroll its target into view. The rows
   /// all live in a plain `ListView(children:)`, so anything past the cache
   /// extent has no context to scroll to — hence the null guard rather than a
   /// bang. Worst case the group is open but the driver still has to scroll,
   /// which is where every deep link used to land.
-  final _rowKeys = List.generate(13, (_) => GlobalKey());
+  final _rowKeys = List.generate(9, (_) => GlobalKey());
 
-  /// Honour a jump made with `TabIndex.go(2, section: n)`: expand the group the
+  /// Honour a jump made with `TabIndex.go(3, section: n)`: expand the group the
   /// driver actually tapped for and bring it on screen. Consumed once, so
   /// switching to Settings by hand afterwards leaves their accordion alone.
   void _consumeDeepLink() {
@@ -127,27 +106,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     // Settings is always built (it's an IndexedStack child), so the deep link
     // has to hang off the tab CHANGE, not off this build.
     ref.listen<int>(tabIndexProvider, (_, next) {
-      if (next == 2) _consumeDeepLink();
+      if (next == 3) _consumeDeepLink();
     });
 
     final settings = ref.watch(settingsProvider);
-    final perHour = settings.rateMode == RateMode.perHour;
-    final canonicalThresholds = settings.activeThresholds;
-    final t = perHour
-        ? canonicalThresholds
-        : Thresholds(
-            goodAtOrAbove: settings.distanceUnit.rateFromPerKm(
-              canonicalThresholds.goodAtOrAbove,
-            ),
-            badBelow: settings.distanceUnit.rateFromPerKm(
-              canonicalThresholds.badBelow,
-            ),
-          );
-    final min = perHour ? _minHr : settings.distanceUnit.rateFromPerKm(_minKm);
-    final max = perHour ? _maxHr : settings.distanceUnit.rateFromPerKm(_maxKm);
-    final unit = perHour ? '/hr' : '/${settings.distanceUnit.shortLabel}';
-    final money = settings.currency.prefix;
-    final sample = perHour ? _samplePph : _samplePpk;
     final controller = ref.read(settingsProvider.notifier);
     final text = Theme.of(context).textTheme;
     final garage = ref.watch(garageProvider);
@@ -155,6 +117,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final driverName = ref.watch(driverNameProvider);
 
     return ListView(
+      key: const Key('settings_scroll'),
       // 100 clears the floating nav; add the gesture-bar inset like Home does
       // (fixed 100 clipped the last card on gesture-nav phones).
       padding: EdgeInsets.fromLTRB(
@@ -164,10 +127,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         100 + MediaQuery.of(context).padding.bottom,
       ),
       children: [
-        Row(
+        OverflowBar(
+          alignment: MainAxisAlignment.spaceBetween,
+          overflowAlignment: OverflowBarAlignment.end,
+          overflowSpacing: Gap.xs,
           children: [
             Text('Settings', style: text.headlineMedium),
-            const Spacer(),
             TextButton(
               onPressed: () => _confirmReset(context, controller),
               style: TextButton.styleFrom(foregroundColor: FoxColors.brandFox),
@@ -230,196 +195,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
         ),
         const SizedBox(height: Gap.lg),
-        const SectionLabel('Scoring'),
+        const SectionLabel('Diagnostics'),
         const SizedBox(height: Gap.sm + Gap.xs),
         _staggered(
           2,
           SettingsGroup(
-            title: 'Verdict thresholds',
-            icon: Icons.tune_rounded,
-            summary: 'GOOD ≥ $money${t.goodAtOrAbove.toStringAsFixed(2)}$unit',
+            title: 'Parser health',
+            icon: Icons.monitor_heart_outlined,
+            summary: settings.ocrEnabled
+                ? 'This session · OCR enabled'
+                : 'This session',
             open: _open == 2,
             accent: _accents[2],
             onTap: () => _toggle(2),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(
-                  perHour
-                      ? 'Offers are scored by dollars per hour. Set where '
-                            'GOOD and BAD begin.'
-                      : 'Offers are scored by dollars per ${settings.distanceUnit.label.toLowerCase()}. Set '
-                            'where GOOD and BAD begin.',
-                  style: text.bodyMedium?.copyWith(
-                    color: FoxColors.textSecondary,
-                  ),
-                ),
-                const SizedBox(height: Gap.md),
-                // Rate mode — each mode keeps its own cut points. Offers
-                // with no parsed time fall back to $/km (engine fail-safe).
-                Center(
-                  child: SegmentedButton<RateMode>(
-                    segments: [
-                      for (final m in RateMode.values)
-                        ButtonSegment(value: m, label: Text(m.label)),
-                    ],
-                    selected: {settings.rateMode},
-                    onSelectionChanged: (s) => controller.setRateMode(s.first),
-                    style: SegmentedButton.styleFrom(
-                      // Deep-orange-on-orange was a leftover from the
-                      // cream theme — unreadable on dark. Cream on the
-                      // orange tint reads.
-                      selectedBackgroundColor: FoxColors.brandFoxSoft,
-                      selectedForegroundColor: FoxColors.textPrimary,
-                      foregroundColor: FoxColors.textSecondary,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: Gap.md),
-                // One-tap starting points (same trio as onboarding).
-                // Only shown in $/km mode — the presets are $/km numbers.
-                if (!perHour &&
-                    settings.distanceUnit == DistanceUnit.kilometres) ...[
-                  PresetChips(current: t, onPick: controller.applyPreset),
-                  const SizedBox(height: Gap.md),
-                ],
-                ThresholdBand(thresholds: t, min: min, max: max, unit: unit),
-                const SizedBox(height: Gap.md),
-                ThresholdSlider(
-                  label: 'GOOD at or above',
-                  color: VerdictColors.good,
-                  value: t.goodAtOrAbove,
-                  min: min,
-                  max: max,
-                  currencyPrefix: money,
-                  onChanged: perHour
-                      ? controller.setGood
-                      : controller.setDisplayedGood,
-                ),
-                const SizedBox(height: Gap.md),
-                ThresholdSlider(
-                  label: 'BAD below',
-                  color: VerdictColors.bad,
-                  value: t.badBelow,
-                  min: min,
-                  max: max,
-                  currencyPrefix: money,
-                  onChanged: perHour
-                      ? controller.setBad
-                      : controller.setDisplayedBad,
-                ),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(height: Gap.sm),
-        _staggered(
-          3,
-          SettingsGroup(
-            title: 'Live preview',
-            icon: Icons.visibility_outlined,
-            summary: 'Try a sample rate',
-            open: _open == 3,
-            accent: _accents[3],
-            onTap: () => _toggle(3),
-            child: PreviewCard(
-              sample: sample,
-              unit: unit,
-              verdict: _engine.evaluate(sample, t),
-              min: min,
-              max: max,
-              currencyPrefix: money,
-              onChanged: (v) => setState(() {
-                if (perHour) {
-                  _samplePph = v;
-                } else {
-                  _samplePpk = v;
-                }
-              }),
-            ),
-          ),
-        ),
-        const SizedBox(height: Gap.sm),
-        _staggered(
-          4,
-          SettingsGroup(
-            title: 'Pickup guard',
-            icon: Icons.near_me_outlined,
-            summary:
-                'Near ≤ ${settings.distanceUnit.distanceFromKm(settings.pickupNearKm).toStringAsFixed(1)} ${settings.distanceUnit.shortLabel}',
-            open: _open == 4,
-            accent: _accents[4],
-            onTap: () => _toggle(4),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                ThresholdSlider(
-                  label: 'Near pickup at or under',
-                  color: FoxColors.brandFox,
-                  value: settings.distanceUnit.distanceFromKm(
-                    settings.pickupNearKm,
-                  ),
-                  min: settings.distanceUnit.distanceFromKm(0.5),
-                  max: settings.distanceUnit.distanceFromKm(10.0),
-                  unit: settings.distanceUnit.shortLabel,
-                  onChanged: controller.setDisplayedPickupNear,
-                ),
-                Text(
-                  'Pickups under this distance show green on the pill; '
-                  'longer dead runs show red.',
-                  style: text.bodyMedium?.copyWith(
-                    color: FoxColors.textSecondary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(height: Gap.lg),
-        const SectionLabel('Watching'),
-        const SizedBox(height: Gap.sm + Gap.xs),
-        _staggered(
-          5,
-          SettingsGroup(
-            title: 'Watched apps',
-            icon: Icons.apps_rounded,
-            summary: settings.watchedApps.map((a) => a.label).join(' · '),
-            open: _open == 5,
-            accent: _accents[5],
-            onTap: () => _toggle(5),
-            child: Material(
-              type: MaterialType.transparency,
-              child: Column(
-                children: [
-                  for (final app in GigPlatform.values) ...[
-                    SwitchListTile(
-                      contentPadding: EdgeInsets.zero,
-                      // Badge matches History's chips — same identity mark
-                      // everywhere app name appears.
-                      secondary: PlatformBadge(platform: app, size: 22),
-                      title: Text(app.label, style: text.titleMedium),
-                      value: settings.watches(app),
-                      activeTrackColor: FoxColors.brandFox,
-                      onChanged: (_) => controller.toggleApp(app),
-                    ),
-                    if (app != GigPlatform.values.last)
-                      Divider(color: FoxColors.border, height: 1),
-                  ],
-                ],
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(height: Gap.sm),
-        _staggered(
-          9,
-          SettingsGroup(
-            title: 'Parser health',
-            icon: Icons.monitor_heart_outlined,
-            summary: 'This session',
-            open: _open == 9,
-            accent: _accents[9],
-            onTap: () => _toggle(9),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -447,20 +235,85 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     color: FoxColors.textSecondary,
                   ),
                 ),
+                Divider(color: FoxColors.border, height: Gap.xl),
+                Material(
+                  type: MaterialType.transparency,
+                  child: SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    secondary: Icon(
+                      Icons.document_scanner_outlined,
+                      color: FoxColors.brandFox,
+                    ),
+                    title: Text('Pixel Capture (OCR)', style: text.titleMedium),
+                    subtitle: const Text(
+                      'Optional fallback when Accessibility cannot read a card',
+                    ),
+                    value: settings.ocrEnabled,
+                    activeTrackColor: FoxColors.brandFox,
+                    onChanged: _setOcrEnabled,
+                  ),
+                ),
+                Text(
+                  'Accessibility stays primary. On Android 11 and newer, FoxyCo '
+                  'can take one screenshot only when a readable offer frame is '
+                  'missing. Recognition stays on-device; screenshots are never '
+                  'saved.',
+                  style: text.bodyMedium?.copyWith(
+                    fontSize: 12,
+                    height: 1.45,
+                    color: FoxColors.textSecondary,
+                  ),
+                ),
+                if (kDebugMode) ...[
+                  Divider(color: FoxColors.border, height: Gap.xl),
+                  Material(
+                    type: MaterialType.transparency,
+                    child: SwitchListTile(
+                      key: const Key('ocr_test_mode_toggle'),
+                      contentPadding: EdgeInsets.zero,
+                      secondary: Icon(
+                        Icons.science_outlined,
+                        color: FoxColors.brandFox,
+                      ),
+                      title: Text(
+                        'Force OCR test mode',
+                        style: text.titleMedium,
+                      ),
+                      subtitle: const Text(
+                        'Debug only · bypasses Accessibility text for testing',
+                      ),
+                      value: settings.ocrTestMode,
+                      activeTrackColor: FoxColors.brandFox,
+                      onChanged: settings.ocrEnabled
+                          ? controller.setOcrTestMode
+                          : null,
+                    ),
+                  ),
+                  Text(
+                    'Accessibility remains enabled because its active-app '
+                    'events trigger each screenshot. This mode resets after an '
+                    'app restart and is unavailable in release builds.',
+                    style: text.bodyMedium?.copyWith(
+                      fontSize: 12,
+                      height: 1.45,
+                      color: FoxColors.textSecondary,
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
         ),
         const SizedBox(height: Gap.sm),
         _staggered(
-          6,
+          3,
           SettingsGroup(
             title: 'Outcome tracking',
             icon: Icons.fact_check_outlined,
             summary: settings.trackOutcomes ? 'On' : 'Off',
-            open: _open == 6,
-            accent: _accents[6],
-            onTap: () => _toggle(6),
+            open: _open == 3,
+            accent: _accents[3],
+            onTap: () => _toggle(3),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -500,7 +353,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         const SectionLabel('Look & feel'),
         const SizedBox(height: Gap.sm + Gap.xs),
         _staggered(
-          7,
+          4,
           SettingsGroup(
             title: 'Pill size',
             icon: Icons.circle_outlined,
@@ -509,9 +362,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               PillSize.medium => 'Medium',
               PillSize.large => 'Large',
             },
-            open: _open == 7,
-            accent: _accents[7],
-            onTap: () => _toggle(7),
+            open: _open == 4,
+            accent: _accents[4],
+            onTap: () => _toggle(4),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -564,15 +417,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         ),
         const SizedBox(height: Gap.sm),
         _staggered(
-          8,
+          5,
           SettingsGroup(
             title: 'Appearance',
             icon: Icons.text_fields_rounded,
             summary:
                 '${settings.skin.label} · ${settings.distanceUnit.shortLabel} · ${settings.currency.label}',
-            open: _open == 8,
-            accent: _accents[8],
-            onTap: () => _toggle(8),
+            open: _open == 5,
+            accent: _accents[5],
+            onTap: () => _toggle(5),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -609,15 +462,23 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 Text('Offer currency', style: text.titleSmall),
                 const SizedBox(height: Gap.sm),
                 ChoiceRow<AppCurrency>(
-                  values: AppCurrency.values,
+                  values: AppCurrency.values.take(3).toList(),
+                  selected: settings.currency,
+                  labelOf: (currency) => currency.label,
+                  onChanged: controller.setCurrency,
+                ),
+                const SizedBox(height: Gap.sm),
+                ChoiceRow<AppCurrency>(
+                  values: AppCurrency.values.skip(3).toList(),
                   selected: settings.currency,
                   labelOf: (currency) => currency.label,
                   onChanged: controller.setCurrency,
                 ),
                 const SizedBox(height: Gap.sm),
                 Text(
-                  'USD defaults to miles; CAD defaults to kilometres. You can '
-                  'override Distance above. FoxyCo does not convert fares.',
+                  'USD defaults to miles; all other options default to '
+                  'kilometres. You can override Distance above. FoxyCo labels '
+                  'fares as reported and does not convert them.',
                   style: text.bodySmall?.copyWith(
                     color: FoxColors.textSecondary,
                   ),
@@ -655,16 +516,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         const SectionLabel('Your data'),
         const SizedBox(height: Gap.sm + Gap.xs),
         _staggered(
-          10,
+          6,
           SettingsGroup(
             title: 'History',
             icon: Icons.history_rounded,
             summary: settings.retentionDays == FoxSettings.keepForever
                 ? 'Keep forever'
                 : 'Keep ${settings.retentionDays} days',
-            open: _open == 10,
-            accent: _accents[10],
-            onTap: () => _toggle(10),
+            open: _open == 6,
+            accent: _accents[6],
+            onTap: () => _toggle(6),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -683,8 +544,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   },
                 ),
                 Divider(color: FoxColors.border, height: Gap.xl),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
+                Column(
+                  key: const Key('history_actions'),
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     TextButton.icon(
                       onPressed: () => _exportCsv(context),
@@ -697,7 +559,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         style: TextStyle(fontWeight: FontWeight.w700),
                       ),
                     ),
-                    const SizedBox(width: Gap.md),
+                    const SizedBox(height: Gap.xs),
                     TextButton(
                       onPressed: () => _confirmClear(context),
                       style: TextButton.styleFrom(
@@ -718,14 +580,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         const SectionLabel('Your unlock'),
         const SizedBox(height: Gap.sm + Gap.xs),
         _staggered(
-          11,
+          7,
           SettingsGroup(
             title: 'Unlock',
             icon: Icons.lock_open_rounded,
             summary: UnlockSection.summaryOf(ref.watch(accessProvider)),
-            open: _open == 11,
-            accent: _accents[11],
-            onTap: () => _toggle(11),
+            open: _open == 7,
+            accent: _accents[7],
+            onTap: () => _toggle(7),
             child: const UnlockSection(),
           ),
         ),
@@ -736,7 +598,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         // a test but no route and no way in, so that instruction pointed at
         // nothing.
         _staggered(
-          12,
+          8,
           const LinkRow(
             icon: Icons.info_outline_rounded,
             title: 'About & help',
@@ -759,11 +621,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   /// small per-index delay. Reduced-motion or below-the-fold sections render
   /// instantly — no loops, no jank.
   ///
-  /// Cutoff is 5, not the old 7: the delay is derived from the group INDEX, and
-  /// only the first six groups still appear in index order on screen (Parser
-  /// health, 9, was lifted up into the Watching band). Past that the two
-  /// disagree, and a stagger that runs out of step with the page reads as jitter
-  /// — below the fold nobody was going to see it anyway.
+  /// Only the first six groups animate; below-the-fold rows render instantly.
   Widget _staggered(int i, Widget child) {
     // Keyed here rather than at every call site — it's the one wrapper every
     // row already goes through.

@@ -16,7 +16,9 @@ import '../../ui/overlay/overlay_controller.dart';
 import '../../ui/settings/settings_controller.dart';
 import '../fox_log.dart';
 import '../offer_log.dart';
+import '../ocr/ocr_capture.dart';
 import '../parse_health.dart';
+import '../verdict_voice.dart';
 import 'accessibility_watcher.dart';
 
 /// DI seams so tests can swap fakes for the real plugin wrapper / engine.
@@ -75,6 +77,10 @@ class OfferWatcher extends Notifier<Offer?> {
   GigPlatform? _pendingOutcomePlatform;
   Timer? _outcomeTimer;
 
+  /// Exact logged row awaiting an outcome for each app. Accessibility repeats
+  /// trip screens; binding the evidence to a row makes those repeats idempotent.
+  final Map<GigPlatform, OfferSummary> _outcomeCandidates = {};
+
   /// How long to wait before dropping the pill once the card looks gone. Kept
   /// short: on a browse/home screen the card has DEFINITELY left (offers never
   /// carry browse markers), so we only need to coalesce a frame or two, not
@@ -86,8 +92,8 @@ class OfferWatcher extends Notifier<Offer?> {
 
   /// Floor on how long a pill stays visible once shown, even if the card seems
   /// to vanish right away — so a flaky frame can't blink it out before it's
-  /// readable. A positively-identified browse/home screen (the driver accepted /
-  /// declined / dismissed) bypasses this and clears promptly. Mutable for tests.
+  /// readable, including after a fast accept, decline, dismissal, or timeout.
+  /// Mutable for tests.
   @visibleForTesting
   static Duration minVisible = const Duration(seconds: 5);
 
@@ -121,6 +127,10 @@ class OfferWatcher extends Notifier<Offer?> {
   DateTime? _lastMissLoggedAt;
   int _suppressedMisses = 0;
   static const _missLogInterval = Duration(seconds: 10);
+
+  bool _ocrBusy = false;
+  DateTime? _lastOcrAt;
+  static const _ocrCooldown = Duration(milliseconds: 1500);
 
   @override
   Offer? build() {
@@ -156,12 +166,13 @@ class OfferWatcher extends Notifier<Offer?> {
 
   AccessibilityWatcher get _watcher => ref.read(accessibilityWatcherProvider);
 
-  /// Stable identity for an offer: same card ⇒ same key. Rounded km so tiny
-  /// live-distance jitter doesn't count as a new offer.
+  /// Stable identity for an offer while its card is active. Category, bonus,
+  /// and queue labels can appear a frame later in Lyft's accessibility tree;
+  /// they enrich the card but do not make it a second offer.
   static String _keyFor(Offer o) =>
-      '${o.platform.name}|${o.payout}|${o.bonus}|${o.pickupKm.toStringAsFixed(1)}|'
+      '${o.platform.name}|${o.payout}|${o.pickupKm.toStringAsFixed(1)}|'
       '${o.totalKm.toStringAsFixed(1)}|${o.totalMinutes.toStringAsFixed(1)}|'
-      '${o.category}|${o.isQueued}';
+      '${o.deliveryCount}';
 
   void _onRead(ScreenRead read) {
     // Trace EVERY read so a broken parse is diagnosable from logcat. Debug
@@ -170,7 +181,7 @@ class OfferWatcher extends Notifier<Offer?> {
     if (kDebugMode) {
       debugPrint(
         'FoxyCo[watch] read pkg=${read.packageName} '
-        'nodes=${read.texts.length} :: ${read.texts.join(" | ")}',
+        'nodes=${read.texts.length} source=${read.source.name}',
       );
       ref
           .read(foxLogProvider)
@@ -186,38 +197,94 @@ class OfferWatcher extends Notifier<Offer?> {
       return;
     }
 
-    final parser = ref
-        .read(parserRegistryProvider)
-        .forPackage(read.packageName);
-    if (parser == null) return; // not an app we read (noise from other apps)
+    final registry = ref.read(parserRegistryProvider);
+    OfferParser? parser;
+    Offer? offer;
+    if (read.source == CaptureSource.ocr) {
+      final settings = ref.read(settingsProvider);
+      if (!settings.ocrEnabled) return;
+      parser = registry.forPackage(read.packageName);
+      if (parser == null || !settings.watches(parser.platform)) return;
+      offer = parser.parse(read.texts);
+      // OCR is fallback evidence for offers only. It must never drive card-exit
+      // or outcome inference from an incomplete screenshot.
+      if (offer == null) {
+        if (ParserPatterns.hasAcceptAction(read.texts)) {
+          ref
+              .read(parseHealthProvider.notifier)
+              .recordCardMiss(parser.platform);
+          _logCardMiss(parser, read.texts);
+        }
+        return;
+      }
+    } else {
+      parser = registry.forPackage(read.packageName);
+      if (parser == null) return; // not an app we read
+      final settings = ref.read(settingsProvider);
+      if (kDebugMode && settings.ocrEnabled && settings.ocrTestMode) {
+        if (read.isActive && settings.watches(parser.platform)) {
+          unawaited(_requestOcr(read.packageName));
+        }
+        return;
+      }
+      if (read.texts.isEmpty) {
+        ref
+            .read(parseHealthProvider.notifier)
+            .recordTextlessFrame(parser.platform);
+        if (read.isActive) unawaited(_requestOcr(read.packageName));
+        return;
+      }
+
+      final packageParser = parser;
+      final topIsTerminal =
+          ParserPatterns.looksLikeBrowse(read.texts.join(' ')) ||
+          GigPlatform.values.any(
+            (platform) =>
+                ParserPatterns.looksLikeAcceptedTrip(platform, read.texts),
+          );
+      final frames = topIsTerminal || read.windows.isEmpty
+          ? [read.texts]
+          : read.windows.map((window) => window.texts);
+      for (final texts in frames) {
+        offer = packageParser.parse(texts);
+        if (offer != null) break;
+        // Uber can draw an offer over Lyft/Hopp while those apps remain active.
+        // Retry only its structurally distinct away/trip grammar.
+        if (packageParser.platform != GigPlatform.uber) {
+          final uber = registry.forPackage(ParserRegistry.uberPackage)!;
+          final uberOffer = uber.parse(texts);
+          if (uberOffer != null) {
+            parser = uber;
+            offer = uberOffer;
+            break;
+          }
+        }
+      }
+    }
+    final activeParser = parser;
+    if (activeParser == null) return;
 
     // A confirmed foreground switch must not leave the previous app's offer
     // over the newly active app while its next card frame is still rendering.
     // Ignore background events: watched apps can emit those while another gig
     // app legitimately owns the pill.
-    if (read.isActive &&
+    final switchedPlatform =
+        read.isActive &&
         _shownPlatform != null &&
-        _shownPlatform != parser.platform) {
-      _clearNow();
-    }
+        _shownPlatform != activeParser.platform;
 
-    // Only the app that owns the current pill may keep its idle timer alive.
-    // Background events from another watched app are unrelated.
-    _touchIdle(parser.platform);
+    // Only an active window may keep the pill alive. A watched app can keep
+    // emitting stale background frames while the driver is in another app.
+    if (read.isActive) _touchIdle(activeParser.platform);
 
-    // A watched app sent a frame with ZERO readable text. Uber's offer card is
-    // suspected to render on canvas/Compose with no a11y text (device
-    // 2026-07-18: Hopp/Lyft parse, Uber never does) — count these so Settings'
-    // parser health can say "unreadable, needs OCR" instead of a silent blank.
-    if (read.texts.isEmpty) {
-      ref
-          .read(parseHealthProvider.notifier)
-          .recordTextlessFrame(parser.platform);
-      return;
-    }
-
-    final offer = parser.parse(read.texts);
     if (offer == null) {
+      if (read.source == CaptureSource.ocr) return;
+      if (switchedPlatform) _clearNow();
+      if (_shownKey == null &&
+          read.isActive &&
+          ParserPatterns.looksLikeOfferCard(read.texts)) {
+        unawaited(_requestOcr(read.packageName));
+      }
       // The full parse failed. Two very different situations look identical
       // here — a partial frame *while the card is still up* (legs half-rendered,
       // a map pan behind the card, the Accept/Match button momentarily missing
@@ -239,7 +306,7 @@ class OfferWatcher extends Notifier<Offer?> {
       // driver has switched apps and set up navigation the pill is long gone
       // (idle timeout), and everything below this point is pill bookkeeping
       // that early-returns when nothing is showing.
-      _inferOutcome(parser.platform, read.texts);
+      _inferOutcome(activeParser.platform, read.texts, isActive: read.isActive);
 
       if (_shownKey == null) {
         // Nothing showing. Usually browse/home noise — but a frame carrying the
@@ -249,40 +316,43 @@ class OfferWatcher extends Notifier<Offer?> {
         if (ParserPatterns.hasAcceptAction(read.texts)) {
           ref
               .read(parseHealthProvider.notifier)
-              .recordCardMiss(parser.platform);
-          _logCardMiss(parser, read.texts);
+              .recordCardMiss(activeParser.platform);
+          _logCardMiss(activeParser, read.texts);
         }
         if (kDebugMode) debugPrint('FoxyCo[watch] drop: parse null (low conf)');
         return; // nothing showing — browse/home noise, not a lost card
       }
       // An event from one app must never clear another app's current pill.
-      if (_shownPlatform != parser.platform) return;
+      if (_shownPlatform != activeParser.platform) return;
+      // Nor may a stale background frame from the same app clear its pill.
+      if (!read.isActive) return;
 
       final joined = read.texts.join(' ');
       final accepted = ParserPatterns.looksLikeAcceptedTrip(
-        parser.platform,
+        activeParser.platform,
         read.texts,
       );
       final onBrowse = ParserPatterns.looksLikeBrowse(joined);
-      if (!accepted &&
-          !onBrowse &&
-          ParserPatterns.looksLikeOfferCard(read.texts)) {
+      if (!accepted && ParserPatterns.looksLikeOfferCard(read.texts)) {
         // A partial frame of the still-present card. Keep the pill and drop any
-        // pending clear so a run of partials can't age it out.
+        // pending clear so a run of partials can't age it out. Card hallmarks
+        // win over browse chrome: Lyft's reader merges its Ride Finder map and
+        // offer window into one frame, so both can legitimately be present.
         _clearTimer?.cancel();
         _clearTimer = null;
         return;
       }
       // Browse/home screen, or a screen with NO card hallmark at all (e.g. an
       // in-trip nav screen after accept). The card is gone → clear. On a browse
-      // screen clear promptly ([clearGrace]); otherwise hold to [minVisible]
-      // first so a stray blank frame can't blink the pill out before it's read.
+      // screen, still honour [minVisible]: the verdict is useful after a fast
+      // timeout/decline too, and must not blink away before it can be read.
       if (_clearTimer == null) {
         final shownFor = DateTime.now().difference(_shownAt ?? DateTime.now());
+        final positivelyLeft = accepted || onBrowse;
         final floorLeft = minVisible - shownFor;
-        final delay = (!accepted && !onBrowse && floorLeft > clearGrace)
-            ? floorLeft
-            : clearGrace;
+        final delay = positivelyLeft
+            ? clearGrace
+            : (floorLeft > clearGrace ? floorLeft : clearGrace);
         _clearTimer = Timer(delay, _clearNow);
         if (kDebugMode) {
           debugPrint(
@@ -343,31 +413,73 @@ class OfferWatcher extends Notifier<Offer?> {
 
     // Log the scored offer — this drives the dashboard tally, "Last offer"
     // ticket, and History. Real data only: demo pills never pass through here.
-    ref
+    final candidate = OfferSummary(
+      platform: offer.platform,
+      verdict: verdict,
+      payout: offer.payout,
+      bonus: offer.bonus,
+      pickupKm: offer.pickupKm,
+      totalKm: offer.totalKm,
+      totalMinutes: offer.totalMinutes,
+      seenAt: DateTime.now(),
+      category: offer.category,
+      isQueued: offer.isQueued,
+      deliveryCount: offer.deliveryCount,
+    );
+    final summary = ref
         .read(offerLogProvider.notifier)
-        .record(
-          OfferSummary(
-            platform: offer.platform,
-            verdict: verdict,
-            payout: offer.payout,
-            bonus: offer.bonus,
-            pickupKm: offer.pickupKm,
-            totalKm: offer.totalKm,
-            totalMinutes: offer.totalMinutes,
-            seenAt: DateTime.now(),
-            category: offer.category,
-            isQueued: offer.isQueued,
-          ),
-          confirmedNewCard: _confirmedCardLeft,
-        );
+        .record(candidate, confirmedNewCard: _confirmedCardLeft);
+    // record() returns the existing row for a duplicate. Announce only when
+    // this exact candidate was inserted, never for card flicker/re-parses.
+    if (identical(summary, candidate) &&
+        ((settings.announceGoodOffers && verdict == Verdict.good) ||
+            (settings.announceOkOffers && verdict == Verdict.ok))) {
+      unawaited(
+        ref
+            .read(verdictVoiceProvider)
+            .speak(verdict, settings.voiceCooldownSeconds),
+      );
+    }
+    _outcomeCandidates[offer.platform] = summary;
     _confirmedCardLeft = false;
 
     ref.read(overlayControllerProvider.notifier).showFromOffer(offer, verdict);
   }
 
-  /// Stamp taken/missed onto [platform]'s most recent unresolved offer from
-  /// whatever that app is showing NOW — regardless of whether its pill is still
-  /// up.
+  Future<void> _requestOcr(String packageName) async {
+    final settings = ref.read(settingsProvider);
+    if (!settings.ocrEnabled || _ocrBusy) return;
+    final parser = ref.read(parserRegistryProvider).forPackage(packageName);
+    if (parser == null || !settings.watches(parser.platform)) return;
+    final now = DateTime.now();
+    if (_lastOcrAt != null && now.difference(_lastOcrAt!) < _ocrCooldown) {
+      return;
+    }
+    _ocrBusy = true;
+    _lastOcrAt = now;
+    try {
+      final lines = await ref.read(ocrCaptureProvider).capture();
+      if (!ref.mounted || lines.isEmpty) return;
+      ref.read(foxLogProvider).log('ocr', 'recognized ${lines.length} lines');
+      _onRead(
+        ScreenRead(
+          packageName: packageName,
+          texts: lines,
+          isActive: true,
+          source: CaptureSource.ocr,
+        ),
+      );
+    } catch (_) {
+      if (ref.mounted) {
+        ref.read(foxLogProvider).log('ocr', 'capture failed');
+      }
+    } finally {
+      _ocrBusy = false;
+    }
+  }
+
+  /// Stamp taken/missed onto [platform]'s last exact logged candidate from
+  /// whatever that app is showing NOW — regardless of whether its pill is up.
   ///
   /// The pill is short-lived by design (5 s floor, 7 s [idleTimeout] once the
   /// app goes quiet), but accepting is slow: the driver taps Accept inside the
@@ -377,20 +489,46 @@ class OfferWatcher extends Notifier<Offer?> {
   /// browse noise — so real accepted Uber and Lyft trips logged as not taken
   /// (device 2026-08-06). Outcome must outlive the pill.
   ///
-  /// [OfferLog.markLatestPlatformOutcome] bounds this: same platform, still
-  /// `unknown`, seen within its dedupe window. So a stale screen cannot invent
-  /// an outcome and a later screen cannot rewrite one.
-  void _inferOutcome(GigPlatform platform, List<String> texts) {
+  /// The exact candidate stored when the card was logged owns the result, so
+  /// repeated trip-screen frames cannot mark older same-platform offers too.
+  void _inferOutcome(
+    GigPlatform platform,
+    List<String> texts, {
+    required bool isActive,
+  }) {
     if (!ref.read(settingsProvider).trackOutcomes) return;
+    if (!isActive) return;
+    final candidate = _outcomeCandidates[platform];
+    if (candidate == null) return;
+    final queuedAccepted = ParserPatterns.looksLikeQueuedOfferAccepted(
+      platform,
+      texts,
+    );
+    final accepted =
+        queuedAccepted || ParserPatterns.looksLikeAcceptedTrip(platform, texts);
+    if (accepted) {
+      if (_pendingOutcomePlatform == platform) _cancelPendingOutcome();
+      final changed = ref
+          .read(offerLogProvider.notifier)
+          .markOutcome(
+            candidate,
+            OfferOutcome.taken,
+            includeQueued: queuedAccepted,
+          );
+      if (changed) {
+        ref
+            .read(foxLogProvider)
+            .log('outcome', '${platform.label} offer inferred taken');
+      }
+      return;
+    }
     // Card hallmarks mean the offer is still on screen — a half-rendered frame,
     // not a decision. Cancel anything armed from the previous frame.
     if (ParserPatterns.looksLikeOfferCard(texts)) {
       if (_pendingOutcomePlatform == platform) _cancelPendingOutcome();
       return;
     }
-    final outcome = ParserPatterns.looksLikeAcceptedTrip(platform, texts)
-        ? OfferOutcome.taken
-        : ParserPatterns.looksLikeBrowse(texts.join(' '))
+    final outcome = ParserPatterns.looksLikeBrowse(texts.join(' '))
         ? OfferOutcome.missed
         : OfferOutcome.unknown;
     if (outcome == OfferOutcome.unknown) return;
@@ -424,14 +562,21 @@ class OfferWatcher extends Notifier<Offer?> {
   void _applyPendingOutcome() {
     final platform = _pendingOutcomePlatform;
     final outcome = _pendingOutcome;
+    final candidate = platform == null ? null : _outcomeCandidates[platform];
     _cancelPendingOutcome();
-    if (platform == null || outcome == OfferOutcome.unknown) return;
-    ref
+    if (platform == null ||
+        candidate == null ||
+        outcome == OfferOutcome.unknown) {
+      return;
+    }
+    final changed = ref
         .read(offerLogProvider.notifier)
-        .markLatestPlatformOutcome(platform, outcome);
-    ref
-        .read(foxLogProvider)
-        .log('outcome', '${platform.label} offer inferred ${outcome.name}');
+        .markOutcome(candidate, outcome);
+    if (changed) {
+      ref
+          .read(foxLogProvider)
+          .log('outcome', '${platform.label} offer inferred ${outcome.name}');
+    }
   }
 
   void _logCardMiss(OfferParser parser, List<String> texts) {

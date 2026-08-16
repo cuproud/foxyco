@@ -1,7 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:foxyco/services/ocr/ocr_capture.dart';
 import 'package:foxyco/ui/home/dashboard_controller.dart';
 import 'package:foxyco/ui/home/dashboard_state.dart';
+import 'package:foxyco/ui/settings/settings_controller.dart';
 
 class _GrantedDashboardController extends DashboardController {
   @override
@@ -14,11 +16,32 @@ class _GrantedDashboardController extends DashboardController {
   );
 }
 
-ProviderContainer grantedContainer() => ProviderContainer(
-  overrides: [dashboardProvider.overrideWith(_GrantedDashboardController.new)],
-);
+class _FakeOcrCapture extends OcrCapture {
+  var starts = 0;
+  var stops = 0;
+  var startResult = true;
+
+  @override
+  Future<bool> start() async {
+    starts++;
+    return startResult;
+  }
+
+  @override
+  Future<void> stop() async => stops++;
+}
+
+ProviderContainer _grantedContainer([_FakeOcrCapture? ocr]) =>
+    ProviderContainer(
+      overrides: [
+        dashboardProvider.overrideWith(_GrantedDashboardController.new),
+        if (ocr != null) ocrCaptureProvider.overrideWithValue(ocr),
+      ],
+    );
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   test('boots blocked until real permissions resolve', () {
     final container = ProviderContainer();
     addTearDown(container.dispose);
@@ -28,7 +51,7 @@ void main() {
   });
 
   test('startMonitoring → watching; stopMonitoring → stopped', () {
-    final container = grantedContainer();
+    final container = _grantedContainer();
     addTearDown(container.dispose);
     final c = container.read(dashboardProvider.notifier);
     c.startMonitoring();
@@ -38,7 +61,7 @@ void main() {
   });
 
   test('pause layers on top of running; stop from paused works', () {
-    final container = grantedContainer();
+    final container = _grantedContainer();
     addTearDown(container.dispose);
     final c = container.read(dashboardProvider.notifier);
     c.startMonitoring();
@@ -49,9 +72,66 @@ void main() {
   });
 
   test('togglePause is a no-op while stopped', () {
-    final container = grantedContainer();
+    final container = _grantedContainer();
     addTearDown(container.dispose);
     container.read(dashboardProvider.notifier).togglePause();
     expect(container.read(dashboardProvider).status, WatchStatus.stopped);
+  });
+
+  test('unavailable OCR still keeps Accessibility watching', () async {
+    final ocr = _FakeOcrCapture()..startResult = false;
+    final container = _grantedContainer(ocr);
+    addTearDown(container.dispose);
+    container.read(settingsProvider.notifier).setOcrEnabled(true);
+
+    await container.read(dashboardProvider.notifier).startMonitoring();
+
+    expect(ocr.starts, 1);
+    expect(container.read(dashboardProvider).status, WatchStatus.watching);
+  });
+
+  test(
+    'OCR readiness initializes and cancellation follows monitoring',
+    () async {
+      final ocr = _FakeOcrCapture();
+      final container = _grantedContainer(ocr);
+      addTearDown(container.dispose);
+      container.read(settingsProvider.notifier).setOcrEnabled(true);
+
+      final dashboard = container.read(dashboardProvider.notifier);
+      await dashboard.startMonitoring();
+      await dashboard.startMonitoring();
+      expect(ocr.starts, 1);
+      dashboard.stopMonitoring();
+      await Future<void>.delayed(Duration.zero);
+      expect(ocr.stops, 1);
+    },
+  );
+
+  test('pausing immediately stops OCR capture', () async {
+    final ocr = _FakeOcrCapture();
+    final container = _grantedContainer(ocr);
+    addTearDown(container.dispose);
+    container.read(settingsProvider.notifier).setOcrEnabled(true);
+
+    await container.read(dashboardProvider.notifier).startMonitoring();
+    container.read(dashboardProvider.notifier).togglePause();
+    await Future<void>.delayed(Duration.zero);
+
+    expect(container.read(dashboardProvider).status, WatchStatus.paused);
+    expect(ocr.stops, 1);
+  });
+
+  test('turning OCR off cancels pending OCR', () async {
+    final ocr = _FakeOcrCapture();
+    final container = _grantedContainer(ocr);
+    addTearDown(container.dispose);
+
+    final settings = container.read(settingsProvider.notifier);
+    settings.setOcrEnabled(true);
+    settings.setOcrEnabled(false);
+    await Future<void>.delayed(Duration.zero);
+
+    expect(ocr.stops, 1);
   });
 }
