@@ -176,6 +176,7 @@ class ChoiceRow<T> extends StatelessWidget {
                   onChanged(v);
                 },
                 child: AnimatedContainer(
+                  key: ValueKey('choice_${labelOf(v)}'),
                   duration: Motion.base,
                   constraints: const BoxConstraints(minHeight: 48),
                   padding: const EdgeInsets.symmetric(vertical: 9),

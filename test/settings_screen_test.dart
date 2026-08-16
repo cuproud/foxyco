@@ -228,12 +228,7 @@ void main() {
     final largeSize = tester.getSize(find.byType(VerdictPill));
     expect(largeSize.height, greaterThan(smallSize.height));
     final selected = tester.widget<AnimatedContainer>(
-      find
-          .ancestor(
-            of: find.text('Large'),
-            matching: find.byType(AnimatedContainer),
-          )
-          .first,
+      find.byKey(const ValueKey('choice_Large')),
     );
     expect(
       (selected.decoration! as BoxDecoration).color,
