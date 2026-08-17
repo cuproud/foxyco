@@ -98,8 +98,8 @@ void main() {
 
     // Live preview is a separate group; opening it collapses thresholds.
     await openGroup(tester, 'Live preview');
-    // Default band: GOOD ≥ 1.50, sample offer at 1.25 ⇒ OK.
-    expect(find.text('OK'), findsOneWidget);
+    // Live preview uses the same production pill rendered by the overlay.
+    expect(find.byType(VerdictPill), findsOneWidget);
   });
 
   testWidgets('voice verdict is a separate GOOD-only Rules toggle', (
@@ -367,7 +367,7 @@ void main() {
     // Opening another group collapses the previous one.
     await openGroup(tester, 'Live preview');
     expect(find.text('Uber'), findsNothing);
-    expect(find.text('Try a sample rate'), findsOneWidget);
+    expect(find.text('See the real verdict pill'), findsOneWidget);
   });
 
   testWidgets('groups are filed under named bands, in band order', (
@@ -522,12 +522,16 @@ void main() {
           .copyWith(
             announceGoodOffers: false,
             announceOkOffers: true,
+            goodVoiceMinimumPayout: 42,
+            okVoiceMinimumPayout: 18,
             voiceCooldownSeconds: 45,
           )
           .toJson(),
     );
     expect(back.announceGoodOffers, isFalse);
     expect(back.announceOkOffers, isTrue);
+    expect(back.goodVoiceMinimumPayout, 42);
+    expect(back.okVoiceMinimumPayout, 18);
     expect(back.voiceCooldownSeconds, 45);
   });
 

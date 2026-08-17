@@ -52,6 +52,11 @@ class FoxSettings {
   /// Speak a short alert when a newly logged offer scores GOOD.
   final bool announceGoodOffers;
   final bool announceOkOffers;
+
+  /// Extra payout gates for voice alerts. Verdict scoring still requires the
+  /// configured rate rules; these gates make voice opt-in for premium offers.
+  final double goodVoiceMinimumPayout;
+  final double okVoiceMinimumPayout;
   final int voiceCooldownSeconds;
 
   /// Opt-in, on-device screenshot OCR fallback. Accessibility remains primary;
@@ -87,6 +92,8 @@ class FoxSettings {
     required this.trackOutcomes,
     this.announceGoodOffers = true,
     this.announceOkOffers = false,
+    this.goodVoiceMinimumPayout = 30,
+    this.okVoiceMinimumPayout = 20,
     this.voiceCooldownSeconds = 15,
     this.ocrEnabled = false,
     this.ocrTestMode = false,
@@ -119,6 +126,8 @@ class FoxSettings {
     trackOutcomes: true,
     announceGoodOffers: true,
     announceOkOffers: false,
+    goodVoiceMinimumPayout: 30,
+    okVoiceMinimumPayout: 20,
     voiceCooldownSeconds: 15,
     ocrEnabled: false,
     ocrTestMode: false,
@@ -150,6 +159,8 @@ class FoxSettings {
     bool? trackOutcomes,
     bool? announceGoodOffers,
     bool? announceOkOffers,
+    double? goodVoiceMinimumPayout,
+    double? okVoiceMinimumPayout,
     int? voiceCooldownSeconds,
     bool? ocrEnabled,
     bool? ocrTestMode,
@@ -171,6 +182,9 @@ class FoxSettings {
     trackOutcomes: trackOutcomes ?? this.trackOutcomes,
     announceGoodOffers: announceGoodOffers ?? this.announceGoodOffers,
     announceOkOffers: announceOkOffers ?? this.announceOkOffers,
+    goodVoiceMinimumPayout:
+        goodVoiceMinimumPayout ?? this.goodVoiceMinimumPayout,
+    okVoiceMinimumPayout: okVoiceMinimumPayout ?? this.okVoiceMinimumPayout,
     voiceCooldownSeconds: voiceCooldownSeconds ?? this.voiceCooldownSeconds,
     ocrEnabled: ocrEnabled ?? this.ocrEnabled,
     ocrTestMode: ocrTestMode ?? this.ocrTestMode,
@@ -196,6 +210,8 @@ class FoxSettings {
     'trackOutcomes': trackOutcomes,
     'announceGoodOffers': announceGoodOffers,
     'announceOkOffers': announceOkOffers,
+    'goodVoiceMinimumPayout': goodVoiceMinimumPayout,
+    'okVoiceMinimumPayout': okVoiceMinimumPayout,
     'voiceCooldownSeconds': voiceCooldownSeconds,
     'ocrEnabled': ocrEnabled,
     'moneyFont': moneyFont.name,
@@ -248,6 +264,18 @@ class FoxSettings {
       announceGoodOffers:
           (j['announceGoodOffers'] as bool?) ?? d.announceGoodOffers,
       announceOkOffers: (j['announceOkOffers'] as bool?) ?? d.announceOkOffers,
+      goodVoiceMinimumPayout: number(
+        'goodVoiceMinimumPayout',
+        d.goodVoiceMinimumPayout,
+        0,
+        500,
+      ),
+      okVoiceMinimumPayout: number(
+        'okVoiceMinimumPayout',
+        d.okVoiceMinimumPayout,
+        0,
+        500,
+      ),
       voiceCooldownSeconds:
           ((j['voiceCooldownSeconds'] as num?)?.toInt() ??
                   d.voiceCooldownSeconds)

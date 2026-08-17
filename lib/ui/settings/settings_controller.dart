@@ -188,6 +188,14 @@ class SettingsController extends Notifier<FoxSettings> {
   void setAnnounceOkOffers(bool on) =>
       _change((current) => current.copyWith(announceOkOffers: on));
 
+  void setGoodVoiceMinimumPayout(double amount) => _change(
+    (current) => current.copyWith(goodVoiceMinimumPayout: amount.clamp(0, 500)),
+  );
+
+  void setOkVoiceMinimumPayout(double amount) => _change(
+    (current) => current.copyWith(okVoiceMinimumPayout: amount.clamp(0, 500)),
+  );
+
   void setVoiceCooldownSeconds(int seconds) => _change(
     (current) => current.copyWith(voiceCooldownSeconds: seconds.clamp(5, 120)),
   );

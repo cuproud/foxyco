@@ -132,4 +132,43 @@ void main() {
       );
     });
   });
+
+  group('DecisionEngine.qualifiesForVoice', () {
+    const premium = Offer(
+      platform: GigPlatform.uber,
+      payout: 30,
+      pickupKm: 2,
+      dropoffKm: 8,
+      pickupMinutes: 10,
+      dropoffMinutes: 50,
+    );
+
+    test('GOOD requires both rate rules and the custom payout cutoff', () {
+      expect(
+        engine.qualifiesForVoice(premium, FoxSettings.defaults, Verdict.good),
+        isTrue,
+      );
+      expect(
+        engine.qualifiesForVoice(
+          premium,
+          FoxSettings.defaults.copyWith(goodVoiceMinimumPayout: 31),
+          Verdict.good,
+        ),
+        isFalse,
+      );
+    });
+
+    test('GOOD does not announce without parsed minutes', () {
+      const noTime = Offer(
+        platform: GigPlatform.uber,
+        payout: 30,
+        pickupKm: 2,
+        dropoffKm: 8,
+      );
+      expect(
+        engine.qualifiesForVoice(noTime, FoxSettings.defaults, Verdict.good),
+        isFalse,
+      );
+    });
+  });
 }

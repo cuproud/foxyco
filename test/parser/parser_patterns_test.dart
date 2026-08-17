@@ -91,4 +91,15 @@ void main() {
       );
     }
   });
+
+  test('Uber browse earnings chip is not an active offer card', () {
+    expect(
+      ParserPatterns.looksLikeOfferCard(const [
+        '\$17.30',
+        'Finding trips',
+        'You\'re online',
+      ], onBrowse: true),
+      isFalse,
+    );
+  });
 }

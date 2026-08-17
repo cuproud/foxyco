@@ -333,7 +333,8 @@ class OfferWatcher extends Notifier<Offer?> {
         read.texts,
       );
       final onBrowse = ParserPatterns.looksLikeBrowse(joined);
-      if (!accepted && ParserPatterns.looksLikeOfferCard(read.texts)) {
+      if (!accepted &&
+          ParserPatterns.looksLikeOfferCard(read.texts, onBrowse: onBrowse)) {
         // A partial frame of the still-present card. Keep the pill and drop any
         // pending clear so a run of partials can't age it out. Card hallmarks
         // win over browse chrome: Lyft's reader merges its Ride Finder map and
@@ -432,8 +433,11 @@ class OfferWatcher extends Notifier<Offer?> {
     // record() returns the existing row for a duplicate. Announce only when
     // this exact candidate was inserted, never for card flicker/re-parses.
     if (identical(summary, candidate) &&
-        ((settings.announceGoodOffers && verdict == Verdict.good) ||
-            (settings.announceOkOffers && verdict == Verdict.ok))) {
+        (((settings.announceGoodOffers && verdict == Verdict.good) ||
+                (settings.announceOkOffers && verdict == Verdict.ok)) &&
+            ref
+                .read(decisionEngineProvider)
+                .qualifiesForVoice(offer, settings, verdict))) {
       unawaited(
         ref
             .read(verdictVoiceProvider)
@@ -524,7 +528,10 @@ class OfferWatcher extends Notifier<Offer?> {
     }
     // Card hallmarks mean the offer is still on screen — a half-rendered frame,
     // not a decision. Cancel anything armed from the previous frame.
-    if (ParserPatterns.looksLikeOfferCard(texts)) {
+    if (ParserPatterns.looksLikeOfferCard(
+      texts,
+      onBrowse: ParserPatterns.looksLikeBrowse(texts.join(' ')),
+    )) {
       if (_pendingOutcomePlatform == platform) _cancelPendingOutcome();
       return;
     }

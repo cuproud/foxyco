@@ -6,6 +6,7 @@ import '../../services/billing/entitlement.dart';
 import '../../services/billing/trial_store.dart';
 import '../theme/tokens.dart';
 import 'garage_section.dart';
+import '../paywall/unlock_section.dart';
 
 /// The driver's local display name plus the Google identity used for a trial.
 class ProfileSection extends ConsumerWidget {
@@ -100,6 +101,10 @@ class ProfileSection extends ConsumerWidget {
             ),
           ),
         ],
+        const SizedBox(height: Gap.lg),
+        Text('UNLOCK', style: text.labelSmall),
+        const SizedBox(height: Gap.sm),
+        const UnlockSection(),
       ],
     );
   }

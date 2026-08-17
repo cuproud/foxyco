@@ -36,7 +36,7 @@ const aboutIntro =
 
 /// Version string. Kept as a plain const rather than adding a native plugin for
 /// one label; `about_content_test.dart` guards it against `pubspec.yaml` drift.
-const aboutVersion = '1.0.9 (build 32)';
+const aboutVersion = '1.0.9 (build 36)';
 
 const aboutSections = <AboutSection>[
   AboutSection(
@@ -132,13 +132,13 @@ const aboutSections = <AboutSection>[
       ),
       AboutEntry(
         'How do I restore a purchase?',
-        'Open Settings → Unlock and tap Restore purchase while Google Play is '
+        'Open Settings → Profile → Unlock and tap Restore purchase while Google Play is '
             'using the account that bought FoxyCo. Promo-code unlocks restore '
             'the same way.',
       ),
       AboutEntry(
         'I was given a code — how do I use it?',
-        'Open Settings → Unlock and tap Redeem code. That opens Google Play, '
+        'Open Settings → Profile → Unlock and tap Redeem code. That opens Google Play, '
             'where you enter the code; Play then grants the unlock to whichever '
             'Google account it is signed in with. Come back to FoxyCo and it '
             'picks the unlock up on its own — tap Restore purchase if it has '
@@ -157,7 +157,7 @@ const aboutSections = <AboutSection>[
       ),
       AboutEntry(
         'Can I delete my FoxyCo account?',
-        'Yes. Open Settings → Unlock → Delete my account. FoxyCo removes the '
+        'Yes. Open Settings → Profile → Unlock → Delete my account. FoxyCo removes the '
             'Firebase Auth account. It keeps only a random user ID and the '
             'trial start time to limit trial abuse; that retained row does not '
             'contain your email or offer data.',

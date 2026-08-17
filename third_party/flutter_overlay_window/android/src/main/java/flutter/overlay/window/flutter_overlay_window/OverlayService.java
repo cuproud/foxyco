@@ -32,7 +32,9 @@ import android.util.TypedValue;
 import android.view.Display;
 import android.view.Gravity;
 import android.view.MotionEvent;
+import android.view.SurfaceView;
 import android.view.View;
+import android.view.ViewGroup;
 import android.view.WindowManager;
 
 import androidx.annotation.Nullable;
@@ -245,6 +247,7 @@ public class OverlayService extends Service implements View.OnTouchListener {
         flutterView.addOnAttachStateChangeListener(new View.OnAttachStateChangeListener() {
             @Override
             public void onViewAttachedToWindow(View view) {
+                restoreSurfaceTransparency();
                 traceWindow("surface-attached", (WindowManager.LayoutParams) view.getLayoutParams());
             }
 
@@ -477,9 +480,20 @@ public class OverlayService extends Service implements View.OnTouchListener {
         screenReceiverRegistered = false;
     }
 
-    private void keepSurfaceTransparent(WindowManager.LayoutParams params) {
-        if (params != null) params.format = PixelFormat.TRANSLUCENT;
-        if (flutterView != null) flutterView.setBackgroundColor(Color.TRANSPARENT);
+    private void restoreSurfaceTransparency() {
+        if (flutterView == null) return;
+        flutterView.setBackgroundColor(Color.TRANSPARENT);
+        if (!(flutterView instanceof ViewGroup)) return;
+        ViewGroup root = (ViewGroup) flutterView;
+        for (int i = 0; i < root.getChildCount(); i++) {
+            View child = root.getChildAt(i);
+            if (child instanceof SurfaceView) {
+                SurfaceView surface = (SurfaceView) child;
+                surface.setZOrderOnTop(true);
+                surface.getHolder().setFormat(PixelFormat.TRANSLUCENT);
+                surface.setBackgroundColor(Color.TRANSPARENT);
+            }
+        }
     }
 
     /// FoxyCo patch (device 2026-08-06): the ONLY way this service may call
@@ -499,8 +513,13 @@ public class OverlayService extends Service implements View.OnTouchListener {
     /// something the next edit has to remember.
     private void applyLayout(WindowManager.LayoutParams params) {
         if (windowManager == null || flutterView == null) return;
-        keepSurfaceTransparent(params);
+        params.format = PixelFormat.TRANSLUCENT;
+        restoreSurfaceTransparency();
         windowManager.updateViewLayout(flutterView, params);
+        // Samsung can recreate the child surface after a resize. Re-assert
+        // transparency after the compositor has settled as well.
+        flutterView.post(this::restoreSurfaceTransparency);
+        flutterView.postDelayed(this::restoreSurfaceTransparency, 120);
     }
 
     private void resizeOverlay(int width, int height, boolean enableDrag, boolean centerX, MethodChannel.Result result) {

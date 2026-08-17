@@ -41,4 +41,20 @@ class DecisionEngine {
     }
     return evaluate(offer.pricePerKm, s.thresholds);
   }
+
+  /// Voice is stricter than the displayed verdict: GOOD must pass both rate
+  /// rule sets plus the user's premium payout cutoff. OK uses the active rate
+  /// verdict and its own cutoff.
+  bool qualifiesForVoice(Offer offer, FoxSettings s, Verdict verdict) {
+    final cutoff = switch (verdict) {
+      Verdict.good => s.goodVoiceMinimumPayout,
+      Verdict.ok => s.okVoiceMinimumPayout,
+      _ => double.infinity,
+    };
+    if (offer.payout < cutoff) return false;
+    if (verdict != Verdict.good) return verdict == Verdict.ok;
+    if (offer.pricePerKm < s.thresholds.goodAtOrAbove) return false;
+    if (offer.totalMinutes <= 0) return false;
+    return offer.pricePerHour >= s.hourThresholds.goodAtOrAbove;
+  }
 }

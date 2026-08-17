@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/decision_engine.dart';
 import '../../domain/distance_unit.dart';
 import '../../domain/offer.dart';
+import '../../domain/overlay_payload.dart';
 import '../../domain/platform.dart';
 import '../../domain/rate_mode.dart';
 import '../../domain/thresholds.dart';
@@ -13,6 +14,7 @@ import '../../domain/verdict.dart';
 import '../../services/verdict_voice.dart';
 import '../settings/settings_controller.dart';
 import '../settings/settings_controls.dart';
+import '../overlay/verdict_pill.dart';
 import '../shell/root_shell.dart';
 import '../theme/platform_badge.dart';
 import '../theme/section_label.dart';
@@ -41,13 +43,53 @@ class _RulesScreenState extends ConsumerState<RulesScreen> {
     const Color(0xFFF0A24B),
   ];
 
-  double _samplePpk = 1.25;
-  double _samplePph = 25.0;
   double _samplePayout = 10;
+  double _sampleDistanceKm = 3.5;
+  double _sampleMinutes = 44;
   int _open = 0;
   final _rowKeys = List.generate(5, (_) => GlobalKey());
+  late final TextEditingController _payoutController;
+  late final TextEditingController _distanceController;
+  late final TextEditingController _minutesController;
+
+  @override
+  void initState() {
+    super.initState();
+    _payoutController = TextEditingController(
+      text: _samplePayout.toStringAsFixed(2),
+    );
+    _distanceController = TextEditingController(
+      text: _sampleDistanceKm.toStringAsFixed(1),
+    );
+    _minutesController = TextEditingController(
+      text: _sampleMinutes.toStringAsFixed(0),
+    );
+  }
+
+  @override
+  void dispose() {
+    _payoutController.dispose();
+    _distanceController.dispose();
+    _minutesController.dispose();
+    super.dispose();
+  }
 
   void _toggle(int i) => setState(() => _open = _open == i ? -1 : i);
+
+  Widget _previewField(
+    String label,
+    TextEditingController controller,
+    ValueChanged<double> onValue, {
+    required String suffix,
+  }) => TextField(
+    controller: controller,
+    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+    decoration: InputDecoration(labelText: label, suffixText: suffix),
+    onChanged: (raw) {
+      final value = double.tryParse(raw.trim().replaceAll(',', ''));
+      if (value != null) onValue(value);
+    },
+  );
 
   void _consumeDeepLink() {
     final tabs = ref.read(tabIndexProvider.notifier);
@@ -95,14 +137,21 @@ class _RulesScreenState extends ConsumerState<RulesScreen> {
     final max = perHour ? _maxHr : settings.distanceUnit.rateFromPerKm(_maxKm);
     final unit = perHour ? '/hr' : '/${settings.distanceUnit.shortLabel}';
     final money = settings.currency.prefix;
-    final sample = perHour ? _samplePph : _samplePpk;
     final sampleOffer = Offer(
       platform: GigPlatform.uber,
       payout: _samplePayout,
-      pickupKm: perHour ? 1 : _samplePayout / sample,
+      pickupKm: _sampleDistanceKm,
       dropoffKm: 0,
-      pickupMinutes: perHour ? _samplePayout / sample * 60 : 0,
+      pickupMinutes: _sampleMinutes,
     );
+    final sampleVerdict = _engine.scoreOffer(sampleOffer, settings);
+    final activeRate = perHour
+        ? sampleOffer.pricePerHour
+        : settings.distanceUnit.rateFromPerKm(sampleOffer.pricePerKm);
+    final verdictLabel = sampleVerdict.name.toUpperCase();
+    final activeRateText = activeRate.toStringAsFixed(2);
+    final badRateText = thresholds.badBelow.toStringAsFixed(2);
+    final goodRateText = thresholds.goodAtOrAbove.toStringAsFixed(2);
     final text = Theme.of(context).textTheme;
 
     return ListView(
@@ -128,7 +177,7 @@ class _RulesScreenState extends ConsumerState<RulesScreen> {
             title: 'Verdict thresholds',
             icon: Icons.tune_rounded,
             summary:
-                'GOOD ≥ $money${thresholds.goodAtOrAbove.toStringAsFixed(2)}$unit',
+                'OK $money${thresholds.badBelow.toStringAsFixed(2)}–${thresholds.goodAtOrAbove.toStringAsFixed(2)}$unit',
             open: _open == 0,
             accent: _accents[0],
             onTap: () => _toggle(0),
@@ -137,8 +186,8 @@ class _RulesScreenState extends ConsumerState<RulesScreen> {
               children: [
                 Text(
                   perHour
-                      ? 'Offers are scored by dollars per hour. Set where GOOD and BAD begin.'
-                      : 'Offers are scored by dollars per ${settings.distanceUnit.label.toLowerCase()}. Set where GOOD and BAD begin.',
+                      ? 'Offers are scored by dollars per hour. BAD is below $money${thresholds.badBelow.toStringAsFixed(2)}; GOOD starts at $money${thresholds.goodAtOrAbove.toStringAsFixed(2)}. Everything between is OK.'
+                      : 'Offers are scored by dollars per ${settings.distanceUnit.label.toLowerCase()}. BAD is below $money${thresholds.badBelow.toStringAsFixed(2)}; GOOD starts at $money${thresholds.goodAtOrAbove.toStringAsFixed(2)}. Everything between is OK.',
                   style: text.bodyMedium?.copyWith(
                     color: FoxColors.textSecondary,
                   ),
@@ -257,37 +306,87 @@ class _RulesScreenState extends ConsumerState<RulesScreen> {
           SettingsGroup(
             title: 'Live preview',
             icon: Icons.visibility_outlined,
-            summary: 'Try a sample rate',
+            summary: 'See the real verdict pill',
             open: _open == 1,
             accent: _accents[1],
             onTap: () => _toggle(1),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                ThresholdSlider(
-                  label: 'Sample payout',
-                  color: FoxColors.brandFox,
-                  value: _samplePayout,
-                  min: 1,
-                  max: 50,
-                  currencyPrefix: money,
-                  onChanged: (value) => setState(() => _samplePayout = value),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _previewField(
+                        'Offer payout',
+                        _payoutController,
+                        (v) => setState(
+                          () => _samplePayout = v.clamp(0, 500).toDouble(),
+                        ),
+                        suffix: money,
+                      ),
+                    ),
+                    const SizedBox(width: Gap.sm),
+                    Expanded(
+                      child: _previewField(
+                        'Distance',
+                        _distanceController,
+                        (v) => setState(
+                          () =>
+                              _sampleDistanceKm = v.clamp(0.1, 500).toDouble(),
+                        ),
+                        suffix: 'km',
+                      ),
+                    ),
+                    const SizedBox(width: Gap.sm),
+                    Expanded(
+                      child: _previewField(
+                        'Time',
+                        _minutesController,
+                        (v) => setState(
+                          () => _sampleMinutes = v.clamp(1, 1440).toDouble(),
+                        ),
+                        suffix: 'min',
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: Gap.md),
+                Center(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: VerdictPill(
+                      payload: OverlayPayload(
+                        verdict: sampleVerdict,
+                        totalKm: sampleOffer.totalKm,
+                        payout: sampleOffer.payout,
+                        totalMinutes: sampleOffer.totalMinutes,
+                        size: PillSize.medium,
+                        distanceUnit: settings.distanceUnit,
+                        currency: settings.currency,
+                        pickupKm: sampleOffer.pickupKm,
+                        pickupNearKm: settings.pickupNearKm,
+                        hourGoodAt: settings.hourThresholds.goodAtOrAbove,
+                        hourBadBelow: settings.hourThresholds.badBelow,
+                      ),
+                      animate: false,
+                    ),
+                  ),
                 ),
                 const SizedBox(height: Gap.sm),
-                PreviewCard(
-                  sample: sample,
-                  unit: unit,
-                  verdict: _engine.scoreOffer(sampleOffer, settings),
-                  min: min,
-                  max: max,
-                  currencyPrefix: money,
-                  onChanged: (value) => setState(() {
-                    if (perHour) {
-                      _samplePph = value;
-                    } else {
-                      _samplePpk = value;
-                    }
-                  }),
+                Text(
+                  '$money${_samplePayout.toStringAsFixed(2)} ÷ ${_sampleDistanceKm.toStringAsFixed(1)} km = $money${sampleOffer.pricePerKm.toStringAsFixed(2)}/km  ·  $money${_samplePayout.toStringAsFixed(2)} ÷ ${_sampleMinutes.toStringAsFixed(0)} min × 60 = $money${sampleOffer.pricePerHour.toStringAsFixed(2)}/hr',
+                  textAlign: TextAlign.center,
+                  style: text.bodySmall?.copyWith(
+                    color: FoxColors.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: Gap.xs),
+                Text(
+                  '$verdictLabel: $activeRateText$unit  ·  OK is $money$badRateText$unit to under $money$goodRateText$unit',
+                  textAlign: TextAlign.center,
+                  style: text.bodySmall?.copyWith(
+                    color: FoxColors.textSecondary,
+                  ),
                 ),
               ],
             ),
@@ -389,11 +488,23 @@ class _RulesScreenState extends ConsumerState<RulesScreen> {
                   contentPadding: EdgeInsets.zero,
                   title: Text('Announce GOOD offers', style: text.titleMedium),
                   subtitle: Text(
-                    'GOOD when the active rate is at least $money${thresholds.goodAtOrAbove.toStringAsFixed(2)}$unit.',
+                    'Only when the offer passes both rate rules and your payout cutoff.',
                   ),
                   value: settings.announceGoodOffers,
                   activeTrackColor: FoxColors.brandFox,
                   onChanged: controller.setAnnounceGoodOffers,
+                ),
+                ThresholdSlider(
+                  key: const Key('rules_voice_good_payout'),
+                  label: 'GOOD voice payout at least',
+                  color: VerdictColors.good,
+                  value: settings.goodVoiceMinimumPayout,
+                  min: 0,
+                  max: 500,
+                  currencyPrefix: money,
+                  editable: true,
+                  onEdit: controller.setGoodVoiceMinimumPayout,
+                  onChanged: controller.setGoodVoiceMinimumPayout,
                 ),
                 const SizedBox(height: Gap.sm),
                 SwitchListTile(
@@ -401,25 +512,42 @@ class _RulesScreenState extends ConsumerState<RulesScreen> {
                   contentPadding: EdgeInsets.zero,
                   title: Text('Announce OK offers', style: text.titleMedium),
                   subtitle: Text(
-                    'OK from $money${thresholds.badBelow.toStringAsFixed(2)} up to the GOOD threshold.',
+                    'Only OK verdicts at or above your payout cutoff.',
                   ),
                   value: settings.announceOkOffers,
                   activeTrackColor: FoxColors.brandFox,
                   onChanged: controller.setAnnounceOkOffers,
+                ),
+                ThresholdSlider(
+                  key: const Key('rules_voice_ok_payout'),
+                  label: 'OK voice payout at least',
+                  color: VerdictColors.ok,
+                  value: settings.okVoiceMinimumPayout,
+                  min: 0,
+                  max: 500,
+                  currencyPrefix: money,
+                  editable: true,
+                  onEdit: controller.setOkVoiceMinimumPayout,
+                  onChanged: controller.setOkVoiceMinimumPayout,
+                ),
+                Text(
+                  'GOOD checks both \$/km and \$/hr rules before this payout cutoff. Set either cutoff to ${money}0 to allow every matching verdict.',
+                  style: text.bodySmall?.copyWith(
+                    color: FoxColors.textSecondary,
+                  ),
                 ),
                 const SizedBox(height: Gap.sm),
                 Text(
                   'Minimum time between announcements: ${settings.voiceCooldownSeconds} seconds',
                   style: text.titleMedium,
                 ),
-                Slider(
+                RoadSlider(
                   key: const Key('rules_voice_cooldown'),
                   value: settings.voiceCooldownSeconds.toDouble(),
                   min: 5,
                   max: 120,
                   divisions: 23,
-                  activeColor: FoxColors.brandFox,
-                  label: '${settings.voiceCooldownSeconds} seconds',
+                  color: FoxColors.brandFox,
                   onChanged: (value) => controller.setVoiceCooldownSeconds(
                     (value / 5).round() * 5,
                   ),

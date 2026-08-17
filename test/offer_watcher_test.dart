@@ -196,7 +196,9 @@ void main() {
 
   test('voice announces each new GOOD offer only when enabled', () async {
     final c = container();
-    c.read(settingsProvider.notifier).setAnnounceGoodOffers(true);
+    c.read(settingsProvider.notifier)
+      ..setAnnounceGoodOffers(true)
+      ..setGoodVoiceMinimumPayout(0);
     c.read(offerWatcherProvider);
     c.read(overlayControllerProvider);
 

@@ -133,7 +133,19 @@ class ParserPatterns {
   /// positively-non-card screen ([looksLikeBrowse]) should drop it. This is what
   /// stops the pill vanishing mid-read when a single field flickers out of the
   /// accessibility tree (device logs 2026-07-13/14).
-  static bool looksLikeOfferCard(List<String> nodeTexts) {
+  static bool looksLikeOfferCard(
+    List<String> nodeTexts, {
+    bool onBrowse = false,
+  }) {
+    // Uber's browse map exposes a positive earnings chip (for example
+    // "$17.30") but no offer card. Require a card-specific action or leg when
+    // browse chrome is present, otherwise that chip can hold an old verdict
+    // forever.
+    if (onBrowse &&
+        !nodeTexts.any(_cardAction.hasMatch) &&
+        !leg.hasMatch(nodeTexts.join(' '))) {
+      return false;
+    }
     if (findPayout(nodeTexts) != null) return true;
     if (nodeTexts.any(_cardAction.hasMatch)) return true;
     return leg.hasMatch(nodeTexts.join(' '));

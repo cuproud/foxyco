@@ -14,11 +14,9 @@ import '../../domain/money_font.dart';
 import '../../domain/overlay_payload.dart' show OverlayPayload, PillSize;
 import '../../domain/platform.dart';
 import '../../domain/verdict.dart';
-import '../../services/billing/entitlement.dart';
 import '../../services/offer_log.dart';
 import '../../services/parse_health.dart';
 import '../overlay/verdict_pill.dart';
-import '../paywall/unlock_section.dart';
 import '../legal/ocr_disclosure.dart';
 import '../shell/root_shell.dart';
 import '../theme/section_label.dart';
@@ -71,7 +69,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   /// extent has no context to scroll to — hence the null guard rather than a
   /// bang. Worst case the group is open but the driver still has to scroll,
   /// which is where every deep link used to land.
-  final _rowKeys = List.generate(9, (_) => GlobalKey());
+  final _rowKeys = List.generate(8, (_) => GlobalKey());
 
   /// Honour a jump made with `TabIndex.go(3, section: n)`: expand the group the
   /// driver actually tapped for and bring it on screen. Consumed once, so
@@ -577,28 +575,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
         ),
         const SizedBox(height: Gap.lg),
-        const SectionLabel('Your unlock'),
-        const SizedBox(height: Gap.sm + Gap.xs),
-        _staggered(
-          7,
-          SettingsGroup(
-            title: 'Unlock',
-            icon: Icons.lock_open_rounded,
-            summary: UnlockSection.summaryOf(ref.watch(accessProvider)),
-            open: _open == 7,
-            accent: _accents[7],
-            onTap: () => _toggle(7),
-            child: const UnlockSection(),
-          ),
-        ),
-        const SizedBox(height: Gap.sm),
         // Last two rows, plain links rather than accordions — these are pages,
         // not groups of knobs. Logs is the record About tells drivers to check
         // when the watcher goes quiet ("Settings → Logs"); it had a screen and
         // a test but no route and no way in, so that instruction pointed at
         // nothing.
         _staggered(
-          8,
+          7,
           const LinkRow(
             icon: Icons.info_outline_rounded,
             title: 'About & help',

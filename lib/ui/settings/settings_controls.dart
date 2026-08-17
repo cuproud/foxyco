@@ -599,6 +599,8 @@ class ThresholdSlider extends StatelessWidget {
     required this.onChanged,
     this.unit = '',
     this.currencyPrefix = r'$',
+    this.editable = false,
+    this.onEdit,
   });
 
   final String label;
@@ -611,6 +613,8 @@ class ThresholdSlider extends StatelessWidget {
   /// Empty = dollars ('$1.50'); otherwise suffixed ('2.0 km').
   final String unit;
   final String currencyPrefix;
+  final bool editable;
+  final ValueChanged<double>? onEdit;
 
   /// One nudge of the −/+ buttons. Matches the slider's own division size for
   /// money; km reads in tenths, so a 5c-equivalent step would take forever.
@@ -635,16 +639,43 @@ class ThresholdSlider extends StatelessWidget {
             Icon(Icons.circle, size: 10, color: color),
             const SizedBox(width: Gap.sm),
             Expanded(child: Text(label, style: text.titleMedium)),
-            Text(
-              unit.isEmpty
-                  ? '$currencyPrefix${value.toStringAsFixed(2)}'
-                  : '${value.toStringAsFixed(1)} $unit',
-              style: text.titleMedium?.copyWith(
-                fontSize: 13.5,
-                color: color,
-                fontFeatures: const [FontFeature.tabularFigures()],
+            if (editable)
+              SizedBox(
+                width: 104,
+                child: TextFormField(
+                  key: ValueKey('$label-${value.toStringAsFixed(2)}'),
+                  initialValue: value.toStringAsFixed(2),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  textAlign: TextAlign.end,
+                  decoration: InputDecoration(
+                    prefixText: currencyPrefix,
+                    isDense: true,
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: Gap.xs,
+                      vertical: 6,
+                    ),
+                  ),
+                  onFieldSubmitted: (raw) {
+                    final parsed = double.tryParse(
+                      raw.trim().replaceAll(',', ''),
+                    );
+                    if (parsed != null) onEdit?.call(parsed);
+                  },
+                ),
+              )
+            else
+              Text(
+                unit.isEmpty
+                    ? '$currencyPrefix${value.toStringAsFixed(2)}'
+                    : '${value.toStringAsFixed(1)} $unit',
+                style: text.titleMedium?.copyWith(
+                  fontSize: 13.5,
+                  color: color,
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                ),
               ),
-            ),
           ],
         ),
         // Slider for the ballpark, −/+ to land on an exact number — dragging to
@@ -657,20 +688,13 @@ class ThresholdSlider extends StatelessWidget {
               semanticLabel: 'Decrease $label',
             ),
             Expanded(
-              child: SliderTheme(
-                data: SliderTheme.of(context).copyWith(
-                  activeTrackColor: color,
-                  thumbColor: color,
-                  overlayColor: color.withValues(alpha: 0.15),
-                  inactiveTrackColor: FoxColors.border,
-                ),
-                child: Slider(
-                  value: value,
-                  min: min,
-                  max: max,
-                  divisions: ((max - min) / 0.05).round(),
-                  onChanged: onChanged,
-                ),
+              child: RoadSlider(
+                value: value,
+                min: min,
+                max: max,
+                divisions: ((max - min) / 0.05).round(),
+                color: color,
+                onChanged: onChanged,
               ),
             ),
             StepButton(
@@ -685,6 +709,183 @@ class ThresholdSlider extends StatelessWidget {
   }
 }
 
+class RoadSlider extends StatefulWidget {
+  const RoadSlider({
+    super.key,
+    required this.value,
+    required this.min,
+    required this.max,
+    required this.color,
+    required this.onChanged,
+    this.divisions,
+  });
+
+  final double value;
+  final double min;
+  final double max;
+  final int? divisions;
+  final Color color;
+  final ValueChanged<double> onChanged;
+
+  @override
+  State<RoadSlider> createState() => _RoadSliderState();
+}
+
+class _RoadSliderState extends State<RoadSlider> {
+  bool _dragging = false;
+  bool _animating = false;
+  int _animationToken = 0;
+
+  double get _fraction =>
+      ((widget.value - widget.min) / (widget.max - widget.min)).clamp(0.0, 1.0);
+
+  @override
+  void didUpdateWidget(covariant RoadSlider oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.value != widget.value && !_dragging) {
+      final token = ++_animationToken;
+      setState(() => _animating = true);
+      Future<void>.delayed(const Duration(milliseconds: 180), () {
+        if (mounted && token == _animationToken) {
+          setState(() => _animating = false);
+        }
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 48,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          const trackInset = 16.0;
+          const carWidth = 40.0;
+          final trackWidth = constraints.maxWidth - trackInset * 2;
+          final carLeft = trackInset + trackWidth * _fraction - carWidth / 2;
+          final glow = _dragging || _animating;
+          return Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Positioned.fill(
+                child: CustomPaint(
+                  painter: _RoadPainter(
+                    color: widget.color,
+                    fraction: _fraction,
+                  ),
+                ),
+              ),
+              SliderTheme(
+                data: SliderTheme.of(context).copyWith(
+                  trackHeight: 18,
+                  activeTrackColor: Colors.transparent,
+                  inactiveTrackColor: Colors.transparent,
+                  thumbShape: SliderComponentShape.noThumb,
+                  overlayShape: SliderComponentShape.noOverlay,
+                  showValueIndicator: ShowValueIndicator.never,
+                ),
+                child: Slider(
+                  value: widget.value,
+                  min: widget.min,
+                  max: widget.max,
+                  divisions: widget.divisions,
+                  onChangeStart: (_) => setState(() => _dragging = true),
+                  onChangeEnd: (_) => setState(() => _dragging = false),
+                  onChanged: widget.onChanged,
+                ),
+              ),
+              AnimatedPositioned(
+                duration: const Duration(milliseconds: 160),
+                curve: Curves.easeOut,
+                left: carLeft,
+                top: 8,
+                width: carWidth,
+                height: 30,
+                child: IgnorePointer(
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      Positioned(
+                        left: carWidth - 1,
+                        top: 11,
+                        child: AnimatedOpacity(
+                          opacity: glow ? 1 : 0,
+                          duration: const Duration(milliseconds: 160),
+                          child: CustomPaint(
+                            size: const Size(16, 8),
+                            painter: const _HeadlightPainter(),
+                          ),
+                        ),
+                      ),
+                      Image.asset(
+                        'assets/car/foxy_road_car.png',
+                        width: carWidth,
+                        height: 30,
+                        fit: BoxFit.contain,
+                        filterQuality: FilterQuality.medium,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _RoadPainter extends CustomPainter {
+  const _RoadPainter({required this.color, required this.fraction});
+
+  final Color color;
+  final double fraction;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    const inset = 16.0;
+    final road = RRect.fromRectAndRadius(
+      Rect.fromLTWH(inset, 15, size.width - inset * 2, 18),
+      const Radius.circular(9),
+    );
+    canvas.drawRRect(road, Paint()..color = FoxColors.border);
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(inset, 15, (size.width - inset * 2) * fraction, 18),
+        const Radius.circular(9),
+      ),
+      Paint()..color = color,
+    );
+    final lane = Paint()
+      ..color = FoxColors.bgSurface.withValues(alpha: 0.8)
+      ..strokeWidth = 1.5;
+    for (double x = inset + 8; x < size.width - inset; x += 13) {
+      canvas.drawLine(Offset(x, 24), Offset(x + 6, 24), lane);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _RoadPainter oldDelegate) =>
+      oldDelegate.color != color || oldDelegate.fraction != fraction;
+}
+
+class _HeadlightPainter extends CustomPainter {
+  const _HeadlightPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..shader = const LinearGradient(
+        colors: [Color(0xB8FFF1B0), Color(0x00FFF1B0)],
+      ).createShader(Offset.zero & size);
+    canvas.drawOval(Offset.zero & size, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _HeadlightPainter oldDelegate) => false;
+}
+
 /// Drag a sample offer's $/km and watch the verdict flip in real time.
 class PreviewCard extends StatelessWidget {
   const PreviewCard({
@@ -696,6 +897,9 @@ class PreviewCard extends StatelessWidget {
     required this.max,
     required this.onChanged,
     this.currencyPrefix = r'$',
+    this.presets = const [],
+    this.editable = false,
+    this.onEdit,
   });
 
   final double sample;
@@ -705,6 +909,9 @@ class PreviewCard extends StatelessWidget {
   final double max;
   final ValueChanged<double> onChanged;
   final String currencyPrefix;
+  final List<double> presets;
+  final bool editable;
+  final ValueChanged<double>? onEdit;
 
   @override
   Widget build(BuildContext context) {
@@ -735,33 +942,77 @@ class PreviewCard extends StatelessWidget {
               ),
             ),
             const Spacer(),
-            Text(
-              '$currencyPrefix${sample.toStringAsFixed(2)}$unit',
-              style: text.titleMedium?.copyWith(
-                fontFeatures: const [FontFeature.tabularFigures()],
+            if (editable)
+              SizedBox(
+                width: 104,
+                child: TextFormField(
+                  key: ValueKey('preview-${sample.toStringAsFixed(2)}$unit'),
+                  initialValue: sample.toStringAsFixed(2),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  textAlign: TextAlign.end,
+                  decoration: InputDecoration(
+                    prefixText: currencyPrefix,
+                    suffixText: unit,
+                    isDense: true,
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: Gap.xs,
+                      vertical: 6,
+                    ),
+                  ),
+                  onFieldSubmitted: (raw) {
+                    final parsed = double.tryParse(
+                      raw.trim().replaceAll(',', ''),
+                    );
+                    if (parsed != null) onEdit?.call(parsed);
+                  },
+                ),
+              )
+            else
+              Text(
+                '$currencyPrefix${sample.toStringAsFixed(2)}$unit',
+                style: text.titleMedium?.copyWith(
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                ),
               ),
-            ),
           ],
         ),
         const SizedBox(height: Gap.xs),
         Text(
-          'A sample offer at this rate',
+          'Verdict for the payout and rate above',
           style: text.bodyMedium?.copyWith(color: FoxColors.textSecondary),
         ),
-        SliderTheme(
-          data: SliderTheme.of(context).copyWith(
-            activeTrackColor: style.color,
-            thumbColor: style.color,
-            overlayColor: style.color.withValues(alpha: 0.15),
-            inactiveTrackColor: FoxColors.border,
+        if (presets.isNotEmpty) ...[
+          const SizedBox(height: Gap.xs),
+          Text(
+            'Quick values',
+            style: text.bodySmall?.copyWith(color: FoxColors.textSecondary),
           ),
-          child: Slider(
-            value: sample,
-            min: min,
-            max: max,
-            divisions: ((max - min) / 0.05).round(),
-            onChanged: onChanged,
+          const SizedBox(height: Gap.xs),
+          Wrap(
+            spacing: Gap.xs,
+            runSpacing: Gap.xs,
+            children: [
+              for (final preset in presets)
+                ChoiceChip(
+                  label: Text(
+                    '$currencyPrefix${preset.toStringAsFixed(unit == '/hr' ? 0 : 2)}$unit',
+                  ),
+                  selected: (sample - preset).abs() < 0.001,
+                  onSelected: (_) =>
+                      onChanged(preset.clamp(min, max).toDouble()),
+                ),
+            ],
           ),
+        ],
+        RoadSlider(
+          value: sample,
+          min: min,
+          max: max,
+          divisions: ((max - min) / 0.05).round(),
+          color: style.color,
+          onChanged: onChanged,
         ),
       ],
     );

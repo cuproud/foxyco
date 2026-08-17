@@ -132,6 +132,24 @@ class _ShiftRecapSheet extends ConsumerWidget {
           const SizedBox(height: Gap.sm + Gap.xs),
           // Verdict split, colored.
           VerdictSplitPills(good: s.good, ok: s.ok, bad: s.bad),
+          const SizedBox(height: Gap.sm),
+          Row(
+            children: [
+              Icon(
+                Icons.check_circle_outline,
+                color: VerdictColors.good,
+                size: 18,
+              ),
+              const SizedBox(width: Gap.xs),
+              Text(
+                '${s.accepted} accepted offers this session',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: FoxColors.textSecondary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
           const SizedBox(height: Gap.md),
           Row(
             children: [
