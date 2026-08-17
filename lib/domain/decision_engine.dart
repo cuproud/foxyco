@@ -34,7 +34,7 @@ class DecisionEngine {
   /// there, minutes sometimes aren't — e.g. some Uber cards).
   Verdict scoreOffer(Offer offer, FoxSettings s) {
     if (s.minimumPayoutEnabled && offer.payout < s.minimumPayout) {
-      return s.minimumPayoutVerdict;
+      return Verdict.bad;
     }
     if (s.rateMode == RateMode.perHour && offer.totalMinutes > 0) {
       return evaluate(offer.pricePerHour, s.hourThresholds);

@@ -19,6 +19,7 @@ import '../shell/root_shell.dart';
 import '../theme/platform_badge.dart';
 import '../theme/section_label.dart';
 import '../theme/tokens.dart';
+import '../theme/verdict_style.dart';
 
 /// The controls that decide how every offer is scored.
 class RulesScreen extends ConsumerStatefulWidget {
@@ -34,6 +35,11 @@ class _RulesScreenState extends ConsumerState<RulesScreen> {
   static const _minHr = 10.0;
   static const _maxHr = 60.0;
   static const _engine = DecisionEngine();
+  static const _hourPresets = [
+    ('Relaxed', Thresholds(goodAtOrAbove: 26, badBelow: 18)),
+    ('Balanced', Thresholds(goodAtOrAbove: 30, badBelow: 20)),
+    ('Picky', Thresholds(goodAtOrAbove: 36, badBelow: 24)),
+  ];
 
   static List<Color> get _accents => [
     VerdictColors.good,
@@ -80,11 +86,21 @@ class _RulesScreenState extends ConsumerState<RulesScreen> {
     String label,
     TextEditingController controller,
     ValueChanged<double> onValue, {
-    required String suffix,
+    String? suffix,
+    String? prefix,
   }) => TextField(
     controller: controller,
     keyboardType: const TextInputType.numberWithOptions(decimal: true),
-    decoration: InputDecoration(labelText: label, suffixText: suffix),
+    decoration: InputDecoration(
+      labelText: label,
+      prefixText: prefix,
+      suffixText: suffix,
+      isDense: true,
+      labelStyle: const TextStyle(fontSize: 12),
+      prefixStyle: const TextStyle(fontSize: 12),
+      suffixStyle: const TextStyle(fontSize: 12),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 9),
+    ),
     onChanged: (raw) {
       final value = double.tryParse(raw.trim().replaceAll(',', ''));
       if (value != null) onValue(value);
@@ -145,13 +161,55 @@ class _RulesScreenState extends ConsumerState<RulesScreen> {
       pickupMinutes: _sampleMinutes,
     );
     final sampleVerdict = _engine.scoreOffer(sampleOffer, settings);
-    final activeRate = perHour
+    final scoringPerHour = perHour && sampleOffer.totalMinutes > 0;
+    final previewThresholds = scoringPerHour
+        ? settings.hourThresholds
+        : settings.distanceUnit == DistanceUnit.kilometres
+        ? settings.thresholds
+        : Thresholds(
+            goodAtOrAbove: settings.distanceUnit.rateFromPerKm(
+              settings.thresholds.goodAtOrAbove,
+            ),
+            badBelow: settings.distanceUnit.rateFromPerKm(
+              settings.thresholds.badBelow,
+            ),
+          );
+    final previewUnit = scoringPerHour
+        ? '/hr'
+        : '/${settings.distanceUnit.shortLabel}';
+    final activeRate = scoringPerHour
         ? sampleOffer.pricePerHour
         : settings.distanceUnit.rateFromPerKm(sampleOffer.pricePerKm);
     final verdictLabel = sampleVerdict.name.toUpperCase();
     final activeRateText = activeRate.toStringAsFixed(2);
-    final badRateText = thresholds.badBelow.toStringAsFixed(2);
-    final goodRateText = thresholds.goodAtOrAbove.toStringAsFixed(2);
+    final badRateText = previewThresholds.badBelow.toStringAsFixed(2);
+    final goodRateText = previewThresholds.goodAtOrAbove.toStringAsFixed(2);
+    final verdictStyle = VerdictStyle.of(sampleVerdict);
+    final minimumFloor =
+        settings.minimumPayoutEnabled && _samplePayout < settings.minimumPayout;
+    final rateExplanation = minimumFloor
+        ? 'Below your $money${settings.minimumPayout.toStringAsFixed(2)} minimum offer'
+        : switch (sampleVerdict) {
+            Verdict.good => 'Above your $money$goodRateText GOOD threshold',
+            Verdict.bad => 'Below your $money$badRateText BAD threshold',
+            Verdict.ok =>
+              'Between your $money$badRateText and $money$goodRateText OK range',
+            Verdict.unknown => 'Rate could not be scored',
+          };
+    final pickupNear = sampleOffer.pickupKm <= settings.pickupNearKm;
+    final pickupLimit = settings.distanceUnit
+        .distanceFromKm(settings.pickupNearKm)
+        .toStringAsFixed(1);
+    final secondaryRate = scoringPerHour
+        ? settings.distanceUnit.rateFromPerKm(sampleOffer.pricePerKm)
+        : sampleOffer.pricePerHour;
+    final secondaryRateText = secondaryRate.toStringAsFixed(2);
+    final secondaryUnit = scoringPerHour
+        ? '/${settings.distanceUnit.shortLabel}'
+        : '/hr';
+    final secondaryLabel = scoringPerHour
+        ? '\$/${settings.distanceUnit.shortLabel}'
+        : '\$/hr';
     final text = Theme.of(context).textTheme;
 
     return ListView(
@@ -180,19 +238,20 @@ class _RulesScreenState extends ConsumerState<RulesScreen> {
                 'OK $money${thresholds.badBelow.toStringAsFixed(2)}–${thresholds.goodAtOrAbove.toStringAsFixed(2)}$unit',
             open: _open == 0,
             accent: _accents[0],
+            summaryColor: VerdictColors.ok,
             onTap: () => _toggle(0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Text(
                   perHour
-                      ? 'Offers are scored by dollars per hour. BAD is below $money${thresholds.badBelow.toStringAsFixed(2)}; GOOD starts at $money${thresholds.goodAtOrAbove.toStringAsFixed(2)}. Everything between is OK.'
-                      : 'Offers are scored by dollars per ${settings.distanceUnit.label.toLowerCase()}. BAD is below $money${thresholds.badBelow.toStringAsFixed(2)}; GOOD starts at $money${thresholds.goodAtOrAbove.toStringAsFixed(2)}. Everything between is OK.',
+                      ? 'Set the hourly rates you consider GOOD or BAD. Anything in between is OK.'
+                      : 'Set the rates you consider GOOD or BAD. Anything in between is OK.',
                   style: text.bodyMedium?.copyWith(
                     color: FoxColors.textSecondary,
                   ),
                 ),
-                const SizedBox(height: Gap.md),
+                const SizedBox(height: Gap.sm),
                 Center(
                   child: SegmentedButton<RateMode>(
                     segments: [
@@ -209,14 +268,15 @@ class _RulesScreenState extends ConsumerState<RulesScreen> {
                     ),
                   ),
                 ),
-                const SizedBox(height: Gap.md),
-                if (!perHour &&
+                const SizedBox(height: Gap.sm),
+                if (perHour ||
                     settings.distanceUnit == DistanceUnit.kilometres) ...[
                   PresetChips(
                     current: thresholds,
+                    presets: perHour ? _hourPresets : Thresholds.presets,
                     onPick: controller.applyPreset,
                   ),
-                  const SizedBox(height: Gap.md),
+                  const SizedBox(height: Gap.sm),
                 ],
                 ThresholdBand(
                   thresholds: thresholds,
@@ -224,7 +284,7 @@ class _RulesScreenState extends ConsumerState<RulesScreen> {
                   max: max,
                   unit: unit,
                 ),
-                const SizedBox(height: Gap.md),
+                const SizedBox(height: Gap.sm),
                 ThresholdSlider(
                   label: 'GOOD at or above',
                   color: VerdictColors.good,
@@ -236,7 +296,7 @@ class _RulesScreenState extends ConsumerState<RulesScreen> {
                       ? controller.setGood
                       : controller.setDisplayedGood,
                 ),
-                const SizedBox(height: Gap.md),
+                const SizedBox(height: Gap.sm),
                 ThresholdSlider(
                   label: 'BAD below',
                   color: VerdictColors.bad,
@@ -248,54 +308,6 @@ class _RulesScreenState extends ConsumerState<RulesScreen> {
                       ? controller.setBad
                       : controller.setDisplayedBad,
                 ),
-                const SizedBox(height: Gap.md),
-                Divider(color: FoxColors.border),
-                SwitchListTile(
-                  key: const Key('rules_minimum_payout_toggle'),
-                  contentPadding: EdgeInsets.zero,
-                  title: Text('Minimum offer amount', style: text.titleMedium),
-                  subtitle: Text(
-                    'Judge offers below a custom payout before the rate rules.',
-                    style: text.bodyMedium?.copyWith(
-                      color: FoxColors.textSecondary,
-                    ),
-                  ),
-                  value: settings.minimumPayoutEnabled,
-                  activeTrackColor: FoxColors.brandFox,
-                  onChanged: controller.setMinimumPayoutEnabled,
-                ),
-                if (settings.minimumPayoutEnabled) ...[
-                  const SizedBox(height: Gap.sm),
-                  ThresholdSlider(
-                    label: 'Offers below',
-                    color: FoxColors.brandFox,
-                    value: settings.minimumPayout.clamp(0, 50),
-                    min: 0,
-                    max: 50,
-                    currencyPrefix: money,
-                    onChanged: controller.setMinimumPayout,
-                  ),
-                  const SizedBox(height: Gap.sm),
-                  Semantics(
-                    label: 'Verdict for offers below minimum amount',
-                    child: SegmentedButton<Verdict>(
-                      key: const Key('rules_minimum_payout_verdict'),
-                      segments: const [
-                        ButtonSegment(value: Verdict.bad, label: Text('BAD')),
-                        ButtonSegment(value: Verdict.ok, label: Text('OK')),
-                        ButtonSegment(value: Verdict.good, label: Text('GOOD')),
-                      ],
-                      selected: {settings.minimumPayoutVerdict},
-                      onSelectionChanged: (selection) =>
-                          controller.setMinimumPayoutVerdict(selection.first),
-                      style: SegmentedButton.styleFrom(
-                        selectedBackgroundColor: FoxColors.brandFoxSoft,
-                        selectedForegroundColor: FoxColors.textPrimary,
-                        foregroundColor: FoxColors.textSecondary,
-                      ),
-                    ),
-                  ),
-                ],
               ],
             ),
           ),
@@ -304,12 +316,88 @@ class _RulesScreenState extends ConsumerState<RulesScreen> {
         _row(
           1,
           SettingsGroup(
-            title: 'Live preview',
-            icon: Icons.visibility_outlined,
-            summary: 'See the real verdict pill',
+            title: 'Offer guard',
+            icon: Icons.shield_outlined,
+            summary: [
+              if (settings.minimumPayoutEnabled)
+                'Min $money${settings.minimumPayout.toStringAsFixed(2)}',
+              'Pickup ≤ ${settings.distanceUnit.distanceFromKm(settings.pickupNearKm).toStringAsFixed(1)} ${settings.distanceUnit.shortLabel}',
+            ].join(' · '),
             open: _open == 1,
             accent: _accents[1],
             onTap: () => _toggle(1),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  "Extra protection from offers that aren't worth it, even when the rate looks good.",
+                  style: text.bodyMedium?.copyWith(
+                    color: FoxColors.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: Gap.sm),
+                SwitchListTile(
+                  key: const Key('rules_minimum_payout_toggle'),
+                  contentPadding: EdgeInsets.zero,
+                  title: Text('Minimum offer', style: text.titleMedium),
+                  value: settings.minimumPayoutEnabled,
+                  activeTrackColor: FoxColors.brandFox,
+                  onChanged: controller.setMinimumPayoutEnabled,
+                ),
+                Text(
+                  'Tiny payouts stay BAD even when the rate looks good.',
+                  style: text.bodyMedium?.copyWith(
+                    color: FoxColors.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: Gap.sm),
+                ThresholdSlider(
+                  label: 'BAD if offer is below',
+                  color: FoxColors.brandFox,
+                  value: settings.minimumPayout.clamp(0, 50),
+                  min: 0,
+                  max: 50,
+                  currencyPrefix: money,
+                  enabled: settings.minimumPayoutEnabled,
+                  onChanged: controller.setMinimumPayout,
+                ),
+                const SizedBox(height: Gap.md),
+                Divider(color: FoxColors.border),
+                const SizedBox(height: Gap.md),
+                Text('Pickup distance', style: text.titleMedium),
+                const SizedBox(height: Gap.xs),
+                Text(
+                  'Highlight pickup distance in the offer pill.',
+                  style: text.bodyMedium?.copyWith(
+                    color: FoxColors.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: Gap.sm),
+                ThresholdSlider(
+                  label: 'Near pickup at or under',
+                  color: VerdictColors.good,
+                  value: settings.distanceUnit.distanceFromKm(
+                    settings.pickupNearKm,
+                  ),
+                  min: settings.distanceUnit.distanceFromKm(0.5),
+                  max: settings.distanceUnit.distanceFromKm(10),
+                  unit: settings.distanceUnit.shortLabel,
+                  onChanged: controller.setDisplayedPickupNear,
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: Gap.sm),
+        _row(
+          2,
+          SettingsGroup(
+            title: 'Live preview',
+            icon: Icons.visibility_outlined,
+            summary: 'See how your rules score an offer',
+            open: _open == 2,
+            accent: _accents[2],
+            onTap: () => _toggle(2),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -317,12 +405,12 @@ class _RulesScreenState extends ConsumerState<RulesScreen> {
                   children: [
                     Expanded(
                       child: _previewField(
-                        'Offer payout',
+                        'Payout',
                         _payoutController,
                         (v) => setState(
                           () => _samplePayout = v.clamp(0, 500).toDouble(),
                         ),
-                        suffix: money,
+                        prefix: money,
                       ),
                     ),
                     const SizedBox(width: Gap.sm),
@@ -350,7 +438,33 @@ class _RulesScreenState extends ConsumerState<RulesScreen> {
                     ),
                   ],
                 ),
-                const SizedBox(height: Gap.md),
+                const SizedBox(height: Gap.sm),
+                Text(
+                  verdictLabel,
+                  textAlign: TextAlign.center,
+                  style: text.headlineSmall?.copyWith(
+                    color: verdictStyle.color,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                Text(
+                  '$money$activeRateText$previewUnit',
+                  textAlign: TextAlign.center,
+                  style: text.titleLarge?.copyWith(
+                    color: verdictStyle.color,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: Gap.xs),
+                Text(
+                  rateExplanation,
+                  textAlign: TextAlign.center,
+                  style: text.bodyMedium?.copyWith(
+                    color: FoxColors.textPrimary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: Gap.sm),
                 Center(
                   child: FittedBox(
                     fit: BoxFit.scaleDown,
@@ -372,56 +486,28 @@ class _RulesScreenState extends ConsumerState<RulesScreen> {
                     ),
                   ),
                 ),
-                const SizedBox(height: Gap.sm),
-                Text(
-                  '$money${_samplePayout.toStringAsFixed(2)} ÷ ${_sampleDistanceKm.toStringAsFixed(1)} km = $money${sampleOffer.pricePerKm.toStringAsFixed(2)}/km  ·  $money${_samplePayout.toStringAsFixed(2)} ÷ ${_sampleMinutes.toStringAsFixed(0)} min × 60 = $money${sampleOffer.pricePerHour.toStringAsFixed(2)}/hr',
-                  textAlign: TextAlign.center,
-                  style: text.bodySmall?.copyWith(
-                    color: FoxColors.textSecondary,
-                  ),
-                ),
                 const SizedBox(height: Gap.xs),
-                Text(
-                  '$verdictLabel: $activeRateText$unit  ·  OK is $money$badRateText$unit to under $money$goodRateText$unit',
-                  textAlign: TextAlign.center,
-                  style: text.bodySmall?.copyWith(
-                    color: FoxColors.textSecondary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(height: Gap.sm),
-        _row(
-          2,
-          SettingsGroup(
-            title: 'Pickup guard',
-            icon: Icons.near_me_outlined,
-            summary:
-                'Near ≤ ${settings.distanceUnit.distanceFromKm(settings.pickupNearKm).toStringAsFixed(1)} ${settings.distanceUnit.shortLabel}',
-            open: _open == 2,
-            accent: _accents[2],
-            onTap: () => _toggle(2),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                ThresholdSlider(
-                  label: 'Near pickup at or under',
-                  color: FoxColors.brandFox,
-                  value: settings.distanceUnit.distanceFromKm(
-                    settings.pickupNearKm,
-                  ),
-                  min: settings.distanceUnit.distanceFromKm(0.5),
-                  max: settings.distanceUnit.distanceFromKm(10),
-                  unit: settings.distanceUnit.shortLabel,
-                  onChanged: controller.setDisplayedPickupNear,
-                ),
-                Text(
-                  'Pickups under this distance show green on the pill; longer dead runs show red.',
-                  style: text.bodyMedium?.copyWith(
-                    color: FoxColors.textSecondary,
-                  ),
+                Wrap(
+                  alignment: WrapAlignment.center,
+                  spacing: Gap.sm,
+                  children: [
+                    Text(
+                      '$secondaryLabel $money$secondaryRateText$secondaryUnit',
+                      style: text.bodySmall?.copyWith(
+                        color: FoxColors.textSecondary,
+                      ),
+                    ),
+                    Text(
+                      pickupNear
+                          ? 'At or under $pickupLimit ${settings.distanceUnit.shortLabel}'
+                          : 'Over $pickupLimit ${settings.distanceUnit.shortLabel}',
+                      style: text.bodySmall?.copyWith(
+                        color: pickupNear
+                            ? VerdictColors.good
+                            : VerdictColors.bad,
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -552,15 +638,6 @@ class _RulesScreenState extends ConsumerState<RulesScreen> {
                     (value / 5).round() * 5,
                   ),
                 ),
-                if (settings.minimumPayoutEnabled) ...[
-                  const SizedBox(height: Gap.xs),
-                  Text(
-                    'Payout floor runs first: below $money${settings.minimumPayout.toStringAsFixed(2)} is ${settings.minimumPayoutVerdict.name.toUpperCase()}.',
-                    style: text.bodyMedium?.copyWith(
-                      color: FoxColors.textSecondary,
-                    ),
-                  ),
-                ],
                 const SizedBox(height: Gap.sm),
                 Wrap(
                   spacing: Gap.sm,

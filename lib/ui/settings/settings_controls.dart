@@ -91,16 +91,22 @@ class LinkRow extends StatelessWidget {
 /// One-tap threshold presets (shared trio with onboarding). Highlights the
 /// preset matching the current cut points; custom slider positions match none.
 class PresetChips extends StatelessWidget {
-  const PresetChips({super.key, required this.current, required this.onPick});
+  const PresetChips({
+    super.key,
+    required this.current,
+    required this.onPick,
+    this.presets = Thresholds.presets,
+  });
 
   final Thresholds current;
   final ValueChanged<Thresholds> onPick;
+  final List<(String, Thresholds)> presets;
 
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
-        for (final (label, t) in Thresholds.presets) ...[
+        for (final (label, t) in presets) ...[
           Expanded(
             child: GestureDetector(
               onTap: () {
@@ -136,8 +142,7 @@ class PresetChips extends StatelessWidget {
               ),
             ),
           ),
-          if ((label, t) != Thresholds.presets.last)
-            const SizedBox(width: Gap.sm),
+          if ((label, t) != presets.last) const SizedBox(width: Gap.sm),
         ],
       ],
     );
@@ -368,6 +373,7 @@ class SettingsGroup extends StatelessWidget {
     required this.onTap,
     required this.child,
     this.accent = FoxColors.brandFox,
+    this.summaryColor,
   });
 
   final String title;
@@ -380,6 +386,7 @@ class SettingsGroup extends StatelessWidget {
   /// Per-group hue (flat tiles read boring, device 2026-07-21): tints the icon
   /// chip always, and the border + glow while open.
   final Color accent;
+  final Color? summaryColor;
 
   @override
   Widget build(BuildContext context) {
@@ -459,7 +466,7 @@ class SettingsGroup extends StatelessWidget {
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
                               fontSize: 11.5,
-                              color: FoxColors.textSecondary,
+                              color: summaryColor ?? FoxColors.textSecondary,
                             ),
                           ),
                         ],
@@ -601,6 +608,7 @@ class ThresholdSlider extends StatelessWidget {
     this.currencyPrefix = r'$',
     this.editable = false,
     this.onEdit,
+    this.enabled = true,
   });
 
   final String label;
@@ -615,6 +623,7 @@ class ThresholdSlider extends StatelessWidget {
   final String currencyPrefix;
   final bool editable;
   final ValueChanged<double>? onEdit;
+  final bool enabled;
 
   /// One nudge of the −/+ buttons. Matches the slider's own division size for
   /// money; km reads in tenths, so a 5c-equivalent step would take forever.
@@ -631,12 +640,13 @@ class ThresholdSlider extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final text = Theme.of(context).textTheme;
+    final displayColor = enabled ? color : FoxColors.textDisabled;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           children: [
-            Icon(Icons.circle, size: 10, color: color),
+            Icon(Icons.circle, size: 10, color: displayColor),
             const SizedBox(width: Gap.sm),
             Expanded(child: Text(label, style: text.titleMedium)),
             if (editable)
@@ -672,7 +682,7 @@ class ThresholdSlider extends StatelessWidget {
                     : '${value.toStringAsFixed(1)} $unit',
                 style: text.titleMedium?.copyWith(
                   fontSize: 13.5,
-                  color: color,
+                  color: displayColor,
                   fontFeatures: const [FontFeature.tabularFigures()],
                 ),
               ),
@@ -684,7 +694,7 @@ class ThresholdSlider extends StatelessWidget {
           children: [
             StepButton(
               glyph: '−',
-              onTap: value > min ? () => _nudge(-1) : null,
+              onTap: enabled && value > min ? () => _nudge(-1) : null,
               semanticLabel: 'Decrease $label',
             ),
             Expanded(
@@ -693,13 +703,14 @@ class ThresholdSlider extends StatelessWidget {
                 min: min,
                 max: max,
                 divisions: ((max - min) / 0.05).round(),
-                color: color,
+                color: displayColor,
+                enabled: enabled,
                 onChanged: onChanged,
               ),
             ),
             StepButton(
               glyph: '+',
-              onTap: value < max ? () => _nudge(1) : null,
+              onTap: enabled && value < max ? () => _nudge(1) : null,
               semanticLabel: 'Increase $label',
             ),
           ],
@@ -718,6 +729,7 @@ class RoadSlider extends StatefulWidget {
     required this.color,
     required this.onChanged,
     this.divisions,
+    this.enabled = true,
   });
 
   final double value;
@@ -725,7 +737,8 @@ class RoadSlider extends StatefulWidget {
   final double max;
   final int? divisions;
   final Color color;
-  final ValueChanged<double> onChanged;
+  final ValueChanged<double>? onChanged;
+  final bool enabled;
 
   @override
   State<RoadSlider> createState() => _RoadSliderState();
@@ -759,8 +772,8 @@ class _RoadSliderState extends State<RoadSlider> {
       height: 48,
       child: LayoutBuilder(
         builder: (context, constraints) {
-          const trackInset = 16.0;
-          const carWidth = 40.0;
+          const trackInset = 20.0;
+          const carWidth = 38.0;
           final trackWidth = constraints.maxWidth - trackInset * 2;
           final carLeft = trackInset + trackWidth * _fraction - carWidth / 2;
           final glow = _dragging || _animating;
@@ -789,51 +802,66 @@ class _RoadSliderState extends State<RoadSlider> {
                   min: widget.min,
                   max: widget.max,
                   divisions: widget.divisions,
-                  onChangeStart: (_) => setState(() => _dragging = true),
-                  onChangeEnd: (_) => setState(() => _dragging = false),
-                  onChanged: widget.onChanged,
+                  onChangeStart: widget.enabled
+                      ? (_) => setState(() => _dragging = true)
+                      : null,
+                  onChangeEnd: widget.enabled
+                      ? (_) => setState(() => _dragging = false)
+                      : null,
+                  onChanged: widget.enabled ? widget.onChanged : null,
                 ),
               ),
-              AnimatedPositioned(
-                duration: const Duration(milliseconds: 160),
-                curve: Curves.easeOut,
-                left: carLeft,
-                top: 8,
-                width: carWidth,
-                height: 30,
-                child: IgnorePointer(
-                  child: Stack(
-                    clipBehavior: Clip.none,
-                    children: [
-                      Positioned(
-                        left: carWidth - 1,
-                        top: 11,
-                        child: AnimatedOpacity(
-                          opacity: glow ? 1 : 0,
-                          duration: const Duration(milliseconds: 160),
-                          child: CustomPaint(
-                            size: const Size(16, 8),
-                            painter: const _HeadlightPainter(),
-                          ),
-                        ),
-                      ),
-                      Image.asset(
-                        'assets/car/foxy_road_car.png',
-                        width: carWidth,
-                        height: 30,
-                        fit: BoxFit.contain,
-                        filterQuality: FilterQuality.medium,
-                      ),
-                    ],
-                  ),
+              if (_dragging)
+                Positioned(
+                  left: carLeft,
+                  top: 12,
+                  width: carWidth,
+                  height: 24,
+                  child: _car(carWidth, glow),
+                )
+              else
+                AnimatedPositioned(
+                  duration: const Duration(milliseconds: 180),
+                  curve: Curves.easeOutCubic,
+                  left: carLeft,
+                  top: 12,
+                  width: carWidth,
+                  height: 24,
+                  child: _car(carWidth, glow),
                 ),
-              ),
             ],
           );
         },
       ),
     );
   }
+
+  Widget _car(double carWidth, bool glow) => IgnorePointer(
+    child: Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Positioned(
+          left: carWidth - 1,
+          top: 8,
+          child: AnimatedOpacity(
+            opacity: glow ? 1 : 0,
+            duration: const Duration(milliseconds: 160),
+            child: CustomPaint(
+              size: const Size(16, 8),
+              painter: const _HeadlightPainter(),
+            ),
+          ),
+        ),
+        Image.asset(
+          'assets/car/foxy_road_car.png',
+          width: carWidth,
+          height: 24,
+          fit: BoxFit.contain,
+          filterQuality: FilterQuality.medium,
+        ),
+      ],
+    ),
+  );
 }
 
 class _RoadPainter extends CustomPainter {
@@ -844,7 +872,7 @@ class _RoadPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    const inset = 16.0;
+    const inset = 20.0;
     final road = RRect.fromRectAndRadius(
       Rect.fromLTWH(inset, 15, size.width - inset * 2, 18),
       const Radius.circular(9),
@@ -859,7 +887,8 @@ class _RoadPainter extends CustomPainter {
     );
     final lane = Paint()
       ..color = FoxColors.bgSurface.withValues(alpha: 0.8)
-      ..strokeWidth = 1.5;
+      ..strokeWidth = 1.25
+      ..strokeCap = StrokeCap.round;
     for (double x = inset + 8; x < size.width - inset; x += 13) {
       canvas.drawLine(Offset(x, 24), Offset(x + 6, 24), lane);
     }

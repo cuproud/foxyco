@@ -30,6 +30,9 @@ class FoxSettings {
   /// it disabled until the driver explicitly opts in.
   final bool minimumPayoutEnabled;
   final double minimumPayout;
+
+  /// Legacy persisted field kept so existing settings blobs round-trip.
+  /// Minimum payout failures are always BAD; this value is no longer read.
   final Verdict minimumPayoutVerdict;
 
   /// Pickup distance at or under this (km) is "near" — the pill paints the trip

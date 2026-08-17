@@ -3,7 +3,13 @@
 **Date:** 2026-08-17  
 **Workspace:** `/home/vamsi/github/foxyco`  
 **Branch:** `main`  
-**Source version:** `1.0.9+36`
+**Source version:** `1.0.9+39`
+
+## Current session status
+
+The current Rules polish is in the worktree and needs the next session's
+Flutter/build verification. The Verdict Thresholds expanded layout was kept at
+its tuned size.
 
 ## Release checkpoint
 
@@ -52,7 +58,9 @@ GOOD      ≥ good threshold
 
 The threshold summary and explanatory copy show the OK range directly. GOOD
 and BAD controls retain their right-side static values and −/+ precision
-buttons.
+buttons. The collapsed OK summary uses readable amber/gold; GOOD is green and
+BAD is red. Relaxed/Balanced/Picky remain functional in both modes, with hourly
+presets at 18/26, 20/30, and 24/36 (BAD/GOOD).
 
 ### Live preview
 
@@ -70,9 +78,14 @@ $/km = payout ÷ distance
 $/hr = payout ÷ minutes × 60
 ```
 
-The active rate mode determines the verdict. The preview also states the
-calculation and the current OK band, so the user can see why the pill is BAD,
-OK, or GOOD.
+The selected rate mode alone determines the verdict after the Minimum Offer
+hard BAD floor. The active metric and concise reason are primary; the inactive
+rate is neutral secondary information. Pickup status is separate and can be
+green/red without changing GOOD/OK/BAD.
+
+Minimum Offer remains: below the enabled minimum is BAD immediately; equal or
+above continues selected-mode scoring; OFF leaves the value visible but dimmed
+and bypasses the check.
 
 ### Road sliders
 
@@ -92,9 +105,13 @@ right-side value and existing −/+ controls remain the precision interaction.
 Semantic road colors are:
 
 - GOOD: theme-aware verdict green.
+- OK: theme-aware amber/gold.
 - BAD: theme-aware verdict red.
 - Minimum offer amount: FoxyCo orange.
 - Other controls retain their existing contextual colors.
+
+Pickup copy is `Highlight pickup distance in the offer pill.` Preview status is
+green `At or under …` or red `Over …`; pickup distance is informational only.
 
 Slider value indicators are explicitly disabled. The old Material font car
 thumb was removed.
@@ -116,13 +133,13 @@ thumb was removed.
   moved under Profile.
 - `third_party/flutter_overlay_window/android/.../OverlayService.java` —
   transparent SurfaceView restoration.
-- `test/settings_screen_test.dart` — assertions updated for the real pill and
-  new preview summary.
+- `test/settings_screen_test.dart` — assertions for the real pill, hourly
+  presets, and pickup status.
 
 ## Next-session validation
 
-1. Install the build-36 AAB from the Play testing track or install the release
-   artifact on a device.
+1. Run `./scripts/build.sh aab --bump`; analysis, Flutter tests, Firestore
+   tests, and the AAB build must pass before device install.
 2. Inspect Rules in both light and dark themes. Confirm the orange car remains
    right-facing, the road colors are correct, and the headlight glow is subtle
    and temporary.
@@ -131,10 +148,11 @@ thumb was removed.
 4. Edit payout, distance, and time in Live preview; verify the production pill
    and both rate calculations update immediately.
 5. Confirm the OK explanation matches the configured BAD/GOOD thresholds in
-   both $/km and $/hr modes.
-6. Re-test the Aug 16 Uber flow: stale browse earnings chips must not create a
+   both $/km and $/hr modes, and the inactive metric stays neutral.
+6. Enable Minimum Offer and test below-minimum, equal-minimum, and OFF cases.
+7. Re-test the Aug 16 Uber flow: stale browse earnings chips must not create a
    pill, and a dismissed offer must clear promptly.
-7. Re-check the bubble on Samsung/Android after window resize or app switching
+8. Re-check the bubble on Samsung/Android after window resize or app switching
    for any return of the grey rectangular mask.
 
 ## Known non-blocking build note

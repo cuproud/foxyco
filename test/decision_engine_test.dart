@@ -110,13 +110,13 @@ void main() {
       expect(engine.scoreOffer(at(19.99), perHour), Verdict.bad);
     });
 
-    test('minimum payout overrides rate scoring below its boundary', () {
+    test('minimum payout is always BAD below its boundary', () {
       final settings = perKm.copyWith(
         minimumPayoutEnabled: true,
         minimumPayout: 10,
-        minimumPayoutVerdict: Verdict.ok,
+        minimumPayoutVerdict: Verdict.good,
       );
-      expect(engine.scoreOffer(offer, settings), Verdict.ok);
+      expect(engine.scoreOffer(offer, settings), Verdict.bad);
       expect(
         engine.scoreOffer(
           const Offer(
@@ -129,6 +129,25 @@ void main() {
         ),
         Verdict.good,
         reason: 'the minimum boundary is inclusive',
+      );
+      expect(
+        engine.scoreOffer(
+          const Offer(
+            platform: GigPlatform.uber,
+            payout: 9.99,
+            pickupKm: 2,
+            dropoffKm: 4,
+          ),
+          settings,
+        ),
+        Verdict.bad,
+      );
+      expect(
+        engine.scoreOffer(
+          offer,
+          settings.copyWith(minimumPayoutEnabled: false),
+        ),
+        Verdict.good,
       );
     });
   });

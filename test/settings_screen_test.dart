@@ -100,6 +100,8 @@ void main() {
     await openGroup(tester, 'Live preview');
     // Live preview uses the same production pill rendered by the overlay.
     expect(find.byType(VerdictPill), findsOneWidget);
+    expect(find.text('GOOD'), findsWidgets);
+    expect(find.text('Over 2.0 km'), findsOneWidget);
   });
 
   testWidgets('voice verdict is a separate GOOD-only Rules toggle', (
@@ -124,23 +126,47 @@ void main() {
     expect(find.byKey(const Key('rules_voice_cooldown')), findsOneWidget);
   });
 
-  testWidgets('minimum payout rule exposes amount and verdict', (tester) async {
+  testWidgets('threshold presets remain visible in hourly mode', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1080, 2600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(_rulesHost());
+
+    expect(find.text('Relaxed'), findsOneWidget);
+    await tester.tap(find.text(r'$/hr'));
+    await tester.pumpAndSettle();
+    expect(find.text('Relaxed'), findsOneWidget);
+
+    await tester.tap(find.text('Picky'));
+    final settings = ProviderScope.containerOf(
+      tester.element(find.byType(RulesScreen)),
+    ).read(settingsProvider);
+    expect(
+      settings.hourThresholds,
+      const Thresholds(goodAtOrAbove: 36, badBelow: 24),
+    );
+  });
+
+  testWidgets('minimum payout rule exposes amount without a verdict selector', (
+    tester,
+  ) async {
     tester.view.physicalSize = const Size(1080, 3200);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
     await tester.pumpWidget(_rulesHost());
 
+    await openGroup(tester, 'Offer guard');
     final toggle = find.byKey(const Key('rules_minimum_payout_toggle'));
     expect(toggle, findsOneWidget);
     expect(find.byKey(const Key('rules_minimum_payout_verdict')), findsNothing);
     await tester.tap(toggle);
     await tester.pumpAndSettle();
-    expect(find.text('Offers below'), findsOneWidget);
-    expect(
-      find.byKey(const Key('rules_minimum_payout_verdict')),
-      findsOneWidget,
-    );
+    expect(find.text('BAD if offer is below'), findsOneWidget);
+    expect(find.byKey(const Key('rules_minimum_payout_verdict')), findsNothing);
   });
 
   testWidgets('Reset restores defaults', (tester) async {
@@ -367,7 +393,7 @@ void main() {
     // Opening another group collapses the previous one.
     await openGroup(tester, 'Live preview');
     expect(find.text('Uber'), findsNothing);
-    expect(find.text('See the real verdict pill'), findsOneWidget);
+    expect(find.text('See how your rules score an offer'), findsOneWidget);
   });
 
   testWidgets('groups are filed under named bands, in band order', (
