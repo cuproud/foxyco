@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -11,6 +12,7 @@ import '../../domain/platform.dart';
 import '../../domain/rate_mode.dart';
 import '../../domain/thresholds.dart';
 import '../../domain/verdict.dart';
+import '../../domain/fox_settings.dart';
 import '../../services/verdict_voice.dart';
 import '../settings/settings_controller.dart';
 import '../settings/settings_controls.dart';
@@ -27,6 +29,27 @@ class RulesScreen extends ConsumerStatefulWidget {
 
   @override
   ConsumerState<RulesScreen> createState() => _RulesScreenState();
+}
+
+class _PreviewOfferValues {
+  const _PreviewOfferValues({
+    required this.payout,
+    required this.pickupDistanceKm,
+    required this.pickupMinutes,
+    required this.tripDistanceKm,
+    required this.tripMinutes,
+  });
+
+  final double payout;
+  final double pickupDistanceKm;
+  final double pickupMinutes;
+  final double tripDistanceKm;
+  final double tripMinutes;
+
+  double get pickupHours => (pickupMinutes ~/ 60).toDouble();
+  double get pickupMinutePart => pickupMinutes % 60;
+  double get tripHours => (tripMinutes ~/ 60).toDouble();
+  double get tripMinutePart => tripMinutes % 60;
 }
 
 class _RulesScreenState extends ConsumerState<RulesScreen> {
@@ -49,34 +72,64 @@ class _RulesScreenState extends ConsumerState<RulesScreen> {
     const Color(0xFFF0A24B),
   ];
 
-  double _samplePayout = 10;
-  double _sampleDistanceKm = 3.5;
-  double _sampleMinutes = 44;
+  double _samplePayout = 0;
+  double _pickupDistanceKm = 0;
+  double _pickupMinutes = 0;
+  double _tripDistanceKm = 0;
+  double _tripMinutes = 0;
+  var _previewEdited = false;
+  var _exampleStep = 0;
+  final _random = math.Random();
   int _open = 0;
   final _rowKeys = List.generate(5, (_) => GlobalKey());
   late final TextEditingController _payoutController;
-  late final TextEditingController _distanceController;
-  late final TextEditingController _minutesController;
+  late final TextEditingController _pickupDistanceController;
+  late final TextEditingController _pickupHoursController;
+  late final TextEditingController _pickupMinutesController;
+  late final TextEditingController _tripDistanceController;
+  late final TextEditingController _tripHoursController;
+  late final TextEditingController _tripMinutesController;
 
   @override
   void initState() {
     super.initState();
+    final initial = _exampleFor(ref.read(settingsProvider), Verdict.good);
     _payoutController = TextEditingController(
-      text: _samplePayout.toStringAsFixed(2),
+      text: initial.payout.toStringAsFixed(2),
     );
-    _distanceController = TextEditingController(
-      text: _sampleDistanceKm.toStringAsFixed(1),
+    _pickupDistanceController = TextEditingController(
+      text: initial.pickupDistanceKm.toStringAsFixed(1),
     );
-    _minutesController = TextEditingController(
-      text: _sampleMinutes.toStringAsFixed(0),
+    _pickupHoursController = TextEditingController(
+      text: initial.pickupHours.toStringAsFixed(0),
+    );
+    _pickupMinutesController = TextEditingController(
+      text: initial.pickupMinutes.toStringAsFixed(0),
+    );
+    _tripDistanceController = TextEditingController(
+      text: initial.tripDistanceKm.toStringAsFixed(1),
+    );
+    _tripHoursController = TextEditingController(
+      text: initial.tripHours.toStringAsFixed(0),
+    );
+    _tripMinutesController = TextEditingController(
+      text: initial.tripMinutes.toStringAsFixed(0),
+    );
+    _applyPreview(
+      initial,
+      distanceUnit: ref.read(settingsProvider).distanceUnit,
     );
   }
 
   @override
   void dispose() {
     _payoutController.dispose();
-    _distanceController.dispose();
-    _minutesController.dispose();
+    _pickupDistanceController.dispose();
+    _pickupHoursController.dispose();
+    _pickupMinutesController.dispose();
+    _tripDistanceController.dispose();
+    _tripHoursController.dispose();
+    _tripMinutesController.dispose();
     super.dispose();
   }
 
@@ -107,6 +160,137 @@ class _RulesScreenState extends ConsumerState<RulesScreen> {
     },
   );
 
+  void _applyPreview(
+    _PreviewOfferValues value, {
+    bool edited = false,
+    DistanceUnit distanceUnit = DistanceUnit.kilometres,
+  }) {
+    _samplePayout = value.payout;
+    _pickupDistanceKm = value.pickupDistanceKm;
+    _pickupMinutes = value.pickupMinutes;
+    _tripDistanceKm = value.tripDistanceKm;
+    _tripMinutes = value.tripMinutes;
+    _payoutController.text = value.payout.toStringAsFixed(2);
+    _pickupDistanceController.text = distanceUnit
+        .distanceFromKm(value.pickupDistanceKm)
+        .toStringAsFixed(1);
+    _pickupHoursController.text = value.pickupHours.toStringAsFixed(0);
+    _pickupMinutesController.text = value.pickupMinutePart.toStringAsFixed(0);
+    _tripDistanceController.text = distanceUnit
+        .distanceFromKm(value.tripDistanceKm)
+        .toStringAsFixed(1);
+    _tripHoursController.text = value.tripHours.toStringAsFixed(0);
+    _tripMinutesController.text = value.tripMinutePart.toStringAsFixed(0);
+    _previewEdited = edited;
+  }
+
+  void _changePreview(void Function() change) {
+    setState(() {
+      _previewEdited = true;
+      change();
+    });
+  }
+
+  void _tryExample(FoxSettings settings) {
+    final target = switch (_exampleStep++ % 3) {
+      0 => Verdict.ok,
+      1 => Verdict.bad,
+      _ => Verdict.good,
+    };
+    final belowMinimum =
+        target == Verdict.bad &&
+        settings.minimumPayoutEnabled &&
+        settings.minimumPayout > 0 &&
+        _exampleStep.isEven;
+    _applyPreview(
+      _exampleFor(
+        settings,
+        target,
+        belowMinimum: belowMinimum,
+        pickupNear: _random.nextBool(),
+      ),
+      distanceUnit: settings.distanceUnit,
+    );
+    setState(() {});
+  }
+
+  _PreviewOfferValues _exampleFor(
+    FoxSettings settings,
+    Verdict target, {
+    bool belowMinimum = false,
+    bool? pickupNear,
+  }) {
+    final perHour = settings.rateMode == RateMode.perHour;
+    final thresholds = settings.activeThresholds;
+    final rate = switch (target) {
+      Verdict.good =>
+        thresholds.goodAtOrAbove + 0.25 + _random.nextDouble() * 0.3,
+      Verdict.ok =>
+        thresholds.badBelow +
+            (thresholds.goodAtOrAbove - thresholds.badBelow) *
+                (0.35 + _random.nextDouble() * 0.25),
+      Verdict.bad => thresholds.badBelow * (0.65 + _random.nextDouble() * 0.15),
+      Verdict.unknown => thresholds.goodAtOrAbove,
+    };
+    final near = pickupNear ?? true;
+    final pickupDistance = near
+        ? math.min(settings.pickupNearKm * 0.7, 2.0).toDouble()
+        : settings.pickupNearKm + 0.8 + _random.nextDouble() * 1.4;
+    final pickupMinutes = 5 + _random.nextInt(8);
+    final minimum = settings.minimumPayoutEnabled
+        ? settings.minimumPayout
+        : 0.0;
+
+    if (belowMinimum) {
+      final payout = minimum > 0 ? minimum * 0.75 : 0.5;
+      final totalDistance = math
+          .max(pickupDistance + 2.0, 4.0 + _random.nextDouble() * 4)
+          .toDouble();
+      final totalMinutes = math
+          .max(30.0, pickupMinutes + 20.0 + _random.nextDouble() * 30)
+          .toDouble();
+      return _PreviewOfferValues(
+        payout: payout,
+        pickupDistanceKm: pickupDistance,
+        pickupMinutes: pickupMinutes.toDouble(),
+        tripDistanceKm: totalDistance - pickupDistance,
+        tripMinutes: totalMinutes - pickupMinutes,
+      );
+    }
+
+    var payout = math
+        .max(minimum + 0.75, 8 + _random.nextDouble() * 6)
+        .toDouble();
+    if (perHour) {
+      final totalMinutes = math.max(30.0, payout / rate * 60).toDouble();
+      payout = rate * totalMinutes / 60;
+      return _PreviewOfferValues(
+        payout: payout,
+        pickupDistanceKm: pickupDistance,
+        pickupMinutes: pickupMinutes.toDouble(),
+        tripDistanceKm: math
+            .max(1.0, 5.0 + _random.nextDouble() * 5 - pickupDistance)
+            .toDouble(),
+        tripMinutes: math.max(10.0, totalMinutes - pickupMinutes).toDouble(),
+      );
+    }
+
+    var totalDistance = math
+        .max(pickupDistance + 2.0, payout / rate)
+        .toDouble();
+    if (payout / totalDistance < rate || payout < minimum) {
+      totalDistance = math.max(totalDistance, minimum / rate + 0.5).toDouble();
+      payout = rate * totalDistance;
+    }
+    return _PreviewOfferValues(
+      payout: payout,
+      pickupDistanceKm: pickupDistance,
+      pickupMinutes: pickupMinutes.toDouble(),
+      tripDistanceKm: totalDistance - pickupDistance,
+      tripMinutes: math.max(10.0, totalDistance * 6 - pickupMinutes).toDouble(),
+    );
+  }
+
   void _consumeDeepLink() {
     final tabs = ref.read(tabIndexProvider.notifier);
     final target = tabs.pendingSection;
@@ -136,6 +320,15 @@ class _RulesScreenState extends ConsumerState<RulesScreen> {
     });
 
     final settings = ref.watch(settingsProvider);
+    ref.listen<FoxSettings>(settingsProvider, (_, next) {
+      if (!_previewEdited && mounted) {
+        _applyPreview(
+          _exampleFor(next, Verdict.good),
+          distanceUnit: next.distanceUnit,
+        );
+        setState(() {});
+      }
+    });
     final controller = ref.read(settingsProvider.notifier);
     final perHour = settings.rateMode == RateMode.perHour;
     final canonicalThresholds = settings.activeThresholds;
@@ -156,9 +349,10 @@ class _RulesScreenState extends ConsumerState<RulesScreen> {
     final sampleOffer = Offer(
       platform: GigPlatform.uber,
       payout: _samplePayout,
-      pickupKm: _sampleDistanceKm,
-      dropoffKm: 0,
-      pickupMinutes: _sampleMinutes,
+      pickupKm: _pickupDistanceKm,
+      dropoffKm: _tripDistanceKm,
+      pickupMinutes: _pickupMinutes,
+      dropoffMinutes: _tripMinutes,
     );
     final sampleVerdict = _engine.scoreOffer(sampleOffer, settings);
     final scoringPerHour = perHour && sampleOffer.totalMinutes > 0;
@@ -210,6 +404,13 @@ class _RulesScreenState extends ConsumerState<RulesScreen> {
     final secondaryLabel = scoringPerHour
         ? '\$/${settings.distanceUnit.shortLabel}'
         : '\$/hr';
+    final totalDistanceText =
+        '${settings.distanceUnit.distanceFromKm(sampleOffer.totalKm).toStringAsFixed(1)} '
+        '${settings.distanceUnit.shortLabel} total distance';
+    final totalMinutes = sampleOffer.totalMinutes.round();
+    final totalTimeText = totalMinutes >= 60
+        ? '${totalMinutes ~/ 60}h ${totalMinutes % 60} min total time'
+        : '$totalMinutes min total time';
     final text = Theme.of(context).textTheme;
 
     return ListView(
@@ -401,42 +602,110 @@ class _RulesScreenState extends ConsumerState<RulesScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                _previewField(
+                  'Offer price',
+                  _payoutController,
+                  (v) => _changePreview(
+                    () => _samplePayout = v.clamp(0, 500).toDouble(),
+                  ),
+                  prefix: money,
+                ),
+                const SizedBox(height: Gap.sm),
+                Text('Pickup', style: text.titleSmall),
+                const SizedBox(height: Gap.xs),
                 Row(
                   children: [
                     Expanded(
                       child: _previewField(
-                        'Payout',
-                        _payoutController,
-                        (v) => setState(
-                          () => _samplePayout = v.clamp(0, 500).toDouble(),
-                        ),
-                        prefix: money,
-                      ),
-                    ),
-                    const SizedBox(width: Gap.sm),
-                    Expanded(
-                      child: _previewField(
                         'Distance',
-                        _distanceController,
-                        (v) => setState(
-                          () =>
-                              _sampleDistanceKm = v.clamp(0.1, 500).toDouble(),
+                        _pickupDistanceController,
+                        (v) => _changePreview(
+                          () => _pickupDistanceKm = settings.distanceUnit
+                              .distanceToKm(v.clamp(0, 100).toDouble()),
                         ),
-                        suffix: 'km',
+                        suffix: settings.distanceUnit.shortLabel,
                       ),
                     ),
                     const SizedBox(width: Gap.sm),
                     Expanded(
                       child: _previewField(
-                        'Time',
-                        _minutesController,
-                        (v) => setState(
-                          () => _sampleMinutes = v.clamp(1, 1440).toDouble(),
+                        'Hours',
+                        _pickupHoursController,
+                        (v) => _changePreview(
+                          () => _pickupMinutes =
+                              v.clamp(0, 24).toDouble() * 60 +
+                              (double.tryParse(_pickupMinutesController.text) ??
+                                      0)
+                                  .clamp(0, 59)
+                                  .toDouble(),
                         ),
-                        suffix: 'min',
+                      ),
+                    ),
+                    const SizedBox(width: Gap.sm),
+                    Expanded(
+                      child: _previewField(
+                        'Minutes',
+                        _pickupMinutesController,
+                        (v) => _changePreview(
+                          () => _pickupMinutes =
+                              (_pickupMinutes ~/ 60) * 60 +
+                              v.clamp(0, 59).toDouble(),
+                        ),
                       ),
                     ),
                   ],
+                ),
+                const SizedBox(height: Gap.sm),
+                Text('Trip', style: text.titleSmall),
+                const SizedBox(height: Gap.xs),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _previewField(
+                        'Distance',
+                        _tripDistanceController,
+                        (v) => _changePreview(
+                          () => _tripDistanceKm = settings.distanceUnit
+                              .distanceToKm(v.clamp(0, 500).toDouble()),
+                        ),
+                        suffix: settings.distanceUnit.shortLabel,
+                      ),
+                    ),
+                    const SizedBox(width: Gap.sm),
+                    Expanded(
+                      child: _previewField(
+                        'Hours',
+                        _tripHoursController,
+                        (v) => _changePreview(
+                          () => _tripMinutes =
+                              v.clamp(0, 48).toDouble() * 60 +
+                              (double.tryParse(_tripMinutesController.text) ??
+                                      0)
+                                  .clamp(0, 59)
+                                  .toDouble(),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: Gap.sm),
+                    Expanded(
+                      child: _previewField(
+                        'Minutes',
+                        _tripMinutesController,
+                        (v) => _changePreview(
+                          () => _tripMinutes =
+                              (_tripMinutes ~/ 60) * 60 +
+                              v.clamp(0, 59).toDouble(),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: Gap.sm),
+                OutlinedButton.icon(
+                  key: const Key('rules_try_example'),
+                  onPressed: () => _tryExample(settings),
+                  icon: const Icon(Icons.shuffle_rounded, size: 17),
+                  label: const Text('Try example'),
                 ),
                 const SizedBox(height: Gap.sm),
                 Text(
@@ -461,6 +730,15 @@ class _RulesScreenState extends ConsumerState<RulesScreen> {
                   textAlign: TextAlign.center,
                   style: text.bodyMedium?.copyWith(
                     color: FoxColors.textPrimary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: Gap.xs),
+                Text(
+                  '$totalDistanceText · $totalTimeText',
+                  textAlign: TextAlign.center,
+                  style: text.bodySmall?.copyWith(
+                    color: FoxColors.textSecondary,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -555,12 +833,14 @@ class _RulesScreenState extends ConsumerState<RulesScreen> {
             title: 'Voice verdict',
             icon: Icons.volume_up_rounded,
             summary: switch ((
+              settings.voiceVerdictEnabled,
               settings.announceGoodOffers,
               settings.announceOkOffers,
             )) {
-              (true, true) => 'GOOD and OK offers',
-              (true, false) => 'GOOD offers',
-              (false, true) => 'OK offers',
+              (false, _, _) => 'Off',
+              (true, true, true) => 'GOOD + OK',
+              (true, true, false) => 'GOOD only',
+              (true, false, true) => 'OK only',
               _ => 'Off',
             },
             open: _open == 4,
@@ -572,92 +852,109 @@ class _RulesScreenState extends ConsumerState<RulesScreen> {
                 SwitchListTile(
                   key: const Key('rules_voice_toggle'),
                   contentPadding: EdgeInsets.zero,
-                  title: Text('Announce GOOD offers', style: text.titleMedium),
-                  subtitle: Text(
-                    'Only when the offer passes both rate rules and your payout cutoff.',
+                  title: Text('Voice verdict', style: text.titleMedium),
+                  subtitle: const Text(
+                    'Hear qualifying offers without looking at the screen.',
                   ),
-                  value: settings.announceGoodOffers,
+                  value: settings.voiceVerdictEnabled,
                   activeTrackColor: FoxColors.brandFox,
-                  onChanged: controller.setAnnounceGoodOffers,
-                ),
-                ThresholdSlider(
-                  key: const Key('rules_voice_good_payout'),
-                  label: 'GOOD voice payout at least',
-                  color: VerdictColors.good,
-                  value: settings.goodVoiceMinimumPayout,
-                  min: 0,
-                  max: 500,
-                  currencyPrefix: money,
-                  editable: true,
-                  onEdit: controller.setGoodVoiceMinimumPayout,
-                  onChanged: controller.setGoodVoiceMinimumPayout,
+                  onChanged: controller.setVoiceVerdictEnabled,
                 ),
                 const SizedBox(height: Gap.sm),
+                SwitchListTile(
+                  key: const Key('rules_voice_good_toggle'),
+                  contentPadding: EdgeInsets.zero,
+                  title: Text('Announce GOOD offers', style: text.titleMedium),
+                  subtitle: const Text('Speak offers FoxyCo rates GOOD.'),
+                  value: settings.announceGoodOffers,
+                  activeTrackColor: VerdictColors.good,
+                  onChanged: settings.voiceVerdictEnabled
+                      ? controller.setAnnounceGoodOffers
+                      : null,
+                ),
                 SwitchListTile(
                   key: const Key('rules_voice_ok_toggle'),
                   contentPadding: EdgeInsets.zero,
                   title: Text('Announce OK offers', style: text.titleMedium),
-                  subtitle: Text(
-                    'Only OK verdicts at or above your payout cutoff.',
-                  ),
+                  subtitle: const Text('Also speak offers FoxyCo rates OK.'),
                   value: settings.announceOkOffers,
-                  activeTrackColor: FoxColors.brandFox,
-                  onChanged: controller.setAnnounceOkOffers,
+                  activeTrackColor: VerdictColors.ok,
+                  onChanged: settings.voiceVerdictEnabled
+                      ? controller.setAnnounceOkOffers
+                      : null,
                 ),
-                ThresholdSlider(
-                  key: const Key('rules_voice_ok_payout'),
-                  label: 'OK voice payout at least',
-                  color: VerdictColors.ok,
-                  value: settings.okVoiceMinimumPayout,
-                  min: 0,
-                  max: 500,
-                  currencyPrefix: money,
-                  editable: true,
-                  onEdit: controller.setOkVoiceMinimumPayout,
-                  onChanged: controller.setOkVoiceMinimumPayout,
-                ),
-                Text(
-                  'GOOD checks both \$/km and \$/hr rules before this payout cutoff. Set either cutoff to ${money}0 to allow every matching verdict.',
-                  style: text.bodySmall?.copyWith(
-                    color: FoxColors.textSecondary,
-                  ),
-                ),
-                const SizedBox(height: Gap.sm),
-                Text(
-                  'Minimum time between announcements: ${settings.voiceCooldownSeconds} seconds',
-                  style: text.titleMedium,
-                ),
-                RoadSlider(
-                  key: const Key('rules_voice_cooldown'),
-                  value: settings.voiceCooldownSeconds.toDouble(),
-                  min: 5,
-                  max: 120,
-                  divisions: 23,
-                  color: FoxColors.brandFox,
-                  onChanged: (value) => controller.setVoiceCooldownSeconds(
-                    (value / 5).round() * 5,
-                  ),
-                ),
-                const SizedBox(height: Gap.sm),
-                Wrap(
-                  spacing: Gap.sm,
-                  runSpacing: Gap.sm,
+                const SizedBox(height: Gap.xs),
+                Row(
                   children: [
-                    OutlinedButton.icon(
-                      key: const Key('rules_voice_preview'),
-                      onPressed: () => unawaited(
-                        ref.read(verdictVoiceProvider).preview(Verdict.good),
+                    Expanded(
+                      child: Text(
+                        'Time between announcements',
+                        style: text.titleMedium,
                       ),
-                      icon: const Icon(Icons.play_arrow_rounded),
-                      label: const Text('Preview GOOD'),
                     ),
-                    OutlinedButton.icon(
-                      key: const Key('rules_voice_ok_preview'),
-                      onPressed: () => unawaited(
-                        ref.read(verdictVoiceProvider).preview(Verdict.ok),
+                    Text(
+                      '${settings.voiceCooldownSeconds} sec',
+                      style: text.titleMedium?.copyWith(
+                        color: FoxColors.textSecondary,
+                        fontFeatures: const [FontFeature.tabularFigures()],
                       ),
-                      icon: const Icon(Icons.play_arrow_rounded),
-                      label: const Text('Preview OK'),
+                    ),
+                  ],
+                ),
+                Opacity(
+                  opacity: settings.voiceVerdictEnabled ? 1 : 0.45,
+                  child: RoadSlider(
+                    key: const Key('rules_voice_cooldown'),
+                    value: settings.voiceCooldownSeconds.toDouble(),
+                    min: 5,
+                    max: 120,
+                    divisions: 23,
+                    color: FoxColors.brandFox,
+                    enabled: settings.voiceVerdictEnabled,
+                    onChanged: (value) => controller.setVoiceCooldownSeconds(
+                      (value / 5).round() * 5,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: Gap.xs),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        key: const Key('rules_voice_preview'),
+                        onPressed: settings.voiceVerdictEnabled
+                            ? () => unawaited(
+                                ref
+                                    .read(verdictVoiceProvider)
+                                    .preview(Verdict.good),
+                              )
+                            : null,
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: VerdictColors.good,
+                          padding: const EdgeInsets.symmetric(horizontal: 6),
+                        ),
+                        icon: const Icon(Icons.play_arrow_rounded, size: 17),
+                        label: const Text('Preview GOOD'),
+                      ),
+                    ),
+                    const SizedBox(width: Gap.sm),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        key: const Key('rules_voice_ok_preview'),
+                        onPressed: settings.voiceVerdictEnabled
+                            ? () => unawaited(
+                                ref
+                                    .read(verdictVoiceProvider)
+                                    .preview(Verdict.ok),
+                              )
+                            : null,
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: VerdictColors.ok,
+                          padding: const EdgeInsets.symmetric(horizontal: 6),
+                        ),
+                        icon: const Icon(Icons.play_arrow_rounded, size: 17),
+                        label: const Text('Preview OK'),
+                      ),
                     ),
                   ],
                 ),

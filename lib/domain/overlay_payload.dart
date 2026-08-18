@@ -76,8 +76,8 @@ class OverlayPayload {
   /// so the pill hides it rather than dividing by zero.
   double get pricePerHour => totalMinutes > 0 ? payout / totalMinutes * 60 : 0;
 
-  /// Whether the km stat should be verdict-colored, and which way. Null means
-  /// "no signal" (unknown pickup or feature disabled) → default cream.
+  /// Whether the pickup target icon is green or red. Null means "no signal"
+  /// (unknown pickup or feature disabled) → default cream.
   bool? get pickupIsNear {
     if (pickupKm <= 0 || pickupNearKm <= 0) return null;
     return pickupKm <= pickupNearKm;

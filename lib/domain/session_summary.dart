@@ -12,6 +12,7 @@ class SessionSummary {
   final int good;
   final int ok;
   final int bad;
+  final int accepted;
 
   /// Highest $/km seen this session; 0 when nothing scored (UI shows a dash).
   final double bestPerKm;
@@ -28,6 +29,7 @@ class SessionSummary {
     this.good = 0,
     this.ok = 0,
     this.bad = 0,
+    this.accepted = 0,
     this.bestPerKm = 0,
     this.goodAvgPerKm = 0,
     this.busiestHour,
@@ -56,6 +58,7 @@ class SessionSummary {
       good: stats.good,
       ok: stats.ok,
       bad: stats.bad,
+      accepted: stats.accepted,
       bestPerKm: stats.best?.pricePerKm ?? 0,
       goodAvgPerKm: stats.goodAvgPerKm,
       busiestHour: stats.busiestHour,
@@ -68,6 +71,7 @@ class SessionSummary {
     'good': good,
     'ok': ok,
     'bad': bad,
+    'accepted': accepted,
     'bestPerKm': bestPerKm,
     'goodAvgPerKm': goodAvgPerKm,
     'busiestHour': busiestHour,
@@ -81,6 +85,8 @@ class SessionSummary {
     good: (j['good'] as num?)?.toInt() ?? 0,
     ok: (j['ok'] as num?)?.toInt() ?? 0,
     bad: (j['bad'] as num?)?.toInt() ?? 0,
+    // Older sessions did not persist acceptance outcomes.
+    accepted: (j['accepted'] as num?)?.toInt() ?? 0,
     bestPerKm: (j['bestPerKm'] as num?)?.toDouble() ?? 0,
     goodAvgPerKm: (j['goodAvgPerKm'] as num?)?.toDouble() ?? 0,
     busiestHour: (j['busiestHour'] as num?)?.toInt(),

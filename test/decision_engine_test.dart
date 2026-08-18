@@ -162,7 +162,7 @@ void main() {
       dropoffMinutes: 50,
     );
 
-    test('GOOD requires both rate rules and the custom payout cutoff', () {
+    test('voice follows the final verdict without extra payout gates', () {
       expect(
         engine.qualifiesForVoice(premium, FoxSettings.defaults, Verdict.good),
         isTrue,
@@ -171,13 +171,13 @@ void main() {
         engine.qualifiesForVoice(
           premium,
           FoxSettings.defaults.copyWith(goodVoiceMinimumPayout: 31),
-          Verdict.good,
+          Verdict.ok,
         ),
-        isFalse,
+        isTrue,
       );
     });
 
-    test('GOOD does not announce without parsed minutes', () {
+    test('voice accepts the final verdict even without secondary metrics', () {
       const noTime = Offer(
         platform: GigPlatform.uber,
         payout: 30,
@@ -186,7 +186,7 @@ void main() {
       );
       expect(
         engine.qualifiesForVoice(noTime, FoxSettings.defaults, Verdict.good),
-        isFalse,
+        isTrue,
       );
     });
   });

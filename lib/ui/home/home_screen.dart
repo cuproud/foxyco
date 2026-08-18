@@ -1203,6 +1203,28 @@ class _SessionCard extends ConsumerWidget {
               ] else ...[
                 const SizedBox(height: Gap.sm + Gap.xs),
                 VerdictSplitPills(good: s.good, ok: s.ok, bad: s.bad),
+                const SizedBox(height: Gap.sm),
+                Row(
+                  children: [
+                    Icon(
+                      Icons.check_circle_outline,
+                      color: VerdictColors.good,
+                      size: 18,
+                    ),
+                    const SizedBox(width: Gap.xs),
+                    Flexible(
+                      child: Text(
+                        '${s.accepted} accepted offers this session',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: text.bodyMedium?.copyWith(
+                          color: FoxColors.textSecondary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
                 const SizedBox(height: Gap.sm + Gap.xs),
                 Row(
                   children: [

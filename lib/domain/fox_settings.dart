@@ -52,12 +52,15 @@ class FoxSettings {
   /// leaves (read-only heuristic). Off = every offer logs as unknown.
   final bool trackOutcomes;
 
+  /// Master switch for verdict voice alerts.
+  final bool voiceVerdictEnabled;
+
   /// Speak a short alert when a newly logged offer scores GOOD.
   final bool announceGoodOffers;
   final bool announceOkOffers;
 
-  /// Extra payout gates for voice alerts. Verdict scoring still requires the
-  /// configured rate rules; these gates make voice opt-in for premium offers.
+  /// Legacy payout fields retained for settings migration compatibility. They
+  /// are no longer read by verdict scoring or voice announcements.
   final double goodVoiceMinimumPayout;
   final double okVoiceMinimumPayout;
   final int voiceCooldownSeconds;
@@ -93,6 +96,7 @@ class FoxSettings {
     required this.retentionDays,
     required this.pillSize,
     required this.trackOutcomes,
+    this.voiceVerdictEnabled = true,
     this.announceGoodOffers = true,
     this.announceOkOffers = false,
     this.goodVoiceMinimumPayout = 30,
@@ -127,6 +131,7 @@ class FoxSettings {
     retentionDays: 30,
     pillSize: PillSize.small,
     trackOutcomes: true,
+    voiceVerdictEnabled: true,
     announceGoodOffers: true,
     announceOkOffers: false,
     goodVoiceMinimumPayout: 30,
@@ -160,6 +165,7 @@ class FoxSettings {
     int? retentionDays,
     PillSize? pillSize,
     bool? trackOutcomes,
+    bool? voiceVerdictEnabled,
     bool? announceGoodOffers,
     bool? announceOkOffers,
     double? goodVoiceMinimumPayout,
@@ -183,6 +189,7 @@ class FoxSettings {
     retentionDays: retentionDays ?? this.retentionDays,
     pillSize: pillSize ?? this.pillSize,
     trackOutcomes: trackOutcomes ?? this.trackOutcomes,
+    voiceVerdictEnabled: voiceVerdictEnabled ?? this.voiceVerdictEnabled,
     announceGoodOffers: announceGoodOffers ?? this.announceGoodOffers,
     announceOkOffers: announceOkOffers ?? this.announceOkOffers,
     goodVoiceMinimumPayout:
@@ -211,6 +218,7 @@ class FoxSettings {
     'retentionDays': retentionDays,
     'pillSize': pillSize.name,
     'trackOutcomes': trackOutcomes,
+    'voiceVerdictEnabled': voiceVerdictEnabled,
     'announceGoodOffers': announceGoodOffers,
     'announceOkOffers': announceOkOffers,
     'goodVoiceMinimumPayout': goodVoiceMinimumPayout,
@@ -264,6 +272,10 @@ class FoxSettings {
           PillSize.values.where((s) => s.name == j['pillSize']).firstOrNull ??
           d.pillSize,
       trackOutcomes: (j['trackOutcomes'] as bool?) ?? d.trackOutcomes,
+      voiceVerdictEnabled:
+          (j['voiceVerdictEnabled'] as bool?) ??
+          (((j['announceGoodOffers'] as bool?) ?? d.announceGoodOffers) ||
+              ((j['announceOkOffers'] as bool?) ?? d.announceOkOffers)),
       announceGoodOffers:
           (j['announceGoodOffers'] as bool?) ?? d.announceGoodOffers,
       announceOkOffers: (j['announceOkOffers'] as bool?) ?? d.announceOkOffers,

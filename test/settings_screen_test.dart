@@ -101,10 +101,36 @@ void main() {
     // Live preview uses the same production pill rendered by the overlay.
     expect(find.byType(VerdictPill), findsOneWidget);
     expect(find.text('GOOD'), findsWidgets);
-    expect(find.text('Over 2.0 km'), findsOneWidget);
+    expect(find.text('At or under 2.0 km'), findsOneWidget);
+    expect(find.text('Offer price'), findsOneWidget);
+    expect(find.text('Pickup'), findsOneWidget);
+    expect(find.text('Trip'), findsOneWidget);
+    expect(find.byKey(const Key('rules_try_example')), findsOneWidget);
   });
 
-  testWidgets('voice verdict is a separate GOOD-only Rules toggle', (
+  testWidgets('live preview examples cycle through OK, BAD, and GOOD', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1080, 2600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(_rulesHost());
+    await openGroup(tester, 'Live preview');
+
+    final button = find.byKey(const Key('rules_try_example'));
+    await tester.tap(button);
+    await tester.pump();
+    expect(find.text('OK'), findsWidgets);
+    await tester.tap(button);
+    await tester.pump();
+    expect(find.text('BAD'), findsWidgets);
+    await tester.tap(button);
+    await tester.pump();
+    expect(find.text('GOOD'), findsWidgets);
+  });
+
+  testWidgets('voice verdict master dims its child controls when off', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(1080, 3200);
@@ -122,6 +148,7 @@ void main() {
     await tester.tap(toggle);
     await tester.pump();
     expect(tester.widget<SwitchListTile>(toggle).value, isFalse);
+    expect(find.byKey(const Key('rules_voice_good_toggle')), findsOneWidget);
     expect(find.byKey(const Key('rules_voice_ok_toggle')), findsOneWidget);
     expect(find.byKey(const Key('rules_voice_cooldown')), findsOneWidget);
   });
@@ -543,9 +570,11 @@ void main() {
 
   test('voice settings survive a JSON round-trip with GOOD default on', () {
     expect(FoxSettings.fromJson(const {}).announceGoodOffers, isTrue);
+    expect(FoxSettings.fromJson(const {}).voiceVerdictEnabled, isTrue);
     final back = FoxSettings.fromJson(
       FoxSettings.defaults
           .copyWith(
+            voiceVerdictEnabled: false,
             announceGoodOffers: false,
             announceOkOffers: true,
             goodVoiceMinimumPayout: 42,
@@ -555,6 +584,7 @@ void main() {
           .toJson(),
     );
     expect(back.announceGoodOffers, isFalse);
+    expect(back.voiceVerdictEnabled, isFalse);
     expect(back.announceOkOffers, isTrue);
     expect(back.goodVoiceMinimumPayout, 42);
     expect(back.okVoiceMinimumPayout, 18);

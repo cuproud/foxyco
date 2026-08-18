@@ -94,9 +94,7 @@ class SettingsController extends Notifier<FoxSettings> {
     if (previous.ocrEnabled && !next.ocrEnabled) {
       unawaited(ref.read(ocrCaptureProvider).stop());
     }
-    if ((previous.announceGoodOffers || previous.announceOkOffers) &&
-        !next.announceGoodOffers &&
-        !next.announceOkOffers) {
+    if (previous.voiceVerdictEnabled && !next.voiceVerdictEnabled) {
       unawaited(ref.read(verdictVoiceProvider).stop());
     }
     unawaited(_save());
@@ -181,6 +179,9 @@ class SettingsController extends Notifier<FoxSettings> {
 
   void setTrackOutcomes(bool on) =>
       _change((current) => current.copyWith(trackOutcomes: on));
+
+  void setVoiceVerdictEnabled(bool on) =>
+      _change((current) => current.copyWith(voiceVerdictEnabled: on));
 
   void setAnnounceGoodOffers(bool on) =>
       _change((current) => current.copyWith(announceGoodOffers: on));

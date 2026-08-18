@@ -118,4 +118,44 @@ void main() {
     );
     expect(find.text('2 deliveries'), findsOneWidget);
   });
+
+  testWidgets('pickup target is binary and total distance stays neutral', (
+    tester,
+  ) async {
+    Future<void> pump(bool near) => tester.pumpWidget(
+      MaterialApp(
+        home: VerdictPill(
+          animate: false,
+          payload: OverlayPayload(
+            verdict: Verdict.good,
+            totalKm: 8.4,
+            payout: 12,
+            totalMinutes: 24,
+            pickupKm: near ? 1.5 : 2.0,
+            pickupNearKm: 1.5,
+          ),
+        ),
+      ),
+    );
+
+    await pump(true);
+    expect(
+      tester.widget<Icon>(find.byIcon(Icons.gps_fixed_rounded)).color,
+      const Color(0xFF5ECD90),
+    );
+    expect(
+      tester.widget<Text>(find.text('8.4 km')).style?.color,
+      const Color(0xC6F4EFE1),
+    );
+
+    await pump(false);
+    expect(
+      tester.widget<Icon>(find.byIcon(Icons.gps_fixed_rounded)).color,
+      const Color(0xFFFF8A7E),
+    );
+    expect(
+      tester.widget<Text>(find.text('8.4 km')).style?.color,
+      const Color(0xC6F4EFE1),
+    );
+  });
 }

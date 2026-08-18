@@ -433,6 +433,7 @@ class OfferWatcher extends Notifier<Offer?> {
     // record() returns the existing row for a duplicate. Announce only when
     // this exact candidate was inserted, never for card flicker/re-parses.
     if (identical(summary, candidate) &&
+        settings.voiceVerdictEnabled &&
         (((settings.announceGoodOffers && verdict == Verdict.good) ||
                 (settings.announceOkOffers && verdict == Verdict.ok)) &&
             ref

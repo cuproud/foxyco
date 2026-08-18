@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:foxyco/domain/offer_stats.dart';
 import 'package:foxyco/domain/offer_summary.dart';
 import 'package:foxyco/domain/platform.dart';
+import 'package:foxyco/domain/session_summary.dart';
 import 'package:foxyco/domain/verdict.dart';
 
 OfferSummary _o(
@@ -53,6 +54,24 @@ void main() {
     expect(stats.total, 3);
     expect(stats.good + stats.ok + stats.bad, 3);
     expect(stats.accepted, 2);
+  });
+
+  test('session summary carries accepted count with legacy default', () {
+    final session = SessionSummary.from(
+      startedAt: DateTime(2026, 7, 16),
+      endedAt: DateTime(2026, 7, 16, 1),
+      offers: [_o(Verdict.good, 15, 10, outcome: OfferOutcome.taken)],
+    );
+
+    expect(session.accepted, 1);
+    expect(SessionSummary.fromJson(session.toJson()).accepted, 1);
+    expect(
+      SessionSummary.fromJson({
+        'startedAt': '2026-07-16T00:00:00.000',
+        'endedAt': '2026-07-16T01:00:00.000',
+      }).accepted,
+      0,
+    );
   });
 
   test('goodAvgPerKm averages GOOD offers only', () {

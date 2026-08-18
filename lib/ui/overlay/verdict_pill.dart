@@ -132,10 +132,10 @@ class VerdictPill extends StatelessWidget {
                   ],
                 ),
               ),
-              // Dark info block — trip km + $/hr.
+              // Dark info block — total km + pickup target + $/hr.
               Container(
                 padding: EdgeInsets.symmetric(
-                  horizontal: m.padH,
+                  horizontal: m.padH - 6,
                   vertical: m.padV,
                 ),
                 decoration: const BoxDecoration(
@@ -159,30 +159,30 @@ class VerdictPill extends StatelessWidget {
                         fontFamily: FoxFonts.sans,
                         fontWeight: FontWeight.w700,
                         fontSize: m.sub,
-                        // Pickup-near signal (references/*pill* "color only, no
-                        // new element"): pickup at/under the driver's cutoff
-                        // paints the km green, over paints it red. No pickup
-                        // info → default cream.
-                        color: switch (payload.pickupIsNear) {
-                          true => const Color(0xFF5ECD90),
-                          false => const Color(0xFFFF8A7E),
-                          // creamConst, not creamDim: the pill is dark in BOTH
-                          // themes (it floats over other apps), and the varying
-                          // token would go ink here when Settings renders the
-                          // sample pill in light mode.
-                          null => _dimCream,
-                        },
+                        // Total distance is always neutral. Pickup status has
+                        // its own target icon immediately after this value.
+                        color: _dimCream,
                         fontFeatures: const [FontFeature.tabularFigures()],
                       ),
                     ),
+                    SizedBox(width: 3),
+                    Icon(
+                      Icons.gps_fixed_rounded,
+                      size: m.target,
+                      color: switch (payload.pickupIsNear) {
+                        true => const Color(0xFF5ECD90),
+                        false => const Color(0xFFFF8A7E),
+                        null => _dimCream,
+                      },
+                    ),
                     if (payload.pricePerHour > 0) ...[
-                      SizedBox(width: m.gap),
+                      SizedBox(width: m.gap - 4),
                       Container(
                         width: 1,
                         height: m.sub,
                         color: const Color(0x52F4EFE1),
                       ),
-                      SizedBox(width: m.gap),
+                      SizedBox(width: m.gap - 4),
                       Text(
                         '\$${payload.pricePerHour.toStringAsFixed(0)}/hr',
                         style: TextStyle(
@@ -245,6 +245,7 @@ class VerdictPill extends StatelessWidget {
       rate: 18,
       unit: 10,
       sub: 12.5,
+      target: 16,
     ),
     PillSize.medium => const _PillMetrics(
       padH: 16,
@@ -253,6 +254,7 @@ class VerdictPill extends StatelessWidget {
       rate: 21,
       unit: 11.5,
       sub: 14.5,
+      target: 17,
     ),
     PillSize.large => const _PillMetrics(
       padH: 19,
@@ -261,12 +263,13 @@ class VerdictPill extends StatelessWidget {
       rate: 24,
       unit: 13,
       sub: 16.5,
+      target: 18,
     ),
   };
 }
 
 class _PillMetrics {
-  final double padH, padV, gap, rate, unit, sub;
+  final double padH, padV, gap, rate, unit, sub, target;
   const _PillMetrics({
     required this.padH,
     required this.padV,
@@ -274,5 +277,6 @@ class _PillMetrics {
     required this.rate,
     required this.unit,
     required this.sub,
+    required this.target,
   });
 }
