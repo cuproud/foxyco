@@ -104,17 +104,17 @@ class _SplashScreenState extends State<SplashScreen>
     final reduced = MediaQuery.of(context).disableAnimations;
 
     return Scaffold(
-      // Pinned to the dark stage in BOTH themes (not FoxColors.bgBase): the
-      // wordmark is cream, the car art is lit for black, and the native launch
-      // window behind it is one fixed color — following the light palette here
-      // would flash cream-then-black on the way in.
-      backgroundColor: FoxPalette.dark.bgBase,
+      backgroundColor: FoxColors.bgBase,
       body: reduced
-          ? const Center(
+          ? Center(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  _SplashCar(fade: 1, glow: 1),
+                  _SplashCar(
+                    fade: 1,
+                    glow: 1,
+                    onDark: FoxColors.palette.brightness == Brightness.dark,
+                  ),
                   SizedBox(height: Gap.lg),
                   _Wordmark(opacity: 1),
                 ],
@@ -132,7 +132,11 @@ class _SplashScreenState extends State<SplashScreen>
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      _SplashCar(fade: fade, glow: _glowAt(t)),
+                      _SplashCar(
+                        fade: fade,
+                        glow: _glowAt(t),
+                        onDark: FoxColors.palette.brightness == Brightness.dark,
+                      ),
                       const SizedBox(height: Gap.lg),
                       _Wordmark(opacity: fade),
                     ],
@@ -148,10 +152,15 @@ class _SplashScreenState extends State<SplashScreen>
 /// short viewports. [fade] is the whole car rising out of black — one Opacity
 /// over both layers, which only the splash pays for.
 class _SplashCar extends StatelessWidget {
-  const _SplashCar({required this.fade, required this.glow});
+  const _SplashCar({
+    required this.fade,
+    required this.glow,
+    required this.onDark,
+  });
 
   final double fade;
   final double glow;
+  final bool onDark;
 
   @override
   Widget build(BuildContext context) {
@@ -160,8 +169,7 @@ class _SplashCar extends StatelessWidget {
       width: w,
       child: Opacity(
         opacity: fade.clamp(0.0, 1.0),
-        // onDark: the splash stage is pinned dark in both themes.
-        child: CarHero(glow: glow, onDark: true),
+        child: CarHero(glow: glow, onDark: onDark),
       ),
     );
   }

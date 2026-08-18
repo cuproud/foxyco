@@ -1,10 +1,23 @@
-/// Gig platforms FoxyCo watches. Base set = Uber + Hopp (DECISIONS #6); Lyft
-/// added M3 (2026-07-12) — same timeline-leg card idiom as Hopp, gross pay.
+/// Canonical platform metadata known to FoxyCo. Presence here does not imply a
+/// production parser; parser capability is owned by [ParserRegistry].
 enum GigPlatform {
-  uber('Uber'),
-  hopp('Hopp'),
-  lyft('Lyft');
+  uber('uber', 'Uber', 'U', 0xFF111111, 'com.ubercab.driver'),
+  hopp('hopp', 'Hopp', 'H', 0xFF2E7D32, 'ee.hopp.driver'),
+  lyft('lyft', 'Lyft', 'L', 0xFFFF37A6, 'com.lyft.android.driver'),
+  uberEats('uber_eats', 'Uber Eats', 'E', 0xFF111111, 'com.ubercab.driver'),
+  doorDash('doordash', 'DoorDash', 'D', 0xFFFF3008, 'com.doordash.driverapp'),
+  instacart('instacart', 'Instacart', 'I', 0xFF43A047, 'com.instacart.shopper');
 
-  const GigPlatform(this.label);
+  const GigPlatform(
+    this.id,
+    this.label,
+    this.initial,
+    this.colorValue,
+    this.packageName,
+  );
+  final String id;
   final String label;
+  final String initial;
+  final int colorValue;
+  final String packageName;
 }

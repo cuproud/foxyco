@@ -1,6 +1,7 @@
 import 'app_currency.dart';
 import 'distance_unit.dart';
 import 'money_font.dart';
+import 'rate_mode.dart';
 import 'verdict.dart';
 
 /// Pill display sizes the driver can cycle (docs/OVERLAY — resizable S/M/L).
@@ -18,6 +19,7 @@ class OverlayPayload {
   final double totalKm;
   final double payout; // dollars
   final double totalMinutes; // pickup + trip; 0 when unknown
+  final RateMode rateMode;
   final PillSize size;
   final DistanceUnit distanceUnit;
   final AppCurrency currency;
@@ -26,13 +28,12 @@ class OverlayPayload {
   /// Dead mileage to the rider; 0 when the parser couldn't split it out.
   final double pickupKm;
 
-  /// The driver's "near pickup" cutoff (Settings). At/under → the pill paints
-  /// the km stat green; over → red. 0 disables the coloring.
+  /// The driver's "near pickup" cutoff (Settings). At/under → green target;
+  /// over → red target. 0 disables the indicator.
   final double pickupNearKm;
 
-  /// The driver's $/hr cut points (Settings → thresholds, per-hour pair).
-  /// The pill tints the $/hr stat green/amber/red by these; 0 disables the
-  /// coloring (stat stays cream).
+  /// The driver's $/hr cut points, retained in the wire format for settings
+  /// compatibility. Only the active rate metric is verdict-colored.
   final double hourGoodAt;
   final double hourBadBelow;
 
@@ -56,6 +57,7 @@ class OverlayPayload {
     required this.totalKm,
     required this.payout,
     this.totalMinutes = 0,
+    this.rateMode = RateMode.perKm,
     this.size = PillSize.medium,
     this.distanceUnit = DistanceUnit.kilometres,
     this.currency = AppCurrency.cad,
@@ -70,7 +72,12 @@ class OverlayPayload {
 
   double get pricePerKm => totalKm > 0 ? payout / totalKm : 0;
   double get displayDistance => distanceUnit.distanceFromKm(totalKm);
-  double get displayRate => distanceUnit.rateFromPerKm(pricePerKm);
+  double get displayRate => rateMode == RateMode.perHour
+      ? pricePerHour
+      : distanceUnit.rateFromPerKm(pricePerKm);
+
+  String get displayRateUnit =>
+      rateMode == RateMode.perHour ? '/hr' : '/${distanceUnit.shortLabel}';
 
   /// Dollars per hour — the Maxymo-style headline. Zero when no time was parsed,
   /// so the pill hides it rather than dividing by zero.
@@ -83,15 +90,6 @@ class OverlayPayload {
     return pickupKm <= pickupNearKm;
   }
 
-  /// The $/hr stat's verdict by the driver's per-hour cut points. Null means
-  /// "no signal" (no parsed time or no cut points) → default cream.
-  Verdict? get hourVerdict {
-    if (pricePerHour <= 0 || hourGoodAt <= 0) return null;
-    if (pricePerHour >= hourGoodAt) return Verdict.good;
-    if (pricePerHour < hourBadBelow) return Verdict.bad;
-    return Verdict.ok;
-  }
-
   /// Serialize to a primitive map for `shareData`. Enums go across as their
   /// stable `name` string — never the index, which can shift if we reorder.
   /// Tagged `kind: 'offer'` so the overlay can tell offers apart from control
@@ -102,6 +100,7 @@ class OverlayPayload {
     'totalKm': totalKm,
     'payout': payout,
     'totalMinutes': totalMinutes,
+    'rateMode': rateMode.name,
     'size': size.name,
     'distanceUnit': distanceUnit.name,
     'currency': currency.name,
@@ -125,6 +124,10 @@ class OverlayPayload {
     totalKm: (map['totalKm'] as num?)?.toDouble() ?? 0,
     payout: (map['payout'] as num?)?.toDouble() ?? 0,
     totalMinutes: (map['totalMinutes'] as num?)?.toDouble() ?? 0,
+    rateMode: RateMode.values.firstWhere(
+      (mode) => mode.name == map['rateMode'],
+      orElse: () => RateMode.perKm,
+    ),
     size: PillSize.values.firstWhere(
       (s) => s.name == map['size'],
       orElse: () => PillSize.medium,

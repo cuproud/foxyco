@@ -5,7 +5,9 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/car_reminder.dart';
+import '../../domain/fox_settings.dart';
 import '../../domain/platform.dart';
+import '../../parser/parser_registry.dart';
 import '../../domain/session_summary.dart';
 import '../../services/offer_log.dart';
 import '../../services/session_log.dart';
@@ -90,7 +92,9 @@ class HomeScreen extends ConsumerWidget {
               final y = ref.watch(yesterdayTallyProvider);
               return y.good + y.ok + y.bad;
             }(),
-            platforms: ref.watch(settingsProvider).watchedApps.toList(),
+            platforms: ParserRegistry.supportedPlatforms
+                .where(ref.watch(settingsProvider).watches)
+                .toList(),
             // Slide-to-go-live is the Start/Stop outer gate (spec M6 §3.2);
             // pause stays on the bubble long-press.
             onStart: () => unawaited(controller.startMonitoring()),
@@ -438,14 +442,7 @@ class _Hero extends StatelessWidget {
                   HapticFeedback.selectionClick();
                   onOpenSettings();
                 },
-                child: Row(
-                  children: [
-                    for (final p in platforms) ...[
-                      PlatformBadge(platform: p),
-                      const SizedBox(width: 6),
-                    ],
-                  ],
-                ),
+                child: Row(children: [PlatformBadges(platforms: platforms)]),
               ),
             ],
           ),
@@ -546,6 +543,32 @@ class _TrendChip extends StatelessWidget {
       );
     }
     final diff = today - yesterday;
+    // Percentages with a tiny denominator are technically correct but poor
+    // driving UX (for example 6 vs 1 becomes +500%). Keep the raw comparison
+    // visible until yesterday has a meaningful activity sample.
+    if (yesterday < 5) {
+      final label = diff == 0
+          ? 'same as yesterday'
+          : diff > 0
+          ? '$diff more than yesterday'
+          : '${-diff} fewer than yesterday';
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        decoration: BoxDecoration(
+          color: FoxColors.bgSurface2.withValues(alpha: 0.55),
+          borderRadius: BorderRadius.circular(Radii.cardSm),
+          border: Border.all(color: FoxColors.borderSoft),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 10.5,
+            fontWeight: FontWeight.w700,
+            color: diff == 0 ? FoxColors.textSecondary : VerdictColors.good,
+          ),
+        ),
+      );
+    }
     final up = diff > 0;
     final flat = diff == 0;
     final color = flat
@@ -1003,10 +1026,10 @@ class _AccessAlert extends StatelessWidget {
               TextSpan(
                 children: [
                   TextSpan(
-                    text: 'Accessibility off. ',
+                    text: 'Offer access unavailable. ',
                     style: TextStyle(fontWeight: FontWeight.w700),
                   ),
-                  TextSpan(text: "FoxyCo can't read offers until it's on."),
+                  TextSpan(text: "Enable offer access before going live."),
                 ],
                 style: TextStyle(
                   fontSize: 13,
@@ -1161,37 +1184,23 @@ class _SessionCard extends ConsumerWidget {
                           fontFeatures: const [FontFeature.tabularFigures()],
                         ),
                       ),
+                      IconButton(
+                        tooltip: 'Edit session earnings',
+                        icon: const Icon(Icons.edit_outlined, size: 17),
+                        color: FoxColors.textSecondary,
+                        onPressed: () => _editSessionEarnings(
+                          context,
+                          ref,
+                          s,
+                          settings.currency.prefix,
+                        ),
+                      ),
                     ],
                   ),
                 ],
               ),
               const SizedBox(height: Gap.md),
-              Text.rich(
-                TextSpan(
-                  children: [
-                    TextSpan(
-                      text: '${s.total}',
-                      style: TextStyle(
-                        fontFamily: FoxFonts.display,
-                        fontSize: 36,
-                        height: 1.0,
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: -1,
-                        color: FoxColors.cream,
-                        fontFeatures: const [FontFeature.tabularFigures()],
-                      ),
-                    ),
-                    TextSpan(
-                      text: s.total == 1 ? '  offer scored' : '  offers scored',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: FoxColors.textSecondary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+              _SessionVolume(session: s, text: text),
               if (s.total == 0) ...[
                 const SizedBox(height: Gap.xs),
                 Text(
@@ -1204,52 +1213,50 @@ class _SessionCard extends ConsumerWidget {
                 const SizedBox(height: Gap.sm + Gap.xs),
                 VerdictSplitPills(good: s.good, ok: s.ok, bad: s.bad),
                 const SizedBox(height: Gap.sm),
-                Row(
+                SessionPerformance(session: s, settings: settings, text: text),
+                const SizedBox(height: Gap.sm),
+                Wrap(
+                  alignment: WrapAlignment.spaceBetween,
+                  runSpacing: Gap.xs,
                   children: [
-                    Icon(
-                      Icons.check_circle_outline,
-                      color: VerdictColors.good,
-                      size: 18,
-                    ),
-                    const SizedBox(width: Gap.xs),
-                    Flexible(
-                      child: Text(
-                        '${s.accepted} accepted offers this session',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: text.bodyMedium?.copyWith(
-                          color: FoxColors.textSecondary,
-                          fontWeight: FontWeight.w600,
-                        ),
+                    PlatformBadges(platforms: s.platforms.toList()),
+                    Text(
+                      '${s.completed} completed · ${s.declined} not taken',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: FoxColors.textSecondary,
                       ),
                     ),
                   ],
                 ),
                 const SizedBox(height: Gap.sm + Gap.xs),
-                Row(
-                  children: [
-                    StatTile(
-                      value: s.bestPerKm > 0
-                          ? '${settings.currency.prefix}${settings.distanceUnit.rateFromPerKm(s.bestPerKm).toStringAsFixed(2)}'
-                          : '—',
-                      label:
-                          'BEST \$/${settings.distanceUnit.shortLabel.toUpperCase()}',
-                    ),
-                    const SizedBox(width: Gap.sm),
-                    StatTile(
-                      value: s.goodAvgPerKm > 0
-                          ? '${settings.currency.prefix}${settings.distanceUnit.rateFromPerKm(s.goodAvgPerKm).toStringAsFixed(2)}'
-                          : '—',
-                      label: 'GOOD AVG',
-                    ),
-                    const SizedBox(width: Gap.sm),
-                    StatTile(
-                      value: s.busiestHour != null
-                          ? hourLabel(s.busiestHour!)
-                          : '—',
-                      label: 'BUSIEST',
-                    ),
-                  ],
+                IntrinsicHeight(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      StatTile(
+                        value: s.bestPerKm > 0
+                            ? '${settings.currency.prefix}${settings.distanceUnit.rateFromPerKm(s.bestPerKm).toStringAsFixed(2)}'
+                            : '—',
+                        label:
+                            'BEST \$/${settings.distanceUnit.shortLabel.toUpperCase()}',
+                      ),
+                      const SizedBox(width: Gap.sm),
+                      StatTile(
+                        value: s.goodAvgPerKm > 0
+                            ? '${settings.currency.prefix}${settings.distanceUnit.rateFromPerKm(s.goodAvgPerKm).toStringAsFixed(2)}'
+                            : '—',
+                        label: 'GOOD AVG',
+                      ),
+                      const SizedBox(width: Gap.sm),
+                      StatTile(
+                        value: s.busiestHour != null
+                            ? hourLabel(s.busiestHour!)
+                            : '—',
+                        label: 'BUSIEST',
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ],
@@ -1258,6 +1265,227 @@ class _SessionCard extends ConsumerWidget {
       ),
     );
   }
+
+  Future<void> _editSessionEarnings(
+    BuildContext context,
+    WidgetRef ref,
+    SessionSummary session,
+    String prefix,
+  ) async {
+    final controller = TextEditingController(
+      text: session.hasActualEarnings
+          ? session.earnings.toStringAsFixed(2)
+          : '',
+    );
+    final value = await showDialog<double?>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Session earnings'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          decoration: InputDecoration(
+            labelText: 'Actual total',
+            prefixText: prefix,
+            hintText: session.estimatedEarnings.toStringAsFixed(2),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () =>
+                Navigator.pop(context, double.tryParse(controller.text.trim())),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (value != null && context.mounted) {
+      ref.read(sessionLogProvider.notifier).setActualEarnings(session, value);
+    }
+  }
+}
+
+class _SessionVolume extends StatelessWidget {
+  const _SessionVolume({required this.session, required this.text});
+
+  final SessionSummary session;
+  final TextTheme text;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Expanded(
+        flex: 2,
+        child: _volumeMetric(
+          '${session.total}',
+          session.total == 1 ? 'offer scored' : 'offers scored',
+          text.titleLarge?.copyWith(
+            fontFamily: FoxFonts.display,
+            fontSize: 36,
+            height: 1,
+            fontWeight: FontWeight.w600,
+            letterSpacing: -1,
+            color: FoxColors.cream,
+            fontFeatures: const [FontFeature.tabularFigures()],
+          ),
+        ),
+      ),
+      const SizedBox(width: Gap.lg),
+      Expanded(
+        child: _volumeMetric(
+          '${session.accepted}',
+          'accepted',
+          text.titleMedium?.copyWith(
+            fontFamily: FoxFonts.display,
+            fontSize: 28,
+            height: 1,
+            fontWeight: FontWeight.w700,
+            color: FoxColors.cream,
+            fontFeatures: const [FontFeature.tabularFigures()],
+          ),
+          icon: Icons.check_circle_outline,
+        ),
+      ),
+    ],
+  );
+
+  Widget _volumeMetric(
+    String value,
+    String label,
+    TextStyle? valueStyle, {
+    IconData? icon,
+  }) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (icon != null) ...[
+            Icon(icon, size: 16, color: VerdictColors.good),
+            const SizedBox(width: Gap.xs),
+          ],
+          Text(value, style: valueStyle),
+        ],
+      ),
+      const SizedBox(height: 3),
+      Text(
+        label,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(
+          fontSize: 12.5,
+          fontWeight: FontWeight.w600,
+          color: icon == null ? FoxColors.textSecondary : VerdictColors.good,
+        ),
+      ),
+    ],
+  );
+}
+
+class SessionPerformance extends StatelessWidget {
+  const SessionPerformance({
+    super.key,
+    required this.session,
+    required this.settings,
+    required this.text,
+  });
+
+  final SessionSummary session;
+  final FoxSettings settings;
+  final TextTheme text;
+
+  @override
+  Widget build(BuildContext context) {
+    final earnings = session.earnings > 0
+        ? '${settings.currency.prefix}${session.earnings.toStringAsFixed(2)}'
+        : '—';
+    final hourly = session.hourlyEarnings > 0
+        ? '${settings.currency.prefix}${session.hourlyEarnings.toStringAsFixed(0)}/hr'
+        : '—';
+    final metrics = [
+      _SessionMetric(
+        title: 'Estimated earnings',
+        value: earnings,
+        support: session.earnings > 0
+            ? (session.hasActualEarnings ? 'Actual total' : 'Estimated')
+            : 'Completed offers only',
+        text: text,
+      ),
+      _SessionMetric(
+        title: '\$/hr',
+        value: hourly,
+        support: 'Session rate',
+        text: text,
+      ),
+    ];
+
+    Widget row(List<Widget> children) => Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (var i = 0; i < children.length; i++) ...[
+          if (i > 0) const SizedBox(width: Gap.md),
+          Expanded(child: children[i]),
+        ],
+      ],
+    );
+
+    return row(metrics);
+  }
+}
+
+class _SessionMetric extends StatelessWidget {
+  const _SessionMetric({
+    required this.title,
+    required this.value,
+    required this.support,
+    required this.text,
+  });
+
+  final String title;
+  final String value;
+  final String support;
+  final TextTheme text;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(
+        title,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+          color: FoxColors.textSecondary,
+        ),
+      ),
+      const SizedBox(height: 2),
+      Text(
+        value,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: text.titleLarge?.copyWith(
+          color: FoxColors.cream,
+          fontWeight: FontWeight.w800,
+          fontFeatures: const [FontFeature.tabularFigures()],
+        ),
+      ),
+      Text(
+        support,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(fontSize: 10.5, color: FoxColors.textSecondary),
+      ),
+    ],
+  );
 }
 
 class _EmptySession extends StatelessWidget {

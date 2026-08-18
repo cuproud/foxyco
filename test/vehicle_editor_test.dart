@@ -128,4 +128,25 @@ void main() {
     await tester.pumpAndSettle();
     expect(container.read(garageProvider).vehicles, isEmpty);
   });
+
+  testWidgets(
+    'vehicle type selector is bounded and scrollable on a small phone',
+    (tester) async {
+      tester.view.physicalSize = const Size(320, 640);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(_app(const VehicleEditorScreen()));
+      await tester.tap(find.byKey(const ValueKey('editor-body')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Vehicle type'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+      await tester.drag(find.byType(ListView).last, const Offset(0, -300));
+      await tester.pumpAndSettle();
+      expect(find.text('E-scooter'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
 }

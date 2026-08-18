@@ -1,5 +1,6 @@
 import 'offer_stats.dart';
 import 'offer_summary.dart';
+import 'platform.dart';
 
 /// One completed watch session — from slide-to-live to stop. What the Home
 /// "Last session" card shows: when, how long the watcher was on, how the offers
@@ -13,6 +14,14 @@ class SessionSummary {
   final int ok;
   final int bad;
   final int accepted;
+  final int completed;
+  final int cancelled;
+  final int declined;
+  final int unknown;
+  final double estimatedEarnings;
+  final double? actualEarnings;
+  final bool actualEarningsIsManual;
+  final Set<GigPlatform> platforms;
 
   /// Highest $/km seen this session; 0 when nothing scored (UI shows a dash).
   final double bestPerKm;
@@ -30,6 +39,14 @@ class SessionSummary {
     this.ok = 0,
     this.bad = 0,
     this.accepted = 0,
+    this.completed = 0,
+    this.cancelled = 0,
+    this.declined = 0,
+    this.unknown = 0,
+    this.estimatedEarnings = 0,
+    this.actualEarnings,
+    this.actualEarningsIsManual = false,
+    this.platforms = const {},
     this.bestPerKm = 0,
     this.goodAvgPerKm = 0,
     this.busiestHour,
@@ -37,11 +54,35 @@ class SessionSummary {
 
   int get total => good + ok + bad;
   Duration get duration => endedAt.difference(startedAt);
+  double get earnings => actualEarnings ?? estimatedEarnings;
+  bool get hasActualEarnings => actualEarnings != null;
+  double get hourlyEarnings =>
+      duration.inMinutes > 0 ? earnings / (duration.inMinutes / 60) : 0;
 
   /// A mis-slide: went live and stopped again within a minute, having seen
   /// nothing. Recording these buried a real 3h shift under an empty 0m card
   /// (device 2026-07-24), so the log drops them.
   bool get isTrivial => total == 0 && duration.inSeconds < 60;
+
+  SessionSummary withActualEarnings(double? value) => SessionSummary(
+    startedAt: startedAt,
+    endedAt: endedAt,
+    good: good,
+    ok: ok,
+    bad: bad,
+    accepted: accepted,
+    completed: completed,
+    cancelled: cancelled,
+    declined: declined,
+    unknown: unknown,
+    estimatedEarnings: estimatedEarnings,
+    actualEarnings: value,
+    actualEarningsIsManual: value != null,
+    platforms: platforms,
+    bestPerKm: bestPerKm,
+    goodAvgPerKm: goodAvgPerKm,
+    busiestHour: busiestHour,
+  );
 
   /// Roll up a finished session from the offers logged while it ran.
   factory SessionSummary.from({
@@ -49,9 +90,13 @@ class SessionSummary {
     required DateTime endedAt,
     required List<OfferSummary> offers,
   }) {
-    final stats = OfferStats.from(
-      offers.where((o) => !o.seenAt.isBefore(startedAt)).toList(),
-    );
+    final sessionOffers = offers
+        .where((o) => !o.seenAt.isBefore(startedAt))
+        .toList();
+    final stats = OfferStats.from(sessionOffers);
+    final completed = sessionOffers
+        .where((o) => o.outcome == OfferOutcome.completed)
+        .toList();
     return SessionSummary(
       startedAt: startedAt,
       endedAt: endedAt,
@@ -59,6 +104,18 @@ class SessionSummary {
       ok: stats.ok,
       bad: stats.bad,
       accepted: stats.accepted,
+      completed: completed.length,
+      cancelled: sessionOffers
+          .where((o) => o.outcome == OfferOutcome.cancelled)
+          .length,
+      declined: sessionOffers
+          .where((o) => o.outcome == OfferOutcome.missed)
+          .length,
+      unknown: sessionOffers
+          .where((o) => o.outcome == OfferOutcome.unknown)
+          .length,
+      estimatedEarnings: completed.fold(0.0, (sum, o) => sum + o.payout),
+      platforms: sessionOffers.map((o) => o.platform).toSet(),
       bestPerKm: stats.best?.pricePerKm ?? 0,
       goodAvgPerKm: stats.goodAvgPerKm,
       busiestHour: stats.busiestHour,
@@ -72,6 +129,14 @@ class SessionSummary {
     'ok': ok,
     'bad': bad,
     'accepted': accepted,
+    'completed': completed,
+    'cancelled': cancelled,
+    'declined': declined,
+    'unknown': unknown,
+    'estimatedEarnings': estimatedEarnings,
+    if (actualEarnings != null) 'actualEarnings': actualEarnings,
+    if (actualEarningsIsManual) 'actualEarningsIsManual': true,
+    'platforms': platforms.map((p) => p.name).toList(),
     'bestPerKm': bestPerKm,
     'goodAvgPerKm': goodAvgPerKm,
     'busiestHour': busiestHour,
@@ -87,6 +152,19 @@ class SessionSummary {
     bad: (j['bad'] as num?)?.toInt() ?? 0,
     // Older sessions did not persist acceptance outcomes.
     accepted: (j['accepted'] as num?)?.toInt() ?? 0,
+    completed: (j['completed'] as num?)?.toInt() ?? 0,
+    cancelled: (j['cancelled'] as num?)?.toInt() ?? 0,
+    declined: (j['declined'] as num?)?.toInt() ?? 0,
+    unknown: (j['unknown'] as num?)?.toInt() ?? 0,
+    estimatedEarnings: (j['estimatedEarnings'] as num?)?.toDouble() ?? 0,
+    actualEarnings: (j['actualEarnings'] as num?)?.toDouble(),
+    actualEarningsIsManual: j['actualEarningsIsManual'] == true,
+    platforms:
+        (j['platforms'] as List<dynamic>?)
+            ?.map((name) => GigPlatform.values.where((p) => p.name == name))
+            .expand((items) => items)
+            .toSet() ??
+        const {},
     bestPerKm: (j['bestPerKm'] as num?)?.toDouble() ?? 0,
     goodAvgPerKm: (j['goodAvgPerKm'] as num?)?.toDouble() ?? 0,
     busiestHour: (j['busiestHour'] as num?)?.toInt(),

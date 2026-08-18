@@ -7,8 +7,10 @@ void main() {
   // silently accepting forged receipts and unlocking the app for free.
   test('rejects everything when no public key is configured', () {
     expect(PurchaseVerifier.publicKeyBase64, isEmpty);
-    expect(PurchaseVerifier.verify('{"productId":"foxyco.lifetime"}', 'sig'),
-        isFalse);
+    expect(
+      PurchaseVerifier.verify('{"productId":"foxyco.lifetime"}', 'sig'),
+      isFalse,
+    );
   });
 
   test('rejects empty receipt or signature', () {

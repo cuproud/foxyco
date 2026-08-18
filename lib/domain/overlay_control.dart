@@ -5,6 +5,9 @@
 ///
 /// Kept as static builders rather than an enum because each carries different
 /// data (paused carries a bool); the overlay reads them by field.
+library;
+
+import 'bubble_style.dart';
 class OverlayControl {
   const OverlayControl._();
 
@@ -18,6 +21,11 @@ class OverlayControl {
   static Map<String, dynamic> clearPill() => {
     'kind': 'control',
     'clearPill': true,
+  };
+
+  static Map<String, dynamic> bubbleStyle(BubbleStyle style) => {
+    'kind': 'control',
+    'bubbleStyle': style.id,
   };
 
   static bool isControl(Map<dynamic, dynamic> map) => map['kind'] == 'control';

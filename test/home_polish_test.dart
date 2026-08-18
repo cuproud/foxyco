@@ -36,4 +36,16 @@ void main() {
     );
     expect(opacity.opacity, lessThan(1.0));
   });
+
+  testWidgets('many watched platforms collapse into a compact overflow', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(body: PlatformBadges(platforms: GigPlatform.values)),
+      ),
+    );
+    expect(find.text('+2'), findsOneWidget);
+    expect(find.text('H'), findsOneWidget);
+  });
 }

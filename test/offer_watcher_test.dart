@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:foxyco/domain/offer_summary.dart';
 import 'package:foxyco/domain/overlay_action.dart';
+import 'package:foxyco/domain/bubble_style.dart';
 import 'package:foxyco/domain/overlay_payload.dart';
 import 'package:foxyco/domain/platform.dart';
 import 'package:foxyco/domain/verdict.dart';
@@ -56,7 +57,10 @@ class _FakeOverlayService implements OverlayService {
   final List<OverlayPayload> shown = [];
   int clears = 0;
   @override
-  Future<void> showOffer(OverlayPayload p) async => shown.add(p);
+  Future<void> showOffer(
+    OverlayPayload p, {
+    BubbleStyle bubbleStyle = BubbleStyle.coolFox,
+  }) async => shown.add(p);
   @override
   Stream<OverlayAction> get actionStream => const Stream.empty();
   @override
@@ -66,11 +70,16 @@ class _FakeOverlayService implements OverlayService {
   @override
   Future<bool> isActive() async => shown.isNotEmpty;
   @override
-  Future<void> startWatching({bool paused = false}) async {}
+  Future<void> startWatching({
+    bool paused = false,
+    BubbleStyle bubbleStyle = BubbleStyle.coolFox,
+  }) async {}
   @override
   Future<void> update(OverlayPayload p) async => shown.add(p);
   @override
   Future<void> setPaused(bool paused) async {}
+  @override
+  Future<void> setBubbleStyle(BubbleStyle style) async {}
   @override
   Future<void> clearPill() async => clears++;
   @override
@@ -172,6 +181,7 @@ void main() {
     // wait real seconds.
     OfferWatcher.clearGrace = const Duration(milliseconds: 20);
     OfferWatcher.minVisible = const Duration(milliseconds: 10);
+    OfferWatcher.voiceStability = const Duration(milliseconds: 1);
   });
 
   /// Longer than [OfferWatcher.clearGrace] so a pending clear timer can fire.
@@ -215,12 +225,78 @@ void main() {
     watcher.emit(good);
     await Future<void>.delayed(Duration.zero);
     watcher.emit(good);
-    await Future<void>.delayed(Duration.zero);
-    watcher.emit(_hoppNodes); // BAD is never spoken.
-    await Future<void>.delayed(Duration.zero);
+    await Future<void>.delayed(const Duration(milliseconds: 10));
 
     expect(voice.spoken, [(Verdict.good, 15)]);
   });
+
+  test('provisional GOOD is suppressed when the final offer is BAD', () async {
+    final c = container();
+    c.read(settingsProvider.notifier)
+      ..setAnnounceGoodOffers(true)
+      ..setGoodVoiceMinimumPayout(0);
+    c.read(offerWatcherProvider);
+    c.read(overlayControllerProvider);
+
+    const good = ScreenRead(
+      packageName: ParserRegistry.hoppPackage,
+      texts: [
+        r'$20.00',
+        '(NET, tax included)',
+        '11 min · 5.2 km',
+        '11 min · 7.7 km',
+        'Match',
+      ],
+    );
+    watcher.emit(good);
+    watcher.emit(_hoppNodes);
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+
+    expect(overlay.shown.last.verdict, Verdict.bad);
+    expect(voice.spoken, isEmpty);
+  });
+
+  test(
+    'provisional GOOD becomes the only OK announcement when enabled',
+    () async {
+      final c = container();
+      c.read(settingsProvider.notifier)
+        ..setAnnounceGoodOffers(true)
+        ..setAnnounceOkOffers(true)
+        ..setGoodVoiceMinimumPayout(0);
+      c.read(offerWatcherProvider);
+      c.read(overlayControllerProvider);
+
+      const good = ScreenRead(
+        packageName: ParserRegistry.hoppPackage,
+        texts: [
+          r'$20.00',
+          '(NET, tax included)',
+          '11 min · 5.2 km',
+          '11 min · 7.7 km',
+          'Match',
+        ],
+      );
+      const ok = ScreenRead(
+        packageName: ParserRegistry.hoppPackage,
+        texts: [
+          r'$15.00',
+          '(NET, tax included)',
+          '11 min · 5.2 km',
+          '11 min · 7.7 km',
+          'Match',
+        ],
+      );
+      watcher.emit(good);
+      watcher.emit(ok);
+      for (var i = 0; i < 20 && voice.spoken.isEmpty; i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+      }
+
+      expect(overlay.shown.last.verdict, Verdict.ok);
+      expect(voice.spoken, [(Verdict.ok, 15)]);
+    },
+  );
 
   test('accessibility success remains primary and never invokes OCR', () async {
     final c = container();
@@ -408,7 +484,7 @@ void main() {
       expect(overlay.shown, hasLength(1)); // not 3
 
       // Screen leaves the offer for longer than the grace window (so the pill
-      // truly clears), then the same offer returns → shows again.
+      // truly clears), then the same offer returns → remains suppressed.
       watcher.emit(
         const ScreenRead(
           packageName: ParserRegistry.hoppPackage,
@@ -420,11 +496,11 @@ void main() {
       watcher.emit(_hoppNodes);
       await Future<void>.delayed(Duration.zero);
 
-      expect(overlay.shown, hasLength(2));
+      expect(overlay.shown, hasLength(1));
       expect(
         c.read(offerLogProvider),
-        hasLength(2),
-        reason: 'a confirmed card exit makes identical values a new offer',
+        hasLength(1),
+        reason: 'a confirmed card exit must not resurrect the same offer',
       );
     },
   );
@@ -565,6 +641,22 @@ void main() {
     watcher.emit(_hoppHome);
     await pastGrace();
     expect(overlay.clears, 1);
+  });
+
+  test('same offer expires at the hard max and cannot resurrect', () async {
+    final previous = OfferWatcher.maxVisible;
+    OfferWatcher.maxVisible = const Duration(milliseconds: 30);
+    addTearDown(() => OfferWatcher.maxVisible = previous);
+    final c = container();
+    c.read(offerWatcherProvider);
+    c.read(overlayControllerProvider);
+    watcher.emit(_hoppNodes);
+    await Future<void>.delayed(const Duration(milliseconds: 5));
+    await Future<void>.delayed(const Duration(milliseconds: 40));
+    expect(overlay.clears, 1);
+    watcher.emit(_hoppNodes);
+    await Future<void>.delayed(const Duration(milliseconds: 5));
+    expect(overlay.shown, hasLength(1));
   });
 
   test('a confirmed card exit is not held by minimum visibility', () async {

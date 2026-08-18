@@ -17,8 +17,7 @@ class CarHero extends StatelessWidget {
   final double glow;
 
   /// Which back layer: the dark theme's warm glow, or the light theme's plain
-  /// shadow. Not read from the palette — the splash is pinned to the dark stage
-  /// in both themes.
+  /// shadow.
   final bool onDark;
 
   /// Shared canvas aspect of every layer.

@@ -77,6 +77,17 @@ class SessionLog extends Notifier<List<SessionSummary>> {
     state = [session, ...state.take(maxEntries - 1)];
     unawaited(_save());
   }
+
+  bool setActualEarnings(SessionSummary session, double? value) {
+    final index = state.indexOf(session);
+    if (index < 0) return false;
+    final updated = session.withActualEarnings(value);
+    final next = [...state];
+    next[index] = updated;
+    state = next;
+    unawaited(_save());
+    return true;
+  }
 }
 
 final sessionLogProvider = NotifierProvider<SessionLog, List<SessionSummary>>(

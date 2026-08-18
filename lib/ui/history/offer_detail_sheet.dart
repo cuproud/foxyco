@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../domain/fox_settings.dart';
 import '../../domain/offer_summary.dart';
 import '../../domain/rate_mode.dart';
 import '../settings/settings_controller.dart';
@@ -39,6 +38,9 @@ class _OfferDetailSheet extends ConsumerWidget {
     final style = VerdictStyle.of(o.verdict);
     final outcome = OutcomeStyle.of(o.outcome);
     final settings = ref.watch(settingsProvider);
+    final snapshot = o.scoringSnapshot;
+    final currency = snapshot?.currency ?? settings.currency;
+    final distanceUnit = snapshot?.distanceUnit ?? settings.distanceUnit;
     final time = MaterialLocalizations.of(context).formatTimeOfDay(
       TimeOfDay.fromDateTime(o.seenAt),
       alwaysUse24HourFormat: MediaQuery.of(context).alwaysUse24HourFormat,
@@ -162,7 +164,7 @@ class _OfferDetailSheet extends ConsumerWidget {
                     fit: BoxFit.scaleDown,
                     alignment: Alignment.centerLeft,
                     child: Text(
-                      '${settings.currency.prefix}${o.payout.toStringAsFixed(2)}',
+                      '${currency.prefix}${o.payout.toStringAsFixed(2)}',
                       maxLines: 1,
                       style: TextStyle(
                         fontFamily: FoxFonts.display,
@@ -202,7 +204,7 @@ class _OfferDetailSheet extends ConsumerWidget {
                         ),
                       ),
                       child: Text(
-                        'Includes ${settings.currency.prefix}${o.bonus.toStringAsFixed(2)} bonus',
+                        'Includes ${currency.prefix}${o.bonus.toStringAsFixed(2)} bonus',
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w700,
@@ -217,8 +219,8 @@ class _OfferDetailSheet extends ConsumerWidget {
                   Row(
                     children: [
                       _cell(
-                        '${settings.currency.prefix}${settings.distanceUnit.rateFromPerKm(o.pricePerKm).toStringAsFixed(2)}',
-                        'PER ${settings.distanceUnit.shortLabel.toUpperCase()}',
+                        '${currency.prefix}${distanceUnit.rateFromPerKm(o.pricePerKm).toStringAsFixed(2)}',
+                        'PER ${distanceUnit.shortLabel.toUpperCase()}',
                       ),
                       const SizedBox(width: Gap.sm),
                       _cell(
@@ -229,7 +231,7 @@ class _OfferDetailSheet extends ConsumerWidget {
                       ),
                       const SizedBox(width: Gap.sm),
                       _cell(
-                        '${settings.distanceUnit.distanceFromKm(o.totalKm).toStringAsFixed(1)} ${settings.distanceUnit.shortLabel}',
+                        '${distanceUnit.distanceFromKm(o.totalKm).toStringAsFixed(1)} ${distanceUnit.shortLabel}',
                         'TOTAL',
                       ),
                     ],
@@ -239,7 +241,7 @@ class _OfferDetailSheet extends ConsumerWidget {
                     children: [
                       _cell(
                         o.pickupKm > 0
-                            ? '${settings.distanceUnit.distanceFromKm(o.pickupKm).toStringAsFixed(1)} ${settings.distanceUnit.shortLabel}'
+                            ? '${distanceUnit.distanceFromKm(o.pickupKm).toStringAsFixed(1)} ${distanceUnit.shortLabel}'
                             : '—',
                         'PICKUP',
                       ),
@@ -253,14 +255,14 @@ class _OfferDetailSheet extends ConsumerWidget {
                       const SizedBox(width: Gap.sm),
                       _cell(
                         o.pickupKm > 0 && o.totalKm > o.pickupKm
-                            ? '${settings.distanceUnit.distanceFromKm(o.totalKm - o.pickupKm).toStringAsFixed(1)} ${settings.distanceUnit.shortLabel}'
+                            ? '${distanceUnit.distanceFromKm(o.totalKm - o.pickupKm).toStringAsFixed(1)} ${distanceUnit.shortLabel}'
                             : '—',
                         'RIDE',
                       ),
                     ],
                   ),
                   const SizedBox(height: Gap.md),
-                  _VerdictMath(offer: o, settings: settings),
+                  _VerdictMath(offer: o),
                   const SizedBox(height: Gap.sm),
                   Container(
                     padding: const EdgeInsets.all(12),
@@ -353,33 +355,40 @@ class _OfferDetailSheet extends ConsumerWidget {
   );
 }
 
-/// One plain-language line of why the verdict landed where it did, against
-/// the driver's CURRENT thresholds (historic verdicts aren't re-scored — the
-/// line says "your bar today" when the stored verdict disagrees).
+/// One plain-language line of why the verdict landed where it did, using the
+/// scoring snapshot captured with the offer. Legacy rows without a snapshot
+/// are identified as such instead of being explained with today's Rules.
 class _VerdictMath extends StatelessWidget {
-  const _VerdictMath({required this.offer, required this.settings});
+  const _VerdictMath({required this.offer});
   final OfferSummary offer;
-  final FoxSettings settings;
 
   @override
   Widget build(BuildContext context) {
     final style = VerdictStyle.of(offer.verdict);
-    final perHour = settings.rateMode == RateMode.perHour;
-    final canonical = settings.activeThresholds;
+    final snapshot = offer.scoringSnapshot;
+    if (snapshot == null) {
+      return _legacyBox(
+        'Older offer · no saved scoring snapshot. Current Rules do not '
+        'rewrite it.',
+      );
+    }
+    final perHour = snapshot.rateMode == RateMode.perHour;
+    final goodCanonical = perHour ? snapshot.goodPerHour : snapshot.goodPerKm;
+    final badCanonical = perHour ? snapshot.badPerHour : snapshot.badPerKm;
     final rate = perHour
         ? offer.pricePerHour
-        : settings.distanceUnit.rateFromPerKm(offer.pricePerKm);
+        : snapshot.distanceUnit.rateFromPerKm(offer.pricePerKm);
     final good = perHour
-        ? canonical.goodAtOrAbove
-        : settings.distanceUnit.rateFromPerKm(canonical.goodAtOrAbove);
+        ? goodCanonical
+        : snapshot.distanceUnit.rateFromPerKm(goodCanonical);
     final bad = perHour
-        ? canonical.badBelow
-        : settings.distanceUnit.rateFromPerKm(canonical.badBelow);
-    final unit = perHour ? '/hr' : '/${settings.distanceUnit.shortLabel}';
-    final prefix = settings.currency.prefix;
+        ? badCanonical
+        : snapshot.distanceUnit.rateFromPerKm(badCanonical);
+    final unit = perHour ? '/hr' : '/${snapshot.distanceUnit.shortLabel}';
+    final prefix = snapshot.currency.prefix;
 
     // No parsed time in per-hour mode → nothing to compare against.
-    final String text;
+    String text;
     if (rate <= 0) {
       text = 'Not enough parsed data to score this one.';
     } else if (rate >= good) {
@@ -397,31 +406,71 @@ class _VerdictMath extends StatelessWidget {
           '$prefix${good.toStringAsFixed(2)}$unit.';
     }
 
-    return Container(
-      padding: const EdgeInsets.all(Gap.md),
-      decoration: BoxDecoration(
-        color: style.color.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(Radii.cardSm),
-        border: Border.all(color: style.color.withValues(alpha: 0.28)),
-      ),
-      child: Row(
-        children: [
-          Icon(style.icon, color: style.color, size: 18),
-          const SizedBox(width: Gap.sm + Gap.xs),
-          Expanded(
-            child: Text(
-              text,
-              style: TextStyle(
-                fontSize: 12.5,
-                height: 1.4,
-                fontWeight: FontWeight.w600,
-                color: FoxColors.textPrimary,
-                fontFeatures: [FontFeature.tabularFigures()],
-              ),
+    if (snapshot.minimumPayoutEnabled &&
+        offer.payout < snapshot.minimumPayout) {
+      text =
+          '$prefix${offer.payout.toStringAsFixed(2)} is below the saved '
+          'minimum offer of $prefix${snapshot.minimumPayout.toStringAsFixed(2)}.';
+    }
+    return _box(style, text);
+  }
+
+  Widget _box(VerdictStyle style, String text) => Container(
+    padding: const EdgeInsets.all(Gap.md),
+    decoration: BoxDecoration(
+      color: style.color.withValues(alpha: 0.08),
+      borderRadius: BorderRadius.circular(Radii.cardSm),
+      border: Border.all(color: style.color.withValues(alpha: 0.28)),
+    ),
+    child: Row(
+      children: [
+        Icon(style.icon, color: style.color, size: 18),
+        const SizedBox(width: Gap.sm + Gap.xs),
+        Expanded(
+          child: Text(
+            text,
+            style: TextStyle(
+              fontSize: 12.5,
+              height: 1.4,
+              fontWeight: FontWeight.w600,
+              color: FoxColors.textPrimary,
+              fontFeatures: [FontFeature.tabularFigures()],
             ),
           ),
-        ],
-      ),
-    );
-  }
+        ),
+      ],
+    ),
+  );
+
+  Widget _legacyBox(String text) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: Gap.sm, vertical: Gap.xs),
+    decoration: BoxDecoration(
+      color: FoxColors.bgSurface2.withValues(alpha: 0.35),
+      borderRadius: BorderRadius.circular(Radii.cardSm),
+      border: Border.all(color: FoxColors.borderSoft),
+    ),
+    child: Row(
+      children: [
+        Icon(
+          Icons.info_outline_rounded,
+          color: FoxColors.textSecondary,
+          size: 16,
+        ),
+        const SizedBox(width: Gap.xs),
+        Expanded(
+          child: Text(
+            text,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 11.5,
+              height: 1.25,
+              fontWeight: FontWeight.w600,
+              color: FoxColors.textSecondary,
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
 }

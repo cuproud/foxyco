@@ -84,11 +84,12 @@ class StatTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Expanded(
     child: Container(
+      constraints: const BoxConstraints(minHeight: 72),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: FoxColors.bgSurface2.withValues(alpha: 0.55),
+        color: FoxColors.bgSurface2.withValues(alpha: 0.28),
         borderRadius: BorderRadius.circular(Radii.field),
-        border: Border.all(color: FoxColors.borderSoft),
+        border: Border.all(color: FoxColors.borderSoft.withValues(alpha: 0.72)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

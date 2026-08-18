@@ -7,8 +7,9 @@ import 'package:foxyco/ui/legal/legal_links.dart';
 /// other companies' trademarks a description rather than an implied endorsement.
 /// Both are one careless refactor away from vanishing, hence this file.
 void main() {
-  Widget host(Widget child) =>
-      MaterialApp(home: Scaffold(body: Center(child: child)));
+  Widget host(Widget child) => MaterialApp(
+    home: Scaffold(body: Center(child: child)),
+  );
 
   testWidgets('the onboarding click-wrap names both documents', (tester) async {
     await tester.pumpWidget(host(const LegalConsent()));
@@ -42,7 +43,11 @@ void main() {
   });
 
   test('every legal URL is a real https address', () {
-    for (final url in [FoxLegal.terms, FoxLegal.privacy, FoxLegal.deleteAccount]) {
+    for (final url in [
+      FoxLegal.terms,
+      FoxLegal.privacy,
+      FoxLegal.deleteAccount,
+    ]) {
       final uri = Uri.tryParse(url);
       expect(uri, isNotNull);
       expect(uri!.scheme, 'https', reason: '$url must be https');

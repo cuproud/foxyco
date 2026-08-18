@@ -142,6 +142,22 @@ class DriverProfile {
     'type': vehicleType.name,
   };
 
+  static VehicleType _vehicleTypeFromPersisted(
+    Object? value,
+  ) => switch (value) {
+    // These names were briefly emitted by the duplicate taxonomy regression.
+    // Keep existing saved vehicles readable while returning them to the
+    // original canonical IDs and artwork.
+    'compactSedan' => VehicleType.hatchback,
+    'midSizeSuv' => VehicleType.suvComfort,
+    'threeRowSuv' => VehicleType.premium,
+    String name => VehicleType.values.firstWhere(
+      (t) => t.name == name,
+      orElse: () => VehicleType.sedan,
+    ),
+    _ => VehicleType.sedan,
+  };
+
   factory DriverProfile.fromJson(Map<String, dynamic> j) => DriverProfile(
     name: j['name'] is String ? j['name'] as String : '',
     vehicleMake: j['make'] is String ? j['make'] as String : '',
@@ -149,8 +165,6 @@ class DriverProfile {
     vehicleYear: j['year'] is String ? j['year'] as String : '',
     licensePlate: j['plate'] is String ? j['plate'] as String : '',
     vehicleColor: j['color'] is int ? j['color'] as int : 0xFFF5F5F5,
-    vehicleType:
-        VehicleType.values.where((t) => t.name == j['type']).firstOrNull ??
-        VehicleType.sedan,
+    vehicleType: _vehicleTypeFromPersisted(j['type']),
   );
 }

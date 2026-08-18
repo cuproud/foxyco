@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/offer.dart';
+import '../../domain/bubble_style.dart';
 import '../../domain/overlay_action.dart';
 import '../../domain/overlay_payload.dart';
 import '../../domain/verdict.dart';
@@ -63,9 +64,22 @@ class OverlayController extends Notifier<void> {
         unawaited(clearOffer());
       }
     });
+    ref.listen<BubbleStyle>(
+      settingsProvider.select((s) => s.bubbleStyle),
+      (_, next) => unawaited(_pushBubbleStyle(next)),
+    );
   }
 
   OverlayService get _service => ref.read(overlayServiceProvider);
+
+  Future<void> _pushBubbleStyle(BubbleStyle style) async {
+    if (ref.read(dashboardProvider).status != WatchStatus.watching) return;
+    try {
+      await _service.setBubbleStyle(style);
+    } catch (error) {
+      ref.read(foxLogProvider).log('error', 'overlay bubble style: $error');
+    }
+  }
 
   void _queueStatus(WatchStatus status) {
     _statusWork = _statusWork.then((_) => _applyStatus(status)).catchError((
@@ -84,7 +98,10 @@ class OverlayController extends Notifier<void> {
     switch (status) {
       case WatchStatus.watching:
         // Online: bring the bubble up.
-        await _service.startWatching(paused: false);
+        await _service.startWatching(
+          paused: false,
+          bubbleStyle: ref.read(settingsProvider).bubbleStyle,
+        );
       case WatchStatus.paused:
       case WatchStatus.blocked:
       case WatchStatus.stopped:
@@ -131,17 +148,21 @@ class OverlayController extends Notifier<void> {
   /// Show a real scored offer on the overlay pill. The single entry point for
   /// the M3 pipeline (accessibility → parser → engine → here). Maps the parsed
   /// [Offer] to the tiny cross-isolate [OverlayPayload], carrying totalMinutes
-  /// ($/hr), the pickup split + the driver's near-pickup cutoff (km coloring),
+  /// ($/hr), the pickup split + the driver's near-pickup cutoff (GPS target),
   /// and the driver's chosen pill size.
-  Future<void> showFromOffer(Offer offer, Verdict verdict) async {
+  Future<bool> showFromOffer(Offer offer, Verdict verdict) async {
     // A read already in flight may finish just after the driver stops. Never
     // let that stale result recreate the overlay window.
-    if (ref.read(dashboardProvider).status != WatchStatus.watching) return;
+    if (ref.read(dashboardProvider).status != WatchStatus.watching) {
+      return false;
+    }
     await ref.read(accessProvider.notifier).tick();
     // Entitlement refresh crosses an async boundary. Watching may have stopped
     // while it ran; reject that stale show before it reaches the ordered native
     // command queue, otherwise the window can flash back after hide.
-    if (ref.read(dashboardProvider).status != WatchStatus.watching) return;
+    if (ref.read(dashboardProvider).status != WatchStatus.watching) {
+      return false;
+    }
     final settings = ref.read(settingsProvider);
     // Patch site 1 of 2 (MONETIZATION §4): the payload carries entitlement, the
     // overlay isolate independently refuses to draw numbers without it. Read
@@ -160,6 +181,7 @@ class OverlayController extends Notifier<void> {
           totalKm: offer.totalKm,
           payout: offer.payout,
           totalMinutes: offer.totalMinutes,
+          rateMode: settings.rateMode,
           pickupKm: offer.pickupKm,
           pickupNearKm: settings.pickupNearKm,
           hourGoodAt: settings.hourThresholds.goodAtOrAbove,
@@ -171,19 +193,22 @@ class OverlayController extends Notifier<void> {
           deliveryCount: offer.deliveryCount,
           entitled: entitled,
         ),
+        bubbleStyle: settings.bubbleStyle,
       );
       _pillUp = true;
     } catch (e) {
       _pillUp = false;
       ref.read(foxLogProvider).log('error', 'overlay show offer: $e');
-      return;
+      return false;
     }
     // Stop/pause may have landed while native showOverlay was starting. Clean
     // up immediately; the serialized status queue will also converge on hide.
     if (ref.read(dashboardProvider).status != WatchStatus.watching) {
       _pillUp = false;
       await _service.hide();
+      return false;
     }
+    return true;
   }
 
   /// Clear the pill the instant the offer leaves the screen (HANDOFF reqs 6–7):
@@ -246,10 +271,28 @@ class OverlayController extends Notifier<void> {
       final granted = await _service.requestPermission();
       if (!granted) return false;
     }
-    final sample = _samples[_next % _samples.length];
+    final base = _samples[_next % _samples.length];
     _next++;
+    final settings = ref.read(settingsProvider);
+    final sample = OverlayPayload(
+      verdict: base.verdict,
+      totalKm: base.totalKm,
+      payout: base.payout,
+      totalMinutes: base.totalMinutes,
+      rateMode: settings.rateMode,
+      size: settings.pillSize,
+      distanceUnit: settings.distanceUnit,
+      currency: settings.currency,
+      pickupKm: base.pickupKm,
+      pickupNearKm: settings.pickupNearKm,
+      hourGoodAt: settings.hourThresholds.goodAtOrAbove,
+      hourBadBelow: settings.hourThresholds.badBelow,
+      deliveryCount: base.deliveryCount,
+      moneyFont: settings.moneyFont,
+      entitled: true,
+    );
     try {
-      await _service.showOffer(sample);
+      await _service.showOffer(sample, bubbleStyle: settings.bubbleStyle);
     } catch (e) {
       ref.read(foxLogProvider).log('error', 'overlay demo: $e');
       return false;

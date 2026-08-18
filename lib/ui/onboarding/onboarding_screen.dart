@@ -92,11 +92,16 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     final last = _page == OnboardingScreen.pageCount - 1;
     // Honest CTA: finishing without the key grant lands on a blocked Home —
     // say so instead of promising "smarter driving".
-    final cta = !last
+    final cta = _page == 3 && !perms.overlayGranted
+        ? 'Allow display over apps'
+        : _page == 4 && !perms.accessibilityGranted
+        ? 'Enable offer access'
+        : !last
         ? 'Next'
-        : perms.accessibilityGranted
-        ? 'Start driving smarter'
-        : 'Finish without access';
+        : 'Start driving smarter';
+    final permissionPage =
+        (_page == 3 && !perms.overlayGranted) ||
+        (_page == 4 && !perms.accessibilityGranted);
 
     return Scaffold(
       backgroundColor: FoxColors.bgBase,
@@ -112,11 +117,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                     hero: const _FoxHero(),
                     title: 'Meet FoxyCo 🍪',
                     body:
-                        'Your co-driver that reads every ride offer and tells '
-                        'you GOOD / OK / BAD in a glance — so you decide '
-                        'faster and only chase the tasty ones. FoxyCo only '
-                        'advises; accepting or declining is always your tap, '
-                        'in the driver app.',
+                        'FoxyCo reads each offer and scores it GOOD, OK or BAD '
+                        'using your chosen \$/km or \$/hr rules. You decide; '
+                        'accepting or declining stays your tap.',
                     // Asked here, on the introductions page. Without it the
                     // greeting on Home never appears — ProfileCard hides itself
                     // on an empty name, so first-run Home had no greeting at
@@ -127,12 +130,14 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                     hero: _GlowIcon(Icons.tune_rounded),
                     title: 'Set your bar',
                     body:
-                        'Where does a GOOD offer start for you? Pick a starting '
-                        'point — every number stays tunable in Settings.',
+                        'Choose \$/km or \$/hr and set your GOOD/BAD bar. Minimum '
+                        'Offer protects tiny payouts. Pickup + trip make total '
+                        'distance; the GPS target is green within Pickup Guard '
+                        'and red over it. Voice can announce the final verdict.',
                     footer: _PresetPicker(),
                   ),
                   const _Page(
-                    hero: _ArtHero('assets/tips/fox_tip_earnings.png'),
+                    hero: _ArtHero('assets/branding/foxyco_head.png'),
                     title: 'Try a week. Pay once.',
                     body:
                         'Run every verdict free for 7 days. If FoxyCo earns a '
@@ -143,20 +148,20 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                   ),
                   _GrantPage(
                     hero: const _GlowIcon(Icons.picture_in_picture_alt_rounded),
-                    title: 'Draw over other apps',
+                    title: 'Display over other apps',
                     body:
-                        'FoxyCo floats a tiny verdict pill over Uber, Lyft and '
-                        'Hopp so you never have to switch apps mid-offer.',
+                        'FoxyCo floats the verdict pill over your watched gig apps '
+                        'so you can read it without switching apps.',
                     granted: perms.overlayGranted,
-                    buttonLabel: 'Grant “Display over other apps”',
+                    buttonLabel: 'Allow display over apps',
                     onGrant: _grantOverlay,
                   ),
                   _GrantPage(
                     hero: const _GlowIcon(Icons.visibility_rounded),
-                    title: accessibilityDisclosureTitle,
+                    title: 'Offer access',
                     body: accessibilityDisclosureBody,
                     granted: perms.accessibilityGranted,
-                    buttonLabel: 'Grant Accessibility Access',
+                    buttonLabel: 'Enable offer access',
                     onGrant: _grantAccessibility,
                   ),
                 ],
@@ -176,30 +181,50 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
               child: SizedBox(
                 width: double.infinity,
                 height: 56,
-                child: FilledButton(
-                  onPressed: _next,
-                  style: FilledButton.styleFrom(
-                    backgroundColor: FoxColors.brandFox,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(Radii.card),
-                    ),
-                    textStyle: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  child: Text(cta),
-                ),
+                child: permissionPage
+                    ? OutlinedButton(
+                        onPressed: _page == 3
+                            ? _grantOverlay
+                            : _grantAccessibility,
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: FoxColors.brandFox,
+                          side: const BorderSide(color: FoxColors.brandFox),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(Radii.card),
+                          ),
+                          textStyle: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        child: Text(cta),
+                      )
+                    : FilledButton(
+                        onPressed: _next,
+                        style: FilledButton.styleFrom(
+                          backgroundColor: FoxColors.brandFox,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(Radii.card),
+                          ),
+                          textStyle: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        child: Text(cta),
+                      ),
               ),
             ),
             // Not on the last page: the CTA there is already "Finish without
             // access", so a skip link under it is the same button twice.
-            if (!last)
+            if (!last || permissionPage)
               TextButton(
-                onPressed: _finish,
+                onPressed: permissionPage && _page == 4 ? _finish : _finish,
                 child: Text(
-                  'Skip for now',
+                  permissionPage && _page == 4
+                      ? 'Finish setup without it'
+                      : 'Skip for now',
                   style: TextStyle(color: FoxColors.textSecondary),
                 ),
               )
@@ -218,8 +243,13 @@ class _FoxHero extends StatelessWidget {
   const _FoxHero();
 
   @override
-  Widget build(BuildContext context) =>
-      Image.asset('assets/branding/foxyco_head.png', width: 96, height: 96);
+  Widget build(BuildContext context) => Image.asset(
+    'assets/branding/foxyco_head.png',
+    width: 96,
+    height: 96,
+    fit: BoxFit.contain,
+    filterQuality: FilterQuality.high,
+  );
 }
 
 class _ArtHero extends StatelessWidget {
@@ -490,19 +520,7 @@ class _GrantPage extends StatelessWidget {
                 ),
               ),
             )
-          : OutlinedButton(
-              onPressed: onGrant,
-              style: OutlinedButton.styleFrom(
-                foregroundColor: FoxColors.brandFox,
-                side: const BorderSide(color: FoxColors.brandFox),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: Gap.lg,
-                  vertical: Gap.md,
-                ),
-                textStyle: const TextStyle(fontWeight: FontWeight.w700),
-              ),
-              child: Text(buttonLabel),
-            ),
+          : const SizedBox.shrink(),
     );
   }
 }

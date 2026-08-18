@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:foxyco/domain/platform.dart';
 import 'package:foxyco/domain/session_summary.dart';
+import 'package:foxyco/parser/parser_registry.dart';
 import 'package:foxyco/router.dart';
 import 'package:foxyco/services/session_log.dart';
 import 'package:foxyco/ui/theme/platform_badge.dart';
@@ -114,7 +114,10 @@ void main() {
     // The group's BODY is what proves it's open — a collapsed group still
     // renders its title, so find.text('Watched apps') would pass either way.
     // The per-app switches are built only while it's expanded.
-    expect(watchedAppSwitches, findsNWidgets(GigPlatform.values.length));
+    expect(
+      watchedAppSwitches,
+      findsNWidgets(ParserRegistry.supportedPlatforms.length),
+    );
 
     // ...and it was scrolled to, not just expanded somewhere off-screen.
     final list = tester.widget<Scrollable>(find.byType(Scrollable).first);

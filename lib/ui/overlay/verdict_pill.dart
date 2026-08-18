@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
 
 import '../../domain/overlay_payload.dart';
+import '../../domain/rate_mode.dart';
 import '../../domain/verdict.dart';
 import '../theme/plasma_border.dart';
 import '../theme/tokens.dart';
 
 /// The floating verdict pill (references/foxyco_pill_v9.html — "split-color").
 ///
-/// Two fused blocks: a verdict-colored block leading with the headline **$/km**
+/// Two fused blocks: a verdict-colored block leading with the active rate
+/// metric (**$/km** or **$/hr**)
 /// (the number that decides the verdict, so its color carries the call), fused
 /// to a near-black block with the trip **km** and **$/hr**. A recessed seam and
 /// glass sheen make it read as one compact HUD chip over the driver's map.
@@ -52,7 +54,8 @@ class VerdictPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final m = _metrics(size ?? payload.size);
-    final rate = '\$${payload.displayRate.toStringAsFixed(2)}';
+    final rate =
+        '${payload.currency.prefix}${payload.displayRate.toStringAsFixed(2)}';
 
     // Sheen goes from a lightened verdict color to the base — keeps the block
     // its verdict color (a plain white->transparent gradient would erase it,
@@ -117,7 +120,7 @@ class VerdictPill extends StatelessWidget {
                     ),
                     const SizedBox(width: 3),
                     Text(
-                      '/${payload.distanceUnit.shortLabel}',
+                      payload.displayRateUnit,
                       style: TextStyle(
                         // Explicit family: the overlay isolate's MaterialApp has
                         // no theme, so an unset family fell back to Roboto and
@@ -132,7 +135,8 @@ class VerdictPill extends StatelessWidget {
                   ],
                 ),
               ),
-              // Dark info block — total km + pickup target + $/hr.
+              // Dark info block — neutral total distance + pickup target +
+              // neutral secondary rate.
               Container(
                 padding: EdgeInsets.symmetric(
                   horizontal: m.padH - 6,
@@ -175,7 +179,8 @@ class VerdictPill extends StatelessWidget {
                         null => _dimCream,
                       },
                     ),
-                    if (payload.pricePerHour > 0) ...[
+                    if (payload.rateMode == RateMode.perKm &&
+                        payload.pricePerHour > 0) ...[
                       SizedBox(width: m.gap - 4),
                       Container(
                         width: 1,
@@ -184,20 +189,32 @@ class VerdictPill extends StatelessWidget {
                       ),
                       SizedBox(width: m.gap - 4),
                       Text(
-                        '\$${payload.pricePerHour.toStringAsFixed(0)}/hr',
+                        '${payload.currency.prefix}${payload.pricePerHour.toStringAsFixed(0)}/hr',
                         style: TextStyle(
                           fontFamily: FoxFonts.sans,
                           fontWeight: FontWeight.w700,
                           fontSize: m.sub,
-                          // $/hr tinted by the driver's per-hour cut points
-                          // (same "color only, no new element" rule as the
-                          // pickup km). No cut points / no time → cream.
-                          color: switch (payload.hourVerdict) {
-                            Verdict.good => const Color(0xFF5ECD90),
-                            Verdict.ok => const Color(0xFFF2C464),
-                            Verdict.bad => const Color(0xFFFF8A7E),
-                            _ => _dimCream,
-                          },
+                          color: _dimCream,
+                          fontFeatures: const [FontFeature.tabularFigures()],
+                        ),
+                      ),
+                    ],
+                    if (payload.rateMode == RateMode.perHour &&
+                        payload.pricePerKm > 0) ...[
+                      SizedBox(width: m.gap),
+                      Container(
+                        width: 1,
+                        height: m.sub,
+                        color: const Color(0x52F4EFE1),
+                      ),
+                      SizedBox(width: m.gap),
+                      Text(
+                        '${payload.currency.prefix}${payload.distanceUnit.rateFromPerKm(payload.pricePerKm).toStringAsFixed(2)}/${payload.distanceUnit.shortLabel}',
+                        style: TextStyle(
+                          fontFamily: FoxFonts.sans,
+                          fontWeight: FontWeight.w700,
+                          fontSize: m.sub,
+                          color: _dimCream,
                           fontFeatures: const [FontFeature.tabularFigures()],
                         ),
                       ),

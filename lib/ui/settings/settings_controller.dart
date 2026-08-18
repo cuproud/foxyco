@@ -9,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../domain/app_skin.dart';
 import '../../domain/app_currency.dart';
+import '../../domain/bubble_style.dart';
 import '../../domain/distance_unit.dart';
 import '../../domain/fox_settings.dart';
 import '../../domain/money_font.dart';
@@ -174,6 +175,9 @@ class SettingsController extends Notifier<FoxSettings> {
 
   void setPillSize(PillSize size) =>
       _change((current) => current.copyWith(pillSize: size));
+
+  void setBubbleStyle(BubbleStyle style) =>
+      _change((current) => current.copyWith(bubbleStyle: style));
 
   void reset() => _change((_) => FoxSettings.defaults);
 

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/offer_stats.dart';
 import '../../domain/offer_summary.dart';
+import '../../domain/fox_settings.dart';
 import '../settings/settings_controller.dart';
 import '../theme/tokens.dart';
 import 'recap_widgets.dart';
@@ -24,21 +25,20 @@ void maybeShowShiftRecap(
   showModalBottomSheet<void>(
     context: context,
     backgroundColor: Colors.transparent,
-    builder: (_) =>
-        _ShiftRecapSheet(stats: OfferStats.from(offers), duration: duration),
+    builder: (_) => _ShiftRecapSheet(offers: offers, duration: duration),
   );
 }
 
 class _ShiftRecapSheet extends ConsumerWidget {
-  const _ShiftRecapSheet({required this.stats, required this.duration});
+  const _ShiftRecapSheet({required this.offers, required this.duration});
 
-  final OfferStats stats;
+  final List<OfferSummary> offers;
   final Duration duration;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final settings = ref.watch(settingsProvider);
-    final s = stats;
+    final s = OfferStats.from(offers);
     return Container(
       margin: const EdgeInsets.all(Gap.sm),
       padding: EdgeInsets.fromLTRB(
@@ -102,53 +102,15 @@ class _ShiftRecapSheet extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: Gap.md),
-          // Headline: offers seen this session.
-          Text.rich(
-            TextSpan(
-              children: [
-                TextSpan(
-                  text: '${s.total}',
-                  style: TextStyle(
-                    fontFamily: FoxFonts.display,
-                    fontSize: 44,
-                    height: 1.0,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: -1,
-                    color: FoxColors.cream,
-                    fontFeatures: [FontFeature.tabularFigures()],
-                  ),
-                ),
-                TextSpan(
-                  text: '  offers scored',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: FoxColors.textSecondary,
-                  ),
-                ),
-              ],
-            ),
-          ),
+          _RecapVolume(total: s.total, accepted: s.accepted),
           const SizedBox(height: Gap.sm + Gap.xs),
           // Verdict split, colored.
           VerdictSplitPills(good: s.good, ok: s.ok, bad: s.bad),
           const SizedBox(height: Gap.sm),
-          Row(
-            children: [
-              Icon(
-                Icons.check_circle_outline,
-                color: VerdictColors.good,
-                size: 18,
-              ),
-              const SizedBox(width: Gap.xs),
-              Text(
-                '${s.accepted} accepted offers this session',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: FoxColors.textSecondary,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
+          _RecapEarnings(
+            offers: offers,
+            duration: duration,
+            settings: settings,
           ),
           const SizedBox(height: Gap.md),
           Row(
@@ -178,4 +140,151 @@ class _ShiftRecapSheet extends ConsumerWidget {
       ),
     );
   }
+}
+
+class _RecapVolume extends StatelessWidget {
+  const _RecapVolume({required this.total, required this.accepted});
+
+  final int total;
+  final int accepted;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Expanded(
+        flex: 2,
+        child: _metric(
+          '$total',
+          total == 1 ? 'offer scored' : 'offers scored',
+          36,
+        ),
+      ),
+      const SizedBox(width: Gap.lg),
+      Expanded(child: _metric('$accepted', 'accepted', 28, accepted: true)),
+    ],
+  );
+
+  Widget _metric(
+    String value,
+    String label,
+    double size, {
+    bool accepted = false,
+  }) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (accepted) ...[
+            Icon(
+              Icons.check_circle_outline,
+              color: VerdictColors.good,
+              size: 16,
+            ),
+            const SizedBox(width: Gap.xs),
+          ],
+          Text(
+            value,
+            style: TextStyle(
+              fontFamily: FoxFonts.display,
+              fontSize: size,
+              height: 1,
+              fontWeight: FontWeight.w700,
+              color: FoxColors.cream,
+              fontFeatures: const [FontFeature.tabularFigures()],
+            ),
+          ),
+        ],
+      ),
+      const SizedBox(height: 3),
+      Text(
+        label,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(
+          fontSize: 12.5,
+          fontWeight: FontWeight.w600,
+          color: accepted ? VerdictColors.good : FoxColors.textSecondary,
+        ),
+      ),
+    ],
+  );
+}
+
+class _RecapEarnings extends StatelessWidget {
+  const _RecapEarnings({
+    required this.offers,
+    required this.duration,
+    required this.settings,
+  });
+  final List<OfferSummary> offers;
+  final Duration duration;
+  final FoxSettings settings;
+
+  @override
+  Widget build(BuildContext context) {
+    // Only completed rows are realized enough for an automatic estimate.
+    // Accepted/not-taken rows stay out until the driver confirms completion.
+    final completed = offers
+        .where((offer) => offer.outcome == OfferOutcome.completed)
+        .fold(0.0, (sum, offer) => sum + offer.payout);
+    final earnings = completed > 0
+        ? '${settings.currency.prefix}${completed.toStringAsFixed(2)}'
+        : '—';
+    final hourly = completed > 0 && duration.inMinutes > 0
+        ? '${settings.currency.prefix}${(completed / (duration.inMinutes / 60)).toStringAsFixed(0)}/hr'
+        : '—/hr';
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: _metric(
+            'Estimated earnings',
+            earnings,
+            'Completed offers only',
+          ),
+        ),
+        const SizedBox(width: Gap.md),
+        Expanded(
+          child: _metric('Session rate', hourly, 'Completed offers only'),
+        ),
+      ],
+    );
+  }
+
+  Widget _metric(String title, String value, String support) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(
+        title,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+          color: FoxColors.textSecondary,
+        ),
+      ),
+      const SizedBox(height: 2),
+      Text(
+        value,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(
+          fontFamily: FoxFonts.display,
+          fontSize: 22,
+          fontWeight: FontWeight.w700,
+          color: FoxColors.cream,
+          fontFeatures: [FontFeature.tabularFigures()],
+        ),
+      ),
+      Text(
+        support,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(fontSize: 10.5, color: FoxColors.textSecondary),
+      ),
+    ],
+  );
 }

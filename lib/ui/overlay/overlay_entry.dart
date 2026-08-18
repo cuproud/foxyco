@@ -7,6 +7,7 @@ import 'package:flutter_overlay_window/flutter_overlay_window.dart';
 import '../../domain/overlay_action.dart';
 import '../../domain/overlay_control.dart';
 import '../../domain/overlay_payload.dart';
+import '../../domain/bubble_style.dart';
 import '../theme/tokens.dart';
 import 'fox_bubble.dart';
 import 'locked_pill.dart';
@@ -95,6 +96,7 @@ class _OverlayRootState extends State<_OverlayRoot> {
 
   OverlayPayload? _payload;
   bool _paused = false;
+  BubbleStyle _bubbleStyle = BubbleStyle.coolFox;
   StreamSubscription<dynamic>? _sub;
   Timer? _dismissTimer;
 
@@ -123,7 +125,13 @@ class _OverlayRootState extends State<_OverlayRoot> {
 
     if (OverlayControl.isControl(data)) {
       final paused = data['paused'];
-      if (paused is bool) setState(() => _paused = paused);
+      final styleId = data['bubbleStyle'];
+      if (paused is bool || styleId is String) {
+        setState(() {
+          if (paused is bool) _paused = paused;
+          if (styleId is String) _bubbleStyle = BubbleStyle.fromId(styleId);
+        });
+      }
       if (data['clearPill'] == true) _clearPill();
       return;
     }
@@ -219,6 +227,7 @@ class _OverlayRootState extends State<_OverlayRoot> {
             ? FoxBubble(
                 key: const ValueKey('bubble'),
                 paused: _paused,
+                style: _bubbleStyle,
                 onTap: _onBubbleTap,
                 onLongPress: _onBubbleLongPress,
               )

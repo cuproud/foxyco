@@ -14,7 +14,7 @@ them by **directory + dependency discipline** (optionally split into local packa
 
 ```
 lib/
-├── domain/        → Offer, Verdict, Thresholds, DecisionEngine. PURE DART. no Flutter, no plugins.
+├── domain/        → Offer, Verdict, Thresholds, DecisionEngine, platform metadata, snapshots. PURE DART. no Flutter, no plugins.
 ├── data/          → Drift DB, SharedPreferences/settings, repositories (implement domain interfaces)
 ├── parser/        → OfferParser interface + per-platform impls (UberParser, HoppParser…). Pure Dart.
 ├── services/
@@ -55,11 +55,13 @@ AccessibilityWatcher (watched-app window event + two bounded native re-reads)
    │       ├── redacts FoxyCo's overlay rectangle in memory before OCR
    │       └── recognized lines only; pixels discarded, never persisted
    ▼
-UberParser.parse(nodes) : Offer?                 [parser]
+ParserRegistry.candidates(sourcePackage).parse(nodes) : Offer? [parser]
    │  Offer(payout: 10.55, pickupKm: 0.8, dropoffKm: 4.3, platform: uber)
    ▼
 DecisionEngine.evaluate(offer, thresholds) : Verdict   [domain, pure]
    │  totalKm = 5.1, $/km = 2.07 → GOOD
+   ▼
+OfferWatcher finalizes identity, snapshot, and verdict [services/accessibility]
    ▼
 OverlayController.show(offer, verdict)           [services/overlay]
    │  draws pill + updates bubble color (flutter_overlay_window)
@@ -79,7 +81,7 @@ OfferRepository.log(offer, verdict, DateTime.now())   [data, Drift] → home tal
 ## Core models (`domain/`)
 
 ```dart
-enum Platform { uber, hopp }
+enum GigPlatform { uber, uberEats, lyft, hopp, doorDash, instacart }
 
 enum Verdict { good, ok, bad }
 
@@ -149,9 +151,28 @@ Riverpod providers are the seams: `decisionEngineProvider`, `thresholdsProvider`
 
 - **SharedPreferences** (via a `SettingsRepository`) — settings: thresholds, unit (km/mi), pill
   size, pill/bubble position, overlay timeout, active platforms. Simple key/values.
-- **Drift** (SQLite) — `OfferLog(id, platform, payout, totalKm, pricePerKm, verdict, timestamp)`.
-  Powers the home tally now; becomes the analytics/earnings backbone later. One table, add columns
-  as needed. (Drift = typed, reactive queries, Flutter's closest equivalent to Room.)
+- **Offer history/session storage** — persisted offer-time scoring snapshots, detected and final
+  outcomes plus manual-correction metadata, captured offer economics, and conservative session
+  summaries. Legacy records load with safe Unknown/legacy behavior when fields are absent.
+- Session earnings keep captured offer-card amounts separate from estimated completed-offer
+  earnings and editable actual session totals. Session $/hr uses elapsed session duration.
+
+## Current platform and verdict boundaries
+
+`GigPlatform` metadata is separate from parser capability. A platform may have a display name,
+icon, color, package identifiers, and settings presence without being production parser-supported.
+`ParserRegistry` exposes only verified parser candidates for detection; adding metadata does not
+implicitly enable parsing. UI platform lists and History filters are data-driven rather than fixed
+to Uber/Lyft/Hopp.
+
+`OfferWatcher` owns the capture-to-verdict handoff: it considers candidates from watched platform
+parsers, builds a stable identity, rejects incomplete/duplicate/suppressed identities, scores once,
+stores the scoring snapshot, and passes that finalized verdict to the overlay. Voice announcements
+are scheduled from the same identity/verdict and invalidated when the offer is replaced or cleared.
+
+The overlay remains one shared system. Bubble appearance is a persisted `BubbleStyle` choice
+(Cool Fox, FoxyCo F, or Fox Paw) resolved by the same bubble container; it does not affect pill
+geometry, verdict semantics, platform handling, or position persistence.
 
 ---
 

@@ -7,6 +7,7 @@ import '../../domain/offer_summary.dart';
 import '../../domain/platform.dart';
 import '../../domain/verdict.dart';
 import '../../services/offer_log.dart';
+import '../../parser/parser_registry.dart';
 import '../settings/settings_controller.dart';
 import '../theme/platform_badge.dart';
 import '../theme/outcome_style.dart';
@@ -41,7 +42,23 @@ class HistoryScreen extends ConsumerStatefulWidget {
 
 enum HistoryRange { today, week, month, all }
 
-enum HistoryOutcomeFilter { all, accepted }
+enum HistoryOutcomeFilter {
+  all,
+  accepted,
+  declined,
+  cancelled,
+  completed,
+  unknown,
+}
+
+String _outcomeLabel(HistoryOutcomeFilter value) => switch (value) {
+  HistoryOutcomeFilter.all => 'All outcomes',
+  HistoryOutcomeFilter.accepted => 'Accepted',
+  HistoryOutcomeFilter.declined => 'Not taken',
+  HistoryOutcomeFilter.cancelled => 'Cancelled',
+  HistoryOutcomeFilter.completed => 'Completed',
+  HistoryOutcomeFilter.unknown => 'Unknown',
+};
 
 class _HistoryScreenState extends ConsumerState<HistoryScreen> {
   HistoryRange _range = HistoryRange.today;
@@ -71,10 +88,15 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     if (!_verdicts.contains(null) && !_verdicts.contains(o.verdict)) {
       return false;
     }
-    if (_outcome == HistoryOutcomeFilter.accepted &&
-        o.outcome != OfferOutcome.taken) {
-      return false;
-    }
+    final outcomeMatches = switch (_outcome) {
+      HistoryOutcomeFilter.all => true,
+      HistoryOutcomeFilter.accepted => o.outcome == OfferOutcome.taken,
+      HistoryOutcomeFilter.declined => o.outcome == OfferOutcome.missed,
+      HistoryOutcomeFilter.cancelled => o.outcome == OfferOutcome.cancelled,
+      HistoryOutcomeFilter.completed => o.outcome == OfferOutcome.completed,
+      HistoryOutcomeFilter.unknown => o.outcome == OfferOutcome.unknown,
+    };
+    if (!outcomeMatches) return false;
     // Top-only is a FARE floor, nothing more. It used to also require
     // verdict == GOOD, which read as "filter broken": raise the fare and a
     // $22 OK offer silently vanished (device 2026-07-19). Verdict now has its
@@ -86,12 +108,24 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
   @override
   Widget build(BuildContext context) {
     final all = ref.watch(offerLogProvider);
+    final availableApps = <GigPlatform>{
+      ...ParserRegistry.supportedPlatforms.where(
+        ref.read(settingsProvider).watches,
+      ),
+      ...all.map((offer) => offer.platform),
+    }.toList();
+    availableApps.sort(
+      (a, b) => ParserRegistry.supportedPlatforms
+          .indexOf(a)
+          .compareTo(ParserRegistry.supportedPlatforms.indexOf(b)),
+    );
     final filtered = all.where(_passes).toList()
       ..sort(
         (a, b) => _topOnly
             ? b.pricePerKm.compareTo(a.pricePerKm)
             : b.seenAt.compareTo(a.seenAt),
       );
+    final stats = OfferStats.from(filtered);
 
     return ListView(
       // 100 clears the floating nav; add the gesture-bar inset like Home does
@@ -110,7 +144,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
             Text('History', style: Theme.of(context).textTheme.headlineMedium),
             const Spacer(),
             Text(
-              HistoryScreen.headerLabel(filtered.length, _range),
+              HistoryScreen.headerLabel(stats.total, _range),
               style: TextStyle(
                 fontSize: 12.5,
                 fontWeight: FontWeight.w600,
@@ -126,9 +160,11 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
           range: _range,
           apps: _apps,
           verdicts: _verdicts,
+          availableApps: availableApps,
           outcome: _outcome,
           topOnly: _topOnly,
           minFare: _minFare,
+          matchCount: stats.total,
           onRange: (range) => setState(() {
             _range = range;
             if (range == HistoryRange.all) _resetFilters();
@@ -136,17 +172,13 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
           onApp: _toggleApp,
           onVerdict: _toggleVerdict,
           onOutcome: (outcome) => setState(() => _outcome = outcome),
+          onTopToggle: () => setState(() => _topOnly = !_topOnly),
+          onFare: (d) =>
+              setState(() => _minFare = (_minFare + d).clamp(0, 100)),
+          onReset: () => setState(_resetFilters),
           onToggle: () => setState(() => _filtersExpanded = !_filtersExpanded),
         ),
         const SizedBox(height: Gap.md),
-        _TopCard(
-          on: _topOnly,
-          minFare: _minFare,
-          matchCount: filtered.length,
-          onToggle: () => setState(() => _topOnly = !_topOnly),
-          onFare: (d) =>
-              setState(() => _minFare = (_minFare + d).clamp(0, 100)),
-        ),
         const SizedBox(height: Gap.lg),
         if (filtered.isEmpty)
           _Empty(
@@ -154,7 +186,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
             onShowAll: all.isEmpty ? null : () => setState(_resetFilters),
           )
         else ...[
-          _StatsCard(stats: OfferStats.from(filtered)),
+          _StatsCard(stats: stats),
           const SizedBox(height: Gap.sm),
           _HourlyChart(offers: filtered),
           const SizedBox(height: Gap.sm),
@@ -235,7 +267,9 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     final reduced = MediaQuery.of(context).disableAnimations;
     if (reduced || index >= 12) return _OfferRow(offer: o);
     return TweenAnimationBuilder<double>(
-      key: ValueKey('${o.seenAt.millisecondsSinceEpoch}-$_range-$_topOnly'),
+      key: ValueKey(
+        '${o.seenAt.microsecondsSinceEpoch}-${o.payout}-${o.totalKm}-$index-$_range-$_topOnly',
+      ),
       tween: Tween(begin: 0, end: 1),
       duration: Motion.base + Motion.stagger * index,
       curve: Motion.curve,
@@ -278,13 +312,18 @@ class _FiltersCard extends StatelessWidget {
     required this.range,
     required this.apps,
     required this.verdicts,
+    required this.availableApps,
     required this.outcome,
     required this.topOnly,
     required this.minFare,
+    required this.matchCount,
     required this.onRange,
     required this.onApp,
     required this.onVerdict,
     required this.onOutcome,
+    required this.onTopToggle,
+    required this.onFare,
+    required this.onReset,
     required this.onToggle,
   });
 
@@ -292,14 +331,27 @@ class _FiltersCard extends StatelessWidget {
   final HistoryRange range;
   final Set<GigPlatform?> apps;
   final Set<Verdict?> verdicts;
+  final List<GigPlatform> availableApps;
   final HistoryOutcomeFilter outcome;
   final bool topOnly;
   final int minFare;
+  final int matchCount;
   final ValueChanged<HistoryRange> onRange;
   final ValueChanged<GigPlatform?> onApp;
   final ValueChanged<Verdict?> onVerdict;
   final ValueChanged<HistoryOutcomeFilter> onOutcome;
+  final VoidCallback onTopToggle;
+  final ValueChanged<int> onFare;
+  final VoidCallback onReset;
   final VoidCallback onToggle;
+
+  int get _activeCount => [
+    if (!apps.contains(null)) true,
+    if (!verdicts.contains(null)) true,
+    if (outcome != HistoryOutcomeFilter.all) true,
+    if (topOnly) true,
+    if (range != HistoryRange.today && range != HistoryRange.all) true,
+  ].length;
 
   String get _summary {
     final platform = apps.contains(null)
@@ -319,7 +371,7 @@ class _FiltersCard extends StatelessWidget {
         verdicts.length == 1
             ? VerdictStyle.of(verdicts.first!).label
             : '${verdicts.length} verdicts',
-      if (outcome == HistoryOutcomeFilter.accepted) 'Accepted',
+      if (outcome != HistoryOutcomeFilter.all) _outcomeLabel(outcome),
     ];
     return [platform, fare, period, ...extras].join(' · ');
   }
@@ -371,7 +423,9 @@ class _FiltersCard extends StatelessWidget {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Text(
-                            'Filters',
+                            _activeCount == 0
+                                ? 'Filters'
+                                : 'Filters · $_activeCount active',
                             style: TextStyle(
                               fontSize: 15,
                               fontWeight: FontWeight.w700,
@@ -405,36 +459,53 @@ class _FiltersCard extends StatelessWidget {
               ),
             ),
           ),
-          AnimatedSize(
-            duration: Motion.base,
-            curve: Motion.curve,
-            child: expanded
-                ? Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const SizedBox(height: Gap.sm),
-                      _RangeControl(value: range, onChanged: onRange),
-                      const SizedBox(height: Gap.sm + Gap.xs),
-                      _FilterGroup(
-                        label: 'APP',
-                        child: _AppChips(selected: apps, onToggle: onApp),
-                      ),
-                      const SizedBox(height: Gap.sm + Gap.xs),
-                      _FilterGroup(
-                        label: 'VERDICT & STATUS',
-                        child: _VerdictChips(
-                          selected: verdicts,
-                          onToggle: onVerdict,
-                          trailing: _OutcomeChip(
-                            value: outcome,
-                            onChanged: onOutcome,
-                          ),
-                        ),
-                      ),
-                    ],
-                  )
-                : const SizedBox.shrink(),
-          ),
+          if (expanded)
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: Gap.sm),
+                _RangeControl(value: range, onChanged: onRange),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    onPressed: _activeCount == 0 ? null : onReset,
+                    child: const Text('Reset filters'),
+                  ),
+                ),
+                const SizedBox(height: Gap.sm + Gap.xs),
+                _FilterGroup(
+                  label: 'APP',
+                  child: _AppChips(
+                    selected: apps,
+                    availableApps: availableApps,
+                    onToggle: onApp,
+                  ),
+                ),
+                const SizedBox(height: Gap.sm + Gap.xs),
+                _FilterGroup(
+                  label: 'VERDICT & OUTCOME',
+                  child: _VerdictChips(
+                    selected: verdicts,
+                    onToggle: onVerdict,
+                    trailing: _OutcomeChip(
+                      value: outcome,
+                      onChanged: onOutcome,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: Gap.sm + Gap.xs),
+                _FilterGroup(
+                  label: 'DISPLAY',
+                  child: _TopFilter(
+                    on: topOnly,
+                    minFare: minFare,
+                    matchCount: matchCount,
+                    onToggle: onTopToggle,
+                    onFare: onFare,
+                  ),
+                ),
+              ],
+            ),
         ],
       ),
     );
@@ -478,12 +549,12 @@ class _OutcomeChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final active = value == HistoryOutcomeFilter.accepted;
-    final activeColor = OutcomeStyle.of(OfferOutcome.taken).color;
+    final active = value != HistoryOutcomeFilter.all;
+    const activeColor = FoxColors.brandFox;
     return Semantics(
       selected: active,
       button: true,
-      label: 'Accepted trip history',
+      label: 'Outcome filter',
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: () {
@@ -491,6 +562,29 @@ class _OutcomeChip extends StatelessWidget {
           onChanged(
             active ? HistoryOutcomeFilter.all : HistoryOutcomeFilter.accepted,
           );
+        },
+        onLongPress: () async {
+          HapticFeedback.selectionClick();
+          final box = context.findRenderObject() as RenderBox?;
+          if (box == null) return;
+          final topLeft = box.localToGlobal(Offset.zero);
+          final chosen = await showMenu<HistoryOutcomeFilter>(
+            context: context,
+            position: RelativeRect.fromLTRB(
+              topLeft.dx,
+              topLeft.dy + box.size.height,
+              topLeft.dx + box.size.width,
+              0,
+            ),
+            items: [
+              for (final option in HistoryOutcomeFilter.values)
+                PopupMenuItem(
+                  value: option,
+                  child: Text(_outcomeLabel(option)),
+                ),
+            ],
+          );
+          if (chosen != null) onChanged(chosen);
         },
         child: AnimatedContainer(
           duration: Motion.base,
@@ -517,7 +611,9 @@ class _OutcomeChip extends StatelessWidget {
               ),
               const SizedBox(width: 6),
               Text(
-                'Accepted',
+                value == HistoryOutcomeFilter.all
+                    ? 'Accepted'
+                    : _outcomeLabel(value),
                 style: TextStyle(
                   fontSize: 12.5,
                   fontWeight: FontWeight.w700,
@@ -615,8 +711,13 @@ class _RangeControl extends StatelessWidget {
 }
 
 class _AppChips extends StatelessWidget {
-  const _AppChips({required this.selected, required this.onToggle});
+  const _AppChips({
+    required this.selected,
+    required this.availableApps,
+    required this.onToggle,
+  });
   final Set<GigPlatform?> selected;
+  final List<GigPlatform> availableApps;
   final ValueChanged<GigPlatform?> onToggle;
 
   @override
@@ -624,14 +725,7 @@ class _AppChips extends StatelessWidget {
     return Wrap(
       spacing: Gap.sm,
       runSpacing: Gap.sm,
-      children: [
-        for (final p in const [
-          GigPlatform.uber,
-          GigPlatform.lyft,
-          GigPlatform.hopp,
-        ])
-          _chip(p, p.label),
-      ],
+      children: [for (final p in availableApps) _chip(p, p.label)],
     );
   }
 
@@ -729,7 +823,7 @@ class _VerdictChips extends StatelessWidget {
               Icon(
                 style.icon,
                 size: 12,
-                color: active ? style.color : FoxColors.textSecondary,
+                color: active ? FoxColors.brandFox : FoxColors.textSecondary,
               ),
               const SizedBox(width: 6),
             ],
@@ -748,9 +842,9 @@ class _VerdictChips extends StatelessWidget {
   }
 }
 
-/// Dark "top offers only" card with a switch + fare stepper.
-class _TopCard extends StatelessWidget {
-  const _TopCard({
+/// Compact display filter with a switch + fare stepper.
+class _TopFilter extends StatelessWidget {
+  const _TopFilter({
     required this.on,
     required this.minFare,
     required this.matchCount,
@@ -767,32 +861,12 @@ class _TopCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(Gap.md + Gap.xs),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [FoxColors.inkSoft, FoxColors.ink],
-        ),
-        borderRadius: BorderRadius.circular(Radii.card + 2),
-        boxShadow: Shadows.hero,
-      ),
+      padding: EdgeInsets.zero,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(Radii.cardSm),
-                child: Image.asset(
-                  'assets/history/filter.webp',
-                  width: 56,
-                  height: 56,
-                  fit: BoxFit.cover,
-                  semanticLabel: 'Fox holding a glowing earnings filter',
-                ),
-              ),
-              const SizedBox(width: Gap.sm + Gap.xs),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -802,7 +876,7 @@ class _TopCard extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w700,
-                        color: FoxColors.cream,
+                        color: FoxColors.textPrimary,
                       ),
                     ),
                     const SizedBox(height: 2),
@@ -812,7 +886,7 @@ class _TopCard extends StatelessWidget {
                           : '$matchCount offers · any fare',
                       style: TextStyle(
                         fontSize: 12,
-                        color: FoxColors.cream.withValues(alpha: 0.55),
+                        color: FoxColors.textSecondary,
                       ),
                     ),
                   ],
@@ -835,7 +909,7 @@ class _TopCard extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 12.5,
                       fontWeight: FontWeight.w600,
-                      color: FoxColors.cream.withValues(alpha: 0.65),
+                      color: FoxColors.textSecondary,
                     ),
                   ),
                   const Spacer(),
@@ -853,7 +927,7 @@ class _TopCard extends StatelessWidget {
                         fontFamily: FoxFonts.display,
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
-                        color: FoxColors.cream,
+                        color: FoxColors.textPrimary,
                         fontFeatures: [FontFeature.tabularFigures()],
                       ),
                     ),
@@ -964,20 +1038,9 @@ class _HourlyChart extends StatelessWidget {
         Gap.sm + Gap.xs,
       ),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            FoxColors.bgSurface,
-            Color.alphaBlend(
-              FoxColors.brandFox.withValues(alpha: 0.055),
-              FoxColors.bgSurface,
-            ),
-          ],
-        ),
+        color: FoxColors.bgSurface2.withValues(alpha: 0.28),
         borderRadius: BorderRadius.circular(Radii.card),
-        border: Border.all(color: FoxColors.brandFox.withValues(alpha: 0.18)),
-        boxShadow: Shadows.card,
+        border: Border.all(color: FoxColors.borderSoft),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1023,7 +1086,7 @@ class _HourlyChart extends StatelessWidget {
                                             alpha: 0.08,
                                           )
                                         : FoxColors.brandFox.withValues(
-                                            alpha: 0.38,
+                                            alpha: 0.28,
                                           ),
                                     borderRadius: const BorderRadius.vertical(
                                       top: Radius.circular(3),
@@ -1050,7 +1113,7 @@ class _HourlyChart extends StatelessWidget {
                           style: TextStyle(
                             fontSize: 10.5,
                             fontWeight: FontWeight.w700,
-                            color: FoxColors.cream,
+                            color: FoxColors.brandFox,
                             fontFeatures: [FontFeature.tabularFigures()],
                           ),
                         ),
@@ -1137,10 +1200,9 @@ class _AppVerdictChart extends StatelessWidget {
         Gap.md,
       ),
       decoration: BoxDecoration(
-        color: FoxColors.bgSurface,
+        color: FoxColors.bgSurface2.withValues(alpha: 0.28),
         borderRadius: BorderRadius.circular(Radii.card),
         border: Border.all(color: FoxColors.borderSoft),
-        boxShadow: Shadows.card,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1196,7 +1258,7 @@ class _AppVerdictChart extends StatelessWidget {
       children: [
         // Fixed label column keeps the bars' baselines aligned.
         SizedBox(
-          width: 64,
+          width: 76,
           child: Row(
             children: [
               PlatformBadge(platform: p, size: 16),
@@ -1224,7 +1286,7 @@ class _AppVerdictChart extends StatelessWidget {
             // Matches the Home segment bar: 10dp lozenges rather than one 14dp
             // slab of saturated color (device 2026-07-25: "too thick").
             child: SizedBox(
-              height: 10,
+              height: 11,
               child: Builder(
                 builder: (context) {
                   final segs = [
@@ -1358,6 +1420,7 @@ class _OfferRow extends ConsumerWidget {
                     runSpacing: 4,
                     crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
+                      _VerdictTag(verdict: offer.verdict),
                       _OutcomeMenu(offer: offer, style: outcome),
                       if (offer.isQueued)
                         Text(
@@ -1417,8 +1480,8 @@ class _OfferRow extends ConsumerWidget {
                       : '${settings.currency.prefix}${offer.payout.toStringAsFixed(2)}',
                   style: TextStyle(
                     fontFamily: FoxFonts.display,
-                    fontSize: 16.5,
-                    fontWeight: FontWeight.w600,
+                    fontSize: 19,
+                    fontWeight: FontWeight.w700,
                     color: FoxColors.textPrimary,
                     fontFeatures: [FontFeature.tabularFigures()],
                   ),
@@ -1454,39 +1517,24 @@ class _OutcomeMenu extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return PopupMenuButton<OfferOutcome>(
+    return Semantics(
       key: ValueKey('offer_outcome_${offer.seenAt.microsecondsSinceEpoch}'),
-      tooltip: 'Change trip status',
-      onSelected: (value) =>
-          ref.read(offerLogProvider.notifier).setOutcome(offer, value),
-      itemBuilder: (context) => [
-        for (final value in const [
-          OfferOutcome.taken,
-          OfferOutcome.missed,
-          OfferOutcome.unknown,
-        ])
-          PopupMenuItem(
-            value: value,
-            child: Row(
-              children: [
-                Icon(
-                  OutcomeStyle.of(value).icon,
-                  size: 18,
-                  color: OutcomeStyle.of(value).color,
-                ),
-                const SizedBox(width: Gap.sm),
-                Text(OutcomeStyle.of(value).label),
-                if (value == offer.outcome) ...[
-                  const Spacer(),
-                  const Icon(Icons.check_rounded, size: 18),
-                ],
-              ],
-            ),
-          ),
-      ],
-      child: Semantics(
-        button: true,
-        label: '${style.label}. Change trip status',
+      button: true,
+      label: '${style.label}. Change outcome',
+      child: InkWell(
+        borderRadius: BorderRadius.circular(Radii.pill),
+        onTap: () async {
+          HapticFeedback.selectionClick();
+          final value = await showModalBottomSheet<OfferOutcome>(
+            context: context,
+            isScrollControlled: true,
+            useSafeArea: true,
+            builder: (_) => _OutcomeSheet(selected: offer.outcome),
+          );
+          if (value != null) {
+            ref.read(offerLogProvider.notifier).setOutcome(offer, value);
+          }
+        },
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
           decoration: BoxDecoration(
@@ -1515,6 +1563,78 @@ class _OutcomeMenu extends ConsumerWidget {
       ),
     );
   }
+}
+
+class _VerdictTag extends StatelessWidget {
+  const _VerdictTag({required this.verdict});
+  final Verdict verdict;
+
+  @override
+  Widget build(BuildContext context) {
+    final style = VerdictStyle.of(verdict);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      decoration: BoxDecoration(
+        color: style.bg,
+        borderRadius: BorderRadius.circular(Radii.pill),
+        border: Border.all(color: style.color.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(style.icon, size: 12, color: style.color),
+          const SizedBox(width: 4),
+          Text(
+            style.label,
+            style: TextStyle(
+              fontSize: 10.5,
+              fontWeight: FontWeight.w800,
+              color: style.color,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _OutcomeSheet extends StatelessWidget {
+  const _OutcomeSheet({required this.selected});
+  final OfferOutcome selected;
+
+  @override
+  Widget build(BuildContext context) => SafeArea(
+    child: Padding(
+      padding: const EdgeInsets.fromLTRB(Gap.md, Gap.md, Gap.md, Gap.sm),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Offer outcome', style: Theme.of(context).textTheme.titleLarge),
+          const SizedBox(height: Gap.sm),
+          for (final value in const [
+            OfferOutcome.taken,
+            OfferOutcome.missed,
+            OfferOutcome.cancelled,
+            OfferOutcome.completed,
+            OfferOutcome.unknown,
+          ])
+            ListTile(
+              minTileHeight: 52,
+              leading: Icon(
+                OutcomeStyle.of(value).icon,
+                color: OutcomeStyle.of(value).color,
+              ),
+              title: Text(OutcomeStyle.of(value).label),
+              trailing: value == selected
+                  ? const Icon(Icons.check_rounded)
+                  : null,
+              onTap: () => Navigator.pop(context, value),
+            ),
+        ],
+      ),
+    ),
+  );
 }
 
 /// Empty state. When offers exist but filters hide them, say so and offer a
@@ -1642,6 +1762,7 @@ class _StatsCard extends ConsumerWidget {
                 child: _Stat(
                   label: 'OFFERS',
                   value: '${s.total}',
+                  emphasis: true,
                   // Verdict-colored counts instead of the cryptic "2·7·2".
                   subSpan: TextSpan(
                     children: [
@@ -1666,12 +1787,12 @@ class _StatsCard extends ConsumerWidget {
               const SizedBox(width: Gap.md),
               Expanded(
                 child: _Stat(
-                  label: 'GOOD AVERAGE',
+                  label: 'GOOD AVG',
                   value: s.goodAvgPerKm > 0
                       ? '${settings.currency.prefix}${settings.distanceUnit.rateFromPerKm(s.goodAvgPerKm).toStringAsFixed(2)}'
                       : '—',
                   sub: 'per ${settings.distanceUnit.shortLabel}',
-                  valueColor: VerdictColors.good,
+                  valueColor: FoxColors.textPrimary,
                 ),
               ),
             ],
@@ -1692,7 +1813,7 @@ class _StatsCard extends ConsumerWidget {
                   sub: s.best != null
                       ? '${s.best!.platform.label} · per ${settings.distanceUnit.shortLabel}'
                       : '',
-                  valueColor: FoxColors.brandFox,
+                  valueColor: FoxColors.textPrimary,
                 ),
               ),
               const SizedBox(width: Gap.md),
@@ -1720,6 +1841,7 @@ class _Stat extends StatelessWidget {
     this.sub,
     this.subSpan,
     this.valueColor,
+    this.emphasis = false,
   }) : assert(sub != null || subSpan != null);
 
   final String label;
@@ -1727,6 +1849,7 @@ class _Stat extends StatelessWidget {
   final String? sub;
   final TextSpan? subSpan;
   final Color? valueColor;
+  final bool emphasis;
 
   static bool _isInt(String s) => int.tryParse(s) != null;
   static TextStyle get _valueStyle => TextStyle(
@@ -1753,7 +1876,7 @@ class _Stat extends StatelessWidget {
         ),
         const SizedBox(height: Gap.xs),
         SizedBox(
-          height: 28,
+          height: emphasis ? 40 : 28,
           child: Align(
             alignment: Alignment.centerLeft,
             child: _isInt(value)
@@ -1765,13 +1888,21 @@ class _Stat extends StatelessWidget {
                     curve: Motion.curve,
                     builder: (context, v, _) => Text(
                       '$v',
-                      style: _valueStyle.copyWith(color: valueColor),
+                      style: _valueStyle.copyWith(
+                        color: valueColor,
+                        fontSize: emphasis ? 36 : 17,
+                        height: emphasis ? 1 : null,
+                      ),
                     ),
                   )
                 : Text(
                     value,
                     maxLines: 1,
-                    style: _valueStyle.copyWith(color: valueColor),
+                    style: _valueStyle.copyWith(
+                      color: valueColor,
+                      fontSize: emphasis ? 36 : 17,
+                      height: emphasis ? 1 : null,
+                    ),
                   ),
           ),
         ),

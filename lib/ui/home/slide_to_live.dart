@@ -106,7 +106,7 @@ class _SlideToLiveState extends State<SlideToLive>
     final blocked = widget.status == WatchStatus.blocked;
 
     final label = blocked
-        ? 'Grant access'
+        ? 'Offer access required'
         : _running
         ? 'Stop'
         : 'Go live';
@@ -139,7 +139,7 @@ class _SlideToLiveState extends State<SlideToLive>
       builder: (context, c) {
         final travelPx = c.maxWidth - _thumb - 12;
         final x = _drag * travelPx;
-        final label = blocked ? 'Grant access to go live' : 'Slide to go live';
+        final label = blocked ? 'Offer access required' : 'Slide to go live';
         final labelStyle = TextStyle(
           fontSize: 14,
           fontWeight: FontWeight.w700,

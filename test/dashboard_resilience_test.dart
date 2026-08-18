@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:foxyco/domain/overlay_action.dart';
+import 'package:foxyco/domain/bubble_style.dart';
 import 'package:foxyco/domain/overlay_payload.dart';
 import 'package:foxyco/domain/session_summary.dart';
 import 'package:foxyco/services/accessibility/accessibility_watcher.dart';
@@ -57,17 +58,25 @@ class _FakeOverlayService implements OverlayService {
   @override
   Future<bool> requestPermission() async => true;
   @override
-  Future<void> showOffer(OverlayPayload p) async {}
+  Future<void> showOffer(
+    OverlayPayload p, {
+    BubbleStyle bubbleStyle = BubbleStyle.coolFox,
+  }) async {}
   @override
   Stream<OverlayAction> get actionStream => const Stream.empty();
   @override
   Future<bool> isActive() async => false;
   @override
-  Future<void> startWatching({bool paused = false}) async {}
+  Future<void> startWatching({
+    bool paused = false,
+    BubbleStyle bubbleStyle = BubbleStyle.coolFox,
+  }) async {}
   @override
   Future<void> update(OverlayPayload p) async {}
   @override
   Future<void> setPaused(bool paused) async {}
+  @override
+  Future<void> setBubbleStyle(BubbleStyle style) async {}
   @override
   Future<void> clearPill() async {}
   @override

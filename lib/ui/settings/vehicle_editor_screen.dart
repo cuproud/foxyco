@@ -212,56 +212,19 @@ class _VehicleEditorScreenState extends ConsumerState<VehicleEditorScreen> {
           const SizedBox(height: Gap.lg),
           Text('COLOR', style: text.labelSmall),
           const SizedBox(height: Gap.sm),
-          DropdownButtonFormField<int>(
+          _SelectorField(
             key: const ValueKey('editor-color'),
-            initialValue: DriverProfile.palette.containsKey(_color)
-                ? _color
-                : null,
-            isExpanded: true,
-            // Cap the menu so a long list scrolls instead of covering Save.
-            menuMaxHeight: 320,
-            decoration: const InputDecoration(isDense: true),
-            items: [
-              for (final entry in DriverProfile.palette.entries)
-                DropdownMenuItem(
-                  value: entry.key,
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 22,
-                        height: 22,
-                        decoration: BoxDecoration(
-                          color: Color(entry.key),
-                          shape: BoxShape.circle,
-                          border: Border.all(color: FoxColors.border),
-                        ),
-                      ),
-                      const SizedBox(width: Gap.sm),
-                      Text(entry.value),
-                    ],
-                  ),
-                ),
-            ],
-            onChanged: (v) => setState(() => _color = v ?? _color),
+            label: DriverProfile.palette[_color] ?? 'Choose color',
+            swatch: Color(_color),
+            onTap: _pickColor,
           ),
           const SizedBox(height: Gap.lg),
-          Text('BODY', style: text.labelSmall),
+          Text('VEHICLE TYPE', style: text.labelSmall),
           const SizedBox(height: Gap.sm),
-          DropdownButtonFormField<VehicleType>(
+          _SelectorField(
             key: const ValueKey('editor-body'),
-            initialValue: _body,
-            isExpanded: true,
-            menuMaxHeight: 320,
-            decoration: const InputDecoration(isDense: true),
-            items: [
-              // motorbike is legacy (superseded by bike); only offer it when a
-              // pre-existing vehicle already uses it.
-              for (final t in VehicleType.values)
-                if (t != VehicleType.motorbike ||
-                    _body == VehicleType.motorbike)
-                  DropdownMenuItem(value: t, child: Text(t.label)),
-            ],
-            onChanged: (v) => setState(() => _body = v ?? _body),
+            label: _body.label,
+            onTap: _pickBody,
           ),
           const SizedBox(height: Gap.lg),
           Text('FUEL', style: text.labelSmall),
@@ -296,4 +259,142 @@ class _VehicleEditorScreenState extends ConsumerState<VehicleEditorScreen> {
       ),
     );
   }
+
+  Future<void> _pickColor() async {
+    final picked = await showModalBottomSheet<int>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (context) => _ColorSheet(selected: _color),
+    );
+    if (picked != null && mounted) setState(() => _color = picked);
+  }
+
+  Future<void> _pickBody() async {
+    final picked = await showModalBottomSheet<VehicleType>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (context) => _VehicleTypeSheet(selected: _body),
+    );
+    if (picked != null && mounted) setState(() => _body = picked);
+  }
+}
+
+class _SelectorField extends StatelessWidget {
+  const _SelectorField({
+    super.key,
+    required this.label,
+    required this.onTap,
+    this.swatch,
+  });
+  final String label;
+  final VoidCallback onTap;
+  final Color? swatch;
+
+  @override
+  Widget build(BuildContext context) => InkWell(
+    onTap: onTap,
+    borderRadius: BorderRadius.circular(Radii.field),
+    child: InputDecorator(
+      decoration: const InputDecoration(
+        isDense: true,
+        suffixIcon: Icon(Icons.expand_more),
+      ),
+      child: Row(
+        children: [
+          if (swatch != null) ...[
+            Container(
+              width: 18,
+              height: 18,
+              decoration: BoxDecoration(color: swatch, shape: BoxShape.circle),
+            ),
+            const SizedBox(width: Gap.sm),
+          ],
+          Text(label),
+        ],
+      ),
+    ),
+  );
+}
+
+class _ColorSheet extends StatelessWidget {
+  const _ColorSheet({required this.selected});
+  final int selected;
+
+  @override
+  Widget build(BuildContext context) => SafeArea(
+    child: LayoutBuilder(
+      builder: (context, constraints) => ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: (constraints.maxHeight * 0.84).clamp(280.0, 560.0),
+        ),
+        child: ListView(
+          shrinkWrap: true,
+          padding: EdgeInsets.fromLTRB(
+            Gap.md,
+            Gap.md,
+            Gap.md,
+            Gap.md + MediaQuery.viewPaddingOf(context).bottom,
+          ),
+          children: [
+            const Text(
+              'Color',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+            ),
+            for (final entry in DriverProfile.palette.entries)
+              ListTile(
+                leading: CircleAvatar(
+                  backgroundColor: Color(entry.key),
+                  radius: 12,
+                ),
+                title: Text(entry.value),
+                trailing: entry.key == selected
+                    ? const Icon(Icons.check)
+                    : null,
+                onTap: () => Navigator.pop(context, entry.key),
+              ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+class _VehicleTypeSheet extends StatelessWidget {
+  const _VehicleTypeSheet({required this.selected});
+  final VehicleType selected;
+
+  @override
+  Widget build(BuildContext context) => SafeArea(
+    child: LayoutBuilder(
+      builder: (context, constraints) => ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: (constraints.maxHeight * 0.84).clamp(280.0, 560.0),
+        ),
+        child: ListView(
+          shrinkWrap: true,
+          padding: EdgeInsets.fromLTRB(
+            Gap.md,
+            Gap.md,
+            Gap.md,
+            Gap.md + MediaQuery.viewPaddingOf(context).bottom,
+          ),
+          children: [
+            const Text(
+              'Vehicle type',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+            ),
+            for (final type in VehicleType.values)
+              if (type != VehicleType.motorbike || type == selected)
+                ListTile(
+                  title: Text(type.label),
+                  trailing: type == selected ? const Icon(Icons.check) : null,
+                  onTap: () => Navigator.pop(context, type),
+                ),
+          ],
+        ),
+      ),
+    ),
+  );
 }

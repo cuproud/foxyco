@@ -120,7 +120,7 @@ class FoxPalette {
   /// Uber's roundel. The only per-app dot that has to vary: Uber's brand is
   /// black-on-white, so the badge is near-white on a dark chip and has to
   /// invert to near-black once the chip goes white (device 2026-07-25: the
-  /// roundel and its letter both vanished). Lyft pink and Hopp blue are
+  /// roundel and its letter both vanished). Lyft pink and Hopp green are
   /// saturated enough to hold on either.
   final Color uber;
 
@@ -261,7 +261,7 @@ class FoxColors {
   // hold on either surface.
   static Color uber = FoxPalette.dark.uber;
   static const lyft = Color(0xFFFF37A6);
-  static const hopp = Color(0xFF4FA3E8);
+  static const hopp = Color(0xFF2E7D32);
 }
 
 /// Spacing scale (4 dp base).

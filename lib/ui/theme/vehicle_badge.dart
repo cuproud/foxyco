@@ -73,6 +73,7 @@ class VehicleBadge extends StatelessWidget {
                   'assets/vehicles/${bodyType.assetName}.png',
                   fit: BoxFit.contain,
                   filterQuality: FilterQuality.medium,
+                  gaplessPlayback: true,
                 ),
               ),
             ),

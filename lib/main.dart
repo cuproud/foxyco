@@ -136,13 +136,31 @@ class _FoxyCoAppState extends ConsumerState<FoxyCoApp>
       ThemeMode.system => systemDark ? FoxPalette.dark : FoxPalette.light,
     };
     final theme = AppTheme.of(active);
-    return MaterialApp.router(
-      title: 'FoxyCo',
-      debugShowCheckedModeBanner: false,
-      theme: theme,
-      darkTheme: theme,
-      themeMode: mode,
-      routerConfig: _router,
+    final systemUi = SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: active.brightness == Brightness.dark
+          ? Brightness.light
+          : Brightness.dark,
+      statusBarBrightness: active.brightness == Brightness.dark
+          ? Brightness.dark
+          : Brightness.light,
+      systemNavigationBarColor: active.bgBase,
+      systemNavigationBarIconBrightness: active.brightness == Brightness.dark
+          ? Brightness.light
+          : Brightness.dark,
+      systemNavigationBarDividerColor: active.bgBase,
+      systemNavigationBarContrastEnforced: false,
+    );
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: systemUi,
+      child: MaterialApp.router(
+        title: 'FoxyCo',
+        debugShowCheckedModeBanner: false,
+        theme: theme,
+        darkTheme: theme,
+        themeMode: mode,
+        routerConfig: _router,
+      ),
     );
   }
 }

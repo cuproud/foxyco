@@ -5,6 +5,7 @@ import 'package:flutter_overlay_window/flutter_overlay_window.dart';
 import '../domain/overlay_action.dart';
 import '../domain/overlay_control.dart';
 import '../domain/overlay_payload.dart';
+import '../domain/bubble_style.dart';
 
 /// Thin wrapper over `flutter_overlay_window` (docs/OVERLAY §plugin).
 ///
@@ -74,10 +75,16 @@ class OverlayService {
   /// (`centerRight`) — safely on-screen, clear of the status bar / camera cutout
   /// that made a top-anchored window clip off the top. `enableDrag` +
   /// `positionGravity.auto` let the user fling it to either edge.
-  Future<void> startWatching({bool paused = false}) =>
-      _enqueue(() => _startWatching(paused: paused));
+  Future<void> startWatching({
+    bool paused = false,
+    BubbleStyle bubbleStyle = BubbleStyle.coolFox,
+  }) =>
+      _enqueue(() => _startWatching(paused: paused, bubbleStyle: bubbleStyle));
 
-  Future<void> _startWatching({bool paused = false}) async {
+  Future<void> _startWatching({
+    bool paused = false,
+    BubbleStyle bubbleStyle = BubbleStyle.coolFox,
+  }) async {
     final wasActive = await FlutterOverlayWindow.isActive();
     if (!wasActive) {
       await FlutterOverlayWindow.showOverlay(
@@ -100,6 +107,9 @@ class OverlayService {
       await Future<void>.delayed(const Duration(milliseconds: 250));
       await FlutterOverlayWindow.shareData(OverlayControl.clearPill());
     }
+    await FlutterOverlayWindow.shareData(
+      OverlayControl.bubbleStyle(bubbleStyle),
+    );
     await FlutterOverlayWindow.shareData(OverlayControl.paused(paused));
   }
 
@@ -109,9 +119,12 @@ class OverlayService {
   /// The overlay runs in a fresh isolate whose listener only attaches after its
   /// first frame. [startWatching] waits for that listener when it creates a
   /// window, so one ordered payload is enough.
-  Future<void> showOffer(OverlayPayload payload) async {
+  Future<void> showOffer(
+    OverlayPayload payload, {
+    BubbleStyle bubbleStyle = BubbleStyle.coolFox,
+  }) async {
     await _enqueue(() async {
-      await _startWatching();
+      await _startWatching(bubbleStyle: bubbleStyle);
       await FlutterOverlayWindow.shareData(payload.toMap());
     });
   }
@@ -123,6 +136,10 @@ class OverlayService {
   /// Tell the overlay whether we're watching or paused (dims the bubble).
   Future<void> setPaused(bool paused) => _enqueue(
     () => FlutterOverlayWindow.shareData(OverlayControl.paused(paused)),
+  );
+
+  Future<void> setBubbleStyle(BubbleStyle style) => _enqueue(
+    () => FlutterOverlayWindow.shareData(OverlayControl.bubbleStyle(style)),
   );
 
   /// Drop the current pill without tearing the overlay down. One ordered clear

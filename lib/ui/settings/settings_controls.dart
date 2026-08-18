@@ -609,6 +609,8 @@ class ThresholdSlider extends StatelessWidget {
     this.editable = false,
     this.onEdit,
     this.enabled = true,
+    this.visualValue,
+    this.actualValue,
   });
 
   final String label;
@@ -624,6 +626,8 @@ class ThresholdSlider extends StatelessWidget {
   final bool editable;
   final ValueChanged<double>? onEdit;
   final bool enabled;
+  final double Function(double value)? visualValue;
+  final double Function(double value)? actualValue;
 
   /// One nudge of the −/+ buttons. Matches the slider's own division size for
   /// money; km reads in tenths, so a 5c-equivalent step would take forever.
@@ -705,6 +709,8 @@ class ThresholdSlider extends StatelessWidget {
                 divisions: ((max - min) / 0.05).round(),
                 color: displayColor,
                 enabled: enabled,
+                visualValue: visualValue,
+                actualValue: actualValue,
                 onChanged: onChanged,
               ),
             ),
@@ -730,6 +736,8 @@ class RoadSlider extends StatefulWidget {
     required this.onChanged,
     this.divisions,
     this.enabled = true,
+    this.visualValue,
+    this.actualValue,
   });
 
   final double value;
@@ -739,6 +747,8 @@ class RoadSlider extends StatefulWidget {
   final Color color;
   final ValueChanged<double>? onChanged;
   final bool enabled;
+  final double Function(double value)? visualValue;
+  final double Function(double value)? actualValue;
 
   @override
   State<RoadSlider> createState() => _RoadSliderState();
@@ -749,8 +759,12 @@ class _RoadSliderState extends State<RoadSlider> {
   bool _animating = false;
   int _animationToken = 0;
 
+  double get _visualMin => widget.visualValue?.call(widget.min) ?? widget.min;
+  double get _visualMax => widget.visualValue?.call(widget.max) ?? widget.max;
+  double get _visualValue =>
+      widget.visualValue?.call(widget.value) ?? widget.value;
   double get _fraction =>
-      ((widget.value - widget.min) / (widget.max - widget.min)).clamp(0.0, 1.0);
+      ((_visualValue - _visualMin) / (_visualMax - _visualMin)).clamp(0.0, 1.0);
 
   @override
   void didUpdateWidget(covariant RoadSlider oldWidget) {
@@ -798,9 +812,9 @@ class _RoadSliderState extends State<RoadSlider> {
                   showValueIndicator: ShowValueIndicator.never,
                 ),
                 child: Slider(
-                  value: widget.value,
-                  min: widget.min,
-                  max: widget.max,
+                  value: _visualValue,
+                  min: _visualMin,
+                  max: _visualMax,
                   divisions: widget.divisions,
                   onChangeStart: widget.enabled
                       ? (_) => setState(() => _dragging = true)
@@ -808,7 +822,11 @@ class _RoadSliderState extends State<RoadSlider> {
                   onChangeEnd: widget.enabled
                       ? (_) => setState(() => _dragging = false)
                       : null,
-                  onChanged: widget.enabled ? widget.onChanged : null,
+                  onChanged: widget.enabled
+                      ? (value) => widget.onChanged?.call(
+                          widget.actualValue?.call(value) ?? value,
+                        )
+                      : null,
                 ),
               ),
               if (_dragging)
@@ -1117,13 +1135,18 @@ class PillLegend extends StatelessWidget {
         ),
         row(
           const Color(0xFF5ECD90),
-          'Green $distanceLabel',
-          'pickup is within your pickup radius (set below).',
+          'Green GPS target',
+          'pickup is within your Pickup Guard.',
         ),
         row(
           const Color(0xFFFF8A7E),
-          'Red $distanceLabel',
-          'pickup is beyond your radius — you drive further for free.',
+          'Red GPS target',
+          'pickup is over your Pickup Guard.',
+        ),
+        row(
+          FoxColors.creamConst.withValues(alpha: 0.78),
+          'Distance',
+          'total pickup + trip distance; target status does not change the verdict.',
         ),
         row(
           // The pill's own dim cream, const like the swatches above it.

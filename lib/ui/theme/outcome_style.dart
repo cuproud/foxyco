@@ -33,10 +33,22 @@ class OutcomeStyle {
       color: VerdictColors.bad,
     ),
     OfferOutcome.unknown => OutcomeStyle(
-      label: 'Unconfirmed',
+      label: 'Unknown',
       detail: 'No reliable trip state was visible afterward.',
       icon: Icons.help_rounded,
       color: VerdictColors.unknown,
+    ),
+    OfferOutcome.cancelled => OutcomeStyle(
+      label: 'Cancelled',
+      detail: 'Accepted, then cancelled before completion.',
+      icon: Icons.remove_circle_outline_rounded,
+      color: VerdictColors.bad,
+    ),
+    OfferOutcome.completed => OutcomeStyle(
+      label: 'Completed',
+      detail: 'Marked as completed; counted toward estimated earnings.',
+      icon: Icons.task_alt_rounded,
+      color: VerdictColors.good,
     ),
   };
 }

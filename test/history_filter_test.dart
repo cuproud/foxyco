@@ -94,10 +94,6 @@ void main() {
     expect(find.text('Go live and let the fox hunt.'), findsOneWidget);
     expect(find.byIcon(Icons.search_off), findsNothing);
     expect(
-      find.image(const AssetImage('assets/history/filter.webp')),
-      findsOneWidget,
-    );
-    expect(
       find.image(const AssetImage('assets/history/hunt.webp')),
       findsOneWidget,
     );
@@ -148,9 +144,8 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(status);
     await tester.pumpAndSettle();
-    await tester.tap(
-      find.widgetWithText(PopupMenuItem<OfferOutcome>, 'Accepted'),
-    );
+    expect(find.text('Offer outcome'), findsOneWidget);
+    await tester.tap(find.text('Accepted').last);
     await tester.pumpAndSettle();
 
     expect(find.text('Accepted'), findsOneWidget);
@@ -194,6 +189,8 @@ void main() {
     await tester.pumpWidget(_app([_offer(DateTime.now())]));
     await tester.pumpAndSettle();
 
+    await tester.tap(find.text('Filters'));
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('history-top-toggle')));
     await tester.pumpAndSettle();
 

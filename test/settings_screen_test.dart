@@ -108,6 +108,34 @@ void main() {
     expect(find.byKey(const Key('rules_try_example')), findsOneWidget);
   });
 
+  testWidgets('floating bubble picker shows and saves all three styles', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1080, 2600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(_host());
+    await openGroup(tester, 'Appearance');
+    await tester.tap(find.text('Floating bubble'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Cool Fox'), findsAtLeastNWidgets(1));
+    expect(find.text('FoxyCo F'), findsAtLeastNWidgets(1));
+    expect(find.text('Fox Paw'), findsAtLeastNWidgets(1));
+
+    await tester.tap(find.text('Fox Paw'));
+    await tester.pumpAndSettle();
+    expect(find.text('Fox Paw'), findsOneWidget);
+    expect(
+      ProviderScope.containerOf(
+        tester.element(find.byType(SettingsScreen)),
+      ).read(settingsProvider).bubbleStyle.name,
+      'foxPaw',
+    );
+  });
+
   testWidgets('live preview examples cycle through OK, BAD, and GOOD', (
     tester,
   ) async {
@@ -139,7 +167,7 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
     await tester.pumpWidget(_rulesHost());
 
-    await openGroup(tester, 'Voice verdict');
+    await openGroup(tester, 'Voice announcements');
     final toggle = find.byKey(const Key('rules_voice_toggle'));
     expect(toggle, findsOneWidget);
     expect(tester.widget<SwitchListTile>(toggle).value, isTrue);
@@ -262,18 +290,10 @@ void main() {
     expect(
       find.descendant(
         of: find.byType(VerdictPill),
-        matching: find.text(r'$1.43'),
+        matching: find.text(r'CA$1.43'),
       ),
       findsOneWidget,
     );
-    expect(
-      find.descendant(
-        of: find.byType(VerdictPill),
-        matching: find.textContaining(r'CA$'),
-      ),
-      findsNothing,
-    );
-
     // Selecting Large re-renders the preview at the large size.
     final smallSize = tester.getSize(find.byType(VerdictPill));
     await tester.tap(find.text('Large'));
@@ -367,7 +387,7 @@ void main() {
     await tester.pumpWidget(_host());
     await tester.pumpAndSettle();
 
-    await openGroup(tester, 'Parser health');
+    await openGroup(tester, 'Offer detection');
     expect(find.text('Pixel Capture (OCR)'), findsOneWidget);
     final toggle = tester.widget<SwitchListTile>(
       find.widgetWithText(SwitchListTile, 'Pixel Capture (OCR)'),
@@ -446,8 +466,8 @@ void main() {
     // Vertical order is the contract — a band header sits above its groups.
     double y(String label) => tester.getTopLeft(find.text(label)).dy;
     expect(y('YOU & YOUR CAR'), lessThan(y('Profile')));
-    expect(y('DIAGNOSTICS'), lessThan(y('Parser health')));
-    expect(y('Parser health'), lessThan(y('Outcome tracking')));
+    expect(y('DIAGNOSTICS'), lessThan(y('Offer detection')));
+    expect(y('Offer detection'), lessThan(y('Outcome tracking')));
     expect(y('LOOK & FEEL'), greaterThan(y('Outcome tracking')));
     expect(y('YOUR DATA'), lessThan(y('History')));
     expect(y('History'), lessThan(y('Logs')));

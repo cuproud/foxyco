@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:foxyco/domain/overlay_action.dart';
+import 'package:foxyco/domain/bubble_style.dart';
 import 'package:foxyco/domain/overlay_payload.dart';
 import 'package:foxyco/domain/offer.dart';
 import 'package:foxyco/domain/platform.dart';
@@ -52,7 +53,10 @@ class _FakeOverlayService implements OverlayService {
   Future<bool> isActive() async => shown.isNotEmpty;
 
   @override
-  Future<void> startWatching({bool paused = false}) async {
+  Future<void> startWatching({
+    bool paused = false,
+    BubbleStyle bubbleStyle = BubbleStyle.coolFox,
+  }) async {
     operations.add('start-begin');
     await startGate?.future;
     watchingStarted = true;
@@ -61,7 +65,10 @@ class _FakeOverlayService implements OverlayService {
   }
 
   @override
-  Future<void> showOffer(OverlayPayload payload) async {
+  Future<void> showOffer(
+    OverlayPayload payload, {
+    BubbleStyle bubbleStyle = BubbleStyle.coolFox,
+  }) async {
     if (throwOnShow) throw StateError('show failed');
     shown.add(payload);
   }
@@ -71,6 +78,8 @@ class _FakeOverlayService implements OverlayService {
 
   @override
   Future<void> setPaused(bool paused) async => pausedCalls.add(paused);
+  @override
+  Future<void> setBubbleStyle(BubbleStyle style) async {}
 
   @override
   Future<void> clearPill() async => clearCount++;

@@ -342,4 +342,4 @@ class VehicleCard extends StatelessWidget {
 
 /// "How to read the pill" legend under the live preview — a quick walkthrough
 /// for new installs. Each row = one colored key + what it means, mirroring the
-/// sample pill exactly (verdict block, green/red pickup km, $/hr).
+/// sample pill exactly (active verdict rate, neutral total distance, GPS target).

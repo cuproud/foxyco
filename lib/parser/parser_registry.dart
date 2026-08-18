@@ -2,6 +2,7 @@ import 'hopp_parser.dart';
 import 'lyft_parser.dart';
 import 'offer_parser.dart';
 import 'uber_parser.dart';
+import '../domain/platform.dart';
 
 /// Maps a foreground Android package name to the parser that reads it.
 ///
@@ -27,6 +28,25 @@ class ParserRegistry {
   static const _uber = UberParser();
   static const _hopp = HoppParser();
   static const _lyft = LyftParser();
+  static const parsers = <OfferParser>[_uber, _hopp, _lyft];
+
+  /// Metadata may list future platforms, but only these have a strict parser
+  /// and current fixtures. Keeping this boundary here prevents a badge or
+  /// toggle from implying detection support by accident.
+  static const supportedPlatforms = <GigPlatform>[
+    GigPlatform.uber,
+    GigPlatform.hopp,
+    GigPlatform.lyft,
+  ];
+
+  static const supportedPackages = <String>[
+    uberPackage,
+    hoppPackage,
+    lyftPackage,
+  ];
+
+  static bool hasParser(GigPlatform platform) =>
+      supportedPlatforms.contains(platform);
 
   /// The parser for a package, or `null` if FoxyCo doesn't handle it.
   OfferParser? forPackage(String? packageName) => switch (packageName) {
@@ -36,7 +56,15 @@ class ParserRegistry {
     _ => null,
   };
 
+  Iterable<OfferParser> candidates(String? packageName) sync* {
+    final foreground = forPackage(packageName);
+    if (foreground != null) yield foreground;
+    for (final parser in parsers) {
+      if (parser != foreground) yield parser;
+    }
+  }
+
   /// Packages FoxyCo watches — handy for wiring the accessibility scope and
   /// asserting the res/xml config stays in sync.
-  static const watchedPackages = [uberPackage, hoppPackage, lyftPackage];
+  static const watchedPackages = supportedPackages;
 }

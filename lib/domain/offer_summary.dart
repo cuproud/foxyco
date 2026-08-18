@@ -1,4 +1,5 @@
 import 'platform.dart';
+import 'scoring_snapshot.dart';
 import 'verdict.dart';
 
 /// What happened to an offer after FoxyCo scored it — inferred from the screen
@@ -9,7 +10,7 @@ import 'verdict.dart';
 ///     took it → [taken].
 /// Automatic values are heuristic (app switch / kill mid-card → [unknown]); a
 /// manual correction is stored separately and wins over later inference.
-enum OfferOutcome { unknown, taken, missed }
+enum OfferOutcome { unknown, taken, missed, cancelled, completed }
 
 /// A scored offer as logged to the offer repository and shown on the dashboard
 /// ("Last offer") and History. Display/persistence view of the richer
@@ -25,6 +26,8 @@ class OfferSummary {
   final DateTime seenAt;
   final OfferOutcome outcome; // inferred take/pass — see [OfferOutcome]
   final bool outcomeIsManual;
+  final OfferOutcome? detectedOutcome;
+  final ScoringSnapshot? scoringSnapshot;
 
   /// Product tier / ride type ("UberX", "Comfort", "Radar match", …) or null.
   /// Display only — see [Offer.category].
@@ -43,6 +46,8 @@ class OfferSummary {
     this.totalMinutes = 0,
     this.outcome = OfferOutcome.unknown,
     this.outcomeIsManual = false,
+    this.detectedOutcome,
+    this.scoringSnapshot,
     this.category,
     this.isQueued = false,
     this.deliveryCount = 0,
@@ -79,6 +84,8 @@ class OfferSummary {
         seenAt: seenAt,
         outcome: o,
         outcomeIsManual: manual,
+        detectedOutcome: manual ? detectedOutcome : (detectedOutcome ?? o),
+        scoringSnapshot: scoringSnapshot,
         category: category,
         isQueued: isQueued,
         deliveryCount: deliveryCount,
@@ -95,6 +102,8 @@ class OfferSummary {
     'seenAt': seenAt.millisecondsSinceEpoch,
     'outcome': outcome.name,
     if (outcomeIsManual) 'outcomeIsManual': true,
+    if (detectedOutcome != null) 'detectedOutcome': detectedOutcome!.name,
+    if (scoringSnapshot != null) 'scoringSnapshot': scoringSnapshot!.toJson(),
     if (category != null) 'category': category,
     if (isQueued) 'isQueued': true,
     if (deliveryCount > 0) 'deliveryCount': deliveryCount,
@@ -120,6 +129,14 @@ class OfferSummary {
         OfferOutcome.values.where((o) => o.name == j['outcome']).firstOrNull ??
         OfferOutcome.unknown,
     outcomeIsManual: j['outcomeIsManual'] == true,
+    detectedOutcome: OfferOutcome.values
+        .where((o) => o.name == j['detectedOutcome'])
+        .firstOrNull,
+    scoringSnapshot: j['scoringSnapshot'] is Map
+        ? ScoringSnapshot.fromJson(
+            Map<String, dynamic>.from(j['scoringSnapshot'] as Map),
+          )
+        : null,
     category: j['category'] is String ? j['category'] as String : null,
     isQueued: j['isQueued'] == true,
     deliveryCount: (j['deliveryCount'] as num?)?.toInt() ?? 0,

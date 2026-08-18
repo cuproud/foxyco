@@ -91,13 +91,13 @@ void main() {
     // to true (plugin channels absent), so the page shows the granted chip.
     await tester.tap(find.text('Next'));
     await tester.pumpAndSettle();
-    expect(find.text('Draw over other apps'), findsOneWidget);
+    expect(find.text('Display over other apps'), findsOneWidget);
     expect(find.text('✅ Granted'), findsOneWidget);
 
     // Page 5 — accessibility grant, with the plain-language disclosure.
     await tester.tap(find.text('Next'));
     await tester.pumpAndSettle();
-    expect(find.text('Read-only offer access'), findsOneWidget);
+    expect(find.text('Offer access'), findsOneWidget);
     expect(find.text('✅ Granted'), findsOneWidget);
     expect(
       find.textContaining('cannot tap, accept, decline'),

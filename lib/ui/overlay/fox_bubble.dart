@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../domain/bubble_style.dart';
+
 /// The resting-state overlay bubble (docs/OVERLAY §bubble).
 ///
 /// When no offer is on screen, FoxyCo collapses to this small fox dot pinned to
@@ -13,6 +15,7 @@ class FoxBubble extends StatelessWidget {
     this.onTap,
     this.onLongPress,
     this.size = 56,
+    this.style = BubbleStyle.coolFox,
   });
 
   /// Paused dims the fox and swaps the ring to a muted state — at a glance you
@@ -21,6 +24,7 @@ class FoxBubble extends StatelessWidget {
   final VoidCallback? onTap;
   final VoidCallback? onLongPress;
   final double size;
+  final BubbleStyle style;
 
   @override
   Widget build(BuildContext context) {
@@ -52,10 +56,12 @@ class FoxBubble extends StatelessWidget {
             ),
             child: ClipOval(
               child: Image.asset(
-                'assets/branding/foxyco_bubble.png',
+                style.assetPath,
                 width: size,
                 height: size,
                 fit: BoxFit.cover, // pre-cropped circular fox badge
+                cacheWidth: (size * MediaQuery.devicePixelRatioOf(context))
+                    .round(),
               ),
             ),
           ),

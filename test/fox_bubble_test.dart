@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:foxyco/domain/bubble_style.dart';
 import 'package:foxyco/ui/overlay/fox_bubble.dart';
 
 Widget _host(Widget child) => MaterialApp(
@@ -50,5 +51,21 @@ void main() {
       ),
     );
     expect(opacity.opacity, 1.0);
+  });
+
+  testWidgets('selected bubble style changes only the artwork asset', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _host(const FoxBubble(paused: false, style: BubbleStyle.foxPaw)),
+    );
+
+    final image = tester.widget<Image>(find.byType(Image));
+    final resized = image.image as ResizeImage;
+    expect(
+      (resized.imageProvider as AssetImage).assetName,
+      BubbleStyle.foxPaw.assetPath,
+    );
+    expect(tester.getSize(find.byType(FoxBubble)), const Size(56, 56));
   });
 }

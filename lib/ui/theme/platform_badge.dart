@@ -3,9 +3,8 @@ import 'package:flutter/material.dart';
 import '../../domain/platform.dart';
 import 'tokens.dart';
 
-/// A lettered roundel (U / L / H) on the platform's brand color (spec M6
-/// §3.3/§5.2). Used in the home hero's watched-apps row and reused by History
-/// (Task 9). [active] dims the badge for platforms that aren't currently live.
+/// A lettered roundel on the canonical platform color. Used wherever a
+/// platform identity is shown; the enum owns the label, initial, and color.
 class PlatformBadge extends StatelessWidget {
   const PlatformBadge({
     super.key,
@@ -18,16 +17,9 @@ class PlatformBadge extends StatelessWidget {
   final double size;
   final bool active;
 
-  /// A getter, not a const map: Uber's roundel flips with the theme.
-  static Map<GigPlatform, Color> get _colors => {
-    GigPlatform.uber: FoxColors.uber,
-    GigPlatform.lyft: FoxColors.lyft,
-    GigPlatform.hopp: FoxColors.hopp,
-  };
-
   @override
   Widget build(BuildContext context) {
-    final color = _colors[platform] ?? FoxColors.textDisabled;
+    final color = Color(platform.colorValue);
     // Contrast against the ROUNDEL, not the page: bgBase resolved to cream in
     // light mode, which put a white letter on Uber's near-white badge (device
     // 2026-07-25). Near-black rather than pure black to match Uber's brand.
@@ -45,7 +37,7 @@ class PlatformBadge extends StatelessWidget {
           shape: BoxShape.circle,
         ),
         child: Text(
-          platform.label[0].toUpperCase(),
+          platform.initial,
           style: TextStyle(
             fontSize: size * 0.5,
             fontWeight: FontWeight.w800,
@@ -54,6 +46,41 @@ class PlatformBadge extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class PlatformBadges extends StatelessWidget {
+  const PlatformBadges({super.key, required this.platforms});
+  final List<GigPlatform> platforms;
+
+  @override
+  Widget build(BuildContext context) {
+    const maxVisible = 4;
+    final visible = platforms.take(maxVisible);
+    final remaining = platforms.length - maxVisible;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (final platform in visible) ...[
+          PlatformBadge(platform: platform),
+          const SizedBox(width: 6),
+        ],
+        if (remaining > 0)
+          CircleAvatar(
+            radius: 11,
+            backgroundColor: FoxColors.textDisabled,
+            child: Text(
+              '+$remaining',
+              style: const TextStyle(fontSize: 9, color: Colors.white),
+            ),
+          ),
+        if (platforms.isEmpty)
+          Text(
+            'No watched apps',
+            style: TextStyle(fontSize: 11, color: FoxColors.textSecondary),
+          ),
+      ],
     );
   }
 }

@@ -30,13 +30,13 @@ class AboutSection {
 
 /// Shown at the top of the screen, above the sections.
 const aboutIntro =
-    'FoxyCo reads offer-related text only in Uber Driver, Lyft Driver and Hopp '
-    'Driver, scores the offer against your settings, and shows a verdict. Raw '
+    'FoxyCo reads offer-related text in your watched gig apps, scores each '
+    'offer against your settings, and shows a verdict. Raw '
     'screen text never leaves your phone, and FoxyCo never touches the offer.';
 
 /// Version string. Kept as a plain const rather than adding a native plugin for
 /// one label; `about_content_test.dart` guards it against `pubspec.yaml` drift.
-const aboutVersion = '1.0.9 (build 40)';
+const aboutVersion = '1.0.9 (build 47)';
 
 const aboutSections = <AboutSection>[
   AboutSection(
@@ -44,8 +44,8 @@ const aboutSections = <AboutSection>[
     entries: [
       AboutEntry(
         'What FoxyCo actually does',
-        'While the watcher is live, FoxyCo uses screen text from Uber Driver, '
-            'Lyft Driver or Hopp Driver only to detect and score offers and, '
+        'While the watcher is live, FoxyCo uses screen text from your enabled '
+            'gig apps only to detect and score offers and, '
             'if enabled, infer whether an offer was taken or passed. It works '
             'out the pay per '
             'kilometre, mile (or per hour, your choice), compares that to your '
@@ -69,11 +69,12 @@ const aboutSections = <AboutSection>[
             'about twenty times apart.',
       ),
       AboutEntry(
-        'Is FoxyCo made by Uber, Lyft or Hopp?',
+        'Is FoxyCo made by a gig platform?',
         'No. FoxyCo is an independent app, not affiliated with, authorised by '
-            'or endorsed by any of them — those are their own companies and '
-            'trademarks. FoxyCo just reads what is already on your screen and '
-            'does the arithmetic you would otherwise do in your head.',
+            'or endorsed by the gig apps it can watch. Their names and '
+            'trademarks belong to their respective companies. FoxyCo just '
+            'reads what is already on your screen and does the arithmetic you '
+            'would otherwise do in your head.',
       ),
       AboutEntry(
         'Does the bubble show on my lock screen?',
@@ -184,8 +185,8 @@ const aboutSections = <AboutSection>[
       AboutEntry(
         'Why does it need the accessibility permission?',
         'It is the only way on Android to read what another app is drawing on '
-            'screen. FoxyCo is read-only and restricted to Uber Driver, Lyft '
-            'Driver and Hopp Driver, so it receives nothing from your browser, '
+            'screen. FoxyCo only reads enabled gig apps, so it receives nothing '
+            'from your browser, '
             'messages, banking apps or other apps. Supporting another driver '
             'app requires a FoxyCo update that explicitly adds it.',
       ),
@@ -214,7 +215,7 @@ const aboutSections = <AboutSection>[
       AboutEntry(
         'The pill never appears',
         'Check both permissions first — Settings shows them at the top, and '
-            'the slide control says "Grant access" when either is missing. '
+            'the slide control says "Offer access required" when setup is incomplete. '
             'FoxyCo needs Accessibility (to read the offer) and Display over '
             'other apps (to draw the pill). Then make sure the watcher is '
             'actually live: the control should read "Live" with a pulsing dot.',
@@ -228,7 +229,7 @@ const aboutSections = <AboutSection>[
       ),
       AboutEntry(
         'One app scores but another never does',
-        'Open Parser health in Settings. If an app shows misses with no '
+        'Open Offer detection in Settings. If an app shows misses with no '
             'successes, that app changed its offer screen and FoxyCo\'s reader '
             'needs updating — nothing you can fix from here, but the counter '
             'confirms it is the reader and not your thresholds.',

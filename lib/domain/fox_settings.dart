@@ -1,5 +1,6 @@
 import 'app_skin.dart';
 import 'app_currency.dart';
+import 'bubble_style.dart';
 import 'distance_unit.dart';
 import 'money_font.dart';
 import 'overlay_payload.dart' show PillSize;
@@ -35,8 +36,8 @@ class FoxSettings {
   /// Minimum payout failures are always BAD; this value is no longer read.
   final Verdict minimumPayoutVerdict;
 
-  /// Pickup distance at or under this (km) is "near" — the pill paints the trip
-  /// km green; over it, red. The driver's dead-mileage guard.
+  /// Pickup distance at or under this (km) makes the pill's GPS target green;
+  /// over it, red. This is informational and does not change the verdict.
   final double pickupNearKm;
 
   /// Which gig apps FoxyCo reads offers from.
@@ -47,6 +48,9 @@ class FoxSettings {
 
   /// Floating pill size.
   final PillSize pillSize;
+
+  /// Artwork shown by the resting floating overlay bubble.
+  final BubbleStyle bubbleStyle;
 
   /// Infer taken/missed outcomes from where the app lands after an offer card
   /// leaves (read-only heuristic). Off = every offer logs as unknown.
@@ -95,6 +99,7 @@ class FoxSettings {
     required this.watchedApps,
     required this.retentionDays,
     required this.pillSize,
+    this.bubbleStyle = BubbleStyle.coolFox,
     required this.trackOutcomes,
     this.voiceVerdictEnabled = true,
     this.announceGoodOffers = true,
@@ -130,6 +135,7 @@ class FoxSettings {
     watchedApps: {GigPlatform.uber, GigPlatform.hopp, GigPlatform.lyft},
     retentionDays: 30,
     pillSize: PillSize.small,
+    bubbleStyle: BubbleStyle.coolFox,
     trackOutcomes: true,
     voiceVerdictEnabled: true,
     announceGoodOffers: true,
@@ -164,6 +170,7 @@ class FoxSettings {
     Set<GigPlatform>? watchedApps,
     int? retentionDays,
     PillSize? pillSize,
+    BubbleStyle? bubbleStyle,
     bool? trackOutcomes,
     bool? voiceVerdictEnabled,
     bool? announceGoodOffers,
@@ -188,6 +195,7 @@ class FoxSettings {
     watchedApps: watchedApps ?? this.watchedApps,
     retentionDays: retentionDays ?? this.retentionDays,
     pillSize: pillSize ?? this.pillSize,
+    bubbleStyle: bubbleStyle ?? this.bubbleStyle,
     trackOutcomes: trackOutcomes ?? this.trackOutcomes,
     voiceVerdictEnabled: voiceVerdictEnabled ?? this.voiceVerdictEnabled,
     announceGoodOffers: announceGoodOffers ?? this.announceGoodOffers,
@@ -217,6 +225,7 @@ class FoxSettings {
     'watchedApps': watchedApps.map((p) => p.name).toList(),
     'retentionDays': retentionDays,
     'pillSize': pillSize.name,
+    'bubbleStyle': bubbleStyle.id,
     'trackOutcomes': trackOutcomes,
     'voiceVerdictEnabled': voiceVerdictEnabled,
     'announceGoodOffers': announceGoodOffers,
@@ -271,6 +280,9 @@ class FoxSettings {
       pillSize:
           PillSize.values.where((s) => s.name == j['pillSize']).firstOrNull ??
           d.pillSize,
+      bubbleStyle: BubbleStyle.fromId(
+        j['bubbleStyle'] is String ? j['bubbleStyle'] as String : null,
+      ),
       trackOutcomes: (j['trackOutcomes'] as bool?) ?? d.trackOutcomes,
       voiceVerdictEnabled:
           (j['voiceVerdictEnabled'] as bool?) ??

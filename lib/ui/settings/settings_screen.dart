@@ -8,11 +8,12 @@ import 'package:share_plus/share_plus.dart';
 
 import '../../domain/app_skin.dart';
 import '../../domain/app_currency.dart';
+import '../../domain/bubble_style.dart';
 import '../../domain/distance_unit.dart';
 import '../../domain/fox_settings.dart';
 import '../../domain/money_font.dart';
 import '../../domain/overlay_payload.dart' show OverlayPayload, PillSize;
-import '../../domain/platform.dart';
+import '../../parser/parser_registry.dart';
 import '../../domain/verdict.dart';
 import '../../services/offer_log.dart';
 import '../../services/parse_health.dart';
@@ -198,7 +199,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         _staggered(
           2,
           SettingsGroup(
-            title: 'Parser health',
+            title: 'Offer detection',
             icon: Icons.monitor_heart_outlined,
             summary: settings.ocrEnabled
                 ? 'This session · OCR enabled'
@@ -211,7 +212,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               children: [
                 Column(
                   children: [
-                    for (final app in GigPlatform.values) ...[
+                    for (final app in ParserRegistry.supportedPlatforms) ...[
                       HealthRow(
                         app: app,
                         watched: settings.watches(app),
@@ -219,7 +220,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                             ref.watch(parseHealthProvider)[app] ??
                             const PlatformHealth(),
                       ),
-                      if (app != GigPlatform.values.last)
+                      if (app != ParserRegistry.supportedPlatforms.last)
                         Divider(color: FoxColors.border, height: Gap.lg),
                     ],
                   ],
@@ -391,6 +392,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         totalKm: 8.4,
                         payout: 12,
                         totalMinutes: 24,
+                        rateMode: settings.rateMode,
                         pickupKm: 2.1,
                         pickupNearKm: 3,
                         hourGoodAt: 30,
@@ -420,13 +422,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             title: 'Appearance',
             icon: Icons.text_fields_rounded,
             summary:
-                '${settings.skin.label} · ${settings.distanceUnit.shortLabel} · ${settings.currency.label}',
+                '${settings.bubbleStyle.label} · ${settings.skin.label} · '
+                '${settings.distanceUnit.shortLabel} · ${settings.currency.label}',
             open: _open == 5,
             accent: _accents[5],
             onTap: () => _toggle(5),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                _BubbleStyleRow(
+                  style: settings.bubbleStyle,
+                  onTap: () => _showBubbleStylePicker(context, controller),
+                ),
+                const SizedBox(height: Gap.lg),
                 Text(
                   'Theme',
                   style: text.titleSmall?.copyWith(
@@ -706,6 +714,22 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     if (yes == true) controller.reset();
   }
 
+  Future<void> _showBubbleStylePicker(
+    BuildContext context,
+    SettingsController controller,
+  ) => showModalBottomSheet<void>(
+    context: context,
+    backgroundColor: Colors.transparent,
+    isScrollControlled: true,
+    builder: (_) => _BubbleStyleSheet(
+      selected: ref.read(settingsProvider).bubbleStyle,
+      onSelected: (style) {
+        controller.setBubbleStyle(style);
+        Navigator.pop(context);
+      },
+    ),
+  );
+
   Future<void> _confirmClear(BuildContext context) async {
     final yes = await showDialog<bool>(
       context: context,
@@ -729,4 +753,194 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
     if (yes == true) ref.read(offerLogProvider.notifier).clearAll();
   }
+}
+
+class _BubbleStyleRow extends StatelessWidget {
+  const _BubbleStyleRow({required this.style, required this.onTap});
+
+  final BubbleStyle style;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    button: true,
+    label: 'Floating bubble, ${style.label}',
+    child: InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(Radii.cardSm),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: Gap.xs),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Floating bubble',
+                    style: Theme.of(context).textTheme.titleSmall,
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Choose the icon shown over other apps',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: FoxColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            _BubblePreview(style: style, size: 38),
+            const SizedBox(width: Gap.xs),
+            Text(
+              style.label,
+              style: TextStyle(fontSize: 12, color: FoxColors.textSecondary),
+            ),
+            const SizedBox(width: Gap.xs),
+            const Icon(Icons.chevron_right_rounded, size: 20),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+class _BubbleStyleSheet extends StatelessWidget {
+  const _BubbleStyleSheet({required this.selected, required this.onSelected});
+
+  final BubbleStyle selected;
+  final ValueChanged<BubbleStyle> onSelected;
+
+  @override
+  Widget build(BuildContext context) => Material(
+    color: FoxColors.bgSurface,
+    borderRadius: const BorderRadius.vertical(top: Radius.circular(Radii.hero)),
+    child: SafeArea(
+      top: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(Gap.md, Gap.md, Gap.md, Gap.sm),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(width: 36, height: 4, color: FoxColors.border),
+            ),
+            const SizedBox(height: Gap.md),
+            Text(
+              'Floating bubble',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            const SizedBox(height: Gap.xs),
+            Text(
+              'Choose what FoxyCo shows over other apps.',
+              style: TextStyle(color: FoxColors.textSecondary),
+            ),
+            const SizedBox(height: Gap.md),
+            LayoutBuilder(
+              builder: (context, constraints) => Wrap(
+                spacing: Gap.sm,
+                runSpacing: Gap.sm,
+                children: [
+                  for (final style in BubbleStyle.values)
+                    SizedBox(
+                      width: (constraints.maxWidth - Gap.sm * 2) / 3,
+                      child: _BubbleStyleOption(
+                        style: style,
+                        selected: style == selected,
+                        onTap: () => onSelected(style),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+class _BubbleStyleOption extends StatelessWidget {
+  const _BubbleStyleOption({
+    required this.style,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final BubbleStyle style;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    button: true,
+    selected: selected,
+    label: style.label,
+    child: InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(Radii.cardSm),
+      child: AnimatedContainer(
+        duration: Motion.base,
+        padding: const EdgeInsets.symmetric(
+          horizontal: Gap.xs,
+          vertical: Gap.sm,
+        ),
+        decoration: BoxDecoration(
+          color: selected ? FoxColors.brandFoxSoft : FoxColors.bgSurface2,
+          borderRadius: BorderRadius.circular(Radii.cardSm),
+          border: Border.all(
+            color: selected ? FoxColors.brandFox : FoxColors.borderSoft,
+            width: selected ? 2 : 1,
+          ),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _BubblePreview(style: style, size: 56),
+            const SizedBox(height: Gap.xs),
+            Text(
+              style.label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: selected
+                    ? FoxColors.textPrimary
+                    : FoxColors.textSecondary,
+              ),
+            ),
+            if (selected)
+              Icon(Icons.check_circle, size: 16, color: FoxColors.brandFox),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+class _BubblePreview extends StatelessWidget {
+  const _BubblePreview({required this.style, required this.size});
+
+  final BubbleStyle style;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    width: size,
+    height: size,
+    decoration: const BoxDecoration(
+      shape: BoxShape.circle,
+      boxShadow: [BoxShadow(color: Color(0x22000000), blurRadius: 4)],
+    ),
+    clipBehavior: Clip.antiAlias,
+    child: Image.asset(
+      style.assetPath,
+      fit: BoxFit.cover,
+      cacheWidth: (size * MediaQuery.devicePixelRatioOf(context)).round(),
+      semanticLabel: style.label,
+    ),
+  );
 }

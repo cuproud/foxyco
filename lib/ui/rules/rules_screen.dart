@@ -9,6 +9,7 @@ import '../../domain/distance_unit.dart';
 import '../../domain/offer.dart';
 import '../../domain/overlay_payload.dart';
 import '../../domain/platform.dart';
+import '../../parser/parser_registry.dart';
 import '../../domain/rate_mode.dart';
 import '../../domain/thresholds.dart';
 import '../../domain/verdict.dart';
@@ -386,8 +387,7 @@ class _RulesScreenState extends ConsumerState<RulesScreen> {
         : switch (sampleVerdict) {
             Verdict.good => 'Above your $money$goodRateText GOOD threshold',
             Verdict.bad => 'Below your $money$badRateText BAD threshold',
-            Verdict.ok =>
-              'Between your $money$badRateText and $money$goodRateText OK range',
+            Verdict.ok => 'Between your GOOD and BAD thresholds',
             Verdict.unknown => 'Rate could not be scored',
           };
     final pickupNear = sampleOffer.pickupKm <= settings.pickupNearKm;
@@ -445,9 +445,7 @@ class _RulesScreenState extends ConsumerState<RulesScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Text(
-                  perHour
-                      ? 'Set the hourly rates you consider GOOD or BAD. Anything in between is OK.'
-                      : 'Set the rates you consider GOOD or BAD. Anything in between is OK.',
+                  'Set the rates for GOOD and BAD. Anything between them is OK.',
                   style: text.bodyMedium?.copyWith(
                     color: FoxColors.textSecondary,
                   ),
@@ -531,7 +529,7 @@ class _RulesScreenState extends ConsumerState<RulesScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  "Extra protection from offers that aren't worth it, even when the rate looks good.",
+                  'Extra protection beyond the normal rate thresholds.',
                   style: text.bodyMedium?.copyWith(
                     color: FoxColors.textSecondary,
                   ),
@@ -546,7 +544,7 @@ class _RulesScreenState extends ConsumerState<RulesScreen> {
                   onChanged: controller.setMinimumPayoutEnabled,
                 ),
                 Text(
-                  'Tiny payouts stay BAD even when the rate looks good.',
+                  'Keeps tiny payouts from becoming GOOD on rate alone.',
                   style: text.bodyMedium?.copyWith(
                     color: FoxColors.textSecondary,
                   ),
@@ -568,7 +566,8 @@ class _RulesScreenState extends ConsumerState<RulesScreen> {
                 Text('Pickup distance', style: text.titleMedium),
                 const SizedBox(height: Gap.xs),
                 Text(
-                  'Highlight pickup distance in the offer pill.',
+                  'Green = within the limit; red = over it. Pickup is '
+                  'informational and does not change GOOD/OK/BAD.',
                   style: text.bodyMedium?.copyWith(
                     color: FoxColors.textSecondary,
                   ),
@@ -583,6 +582,24 @@ class _RulesScreenState extends ConsumerState<RulesScreen> {
                   min: settings.distanceUnit.distanceFromKm(0.5),
                   max: settings.distanceUnit.distanceFromKm(10),
                   unit: settings.distanceUnit.shortLabel,
+                  visualValue: (value) {
+                    final min = settings.distanceUnit.distanceFromKm(0.5);
+                    final max = settings.distanceUnit.distanceFromKm(10);
+                    final fraction = ((value - min) / (max - min)).clamp(
+                      0.0,
+                      1.0,
+                    );
+                    return min + (max - min) * math.sqrt(fraction);
+                  },
+                  actualValue: (visual) {
+                    final min = settings.distanceUnit.distanceFromKm(0.5);
+                    final max = settings.distanceUnit.distanceFromKm(10);
+                    final fraction = ((visual - min) / (max - min)).clamp(
+                      0.0,
+                      1.0,
+                    );
+                    return min + (max - min) * fraction * fraction;
+                  },
                   onChanged: controller.setDisplayedPickupNear,
                 ),
               ],
@@ -705,7 +722,7 @@ class _RulesScreenState extends ConsumerState<RulesScreen> {
                   key: const Key('rules_try_example'),
                   onPressed: () => _tryExample(settings),
                   icon: const Icon(Icons.shuffle_rounded, size: 17),
-                  label: const Text('Try example'),
+                  label: const Text('Try another example'),
                 ),
                 const SizedBox(height: Gap.sm),
                 Text(
@@ -725,12 +742,18 @@ class _RulesScreenState extends ConsumerState<RulesScreen> {
                   ),
                 ),
                 const SizedBox(height: Gap.xs),
-                Text(
-                  rateExplanation,
-                  textAlign: TextAlign.center,
-                  style: text.bodyMedium?.copyWith(
-                    color: FoxColors.textPrimary,
-                    fontWeight: FontWeight.w600,
+                SizedBox(
+                  height: 40,
+                  child: Center(
+                    child: Text(
+                      rateExplanation,
+                      maxLines: 2,
+                      textAlign: TextAlign.center,
+                      style: text.bodyMedium?.copyWith(
+                        color: FoxColors.textPrimary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                   ),
                 ),
                 const SizedBox(height: Gap.xs),
@@ -752,6 +775,7 @@ class _RulesScreenState extends ConsumerState<RulesScreen> {
                         totalKm: sampleOffer.totalKm,
                         payout: sampleOffer.payout,
                         totalMinutes: sampleOffer.totalMinutes,
+                        rateMode: settings.rateMode,
                         size: PillSize.medium,
                         distanceUnit: settings.distanceUnit,
                         currency: settings.currency,
@@ -807,7 +831,7 @@ class _RulesScreenState extends ConsumerState<RulesScreen> {
               type: MaterialType.transparency,
               child: Column(
                 children: [
-                  for (final app in GigPlatform.values) ...[
+                  for (final app in ParserRegistry.supportedPlatforms) ...[
                     SwitchListTile(
                       contentPadding: EdgeInsets.zero,
                       secondary: PlatformBadge(platform: app, size: 22),
@@ -816,7 +840,7 @@ class _RulesScreenState extends ConsumerState<RulesScreen> {
                       activeTrackColor: FoxColors.brandFox,
                       onChanged: (_) => controller.toggleApp(app),
                     ),
-                    if (app != GigPlatform.values.last)
+                    if (app != ParserRegistry.supportedPlatforms.last)
                       Divider(color: FoxColors.border, height: 1),
                   ],
                 ],
@@ -830,7 +854,7 @@ class _RulesScreenState extends ConsumerState<RulesScreen> {
         _row(
           4,
           SettingsGroup(
-            title: 'Voice verdict',
+            title: 'Voice announcements',
             icon: Icons.volume_up_rounded,
             summary: switch ((
               settings.voiceVerdictEnabled,
@@ -852,9 +876,9 @@ class _RulesScreenState extends ConsumerState<RulesScreen> {
                 SwitchListTile(
                   key: const Key('rules_voice_toggle'),
                   contentPadding: EdgeInsets.zero,
-                  title: Text('Voice verdict', style: text.titleMedium),
+                  title: Text('Voice announcements', style: text.titleMedium),
                   subtitle: const Text(
-                    'Hear qualifying offers without looking at the screen.',
+                    'Hear selected verdicts without looking at the screen.',
                   ),
                   value: settings.voiceVerdictEnabled,
                   activeTrackColor: FoxColors.brandFox,
@@ -864,7 +888,7 @@ class _RulesScreenState extends ConsumerState<RulesScreen> {
                 SwitchListTile(
                   key: const Key('rules_voice_good_toggle'),
                   contentPadding: EdgeInsets.zero,
-                  title: Text('Announce GOOD offers', style: text.titleMedium),
+                  title: Text('GOOD offers', style: text.titleMedium),
                   subtitle: const Text('Speak offers FoxyCo rates GOOD.'),
                   value: settings.announceGoodOffers,
                   activeTrackColor: VerdictColors.good,
@@ -875,7 +899,7 @@ class _RulesScreenState extends ConsumerState<RulesScreen> {
                 SwitchListTile(
                   key: const Key('rules_voice_ok_toggle'),
                   contentPadding: EdgeInsets.zero,
-                  title: Text('Announce OK offers', style: text.titleMedium),
+                  title: Text('OK offers', style: text.titleMedium),
                   subtitle: const Text('Also speak offers FoxyCo rates OK.'),
                   value: settings.announceOkOffers,
                   activeTrackColor: VerdictColors.ok,
@@ -887,10 +911,7 @@ class _RulesScreenState extends ConsumerState<RulesScreen> {
                 Row(
                   children: [
                     Expanded(
-                      child: Text(
-                        'Time between announcements',
-                        style: text.titleMedium,
-                      ),
+                      child: Text('Minimum interval', style: text.titleMedium),
                     ),
                     Text(
                       '${settings.voiceCooldownSeconds} sec',

@@ -248,6 +248,7 @@ class ParserPatterns {
             node == 'complete trip',
       );
     }
+    if (platform != GigPlatform.uber) return false;
     final joined = normalized.join(' ');
     final pattern = switch (platform) {
       GigPlatform.lyft => throw StateError('handled above'),
@@ -259,6 +260,9 @@ class ParserPatterns {
         caseSensitive: false,
       ),
       GigPlatform.hopp => throw StateError('handled above'),
+      GigPlatform.uberEats ||
+      GigPlatform.doorDash ||
+      GigPlatform.instacart => RegExp(r'(?!)'),
     };
     return pattern.hasMatch(joined);
   }

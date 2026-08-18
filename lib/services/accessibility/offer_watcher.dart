@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/decision_engine.dart';
 import '../../domain/offer.dart';
 import '../../domain/offer_summary.dart';
+import '../../domain/scoring_snapshot.dart';
 import '../../domain/platform.dart';
 import '../../domain/verdict.dart';
 import '../../parser/offer_parser.dart';
@@ -53,11 +54,8 @@ class OfferWatcher extends Notifier<Offer?> {
   /// Reset when the offer changes or the card is gone.
   String? _shownKey;
   GigPlatform? _shownPlatform;
+  final Set<String> _suppressedKeys = <String>{};
 
-  /// When the current pill was shown, to enforce a minimum visible time
-  /// ([minVisible]) so a card that vanishes almost immediately can't blink the
-  /// pill away before the driver can read it.
-  DateTime? _shownAt;
   bool _confirmedCardLeft = false;
 
   /// Pending "the offer card is gone" clear. Armed only once the card's payout
@@ -65,6 +63,14 @@ class OfferWatcher extends Notifier<Offer?> {
   /// rides out the one-frame gap at a screen transition; any card frame cancels
   /// it.
   Timer? _clearTimer;
+  Timer? _expiryTimer;
+  int _voiceGeneration = 0;
+
+  /// Let the pill show and allow one short run of stabilizing frames before
+  /// speaking. Generation checks suppress queued speech when this offer is
+  /// replaced, cleared, or re-evaluated.
+  @visibleForTesting
+  static Duration voiceStability = const Duration(milliseconds: 100);
 
   /// Outcome inferred from the screen that replaced the card: browse/home/map →
   /// the driver passed ([OfferOutcome.missed]); an explicit in-trip screen →
@@ -94,6 +100,11 @@ class OfferWatcher extends Notifier<Offer?> {
   /// to vanish right away — so a flaky frame can't blink it out before it's
   /// readable, including after a fast accept, decline, dismissal, or timeout.
   /// Mutable for tests.
+  @visibleForTesting
+  static Duration maxVisible = const Duration(seconds: 5);
+
+  /// Legacy test/config name retained for source compatibility. The lifecycle
+  /// is governed by [maxVisible], never by a resettable minimum floor.
   @visibleForTesting
   static Duration minVisible = const Duration(seconds: 5);
 
@@ -144,8 +155,10 @@ class OfferWatcher extends Notifier<Offer?> {
     ref.onDispose(() {
       _sub?.cancel();
       _clearTimer?.cancel();
+      _expiryTimer?.cancel();
       _idleTimer?.cancel();
       _outcomeTimer?.cancel();
+      _voiceGeneration++;
     });
     return null;
   }
@@ -173,6 +186,52 @@ class OfferWatcher extends Notifier<Offer?> {
       '${o.platform.name}|${o.payout}|${o.pickupKm.toStringAsFixed(1)}|'
       '${o.totalKm.toStringAsFixed(1)}|${o.totalMinutes.toStringAsFixed(1)}|'
       '${o.deliveryCount}';
+
+  void _cancelPendingVoice(String reason) {
+    _voiceGeneration++;
+    if (kDebugMode) {
+      debugPrint('FoxyCo[voice] cancelled reason=$reason');
+      ref.read(foxLogProvider).log('voice', 'cancelled reason=$reason');
+    }
+  }
+
+  void _queueVoice({
+    required Future<bool> pillShown,
+    required String key,
+    required GigPlatform platform,
+    required Verdict verdict,
+  }) {
+    final generation = ++_voiceGeneration;
+    if (kDebugMode) {
+      debugPrint('FoxyCo[voice] queued key=$key verdict=$verdict');
+      ref.read(foxLogProvider).log('voice', 'queued key=$key verdict=$verdict');
+    }
+    unawaited(() async {
+      if (!await pillShown) return;
+      await Future<void>.delayed(voiceStability);
+      if (generation != _voiceGeneration ||
+          _shownKey != key ||
+          _shownPlatform != platform ||
+          ref.read(dashboardProvider).status != WatchStatus.watching) {
+        return;
+      }
+      final current = ref.read(settingsProvider);
+      final allowed =
+          current.voiceVerdictEnabled &&
+          ((verdict == Verdict.good && current.announceGoodOffers) ||
+              (verdict == Verdict.ok && current.announceOkOffers));
+      if (!allowed) return;
+      if (kDebugMode) {
+        debugPrint('FoxyCo[voice] speaking key=$key verdict=$verdict');
+        ref
+            .read(foxLogProvider)
+            .log('voice', 'spoken key=$key verdict=$verdict');
+      }
+      await ref
+          .read(verdictVoiceProvider)
+          .speak(verdict, current.voiceCooldownSeconds);
+    }());
+  }
 
   void _onRead(ScreenRead read) {
     // Trace EVERY read so a broken parse is diagnosable from logcat. Debug
@@ -219,23 +278,25 @@ class OfferWatcher extends Notifier<Offer?> {
       }
     } else {
       parser = registry.forPackage(read.packageName);
-      if (parser == null) return; // not an app we read
       final settings = ref.read(settingsProvider);
       if (kDebugMode && settings.ocrEnabled && settings.ocrTestMode) {
-        if (read.isActive && settings.watches(parser.platform)) {
+        if (read.isActive &&
+            parser != null &&
+            settings.watches(parser.platform)) {
           unawaited(_requestOcr(read.packageName));
         }
         return;
       }
       if (read.texts.isEmpty) {
-        ref
-            .read(parseHealthProvider.notifier)
-            .recordTextlessFrame(parser.platform);
+        if (parser != null) {
+          ref
+              .read(parseHealthProvider.notifier)
+              .recordTextlessFrame(parser.platform);
+        }
         if (read.isActive) unawaited(_requestOcr(read.packageName));
         return;
       }
 
-      final packageParser = parser;
       final topIsTerminal =
           ParserPatterns.looksLikeBrowse(read.texts.join(' ')) ||
           GigPlatform.values.any(
@@ -246,19 +307,16 @@ class OfferWatcher extends Notifier<Offer?> {
           ? [read.texts]
           : read.windows.map((window) => window.texts);
       for (final texts in frames) {
-        offer = packageParser.parse(texts);
-        if (offer != null) break;
-        // Uber can draw an offer over Lyft/Hopp while those apps remain active.
-        // Retry only its structurally distinct away/trip grammar.
-        if (packageParser.platform != GigPlatform.uber) {
-          final uber = registry.forPackage(ParserRegistry.uberPackage)!;
-          final uberOffer = uber.parse(texts);
-          if (uberOffer != null) {
-            parser = uber;
-            offer = uberOffer;
+        for (final candidate in registry.candidates(read.packageName)) {
+          if (!settings.watches(candidate.platform)) continue;
+          final parsed = candidate.parse(texts);
+          if (parsed != null) {
+            parser = candidate;
+            offer = parsed;
             break;
           }
         }
+        if (offer != null) break;
       }
     }
     final activeParser = parser;
@@ -345,16 +403,9 @@ class OfferWatcher extends Notifier<Offer?> {
       }
       // Browse/home screen, or a screen with NO card hallmark at all (e.g. an
       // in-trip nav screen after accept). The card is gone → clear. On a browse
-      // screen, still honour [minVisible]: the verdict is useful after a fast
-      // timeout/decline too, and must not blink away before it can be read.
+      // A confirmed action/disappearance clears within the short grace window.
       if (_clearTimer == null) {
-        final shownFor = DateTime.now().difference(_shownAt ?? DateTime.now());
-        final positivelyLeft = accepted || onBrowse;
-        final floorLeft = minVisible - shownFor;
-        final delay = positivelyLeft
-            ? clearGrace
-            : (floorLeft > clearGrace ? floorLeft : clearGrace);
-        _clearTimer = Timer(delay, _clearNow);
+        _clearTimer = Timer(clearGrace, _clearNow);
         if (kDebugMode) {
           debugPrint(
             'FoxyCo[watch] clear armed '
@@ -379,6 +430,7 @@ class OfferWatcher extends Notifier<Offer?> {
     // pill when the offer actually changes; identical re-parses are no-ops.
     final key = _keyFor(offer);
     if (key == _shownKey) return;
+    if (_suppressedKeys.contains(key)) return;
 
     final settings = ref.read(settingsProvider);
     // Driver turned this app off in Settings → ignore its offers entirely.
@@ -391,9 +443,18 @@ class OfferWatcher extends Notifier<Offer?> {
         .scoreOffer(offer, settings);
     if (verdict == Verdict.unknown) return;
 
+    if (_shownKey != null) {
+      _suppressedKeys.add(_shownKey!);
+      _cancelPendingVoice('new offer');
+    }
     _shownKey = key;
     _shownPlatform = offer.platform;
-    _shownAt = DateTime.now();
+    _expiryTimer?.cancel();
+    _expiryTimer = Timer(maxVisible, () {
+      if (_shownKey != key) return;
+      _suppressedKeys.add(key);
+      _clearNow();
+    });
     _touchIdle(offer.platform); // pill is up now — start the silence clock
     state = offer; // expose the latest parsed offer (debug / future tally)
     // A successful parse also proves this platform's selectors still fit —
@@ -426,12 +487,16 @@ class OfferWatcher extends Notifier<Offer?> {
       category: offer.category,
       isQueued: offer.isQueued,
       deliveryCount: offer.deliveryCount,
+      scoringSnapshot: ScoringSnapshot.fromSettings(settings),
     );
     final summary = ref
         .read(offerLogProvider.notifier)
         .record(candidate, confirmedNewCard: _confirmedCardLeft);
     // record() returns the existing row for a duplicate. Announce only when
     // this exact candidate was inserted, never for card flicker/re-parses.
+    final pillShown = ref
+        .read(overlayControllerProvider.notifier)
+        .showFromOffer(offer, verdict);
     if (identical(summary, candidate) &&
         settings.voiceVerdictEnabled &&
         (((settings.announceGoodOffers && verdict == Verdict.good) ||
@@ -439,16 +504,15 @@ class OfferWatcher extends Notifier<Offer?> {
             ref
                 .read(decisionEngineProvider)
                 .qualifiesForVoice(offer, settings, verdict))) {
-      unawaited(
-        ref
-            .read(verdictVoiceProvider)
-            .speak(verdict, settings.voiceCooldownSeconds),
+      _queueVoice(
+        pillShown: pillShown,
+        key: key,
+        platform: offer.platform,
+        verdict: verdict,
       );
     }
     _outcomeCandidates[offer.platform] = summary;
     _confirmedCardLeft = false;
-
-    ref.read(overlayControllerProvider.notifier).showFromOffer(offer, verdict);
   }
 
   Future<void> _requestOcr(String packageName) async {
@@ -626,12 +690,15 @@ class OfferWatcher extends Notifier<Offer?> {
   /// accept usually arrives well after the pill is gone.
   void _clearNow() {
     _clearTimer = null;
+    _expiryTimer?.cancel();
+    _expiryTimer = null;
     _idleTimer?.cancel();
     _idleTimer = null;
     if (_shownKey == null) return;
+    _cancelPendingVoice('offer cleared');
+    _suppressedKeys.add(_shownKey!);
     _shownKey = null;
     _shownPlatform = null;
-    _shownAt = null;
     state = null;
     ref.read(overlayControllerProvider.notifier).clearOffer();
     ref.read(foxLogProvider).log('overlay', 'pill cleared — offer left screen');

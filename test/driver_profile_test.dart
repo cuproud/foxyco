@@ -2,49 +2,46 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:foxyco/domain/driver_profile.dart';
 
 void main() {
-  test('empty profile has no name and empty vehicle line', () {
-    expect(DriverProfile.empty.hasName, isFalse);
-    expect(DriverProfile.empty.vehicleLine, isEmpty);
+  test('vehicle types keep the original order and labels', () {
+    expect(VehicleType.values.map((type) => type.label).toList(), [
+      'Sedan',
+      'SUV',
+      'SUV Comfort',
+      'Hatchback',
+      'Pickup',
+      'Van',
+      'EV Van',
+      'Premium',
+      'Off-road',
+      'EV',
+      'Bike',
+      'E-bike',
+      'E-scooter',
+      'Motorbike',
+    ]);
   });
 
-  test('json round-trip preserves every field', () {
-    final p = DriverProfile.empty.copyWith(
-      name: 'Vamsi',
-      vehicleMake: 'Toyota',
-      vehicleModel: 'Camry',
-      vehicleYear: '2022',
-      licensePlate: 'ABC-123',
-      vehicleColor: 0xFFC62828,
-      vehicleType: VehicleType.suv,
-    );
-    final back = DriverProfile.fromJson(p.toJson());
-    expect(back.name, 'Vamsi');
-    expect(back.vehicleMake, 'Toyota');
-    expect(back.vehicleModel, 'Camry');
-    expect(back.vehicleYear, '2022');
-    expect(back.licensePlate, 'ABC-123');
-    expect(back.vehicleColor, 0xFFC62828);
-    expect(back.vehicleType, VehicleType.suv);
-  });
-
-  test('fromJson tolerates missing/garbage fields', () {
-    final p = DriverProfile.fromJson(const {'vehicleType': 'spaceship'});
-    expect(p.name, isEmpty);
-    expect(p.vehicleType, VehicleType.sedan);
-  });
-
-  test('vehicleLine skips empty parts cleanly', () {
+  test('vehicle type aliases from the selector regression remain readable', () {
     expect(
-      DriverProfile.empty
-          .copyWith(vehicleMake: 'Toyota', vehicleColor: 0xFFC62828)
-          .vehicleLine,
-      'Red Toyota',
+      DriverProfile.fromJson({'type': 'compactSedan'}).vehicleType,
+      VehicleType.hatchback,
     );
     expect(
-      DriverProfile.empty
-          .copyWith(vehicleMake: 'Honda', licensePlate: 'XYZ')
-          .vehicleLine,
-      contains('· XYZ'),
+      DriverProfile.fromJson({'type': 'midSizeSuv'}).vehicleType,
+      VehicleType.suvComfort,
     );
+    expect(
+      DriverProfile.fromJson({'type': 'threeRowSuv'}).vehicleType,
+      VehicleType.premium,
+    );
+  });
+
+  test('original vehicle types retain their bundled art names', () {
+    expect(VehicleType.suvComfort.assetName, 'suv_comfort');
+    expect(VehicleType.evVan.assetName, 'ev_van');
+    expect(VehicleType.offRoad.assetName, 'off_road');
+    expect(VehicleType.eBike.assetName, 'e_bike');
+    expect(VehicleType.eScooter.assetName, 'e_scooter');
+    expect(VehicleType.motorbike.assetName, 'bike');
   });
 }

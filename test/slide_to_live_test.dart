@@ -108,7 +108,7 @@ void main() {
     await tester.pumpWidget(_Harness(key: key, initial: WatchStatus.blocked));
     await tester.pump();
     tester.semantics.performAction(
-      find.semantics.byLabel('Grant access'),
+      find.semantics.byLabel('Offer access required'),
       SemanticsAction.tap,
     );
     await tester.pump();

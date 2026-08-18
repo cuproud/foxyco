@@ -3,6 +3,7 @@ import 'package:foxyco/domain/app_currency.dart';
 import 'package:foxyco/domain/distance_unit.dart';
 import 'package:foxyco/domain/money_font.dart';
 import 'package:foxyco/domain/overlay_payload.dart';
+import 'package:foxyco/domain/rate_mode.dart';
 import 'package:foxyco/domain/verdict.dart';
 
 void main() {
@@ -21,6 +22,7 @@ void main() {
       expect(back.totalKm, 8.4);
       expect(back.payout, 12);
       expect(back.totalMinutes, 24);
+      expect(back.rateMode, RateMode.perKm);
       expect(back.size, PillSize.large);
       expect(back.deliveryCount, 3);
     });
@@ -40,6 +42,19 @@ void main() {
         payout: 12,
       );
       expect(noTime.pricePerHour, 0); // hidden rather than ∞
+    });
+
+    test('active rate mode changes the headline metric and unit', () {
+      const p = OverlayPayload(
+        verdict: Verdict.good,
+        totalKm: 8,
+        payout: 20,
+        totalMinutes: 30,
+        rateMode: RateMode.perHour,
+      );
+      expect(p.displayRate, closeTo(40, 1e-9));
+      expect(p.displayRateUnit, '/hr');
+      expect(OverlayPayload.fromMap(p.toMap()).rateMode, RateMode.perHour);
     });
 
     test('enums cross as stable name strings, not indexes', () {
