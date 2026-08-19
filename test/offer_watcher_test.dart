@@ -136,6 +136,42 @@ const _hoppButtonOnly = ScreenRead(
   texts: ['Accept'],
 );
 
+const _uberA = ScreenRead(
+  packageName: ParserRegistry.uberPackage,
+  texts: [
+    'UberX',
+    r'$10.00',
+    '4 mins (1.0 km) away',
+    '15 mins (4.0 km) trip',
+    'Accept',
+  ],
+  isActive: true,
+);
+
+const _uberB = ScreenRead(
+  packageName: ParserRegistry.uberPackage,
+  texts: [
+    'UberX',
+    r'$4.85',
+    '3 mins (0.8 km) away',
+    '12 mins (3.2 km) trip',
+    'Accept',
+  ],
+  isActive: true,
+);
+
+const _lyftA = ScreenRead(
+  packageName: ParserRegistry.lyftPackage,
+  texts: [r'$10.00', '4 min · 1.0 km', '15 min · 4.0 km', 'Accept'],
+  isActive: true,
+);
+
+const _lyftB = ScreenRead(
+  packageName: ParserRegistry.lyftPackage,
+  texts: [r'$4.85', '3 min · 0.8 km', '12 min · 3.2 km', 'Accept'],
+  isActive: true,
+);
+
 class _GrantedDashboardController extends DashboardController {
   @override
   DashboardState build() => const DashboardState(
@@ -799,6 +835,107 @@ void main() {
     expect(overlay.clears, 0);
     expect(c.read(offerLogProvider).first.platform, GigPlatform.uber);
   });
+
+  test(
+    'same-platform Uber offer replaces within one and three seconds',
+    () async {
+      for (final delay in [
+        const Duration(seconds: 1),
+        const Duration(seconds: 3),
+      ]) {
+        watcher = _FakeWatcher();
+        overlay = _FakeOverlayService();
+        final c = container();
+        c.read(offerWatcherProvider);
+        c.read(overlayControllerProvider);
+
+        watcher.emit(_uberA);
+        await Future<void>.delayed(Duration.zero);
+        await Future<void>.delayed(delay);
+        watcher.emit(_uberB);
+        await Future<void>.delayed(Duration.zero);
+
+        expect(overlay.shown, hasLength(2));
+        expect(overlay.shown.last.payout, 4.85);
+        expect(overlay.clears, 0);
+        expect(c.read(offerWatcherProvider)!.payout, 4.85);
+      }
+    },
+  );
+
+  test(
+    'a previously seen Uber offer can replace a different active offer',
+    () async {
+      final c = container();
+      c.read(offerWatcherProvider);
+      c.read(overlayControllerProvider);
+
+      watcher.emit(_uberB);
+      await Future<void>.delayed(Duration.zero);
+      watcher.emit(_uberA);
+      await Future<void>.delayed(Duration.zero);
+      watcher.emit(_uberB);
+      await Future<void>.delayed(Duration.zero);
+
+      expect(overlay.shown, hasLength(3));
+      expect(overlay.shown.last.payout, 4.85);
+    },
+  );
+
+  test(
+    'materially changed fare, time, or distance replaces the active offer',
+    () async {
+      final c = container();
+      c.read(offerWatcherProvider);
+      c.read(overlayControllerProvider);
+
+      watcher.emit(_uberA);
+      await Future<void>.delayed(Duration.zero);
+      watcher.emit(
+        const ScreenRead(
+          packageName: ParserRegistry.uberPackage,
+          texts: [
+            'UberX',
+            r'$10.00',
+            '4 mins (1.0 km) away',
+            '20 mins (4.0 km) trip',
+            'Accept',
+          ],
+          isActive: true,
+        ),
+      );
+      await Future<void>.delayed(Duration.zero);
+
+      expect(overlay.shown, hasLength(2));
+      expect(overlay.shown.last.totalMinutes, 24);
+    },
+  );
+
+  test(
+    'Uber and Lyft consecutive offers replace in either direction',
+    () async {
+      for (final pair in [
+        (_uberA, _lyftB),
+        (_lyftA, _uberB),
+        (_lyftA, _lyftB),
+      ]) {
+        watcher = _FakeWatcher();
+        overlay = _FakeOverlayService();
+        final c = container();
+        c.read(offerWatcherProvider);
+        c.read(overlayControllerProvider);
+
+        watcher.emit(pair.$1);
+        await Future<void>.delayed(Duration.zero);
+        watcher.emit(pair.$2);
+        await Future<void>.delayed(Duration.zero);
+
+        expect(overlay.shown, hasLength(2));
+        expect(overlay.shown.last.payout, c.read(offerWatcherProvider)!.payout);
+        expect(overlay.clears, 0);
+      }
+    },
+  );
 
   test(
     'does not clear when a non-offer screen was never showing a pill',

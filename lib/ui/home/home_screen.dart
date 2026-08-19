@@ -29,6 +29,7 @@ import 'profile_card.dart';
 import 'recap_widgets.dart';
 import 'shift_recap_sheet.dart';
 import 'slide_to_live.dart';
+import 'update_prompt.dart';
 
 /// Home dashboard (references/foxyco_home_v3.html).
 ///
@@ -68,6 +69,9 @@ class HomeScreen extends ConsumerWidget {
         // Trial countdown / unlock ask / offline-check warning. Zero height when
         // there's nothing to say, which is the normal case.
         const _Padded(child: AccessBanner()),
+        if (state.status != WatchStatus.watching &&
+            state.status != WatchStatus.paused)
+          const _Padded(child: PlayUpdatePrompt()),
         // Hidden (zero-height, incl. its own bottom pad) until a name is set.
         const _Padded(child: ProfileCard()),
         // The car sits on the page itself, full-bleed above the receipt card
@@ -501,12 +505,13 @@ class _Hero extends StatelessWidget {
           const SizedBox(height: Gap.sm + Gap.xs),
           _SegLegend(tally: tally),
           const SizedBox(height: Gap.md),
-          SlideToLive(
-            status: status,
-            onStart: onStart,
-            onStop: onStop,
-            onFix: onFix,
-          ),
+          if (status != WatchStatus.blocked)
+            SlideToLive(
+              status: status,
+              onStart: onStart,
+              onStop: onStop,
+              onFix: onFix,
+            ),
         ],
       ),
     );
@@ -518,6 +523,8 @@ class _TrendChip extends StatelessWidget {
   const _TrendChip({required this.today, required this.yesterday});
   final int today;
   final int yesterday;
+
+  static const _minimumPercentageBaseline = 10;
 
   @override
   Widget build(BuildContext context) {
@@ -546,7 +553,7 @@ class _TrendChip extends StatelessWidget {
     // Percentages with a tiny denominator are technically correct but poor
     // driving UX (for example 6 vs 1 becomes +500%). Keep the raw comparison
     // visible until yesterday has a meaningful activity sample.
-    if (yesterday < 5) {
+    if (yesterday < _minimumPercentageBaseline) {
       final label = diff == 0
           ? 'same as yesterday'
           : diff > 0
@@ -682,7 +689,7 @@ class _CarStatusBarState extends State<_CarStatusBar> {
       WatchStatus.watching => 'Live',
       WatchStatus.paused => 'Paused',
       WatchStatus.stopped => 'Offline',
-      WatchStatus.blocked => 'Access needed',
+      WatchStatus.blocked => 'Offline',
     };
     // Sun by day, moon after dark — the mock's weather glyph, driven by the
     // same clock rather than a forecast we don't have.
@@ -1026,10 +1033,10 @@ class _AccessAlert extends StatelessWidget {
               TextSpan(
                 children: [
                   TextSpan(
-                    text: 'Offer access unavailable. ',
+                    text: 'Offer access is off. ',
                     style: TextStyle(fontWeight: FontWeight.w700),
                   ),
-                  TextSpan(text: "Enable offer access before going live."),
+                  TextSpan(text: 'Tap Fix to enable it.'),
                 ],
                 style: TextStyle(
                   fontSize: 13,
@@ -1215,21 +1222,6 @@ class _SessionCard extends ConsumerWidget {
                 const SizedBox(height: Gap.sm),
                 SessionPerformance(session: s, settings: settings, text: text),
                 const SizedBox(height: Gap.sm),
-                Wrap(
-                  alignment: WrapAlignment.spaceBetween,
-                  runSpacing: Gap.xs,
-                  children: [
-                    PlatformBadges(platforms: s.platforms.toList()),
-                    Text(
-                      '${s.completed} completed · ${s.declined} not taken',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: FoxColors.textSecondary,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: Gap.sm + Gap.xs),
                 IntrinsicHeight(
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.stretch,

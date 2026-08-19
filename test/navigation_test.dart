@@ -137,11 +137,11 @@ void main() {
     final container = scope();
     await pumpShell(tester, container);
 
-    // No section → no jump, no scroll: thresholds stay open as Rules boots and
-    // Watched apps stays shut.
+    // No section → no jump, no scroll: all groups stay shut as Rules boots.
     container.read(tabIndexProvider.notifier).go(1);
     await beat(tester);
     expect(watchedAppSwitches, findsNothing);
+    expect(find.text('GOOD at or above'), findsNothing);
     final list = tester.widget<Scrollable>(find.byType(Scrollable).first);
     expect(list.controller!.offset, 0);
   });

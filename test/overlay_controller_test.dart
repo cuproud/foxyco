@@ -261,6 +261,7 @@ void main() {
 
     final verdicts = fake.shown.map((p) => p.verdict).toSet();
     expect(verdicts.length, 3); // three distinct verdicts seen
+    expect(fake.shown.map((p) => p.pickupIsNear), [true, false, false]);
   });
 
   test('hide() closes the overlay', () async {

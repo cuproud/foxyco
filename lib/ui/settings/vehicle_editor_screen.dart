@@ -31,6 +31,8 @@ class _VehicleEditorScreenState extends ConsumerState<VehicleEditorScreen> {
   late int _color = widget.initial?.colorValue ?? 0xFFF5F5F5;
   late VehicleType _body = widget.initial?.bodyType ?? VehicleType.sedan;
   late FuelType _fuel = widget.initial?.fuelType ?? FuelType.gas;
+  final _colorAnchor = GlobalKey();
+  final _bodyAnchor = GlobalKey();
 
   @override
   void dispose() {
@@ -201,7 +203,7 @@ class _VehicleEditorScreenState extends ConsumerState<VehicleEditorScreen> {
                   onChanged: (_) => setState(() {}),
                   maxLength: 12,
                   decoration: const InputDecoration(
-                    labelText: 'Plate',
+                    labelText: 'Plate · optional',
                     isDense: true,
                     counterText: '',
                   ),
@@ -210,21 +212,42 @@ class _VehicleEditorScreenState extends ConsumerState<VehicleEditorScreen> {
             ],
           ),
           const SizedBox(height: Gap.lg),
-          Text('COLOR', style: text.labelSmall),
-          const SizedBox(height: Gap.sm),
-          _SelectorField(
-            key: const ValueKey('editor-color'),
-            label: DriverProfile.palette[_color] ?? 'Choose color',
-            swatch: Color(_color),
-            onTap: _pickColor,
-          ),
-          const SizedBox(height: Gap.lg),
-          Text('VEHICLE TYPE', style: text.labelSmall),
-          const SizedBox(height: Gap.sm),
-          _SelectorField(
-            key: const ValueKey('editor-body'),
-            label: _body.label,
-            onTap: _pickBody,
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text('Color · optional', style: text.labelSmall),
+                    const SizedBox(height: Gap.sm),
+                    _SelectorField(
+                      key: const ValueKey('editor-color'),
+                      anchorKey: _colorAnchor,
+                      label: DriverProfile.palette[_color] ?? 'Choose color',
+                      swatch: Color(_color),
+                      onTap: _pickColor,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: Gap.sm),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text('Vehicle type', style: text.labelSmall),
+                    const SizedBox(height: Gap.sm),
+                    _SelectorField(
+                      key: const ValueKey('editor-body'),
+                      anchorKey: _bodyAnchor,
+                      label: _body.label,
+                      onTap: _pickBody,
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: Gap.lg),
           Text('FUEL', style: text.labelSmall),
@@ -261,23 +284,62 @@ class _VehicleEditorScreenState extends ConsumerState<VehicleEditorScreen> {
   }
 
   Future<void> _pickColor() async {
-    final picked = await showModalBottomSheet<int>(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      builder: (context) => _ColorSheet(selected: _color),
+    final picked = await _showMenu<int>(
+      anchor: _colorAnchor,
+      items: [
+        for (final entry in DriverProfile.palette.entries)
+          PopupMenuItem(
+            value: entry.key,
+            child: _MenuRow(
+              label: entry.value,
+              swatch: Color(entry.key),
+              selected: entry.key == _color,
+            ),
+          ),
+      ],
     );
     if (picked != null && mounted) setState(() => _color = picked);
   }
 
   Future<void> _pickBody() async {
-    final picked = await showModalBottomSheet<VehicleType>(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      builder: (context) => _VehicleTypeSheet(selected: _body),
+    final picked = await _showMenu<VehicleType>(
+      anchor: _bodyAnchor,
+      items: [
+        for (final type in VehicleType.values)
+          if (type != VehicleType.motorbike || type == _body)
+            PopupMenuItem(
+              value: type,
+              child: _MenuRow(label: type.label, selected: type == _body),
+            ),
+      ],
     );
     if (picked != null && mounted) setState(() => _body = picked);
+  }
+
+  Future<T?> _showMenu<T>({
+    required GlobalKey anchor,
+    required List<PopupMenuEntry<T>> items,
+  }) {
+    FocusScope.of(context).unfocus();
+    final anchorBox = anchor.currentContext!.findRenderObject()! as RenderBox;
+    final overlayBox =
+        Overlay.of(context).context.findRenderObject()! as RenderBox;
+    final topLeft = anchorBox.localToGlobal(Offset.zero, ancestor: overlayBox);
+    final bottomRight = anchorBox.localToGlobal(
+      anchorBox.size.bottomRight(Offset.zero),
+      ancestor: overlayBox,
+    );
+    final rect = Rect.fromPoints(topLeft, bottomRight);
+    return showMenu<T>(
+      context: context,
+      position: RelativeRect.fromRect(rect, Offset.zero & overlayBox.size),
+      constraints: const BoxConstraints(maxWidth: 280, maxHeight: 320),
+      elevation: 8,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(Radii.cardSm),
+      ),
+      items: items,
+    );
   }
 }
 
@@ -286,10 +348,12 @@ class _SelectorField extends StatelessWidget {
     super.key,
     required this.label,
     required this.onTap,
+    required this.anchorKey,
     this.swatch,
   });
   final String label;
   final VoidCallback onTap;
+  final GlobalKey anchorKey;
   final Color? swatch;
 
   @override
@@ -297,6 +361,7 @@ class _SelectorField extends StatelessWidget {
     onTap: onTap,
     borderRadius: BorderRadius.circular(Radii.field),
     child: InputDecorator(
+      key: anchorKey,
       decoration: const InputDecoration(
         isDense: true,
         suffixIcon: Icon(Icons.expand_more),
@@ -311,90 +376,36 @@ class _SelectorField extends StatelessWidget {
             ),
             const SizedBox(width: Gap.sm),
           ],
-          Text(label),
+          Expanded(
+            child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
+          ),
         ],
       ),
     ),
   );
 }
 
-class _ColorSheet extends StatelessWidget {
-  const _ColorSheet({required this.selected});
-  final int selected;
+class _MenuRow extends StatelessWidget {
+  const _MenuRow({required this.label, required this.selected, this.swatch});
+
+  final String label;
+  final bool selected;
+  final Color? swatch;
 
   @override
-  Widget build(BuildContext context) => SafeArea(
-    child: LayoutBuilder(
-      builder: (context, constraints) => ConstrainedBox(
-        constraints: BoxConstraints(
-          maxHeight: (constraints.maxHeight * 0.84).clamp(280.0, 560.0),
+  Widget build(BuildContext context) => Row(
+    children: [
+      if (swatch != null) ...[
+        Container(
+          key: swatch == null ? null : ValueKey('vehicle-color-swatch-$label'),
+          width: 18,
+          height: 18,
+          decoration: BoxDecoration(color: swatch, shape: BoxShape.circle),
         ),
-        child: ListView(
-          shrinkWrap: true,
-          padding: EdgeInsets.fromLTRB(
-            Gap.md,
-            Gap.md,
-            Gap.md,
-            Gap.md + MediaQuery.viewPaddingOf(context).bottom,
-          ),
-          children: [
-            const Text(
-              'Color',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
-            ),
-            for (final entry in DriverProfile.palette.entries)
-              ListTile(
-                leading: CircleAvatar(
-                  backgroundColor: Color(entry.key),
-                  radius: 12,
-                ),
-                title: Text(entry.value),
-                trailing: entry.key == selected
-                    ? const Icon(Icons.check)
-                    : null,
-                onTap: () => Navigator.pop(context, entry.key),
-              ),
-          ],
-        ),
-      ),
-    ),
-  );
-}
-
-class _VehicleTypeSheet extends StatelessWidget {
-  const _VehicleTypeSheet({required this.selected});
-  final VehicleType selected;
-
-  @override
-  Widget build(BuildContext context) => SafeArea(
-    child: LayoutBuilder(
-      builder: (context, constraints) => ConstrainedBox(
-        constraints: BoxConstraints(
-          maxHeight: (constraints.maxHeight * 0.84).clamp(280.0, 560.0),
-        ),
-        child: ListView(
-          shrinkWrap: true,
-          padding: EdgeInsets.fromLTRB(
-            Gap.md,
-            Gap.md,
-            Gap.md,
-            Gap.md + MediaQuery.viewPaddingOf(context).bottom,
-          ),
-          children: [
-            const Text(
-              'Vehicle type',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
-            ),
-            for (final type in VehicleType.values)
-              if (type != VehicleType.motorbike || type == selected)
-                ListTile(
-                  title: Text(type.label),
-                  trailing: type == selected ? const Icon(Icons.check) : null,
-                  onTap: () => Navigator.pop(context, type),
-                ),
-          ],
-        ),
-      ),
-    ),
+        const SizedBox(width: Gap.sm),
+      ],
+      Expanded(child: Text(label)),
+      if (selected) const Icon(Icons.check_rounded, size: 18),
+    ],
   );
 }

@@ -430,7 +430,10 @@ class OfferWatcher extends Notifier<Offer?> {
     // pill when the offer actually changes; identical re-parses are no-ops.
     final key = _keyFor(offer);
     if (key == _shownKey) return;
-    if (_suppressedKeys.contains(key)) return;
+    // Historical suppression only applies after the pill is gone. While a
+    // different offer is active, this is a replacement and must win even if
+    // its fingerprint appeared earlier in the session.
+    if (_shownKey == null && _suppressedKeys.contains(key)) return;
 
     final settings = ref.read(settingsProvider);
     // Driver turned this app off in Settings → ignore its offers entirely.

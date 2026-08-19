@@ -143,7 +143,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                         'Run every verdict free for 7 days. If FoxyCo earns a '
                         'seat in your shift, unlock it with one Google Play '
                         'purchase — no subscription and no monthly meter. One '
-                        'avoided dud offer can cover it.',
+                        'avoided BAD offer can cover it.',
                     footer: _BillingPromise(),
                   ),
                   _GrantPage(

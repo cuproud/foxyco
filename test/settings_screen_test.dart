@@ -92,16 +92,17 @@ void main() {
 
     expect(find.text('My Rules'), findsOneWidget);
 
-    // Core controls are open by default for one-tap access from the nav.
-    expect(find.text('GOOD at or above'), findsOneWidget);
-    expect(find.text('BAD below'), findsOneWidget);
+    // Rules groups start collapsed; the driver chooses what to inspect.
+    expect(find.text('GOOD at or above'), findsNothing);
+    expect(find.text('BAD below'), findsNothing);
+    await openGroup(tester, 'Verdict thresholds');
 
     // Live preview is a separate group; opening it collapses thresholds.
     await openGroup(tester, 'Live preview');
     // Live preview uses the same production pill rendered by the overlay.
     expect(find.byType(VerdictPill), findsOneWidget);
     expect(find.text('GOOD'), findsWidgets);
-    expect(find.text('At or under 2.0 km'), findsOneWidget);
+    expect(find.textContaining('Hourly'), findsOneWidget);
     expect(find.text('Offer price'), findsOneWidget);
     expect(find.text('Pickup'), findsOneWidget);
     expect(find.text('Trip'), findsOneWidget);
@@ -118,16 +119,19 @@ void main() {
 
     await tester.pumpWidget(_host());
     await openGroup(tester, 'Appearance');
-    await tester.tap(find.text('Floating bubble'));
-    await tester.pumpAndSettle();
-
     expect(find.text('Cool Fox'), findsAtLeastNWidgets(1));
-    expect(find.text('FoxyCo F'), findsAtLeastNWidgets(1));
-    expect(find.text('Fox Paw'), findsAtLeastNWidgets(1));
+    expect(find.text('FoxyCo'), findsNothing);
+    expect(find.text('Fox Paw'), findsNothing);
 
-    await tester.tap(find.text('Fox Paw'));
+    await tester.tap(find.byKey(const Key('settings-bubble-style-control')));
     await tester.pumpAndSettle();
+    expect(find.text('Cool Fox'), findsAtLeastNWidgets(2));
+    expect(find.text('FoxyCo'), findsOneWidget);
     expect(find.text('Fox Paw'), findsOneWidget);
+
+    await tester.tap(find.text('Fox Paw').last);
+    await tester.pumpAndSettle();
+    expect(find.text('Fox Paw'), findsAtLeastNWidgets(2));
     expect(
       ProviderScope.containerOf(
         tester.element(find.byType(SettingsScreen)),
@@ -156,6 +160,28 @@ void main() {
     await tester.tap(button);
     await tester.pump();
     expect(find.text('GOOD'), findsWidgets);
+  });
+
+  testWidgets('preview target follows GOOD, OK, and BAD colors', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1080, 2600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(_rulesHost());
+    await openGroup(tester, 'Live preview');
+
+    Color targetColor() =>
+        tester.widget<Icon>(find.byIcon(Icons.gps_fixed_rounded)).color!;
+
+    expect(targetColor(), VerdictColors.good);
+    await tester.tap(find.byKey(const Key('rules_try_example')));
+    await tester.pumpAndSettle();
+    expect(targetColor(), VerdictColors.ok);
+    await tester.tap(find.byKey(const Key('rules_try_example')));
+    await tester.pumpAndSettle();
+    expect(targetColor(), VerdictColors.bad);
   });
 
   testWidgets('voice verdict master dims its child controls when off', (
@@ -190,6 +216,7 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
     await tester.pumpWidget(_rulesHost());
 
+    await openGroup(tester, 'Verdict thresholds');
     expect(find.text('Relaxed'), findsOneWidget);
     await tester.tap(find.text(r'$/hr'));
     await tester.pumpAndSettle();
@@ -290,7 +317,7 @@ void main() {
     expect(
       find.descendant(
         of: find.byType(VerdictPill),
-        matching: find.text(r'CA$1.43'),
+        matching: find.text(r'$1.43'),
       ),
       findsOneWidget,
     );
@@ -318,6 +345,7 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
     await tester.pumpWidget(_host());
     await tester.pumpAndSettle();
+    await openGroup(tester, 'Profile');
 
     final nameField = find.widgetWithText(TextField, 'Name');
     expect(nameField, findsOneWidget);
@@ -389,6 +417,8 @@ void main() {
 
     await openGroup(tester, 'Offer detection');
     expect(find.text('Pixel Capture (OCR)'), findsOneWidget);
+    await tester.tap(find.text('How detection works'));
+    await tester.pumpAndSettle();
     final toggle = tester.widget<SwitchListTile>(
       find.widgetWithText(SwitchListTile, 'Pixel Capture (OCR)'),
     );

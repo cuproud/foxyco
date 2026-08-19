@@ -10,6 +10,18 @@ release worktree. It includes the Comet-informed architecture work, the UI
 walkthrough fixes, bubble appearance customization, and the final voice/pill
 synchronization fix.
 
+## Latest release polish
+
+- Play-managed flexible updates use a compact Home prompt with `Later` and
+  `Update now`, download progress, and `Restart now` after Play reports the
+  update as downloaded. The prompt remains hidden during an active session.
+- The compact verdict pill has stable `$ /km | distance 🎯 | $ /hr` placement
+  across the overlay, previews, and demos; scoring mode still controls the
+  verdict calculation and color only.
+- Home's Last Session card omits detailed outcome and platform rows. Session
+  and platform data remain available in History and session details, while the
+  card keeps its summary and insight metrics.
+
 ## Architecture and platform support
 
 - Platform metadata is extensible and is not the parser capability boundary.
@@ -75,7 +87,7 @@ synchronization fix.
   card spacing.
 - Loading/splash backgrounds follow the system light/dark theme.
 - The floating bubble has one shared overlay implementation with a persisted
-  `BubbleStyle`: Cool Fox (default), FoxyCo F, and Fox Paw. All styles preserve
+  `BubbleStyle`: Cool Fox (default), FoxyCo, and Fox Paw. All styles preserve
   bubble position, footprint, pill anchoring, and lifecycle.
 
 ## Validation

@@ -81,7 +81,7 @@ class _RulesScreenState extends ConsumerState<RulesScreen> {
   var _previewEdited = false;
   var _exampleStep = 0;
   final _random = math.Random();
-  int _open = 0;
+  int _open = -1;
   final _rowKeys = List.generate(5, (_) => GlobalKey());
   late final TextEditingController _payoutController;
   late final TextEditingController _pickupDistanceController;
@@ -390,10 +390,6 @@ class _RulesScreenState extends ConsumerState<RulesScreen> {
             Verdict.ok => 'Between your GOOD and BAD thresholds',
             Verdict.unknown => 'Rate could not be scored',
           };
-    final pickupNear = sampleOffer.pickupKm <= settings.pickupNearKm;
-    final pickupLimit = settings.distanceUnit
-        .distanceFromKm(settings.pickupNearKm)
-        .toStringAsFixed(1);
     final secondaryRate = scoringPerHour
         ? settings.distanceUnit.rateFromPerKm(sampleOffer.pricePerKm)
         : sampleOffer.pricePerHour;
@@ -401,16 +397,12 @@ class _RulesScreenState extends ConsumerState<RulesScreen> {
     final secondaryUnit = scoringPerHour
         ? '/${settings.distanceUnit.shortLabel}'
         : '/hr';
-    final secondaryLabel = scoringPerHour
-        ? '\$/${settings.distanceUnit.shortLabel}'
-        : '\$/hr';
-    final totalDistanceText =
-        '${settings.distanceUnit.distanceFromKm(sampleOffer.totalKm).toStringAsFixed(1)} '
-        '${settings.distanceUnit.shortLabel} total distance';
-    final totalMinutes = sampleOffer.totalMinutes.round();
-    final totalTimeText = totalMinutes >= 60
-        ? '${totalMinutes ~/ 60}h ${totalMinutes % 60} min total time'
-        : '$totalMinutes min total time';
+    final pickupText =
+        'Pickup ${settings.distanceUnit.distanceFromKm(sampleOffer.pickupKm).toStringAsFixed(1)} '
+        '${settings.distanceUnit.shortLabel}';
+    final secondaryDetail = scoringPerHour
+        ? '$pickupText · $money$secondaryRateText$secondaryUnit'
+        : '$pickupText · Hourly $money${sampleOffer.pricePerHour.toStringAsFixed(2)}/hr';
     final text = Theme.of(context).textTheme;
 
     return ListView(
@@ -757,15 +749,6 @@ class _RulesScreenState extends ConsumerState<RulesScreen> {
                   ),
                 ),
                 const SizedBox(height: Gap.xs),
-                Text(
-                  '$totalDistanceText · $totalTimeText',
-                  textAlign: TextAlign.center,
-                  style: text.bodySmall?.copyWith(
-                    color: FoxColors.textSecondary,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: Gap.sm),
                 Center(
                   child: FittedBox(
                     fit: BoxFit.scaleDown,
@@ -784,32 +767,19 @@ class _RulesScreenState extends ConsumerState<RulesScreen> {
                         hourGoodAt: settings.hourThresholds.goodAtOrAbove,
                         hourBadBelow: settings.hourThresholds.badBelow,
                       ),
+                      targetColor: verdictStyle.color,
                       animate: false,
                     ),
                   ),
                 ),
                 const SizedBox(height: Gap.xs),
-                Wrap(
-                  alignment: WrapAlignment.center,
-                  spacing: Gap.sm,
-                  children: [
-                    Text(
-                      '$secondaryLabel $money$secondaryRateText$secondaryUnit',
-                      style: text.bodySmall?.copyWith(
-                        color: FoxColors.textSecondary,
-                      ),
-                    ),
-                    Text(
-                      pickupNear
-                          ? 'At or under $pickupLimit ${settings.distanceUnit.shortLabel}'
-                          : 'Over $pickupLimit ${settings.distanceUnit.shortLabel}',
-                      style: text.bodySmall?.copyWith(
-                        color: pickupNear
-                            ? VerdictColors.good
-                            : VerdictColors.bad,
-                      ),
-                    ),
-                  ],
+                Text(
+                  secondaryDetail,
+                  textAlign: TextAlign.center,
+                  style: text.bodySmall?.copyWith(
+                    color: FoxColors.textSecondary,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ],
             ),
@@ -889,7 +859,7 @@ class _RulesScreenState extends ConsumerState<RulesScreen> {
                   key: const Key('rules_voice_good_toggle'),
                   contentPadding: EdgeInsets.zero,
                   title: Text('GOOD offers', style: text.titleMedium),
-                  subtitle: const Text('Speak offers FoxyCo rates GOOD.'),
+                  subtitle: const Text('Announce offers rated GOOD.'),
                   value: settings.announceGoodOffers,
                   activeTrackColor: VerdictColors.good,
                   onChanged: settings.voiceVerdictEnabled
@@ -900,7 +870,7 @@ class _RulesScreenState extends ConsumerState<RulesScreen> {
                   key: const Key('rules_voice_ok_toggle'),
                   contentPadding: EdgeInsets.zero,
                   title: Text('OK offers', style: text.titleMedium),
-                  subtitle: const Text('Also speak offers FoxyCo rates OK.'),
+                  subtitle: const Text('Also announce offers rated OK.'),
                   value: settings.announceOkOffers,
                   activeTrackColor: VerdictColors.ok,
                   onChanged: settings.voiceVerdictEnabled

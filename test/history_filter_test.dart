@@ -6,6 +6,7 @@ import 'package:foxyco/domain/platform.dart';
 import 'package:foxyco/domain/verdict.dart';
 import 'package:foxyco/services/offer_log.dart';
 import 'package:foxyco/ui/history/history_screen.dart';
+import 'package:foxyco/ui/theme/tokens.dart';
 
 class _FixedLog extends OfferLog {
   _FixedLog(this._offers);
@@ -31,8 +32,9 @@ OfferSummary _offer(
   OfferOutcome outcome = OfferOutcome.unknown,
   double payout = 20,
   Verdict verdict = Verdict.good,
+  GigPlatform platform = GigPlatform.uber,
 }) => OfferSummary(
-  platform: GigPlatform.uber,
+  platform: platform,
   verdict: verdict,
   payout: payout,
   totalKm: 10,
@@ -183,6 +185,70 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('SUMMARY'), findsOneWidget);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('analytical cards use solid surfaces and clear the nav', (
+    tester,
+  ) async {
+    final now = DateTime.now();
+    final offers = [
+      _offer(now, verdict: Verdict.good),
+      _offer(now, verdict: Verdict.ok),
+      _offer(now, verdict: Verdict.bad),
+      _offer(now, verdict: Verdict.good, platform: GigPlatform.lyft),
+    ];
+    await tester.pumpWidget(_app(offers));
+    await tester.pumpAndSettle();
+
+    expect(
+      tester.widget<ListView>(find.byType(ListView)).padding,
+      isA<EdgeInsets>().having((p) => p.bottom, 'bottom', greaterThan(100)),
+    );
+    expect(find.byKey(const Key('history_by_hour')), findsOneWidget);
+    expect(find.byKey(const Key('history_by_app')), findsOneWidget);
+    final byHour = tester.widget<Container>(
+      find.byKey(const Key('history_by_hour')),
+    );
+    expect((byHour.decoration! as BoxDecoration).color, FoxColors.bgSurface);
+    final byApp = tester.widget<Container>(
+      find.byKey(const Key('history_by_app')),
+    );
+    expect((byApp.decoration! as BoxDecoration).color, FoxColors.bgSurface);
+  });
+
+  testWidgets('back to top appears after a long scroll and returns home', (
+    tester,
+  ) async {
+    final now = DateTime.now();
+    final offers = List.generate(
+      80,
+      (index) => _offer(
+        now.subtract(Duration(minutes: index)),
+        payout: 20 + index.toDouble(),
+      ),
+    );
+    await tester.pumpWidget(_app(offers));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('history_back_to_top')), findsNothing);
+    await tester.drag(find.byType(ListView), const Offset(0, -120));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('history_back_to_top')), findsNothing);
+
+    await tester.drag(find.byType(ListView), const Offset(0, -1200));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('history_back_to_top')), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('history_back_to_top')));
+    await tester.pumpAndSettle();
+    expect(
+      tester
+          .widget<Scrollable>(find.byType(Scrollable).first)
+          .controller!
+          .offset,
+      0,
+    );
+    expect(find.byKey(const ValueKey('history_back_to_top')), findsNothing);
   });
 
   testWidgets('filter summary follows the fare floor', (tester) async {

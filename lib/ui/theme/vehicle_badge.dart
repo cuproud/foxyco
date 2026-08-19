@@ -88,12 +88,9 @@ class VehicleBadge extends StatelessWidget {
                     shape: BoxShape.circle,
                     border: Border.all(color: FoxColors.border),
                   ),
-                  child: Icon(
-                    fuelType == FuelType.ev
-                        ? Icons.bolt_rounded
-                        : Icons.recycling_rounded,
+                  child: _FuelBadgeIcon(
+                    fuelType: fuelType,
                     size: (ref * 0.22).clamp(12.0, 26.0),
-                    color: VerdictColors.good,
                   ),
                 ),
               ),
@@ -103,6 +100,47 @@ class VehicleBadge extends StatelessWidget {
             ? stack
             : SizedBox(width: size, height: size, child: stack);
       },
+    );
+  }
+}
+
+class _FuelBadgeIcon extends StatelessWidget {
+  const _FuelBadgeIcon({required this.fuelType, required this.size});
+
+  final FuelType fuelType;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    if (fuelType == FuelType.ev) {
+      return Icon(Icons.bolt_rounded, size: size, color: VerdictColors.good);
+    }
+
+    // Battery + leaf reads as hybrid powertrain without using the recycling
+    // symbol, which implies recyclable materials rather than a vehicle type.
+    return SizedBox.square(
+      dimension: size,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Center(
+            child: Icon(
+              Icons.battery_charging_full_rounded,
+              size: size,
+              color: VerdictColors.good,
+            ),
+          ),
+          Positioned(
+            right: -1,
+            bottom: -1,
+            child: Icon(
+              Icons.eco_rounded,
+              size: size * 0.55,
+              color: VerdictColors.good,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

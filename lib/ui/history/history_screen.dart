@@ -61,6 +61,9 @@ String _outcomeLabel(HistoryOutcomeFilter value) => switch (value) {
 };
 
 class _HistoryScreenState extends ConsumerState<HistoryScreen> {
+  static const _bottomNavClearance = 112.0;
+  ScrollController? _scrollController;
+  bool _showBackToTop = false;
   HistoryRange _range = HistoryRange.today;
   final Set<GigPlatform?> _apps = {null}; // null == "All"
   final Set<Verdict?> _verdicts = {null}; // null == "All"
@@ -68,6 +71,37 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
   bool _filtersExpanded = false;
   bool _topOnly = false;
   int _minFare = 20;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final next = PrimaryScrollController.maybeOf(context);
+    if (next == _scrollController) return;
+    _scrollController?.removeListener(_handleScroll);
+    _scrollController = next;
+    _scrollController?.addListener(_handleScroll);
+  }
+
+  @override
+  void dispose() {
+    _scrollController?.removeListener(_handleScroll);
+    super.dispose();
+  }
+
+  void _handleScroll() {
+    final controller = _scrollController;
+    if (controller == null || !controller.hasClients) return;
+    final threshold = MediaQuery.sizeOf(context).height * 1.1;
+    final next = controller.offset > threshold;
+    if (next == _showBackToTop || !mounted) return;
+    setState(() => _showBackToTop = next);
+  }
+
+  void _backToTop() {
+    final controller = _scrollController;
+    if (controller == null || !controller.hasClients) return;
+    controller.animateTo(0, duration: Motion.morph, curve: Motion.curve);
+  }
 
   int _daysAgo(DateTime t) =>
       DateTime.now().difference(DateTime(t.year, t.month, t.day)).inDays;
@@ -127,73 +161,121 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
       );
     final stats = OfferStats.from(filtered);
 
-    return ListView(
-      // 100 clears the floating nav; add the gesture-bar inset like Home does
-      // (fixed 100 clipped the last card on gesture-nav phones).
-      padding: EdgeInsets.fromLTRB(
-        Gap.md,
-        Gap.sm,
-        Gap.md,
-        100 + MediaQuery.of(context).padding.bottom,
-      ),
+    return Stack(
       children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.baseline,
-          textBaseline: TextBaseline.alphabetic,
+        ListView(
+          // 100 clears the floating nav; add the gesture-bar inset like Home does
+          // (fixed 100 clipped the last card on gesture-nav phones).
+          padding: EdgeInsets.fromLTRB(
+            Gap.md,
+            Gap.sm,
+            Gap.md,
+            _bottomNavClearance + MediaQuery.of(context).padding.bottom,
+          ),
           children: [
-            Text('History', style: Theme.of(context).textTheme.headlineMedium),
-            const Spacer(),
-            Text(
-              HistoryScreen.headerLabel(stats.total, _range),
-              style: TextStyle(
-                fontSize: 12.5,
-                fontWeight: FontWeight.w600,
-                color: FoxColors.textDisabled,
-                fontFeatures: [FontFeature.tabularFigures()],
-              ),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.baseline,
+              textBaseline: TextBaseline.alphabetic,
+              children: [
+                Text(
+                  'History',
+                  style: Theme.of(context).textTheme.headlineMedium,
+                ),
+                const Spacer(),
+                Text(
+                  HistoryScreen.headerLabel(stats.total, _range),
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w600,
+                    color: FoxColors.textDisabled,
+                    fontFeatures: [FontFeature.tabularFigures()],
+                  ),
+                ),
+              ],
             ),
+            const SizedBox(height: Gap.md),
+            _FiltersCard(
+              expanded: _filtersExpanded,
+              range: _range,
+              apps: _apps,
+              verdicts: _verdicts,
+              availableApps: availableApps,
+              outcome: _outcome,
+              topOnly: _topOnly,
+              minFare: _minFare,
+              matchCount: stats.total,
+              onRange: (range) => setState(() {
+                _range = range;
+                if (range == HistoryRange.all) _resetFilters();
+              }),
+              onApp: _toggleApp,
+              onVerdict: _toggleVerdict,
+              onOutcome: (outcome) => setState(() => _outcome = outcome),
+              onTopToggle: () => setState(() => _topOnly = !_topOnly),
+              onFare: (d) =>
+                  setState(() => _minFare = (_minFare + d).clamp(0, 100)),
+              onReset: () => setState(_resetFilters),
+              onToggle: () =>
+                  setState(() => _filtersExpanded = !_filtersExpanded),
+            ),
+            const SizedBox(height: Gap.md),
+            const SizedBox(height: Gap.lg),
+            if (filtered.isEmpty)
+              _Empty(
+                hiddenCount: all.length,
+                onShowAll: all.isEmpty ? null : () => setState(_resetFilters),
+              )
+            else ...[
+              _StatsCard(stats: stats),
+              const SizedBox(height: Gap.sm),
+              _HourlyChart(offers: filtered),
+              const SizedBox(height: Gap.sm),
+              _AppVerdictChart(offers: filtered),
+              const SizedBox(height: Gap.lg),
+              ..._grouped(filtered),
+            ],
           ],
         ),
-        const SizedBox(height: Gap.md),
-        _FiltersCard(
-          expanded: _filtersExpanded,
-          range: _range,
-          apps: _apps,
-          verdicts: _verdicts,
-          availableApps: availableApps,
-          outcome: _outcome,
-          topOnly: _topOnly,
-          minFare: _minFare,
-          matchCount: stats.total,
-          onRange: (range) => setState(() {
-            _range = range;
-            if (range == HistoryRange.all) _resetFilters();
-          }),
-          onApp: _toggleApp,
-          onVerdict: _toggleVerdict,
-          onOutcome: (outcome) => setState(() => _outcome = outcome),
-          onTopToggle: () => setState(() => _topOnly = !_topOnly),
-          onFare: (d) =>
-              setState(() => _minFare = (_minFare + d).clamp(0, 100)),
-          onReset: () => setState(_resetFilters),
-          onToggle: () => setState(() => _filtersExpanded = !_filtersExpanded),
+        Positioned(
+          right: Gap.md,
+          bottom: MediaQuery.of(context).padding.bottom + 76,
+          child: AnimatedSwitcher(
+            duration: Motion.base,
+            switchInCurve: Motion.curve,
+            switchOutCurve: Motion.curve,
+            transitionBuilder: (child, animation) => FadeTransition(
+              opacity: animation,
+              child: ScaleTransition(scale: animation, child: child),
+            ),
+            child: _showBackToTop
+                ? Semantics(
+                    key: const ValueKey('history_back_to_top_semantics'),
+                    button: true,
+                    label: 'Back to top',
+                    child: Material(
+                      color: FoxColors.bgSurface,
+                      shape: const CircleBorder(),
+                      elevation: 3,
+                      child: IconButton(
+                        key: const ValueKey('history_back_to_top'),
+                        tooltip: 'Back to top',
+                        onPressed: _backToTop,
+                        icon: const Icon(Icons.arrow_upward_rounded),
+                        color: FoxColors.brandFox,
+                        constraints: const BoxConstraints.tightFor(
+                          width: 48,
+                          height: 48,
+                        ),
+                      ),
+                    ),
+                  )
+                : const SizedBox(
+                    key: ValueKey('history_back_to_top_hidden'),
+                    width: 48,
+                    height: 48,
+                  ),
+          ),
         ),
-        const SizedBox(height: Gap.md),
-        const SizedBox(height: Gap.lg),
-        if (filtered.isEmpty)
-          _Empty(
-            hiddenCount: all.length,
-            onShowAll: all.isEmpty ? null : () => setState(_resetFilters),
-          )
-        else ...[
-          _StatsCard(stats: stats),
-          const SizedBox(height: Gap.sm),
-          _HourlyChart(offers: filtered),
-          const SizedBox(height: Gap.sm),
-          _AppVerdictChart(offers: filtered),
-          const SizedBox(height: Gap.lg),
-          ..._grouped(filtered),
-        ],
       ],
     );
   }
@@ -1031,6 +1113,7 @@ class _HourlyChart extends StatelessWidget {
 
     const chartH = 56.0;
     return Container(
+      key: const Key('history_by_hour'),
       padding: const EdgeInsets.fromLTRB(
         Gap.md + Gap.xs,
         Gap.md,
@@ -1038,7 +1121,7 @@ class _HourlyChart extends StatelessWidget {
         Gap.sm + Gap.xs,
       ),
       decoration: BoxDecoration(
-        color: FoxColors.bgSurface2.withValues(alpha: 0.28),
+        color: FoxColors.bgSurface,
         borderRadius: BorderRadius.circular(Radii.card),
         border: Border.all(color: FoxColors.borderSoft),
       ),
@@ -1193,6 +1276,7 @@ class _AppVerdictChart extends StatelessWidget {
     }
 
     return Container(
+      key: const Key('history_by_app'),
       padding: const EdgeInsets.fromLTRB(
         Gap.md + Gap.xs,
         Gap.md,
@@ -1200,7 +1284,7 @@ class _AppVerdictChart extends StatelessWidget {
         Gap.md,
       ),
       decoration: BoxDecoration(
-        color: FoxColors.bgSurface2.withValues(alpha: 0.28),
+        color: FoxColors.bgSurface,
         borderRadius: BorderRadius.circular(Radii.card),
         border: Border.all(color: FoxColors.borderSoft),
       ),

@@ -52,8 +52,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     FoxColors.brandFox,
   ];
 
-  /// Single-open accordion index (-1 = all collapsed); Profile opens by default.
-  int _open = 0;
+  /// Single-open accordion index (-1 = all collapsed).
+  int _open = -1;
+  bool _bubbleStylesOpen = false;
   void _toggle(int i) => setState(() => _open = _open == i ? -1 : i);
 
   Future<void> _setOcrEnabled(bool enabled) async {
@@ -228,8 +229,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 const SizedBox(height: Gap.sm),
                 Text(
                   'This session. "Needs update" means offer cards are arriving '
-                  'but FoxyCo can\'t read them — the app\'s layout likely '
-                  'changed.',
+                  'but FoxyCo can\'t read them.',
                   style: text.bodyMedium?.copyWith(
                     color: FoxColors.textSecondary,
                   ),
@@ -252,53 +252,62 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     onChanged: _setOcrEnabled,
                   ),
                 ),
-                Text(
-                  'Accessibility stays primary. On Android 11 and newer, FoxyCo '
-                  'can take one screenshot only when a readable offer frame is '
-                  'missing. Recognition stays on-device; screenshots are never '
-                  'saved.',
-                  style: text.bodyMedium?.copyWith(
-                    fontSize: 12,
-                    height: 1.45,
-                    color: FoxColors.textSecondary,
-                  ),
+                ExpansionTile(
+                  tilePadding: EdgeInsets.zero,
+                  childrenPadding: EdgeInsets.zero,
+                  title: const Text('How detection works'),
+                  children: [
+                    Text(
+                      'Accessibility stays primary. On Android 11 and newer, '
+                      'FoxyCo can take one screenshot only when a readable '
+                      'offer frame is missing. Recognition stays on-device; '
+                      'screenshots are never saved. "Needs update" usually '
+                      'means the app layout changed.',
+                      style: text.bodyMedium?.copyWith(
+                        fontSize: 12,
+                        height: 1.45,
+                        color: FoxColors.textSecondary,
+                      ),
+                    ),
+                    if (kDebugMode) ...[
+                      Divider(color: FoxColors.border, height: Gap.xl),
+                      Material(
+                        type: MaterialType.transparency,
+                        child: SwitchListTile(
+                          key: const Key('ocr_test_mode_toggle'),
+                          contentPadding: EdgeInsets.zero,
+                          secondary: Icon(
+                            Icons.science_outlined,
+                            color: FoxColors.brandFox,
+                          ),
+                          title: Text(
+                            'Force OCR test mode',
+                            style: text.titleMedium,
+                          ),
+                          subtitle: const Text(
+                            'Debug only · bypasses Accessibility text for testing',
+                          ),
+                          value: settings.ocrTestMode,
+                          activeTrackColor: FoxColors.brandFox,
+                          onChanged: settings.ocrEnabled
+                              ? controller.setOcrTestMode
+                              : null,
+                        ),
+                      ),
+                      Text(
+                        'Accessibility remains enabled because its active-app '
+                        'events trigger each screenshot. This mode resets '
+                        'after an app restart and is unavailable in release '
+                        'builds.',
+                        style: text.bodyMedium?.copyWith(
+                          fontSize: 12,
+                          height: 1.45,
+                          color: FoxColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
-                if (kDebugMode) ...[
-                  Divider(color: FoxColors.border, height: Gap.xl),
-                  Material(
-                    type: MaterialType.transparency,
-                    child: SwitchListTile(
-                      key: const Key('ocr_test_mode_toggle'),
-                      contentPadding: EdgeInsets.zero,
-                      secondary: Icon(
-                        Icons.science_outlined,
-                        color: FoxColors.brandFox,
-                      ),
-                      title: Text(
-                        'Force OCR test mode',
-                        style: text.titleMedium,
-                      ),
-                      subtitle: const Text(
-                        'Debug only · bypasses Accessibility text for testing',
-                      ),
-                      value: settings.ocrTestMode,
-                      activeTrackColor: FoxColors.brandFox,
-                      onChanged: settings.ocrEnabled
-                          ? controller.setOcrTestMode
-                          : null,
-                    ),
-                  ),
-                  Text(
-                    'Accessibility remains enabled because its active-app '
-                    'events trigger each screenshot. This mode resets after an '
-                    'app restart and is unavailable in release builds.',
-                    style: text.bodyMedium?.copyWith(
-                      fontSize: 12,
-                      height: 1.45,
-                      color: FoxColors.textSecondary,
-                    ),
-                  ),
-                ],
               ],
             ),
           ),
@@ -320,29 +329,31 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   type: MaterialType.transparency,
                   child: SwitchListTile(
                     contentPadding: EdgeInsets.zero,
-                    title: Text(
-                      'Guess taken / passed',
-                      style: text.titleMedium,
-                    ),
+                    title: Text('Auto-detect outcome', style: text.titleMedium),
                     value: settings.trackOutcomes,
                     activeTrackColor: FoxColors.brandFox,
                     onChanged: controller.setTrackOutcomes,
                   ),
                 ),
                 const SizedBox(height: Gap.xs),
-                Text(
-                  'After an offer card disappears, FoxyCo guesses what '
-                  'happened from the screen that replaced it: back to the '
-                  'map means you passed, a pickup screen means you took '
-                  'it. It\'s an estimate — shown as ✓/✕ in History and '
-                  'never 100% certain. FoxyCo only reads the screen; it '
-                  'never taps or accepts anything for you. Turn this off '
-                  'and offers are logged without a taken/passed mark.',
-                  style: text.bodyMedium?.copyWith(
-                    fontSize: 12,
-                    height: 1.45,
-                    color: FoxColors.textSecondary,
-                  ),
+                ExpansionTile(
+                  tilePadding: EdgeInsets.zero,
+                  childrenPadding: EdgeInsets.zero,
+                  title: const Text('How it works'),
+                  children: [
+                    Text(
+                      'FoxyCo estimates whether an offer was taken or passed '
+                      'from the screen that replaces it. It may occasionally '
+                      'be wrong. Manually corrected outcomes remain '
+                      'authoritative. FoxyCo only reads the screen; it never '
+                      'taps or accepts anything for you.',
+                      style: text.bodyMedium?.copyWith(
+                        fontSize: 12,
+                        height: 1.45,
+                        color: FoxColors.textSecondary,
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -432,9 +443,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               children: [
                 _BubbleStyleRow(
                   style: settings.bubbleStyle,
-                  onTap: () => _showBubbleStylePicker(context, controller),
+                  expanded: _bubbleStylesOpen,
+                  onTap: () =>
+                      setState(() => _bubbleStylesOpen = !_bubbleStylesOpen),
                 ),
-                const SizedBox(height: Gap.lg),
+                if (_bubbleStylesOpen) ...[
+                  const SizedBox(height: Gap.xs),
+                  _BubbleStyleChoices(
+                    selected: settings.bubbleStyle,
+                    onSelected: controller.setBubbleStyle,
+                  ),
+                ],
+                const SizedBox(height: Gap.md),
                 Text(
                   'Theme',
                   style: text.titleSmall?.copyWith(
@@ -714,22 +734,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     if (yes == true) controller.reset();
   }
 
-  Future<void> _showBubbleStylePicker(
-    BuildContext context,
-    SettingsController controller,
-  ) => showModalBottomSheet<void>(
-    context: context,
-    backgroundColor: Colors.transparent,
-    isScrollControlled: true,
-    builder: (_) => _BubbleStyleSheet(
-      selected: ref.read(settingsProvider).bubbleStyle,
-      onSelected: (style) {
-        controller.setBubbleStyle(style);
-        Navigator.pop(context);
-      },
-    ),
-  );
-
   Future<void> _confirmClear(BuildContext context) async {
     final yes = await showDialog<bool>(
       context: context,
@@ -756,109 +760,109 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 }
 
 class _BubbleStyleRow extends StatelessWidget {
-  const _BubbleStyleRow({required this.style, required this.onTap});
+  const _BubbleStyleRow({
+    required this.style,
+    required this.expanded,
+    required this.onTap,
+  });
 
   final BubbleStyle style;
+  final bool expanded;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) => Semantics(
+    container: true,
     button: true,
+    expanded: expanded,
     label: 'Floating bubble, ${style.label}',
-    child: InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(Radii.cardSm),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: Gap.xs),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Floating bubble',
-                    style: Theme.of(context).textTheme.titleSmall,
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text('Floating bubble', style: Theme.of(context).textTheme.titleSmall),
+        const SizedBox(height: 2),
+        Text(
+          'Icon shown over apps',
+          style: TextStyle(fontSize: 12, color: FoxColors.textSecondary),
+        ),
+        const SizedBox(height: Gap.xs),
+        Material(
+          color: Colors.transparent,
+          child: Ink(
+            decoration: BoxDecoration(
+              color: FoxColors.bgSurface2,
+              borderRadius: BorderRadius.circular(Radii.cardSm),
+              border: Border.all(color: FoxColors.borderSoft),
+            ),
+            child: InkWell(
+              key: const Key('settings-bubble-style-control'),
+              onTap: onTap,
+              borderRadius: BorderRadius.circular(Radii.cardSm),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(minHeight: 48),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: Gap.sm,
+                    vertical: Gap.xs,
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    'Choose the icon shown over other apps',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: FoxColors.textSecondary,
-                    ),
+                  child: Row(
+                    children: [
+                      _BubblePreview(style: style, size: 34),
+                      const SizedBox(width: Gap.sm),
+                      Expanded(
+                        child: Text(
+                          style.label,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w700,
+                            color: FoxColors.textPrimary,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: Gap.xs),
+                      AnimatedRotation(
+                        turns: expanded ? 0.5 : 0,
+                        duration: Motion.base,
+                        child: Icon(
+                          Icons.keyboard_arrow_down_rounded,
+                          size: 20,
+                          color: FoxColors.textSecondary,
+                        ),
+                      ),
+                    ],
                   ),
-                ],
+                ),
               ),
             ),
-            _BubblePreview(style: style, size: 38),
-            const SizedBox(width: Gap.xs),
-            Text(
-              style.label,
-              style: TextStyle(fontSize: 12, color: FoxColors.textSecondary),
-            ),
-            const SizedBox(width: Gap.xs),
-            const Icon(Icons.chevron_right_rounded, size: 20),
-          ],
+          ),
         ),
-      ),
+      ],
     ),
   );
 }
 
-class _BubbleStyleSheet extends StatelessWidget {
-  const _BubbleStyleSheet({required this.selected, required this.onSelected});
+class _BubbleStyleChoices extends StatelessWidget {
+  const _BubbleStyleChoices({required this.selected, required this.onSelected});
 
   final BubbleStyle selected;
   final ValueChanged<BubbleStyle> onSelected;
 
   @override
-  Widget build(BuildContext context) => Material(
-    color: FoxColors.bgSurface,
-    borderRadius: const BorderRadius.vertical(top: Radius.circular(Radii.hero)),
-    child: SafeArea(
-      top: false,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(Gap.md, Gap.md, Gap.md, Gap.sm),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(width: 36, height: 4, color: FoxColors.border),
-            ),
-            const SizedBox(height: Gap.md),
-            Text(
-              'Floating bubble',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            const SizedBox(height: Gap.xs),
-            Text(
-              'Choose what FoxyCo shows over other apps.',
-              style: TextStyle(color: FoxColors.textSecondary),
-            ),
-            const SizedBox(height: Gap.md),
-            LayoutBuilder(
-              builder: (context, constraints) => Wrap(
-                spacing: Gap.sm,
-                runSpacing: Gap.sm,
-                children: [
-                  for (final style in BubbleStyle.values)
-                    SizedBox(
-                      width: (constraints.maxWidth - Gap.sm * 2) / 3,
-                      child: _BubbleStyleOption(
-                        style: style,
-                        selected: style == selected,
-                        onTap: () => onSelected(style),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          ],
+  Widget build(BuildContext context) => Row(
+    children: [
+      for (final style in BubbleStyle.values) ...[
+        Expanded(
+          child: _BubbleStyleOption(
+            style: style,
+            selected: style == selected,
+            onTap: () => onSelected(style),
+          ),
         ),
-      ),
-    ),
+        if (style != BubbleStyle.values.last) const SizedBox(width: Gap.sm),
+      ],
+    ],
   );
 }
 
@@ -888,17 +892,21 @@ class _BubbleStyleOption extends StatelessWidget {
           vertical: Gap.sm,
         ),
         decoration: BoxDecoration(
-          color: selected ? FoxColors.brandFoxSoft : FoxColors.bgSurface2,
+          color: selected
+              ? FoxColors.brandFox.withValues(alpha: 0.08)
+              : FoxColors.bgSurface2,
           borderRadius: BorderRadius.circular(Radii.cardSm),
           border: Border.all(
-            color: selected ? FoxColors.brandFox : FoxColors.borderSoft,
-            width: selected ? 2 : 1,
+            color: selected
+                ? FoxColors.brandFox.withValues(alpha: 0.75)
+                : FoxColors.borderSoft,
+            width: selected ? 1.5 : 1,
           ),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            _BubblePreview(style: style, size: 56),
+            _BubblePreview(style: style, size: 48),
             const SizedBox(height: Gap.xs),
             Text(
               style.label,
@@ -913,7 +921,7 @@ class _BubbleStyleOption extends StatelessWidget {
               ),
             ),
             if (selected)
-              Icon(Icons.check_circle, size: 16, color: FoxColors.brandFox),
+              Icon(Icons.check_circle, size: 14, color: FoxColors.brandFox),
           ],
         ),
       ),
@@ -938,7 +946,7 @@ class _BubblePreview extends StatelessWidget {
     clipBehavior: Clip.antiAlias,
     child: Image.asset(
       style.assetPath,
-      fit: BoxFit.cover,
+      fit: BoxFit.contain,
       cacheWidth: (size * MediaQuery.devicePixelRatioOf(context)).round(),
       semanticLabel: style.label,
     ),

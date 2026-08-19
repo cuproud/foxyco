@@ -1,18 +1,15 @@
 import 'package:flutter/material.dart';
 
 import '../../domain/overlay_payload.dart';
-import '../../domain/rate_mode.dart';
 import '../../domain/verdict.dart';
 import '../theme/plasma_border.dart';
 import '../theme/tokens.dart';
 
 /// The floating verdict pill (references/foxyco_pill_v9.html — "split-color").
 ///
-/// Two fused blocks: a verdict-colored block leading with the active rate
-/// metric (**$/km** or **$/hr**)
-/// (the number that decides the verdict, so its color carries the call), fused
-/// to a near-black block with the trip **km** and **$/hr**. A recessed seam and
-/// glass sheen make it read as one compact HUD chip over the driver's map.
+/// Two fused blocks: a verdict-colored block leading with the fixed **$/km**
+/// metric, fused to a near-black block with the trip **km**, target, and fixed
+/// **$/hr** metric. Scoring mode still controls the verdict, not this layout.
 ///
 /// Plain widget, no plugin imports — renders identically in the overlay isolate
 /// and an in-app preview, so it's buildable/eyeballable without a device.
@@ -21,6 +18,7 @@ class VerdictPill extends StatelessWidget {
     super.key,
     required this.payload,
     this.size,
+    this.targetColor,
     this.animate = true,
   });
 
@@ -29,6 +27,10 @@ class VerdictPill extends StatelessWidget {
   /// Overrides [OverlayPayload.size]. The floating overlay forces
   /// [PillSize.small] to fit the compact draggable window.
   final PillSize? size;
+
+  /// Optional preview-only override. The live pill keeps its pickup status
+  /// color; Rules' sample uses the verdict color for its target marker.
+  final Color? targetColor;
 
   /// When false the plasma ring renders static (settings preview, tests) —
   /// the orbit loop never settles under pumpAndSettle and buys nothing there.
@@ -54,8 +56,7 @@ class VerdictPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final m = _metrics(size ?? payload.size);
-    final rate =
-        '${payload.currency.prefix}${payload.displayRate.toStringAsFixed(2)}';
+    final perDistance = payload.distanceUnit.rateFromPerKm(payload.pricePerKm);
 
     // Sheen goes from a lightened verdict color to the base — keeps the block
     // its verdict color (a plain white->transparent gradient would erase it,
@@ -107,7 +108,7 @@ class VerdictPill extends StatelessWidget {
                   textBaseline: TextBaseline.alphabetic,
                   children: [
                     Text(
-                      rate,
+                      '$_compactPrefix${perDistance.toStringAsFixed(2)}',
                       style: TextStyle(
                         fontFamily: FoxFonts.display,
                         fontWeight: FontWeight.w700,
@@ -120,7 +121,7 @@ class VerdictPill extends StatelessWidget {
                     ),
                     const SizedBox(width: 3),
                     Text(
-                      payload.displayRateUnit,
+                      '/${payload.distanceUnit.shortLabel}',
                       style: TextStyle(
                         // Explicit family: the overlay isolate's MaterialApp has
                         // no theme, so an unset family fell back to Roboto and
@@ -173,14 +174,15 @@ class VerdictPill extends StatelessWidget {
                     Icon(
                       Icons.gps_fixed_rounded,
                       size: m.target,
-                      color: switch (payload.pickupIsNear) {
-                        true => const Color(0xFF5ECD90),
-                        false => const Color(0xFFFF8A7E),
-                        null => _dimCream,
-                      },
+                      color:
+                          targetColor ??
+                          switch (payload.pickupIsNear) {
+                            true => const Color(0xFF5ECD90),
+                            false => const Color(0xFFFF8A7E),
+                            null => _dimCream,
+                          },
                     ),
-                    if (payload.rateMode == RateMode.perKm &&
-                        payload.pricePerHour > 0) ...[
+                    if (payload.pricePerHour > 0) ...[
                       SizedBox(width: m.gap - 4),
                       Container(
                         width: 1,
@@ -189,27 +191,7 @@ class VerdictPill extends StatelessWidget {
                       ),
                       SizedBox(width: m.gap - 4),
                       Text(
-                        '${payload.currency.prefix}${payload.pricePerHour.toStringAsFixed(0)}/hr',
-                        style: TextStyle(
-                          fontFamily: FoxFonts.sans,
-                          fontWeight: FontWeight.w700,
-                          fontSize: m.sub,
-                          color: _dimCream,
-                          fontFeatures: const [FontFeature.tabularFigures()],
-                        ),
-                      ),
-                    ],
-                    if (payload.rateMode == RateMode.perHour &&
-                        payload.pricePerKm > 0) ...[
-                      SizedBox(width: m.gap),
-                      Container(
-                        width: 1,
-                        height: m.sub,
-                        color: const Color(0x52F4EFE1),
-                      ),
-                      SizedBox(width: m.gap),
-                      Text(
-                        '${payload.currency.prefix}${payload.distanceUnit.rateFromPerKm(payload.pricePerKm).toStringAsFixed(2)}/${payload.distanceUnit.shortLabel}',
+                        '$_compactPrefix${payload.pricePerHour.toStringAsFixed(0)}/hr',
                         style: TextStyle(
                           fontFamily: FoxFonts.sans,
                           fontWeight: FontWeight.w700,
@@ -246,6 +228,10 @@ class VerdictPill extends StatelessWidget {
       ),
     );
   }
+
+  /// The pill is space-constrained; never expose the selected currency code.
+  /// Other screens continue using [AppCurrency.prefix] unchanged.
+  static const _compactPrefix = r'$';
 
   /// Type/padding scale per size. Every field steps by an EQUAL amount from
   /// small→medium→large, so each notch is the same visible jump. The old table

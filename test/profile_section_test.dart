@@ -49,6 +49,15 @@ class _PurchasedAccessStore extends AccessStore {
   Future<void> refresh({bool sampled = false}) async {}
 }
 
+class _TrialAccessStore extends AccessStore {
+  @override
+  Access build() => const Access(
+    entitled: true,
+    source: AccessSource.trial,
+    trialDaysLeft: 4,
+  );
+}
+
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
@@ -57,7 +66,10 @@ void main() {
   ) async {
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [trialProvider.overrideWith(_SignedInTrialStore.new)],
+        overrides: [
+          trialProvider.overrideWith(_SignedInTrialStore.new),
+          accessProvider.overrideWith(_TrialAccessStore.new),
+        ],
         child: MaterialApp(
           theme: AppTheme.dark,
           home: const Scaffold(
@@ -66,11 +78,15 @@ void main() {
         ),
       ),
     );
+    await tester.pump();
 
     expect(find.widgetWithText(TextField, 'Name'), findsOneWidget);
     expect(find.text('driver@example.com'), findsOneWidget);
-    expect(find.text('TRIAL ACCOUNT'), findsOneWidget);
-    expect(find.text('Trial account signed in'), findsOneWidget);
+    expect(find.text('ACCOUNT & ACCESS'), findsOneWidget);
+    expect(
+      find.textContaining('Trial active · 4 days remaining'),
+      findsAtLeastNWidgets(1),
+    );
     expect(find.byKey(const ValueKey('logout-account')), findsOneWidget);
   });
 
@@ -95,8 +111,13 @@ void main() {
         ),
       ),
     );
+    await tester.pump();
 
     expect(find.byKey(const ValueKey('signin-account')), findsOneWidget);
+    expect(
+      find.text('Sign in with Google to protect your trial'),
+      findsOneWidget,
+    );
     await tester.tap(find.byKey(const ValueKey('signin-account')));
     await tester.pumpAndSettle();
 

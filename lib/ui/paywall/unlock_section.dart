@@ -17,15 +17,19 @@ class UnlockSection extends ConsumerWidget {
   const UnlockSection({super.key});
 
   /// One-line summary for the collapsed accordion header.
-  static String summaryOf(Access access) => switch (access.source) {
+  static String summaryOf(
+    Access access,
+    TrialState trial,
+  ) => switch (access.source) {
     AccessSource.unknown => 'Checking…',
-    AccessSource.debugBuild => 'Debug build — unlocked',
-    AccessSource.purchase || AccessSource.cachedPurchase => 'Unlocked forever',
+    AccessSource.debugBuild => 'Debug access enabled',
+    AccessSource.purchase || AccessSource.cachedPurchase => 'Lifetime unlocked',
     AccessSource.trial =>
       access.trialDaysLeft <= 1
-          ? 'Trial — last day'
-          : 'Trial — ${access.trialDaysLeft} days left',
-    AccessSource.none => 'Locked',
+          ? 'Trial active · 1 day remaining'
+          : 'Trial active · ${access.trialDaysLeft} days remaining',
+    AccessSource.none when trial.phase == TrialPhase.expired => 'Trial ended',
+    AccessSource.none => 'Trial not started',
   };
 
   @override
@@ -37,14 +41,13 @@ class UnlockSection extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(summaryOf(access), style: text.titleMedium),
+        Text(summaryOf(access, trial), style: text.titleMedium),
         const SizedBox(height: Gap.xs),
         Text(switch (access.source) {
           AccessSource.purchase || AccessSource.cachedPurchase =>
-            'Lifetime access is managed by your Google Play account. It is '
-                'separate from the trial account below.',
+            'Lifetime access is managed by your Google Play account.',
           AccessSource.trial =>
-            'Everything is on. Unlock any time and the trial stops mattering.',
+            'Everything is on. Unlock any time to keep access after the trial.',
           AccessSource.debugBuild =>
             'Entitlement is forced on in debug builds. Release builds ignore '
                 'this branch entirely.',
@@ -65,7 +68,7 @@ class UnlockSection extends ConsumerWidget {
               const SizedBox(width: Gap.xs),
               Expanded(
                 child: Text(
-                  'Trial account · ${trial.email!}',
+                  'Google account · ${trial.email!}',
                   overflow: TextOverflow.ellipsis,
                   style: text.bodySmall,
                 ),
@@ -105,10 +108,10 @@ class UnlockSection extends ConsumerWidget {
         ),
         if (trial.hasAccount) ...[
           Divider(color: FoxColors.border, height: Gap.xl),
-          Text('Your trial account', style: text.titleMedium),
+          Text('Google account used for your trial', style: text.titleMedium),
           const SizedBox(height: Gap.xs),
           Text(
-            'Signing you in is what keeps your trial from resetting. Deleting '
+            'Signing in protects your trial from resetting. Deleting '
             'the account removes it from FoxyCo; a non-identifying record of '
             'when your trial started is kept to prevent trial abuse.',
             style: text.bodySmall,

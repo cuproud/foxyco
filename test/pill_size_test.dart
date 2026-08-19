@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:foxyco/domain/app_currency.dart';
 import 'package:foxyco/domain/overlay_payload.dart';
+import 'package:foxyco/domain/rate_mode.dart';
 import 'package:foxyco/domain/verdict.dart';
 import 'package:foxyco/ui/overlay/verdict_pill.dart';
 
@@ -157,5 +159,86 @@ void main() {
       tester.widget<Text>(find.text('8.4 km')).style?.color,
       const Color(0xC6F4EFE1),
     );
+  });
+
+  testWidgets('CAD pill stays compact and long values fit every preset', (
+    tester,
+  ) async {
+    for (final size in PillSize.values) {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Center(
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: VerdictPill(
+                animate: false,
+                size: size,
+                payload: const OverlayPayload(
+                  verdict: Verdict.good,
+                  totalKm: 99.9,
+                  payout: 125,
+                  totalMinutes: 60,
+                  pickupKm: 3.2,
+                  pickupNearKm: 5,
+                  entitled: true,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      expect(find.text(r'CA$1.25'), findsNothing);
+      expect(find.text(r'CA$125/hr'), findsNothing);
+      expect(find.text(r'$1.25'), findsOneWidget);
+      expect(find.text(r'$125/hr'), findsOneWidget);
+      expect(find.byIcon(Icons.gps_fixed_rounded), findsOneWidget);
+    }
+  });
+
+  testWidgets(r'$/hr scoring does not change the compact metric order', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: VerdictPill(
+          animate: false,
+          payload: OverlayPayload(
+            verdict: Verdict.good,
+            totalKm: 8.4,
+            payout: 12,
+            totalMinutes: 24,
+            rateMode: RateMode.perHour,
+          ),
+        ),
+      ),
+    );
+
+    final perDistance = tester.getTopLeft(find.text(r'$1.43'));
+    final distance = tester.getTopLeft(find.text('8.4 km'));
+    final perHour = tester.getTopLeft(find.text(r'$30/hr'));
+    expect(perDistance.dx, lessThan(distance.dx));
+    expect(distance.dx, lessThan(perHour.dx));
+    expect(find.byIcon(Icons.gps_fixed_rounded), findsOneWidget);
+  });
+
+  testWidgets(r'pill uses only $ for every selected currency', (tester) async {
+    for (final currency in AppCurrency.values) {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: VerdictPill(
+            animate: false,
+            payload: OverlayPayload(
+              verdict: Verdict.good,
+              totalKm: 100,
+              payout: 125,
+              totalMinutes: 60,
+              currency: currency,
+            ),
+          ),
+        ),
+      );
+      expect(find.text(r'$1.25'), findsOneWidget);
+      expect(find.text('${currency.prefix}1.25'), findsNothing);
+    }
   });
 }

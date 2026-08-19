@@ -8,21 +8,45 @@ import '../theme/tokens.dart';
 import 'garage_section.dart';
 import '../paywall/unlock_section.dart';
 
-/// The driver's local display name plus the Google identity used for a trial.
+/// The driver's local display name plus the Google identity used for access.
 class ProfileSection extends ConsumerWidget {
   const ProfileSection({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final trial = ref.watch(trialProvider);
+    final access = ref.watch(accessProvider);
     final text = Theme.of(context).textTheme;
+
+    final accessTitle = switch (access.source) {
+      AccessSource.purchase ||
+      AccessSource.cachedPurchase => 'Lifetime unlocked',
+      AccessSource.trial =>
+        'Trial active · ${access.trialDaysLeft} '
+            '${access.trialDaysLeft == 1 ? 'day' : 'days'} remaining',
+      AccessSource.debugBuild => 'Debug access enabled',
+      AccessSource.unknown => 'Checking access…',
+      AccessSource.none when trial.phase == TrialPhase.preTrial =>
+        'Trial not started',
+      AccessSource.none when trial.phase == TrialPhase.expired => 'Trial ended',
+      AccessSource.none => 'No access',
+    };
+    final accessSubtitle = switch (access.source) {
+      AccessSource.purchase || AccessSource.cachedPurchase =>
+        trial.email ?? 'Managed by your Google Play account.',
+      AccessSource.trial when trial.email != null => trial.email!,
+      AccessSource.trial => 'Sign in with Google to protect your trial.',
+      AccessSource.none when trial.hasAccount => trial.email!,
+      AccessSource.none => 'Sign in with Google to protect your trial.',
+      _ => trial.email ?? 'Your access status is being checked.',
+    };
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const DriverNameCard(),
         const SizedBox(height: Gap.lg),
-        Text('TRIAL ACCOUNT', style: text.labelSmall),
+        Text('ACCOUNT & ACCESS', style: text.labelSmall),
         const SizedBox(height: Gap.sm),
         Container(
           padding: const EdgeInsets.all(Gap.md),
@@ -34,10 +58,10 @@ class ProfileSection extends ConsumerWidget {
           child: Row(
             children: [
               Icon(
-                trial.hasAccount
+                access.entitled
                     ? Icons.account_circle_rounded
                     : Icons.person_off_outlined,
-                color: trial.hasAccount
+                color: access.entitled
                     ? FoxColors.brandFox
                     : FoxColors.textDisabled,
                 size: 24,
@@ -48,9 +72,7 @@ class ProfileSection extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      trial.hasAccount
-                          ? 'Trial account signed in'
-                          : 'No trial account',
+                      accessTitle,
                       style: const TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w700,
@@ -58,7 +80,7 @@ class ProfileSection extends ConsumerWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      trial.email ?? 'Sign in to restore your trial status.',
+                      accessSubtitle,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: text.bodySmall?.copyWith(
@@ -79,7 +101,7 @@ class ProfileSection extends ConsumerWidget {
               key: const ValueKey('signin-account'),
               onPressed: () => _signIn(context, ref),
               icon: const Icon(Icons.login_rounded, size: 18),
-              label: const Text('Sign in to trial account'),
+              label: const Text('Sign in with Google to protect your trial'),
             ),
           ),
         ] else ...[
@@ -95,14 +117,14 @@ class ProfileSection extends ConsumerWidget {
               ),
               icon: const Icon(Icons.logout_rounded, size: 18),
               label: const Text(
-                'Sign out of trial account',
+                'Sign out of Google account',
                 style: TextStyle(fontWeight: FontWeight.w700),
               ),
             ),
           ),
         ],
         const SizedBox(height: Gap.lg),
-        Text('UNLOCK', style: text.labelSmall),
+        Text('ACCESS', style: text.labelSmall),
         const SizedBox(height: Gap.sm),
         const UnlockSection(),
       ],
@@ -121,7 +143,7 @@ class ProfileSection extends ConsumerWidget {
       TrialSignInResult.failed => "Couldn't sign in. Retry.",
       TrialSignInResult.signedIn
           when ref.read(billingProvider) == UnlockStatus.purchased =>
-        'Trial account changed. Lifetime access stays with your Google Play '
+        'Google account changed. Lifetime access stays with your Google Play '
             'account.',
       TrialSignInResult.signedIn when trial.phase == TrialPhase.active =>
         'Signed in. Your remaining trial time was restored.',
@@ -139,7 +161,7 @@ class ProfileSection extends ConsumerWidget {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Sign out of trial account?'),
+        title: const Text('Sign out of Google account?'),
         content: const Text(
           'You will need to sign into the same Google account again to use any '
           'remaining trial days. Lifetime access is separate and stays with '
@@ -168,7 +190,7 @@ class ProfileSection extends ConsumerWidget {
         SnackBar(
           content: Text(
             signedOut
-                ? 'Signed out of trial account.'
+                ? 'Signed out of Google account.'
                 : "Couldn't sign out. Retry.",
           ),
         ),

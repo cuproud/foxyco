@@ -86,6 +86,8 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Try a week. Pay once.'), findsOneWidget);
     expect(find.textContaining('no subscription'), findsOneWidget);
+    expect(find.textContaining('avoided BAD offer'), findsOneWidget);
+    expect(find.textContaining(['d', 'ud'].join()), findsNothing);
 
     // Page 4 — overlay grant. Off-device the dashboard defaults both grants
     // to true (plugin channels absent), so the page shows the granted chip.

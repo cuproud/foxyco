@@ -233,6 +233,7 @@ class OverlayController extends Notifier<void> {
       totalKm: 8.4,
       payout: 12,
       totalMinutes: 24,
+      pickupKm: 1.2,
       hourGoodAt: 30,
       hourBadBelow: 20,
       // The demo pill is free forever (MONETIZATION §4) — it is the thing that
@@ -244,6 +245,7 @@ class OverlayController extends Notifier<void> {
       totalKm: 6.2,
       payout: 7.5,
       totalMinutes: 21,
+      pickupKm: 3.4,
       hourGoodAt: 30,
       hourBadBelow: 20,
       // The demo pill is free forever (MONETIZATION §4) — it is the thing that
@@ -255,6 +257,7 @@ class OverlayController extends Notifier<void> {
       totalKm: 11.0,
       payout: 6,
       totalMinutes: 33,
+      pickupKm: 4.6,
       hourGoodAt: 30,
       hourBadBelow: 20,
       // The demo pill is free forever (MONETIZATION §4) — it is the thing that

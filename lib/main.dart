@@ -8,6 +8,7 @@ import 'domain/app_skin.dart';
 import 'router.dart';
 import 'services/accessibility/offer_watcher.dart';
 import 'services/billing/entitlement.dart';
+import 'services/play_update_service.dart';
 import 'ui/home/dashboard_controller.dart';
 import 'ui/onboarding/onboarding_gate.dart';
 import 'ui/overlay/overlay_controller.dart';
@@ -89,6 +90,7 @@ class _FoxyCoAppState extends ConsumerState<FoxyCoApp>
       ref.read(offerWatcherProvider);
       ref.read(dashboardProvider.notifier).refreshPermissions();
       ref.read(accessProvider);
+      ref.read(playUpdateProvider.notifier).beginForegroundSession();
     });
   }
 
@@ -102,6 +104,7 @@ class _FoxyCoAppState extends ConsumerState<FoxyCoApp>
       // back from Play's buy sheet, or from a week offline. Re-asks Play every
       // time (local, cheap) and Firestore only when due (§3.7 layer 2).
       ref.read(accessProvider.notifier).refresh(sampled: true);
+      ref.read(playUpdateProvider.notifier).beginForegroundSession();
     }
   }
 

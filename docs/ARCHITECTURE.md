@@ -171,7 +171,7 @@ stores the scoring snapshot, and passes that finalized verdict to the overlay. V
 are scheduled from the same identity/verdict and invalidated when the offer is replaced or cleared.
 
 The overlay remains one shared system. Bubble appearance is a persisted `BubbleStyle` choice
-(Cool Fox, FoxyCo F, or Fox Paw) resolved by the same bubble container; it does not affect pill
+(Cool Fox, FoxyCo, or Fox Paw) resolved by the same bubble container; it does not affect pill
 geometry, verdict semantics, platform handling, or position persistence.
 
 ---

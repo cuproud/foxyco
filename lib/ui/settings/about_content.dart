@@ -36,7 +36,7 @@ const aboutIntro =
 
 /// Version string. Kept as a plain const rather than adding a native plugin for
 /// one label; `about_content_test.dart` guards it against `pubspec.yaml` drift.
-const aboutVersion = '1.0.9 (build 47)';
+const aboutVersion = '1.0.9 (build 55)';
 
 const aboutSections = <AboutSection>[
   AboutSection(
@@ -117,15 +117,14 @@ const aboutSections = <AboutSection>[
             'to a new phone does not restart the clock.',
       ),
       AboutEntry(
-        'What does the trial account do?',
-        'It keeps one trial start date attached to the same Google account. '
-            'FoxyCo does not use the account for ads or analytics. Your Google '
-            'email appears in Settings → Profile so you can see which account '
-            'manages the trial. Lifetime access is managed separately by the '
-            'Google Play account that owns the purchase.',
+        'What does signing in do?',
+        'It protects your trial start date by linking it to the same Google '
+            'account. FoxyCo does not use the account for ads or analytics. '
+            'Lifetime access is managed separately by the Google Play account '
+            'that owns the purchase.',
       ),
       AboutEntry(
-        'What happens if I sign out of the trial account?',
+        'What happens if I sign out?',
         'Your name, settings, garage and offer history stay on this phone. You '
             'must sign into the same Google account again to use any remaining '
             'trial days. Lifetime access remains owned by your Google Play '
@@ -133,13 +132,13 @@ const aboutSections = <AboutSection>[
       ),
       AboutEntry(
         'How do I restore a purchase?',
-        'Open Settings → Profile → Unlock and tap Restore purchase while Google Play is '
+        'Open Settings → Profile → Access and tap Restore purchase while Google Play is '
             'using the account that bought FoxyCo. Promo-code unlocks restore '
             'the same way.',
       ),
       AboutEntry(
         'I was given a code — how do I use it?',
-        'Open Settings → Profile → Unlock and tap Redeem code. That opens Google Play, '
+        'Open Settings → Profile → Access and tap Redeem code. That opens Google Play, '
             'where you enter the code; Play then grants the unlock to whichever '
             'Google account it is signed in with. Come back to FoxyCo and it '
             'picks the unlock up on its own — tap Restore purchase if it has '
@@ -158,7 +157,7 @@ const aboutSections = <AboutSection>[
       ),
       AboutEntry(
         'Can I delete my FoxyCo account?',
-        'Yes. Open Settings → Profile → Unlock → Delete my account. FoxyCo removes the '
+        'Yes. Open Settings → Profile → Access → Delete my account. FoxyCo removes the '
             'Firebase Auth account. It keeps only a random user ID and the '
             'trial start time to limit trial abuse; that retained row does not '
             'contain your email or offer data.',
