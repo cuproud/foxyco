@@ -4,6 +4,9 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:foxyco/domain/session_summary.dart';
+import 'package:foxyco/domain/offer_summary.dart';
+import 'package:foxyco/domain/platform.dart';
+import 'package:foxyco/domain/verdict.dart';
 import 'package:foxyco/services/session_log.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -80,4 +83,44 @@ void main() {
       saved.startedAt,
     );
   });
+
+  test(
+    'outcome correction refreshes session earnings without changing manual total',
+    () async {
+      SharedPreferences.setMockInitialValues({});
+      final started = DateTime(2026, 8, 20, 8);
+      final ended = DateTime(2026, 8, 20, 9);
+      OfferSummary offer(DateTime seenAt, double payout) => OfferSummary(
+        platform: GigPlatform.uber,
+        verdict: Verdict.good,
+        payout: payout,
+        totalKm: 10,
+        seenAt: seenAt,
+        outcome: OfferOutcome.completed,
+      );
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      final log = container.read(sessionLogProvider.notifier);
+      log.record(
+        SessionSummary(
+          startedAt: started,
+          endedAt: ended,
+          actualEarnings: 30,
+          actualEarningsIsManual: true,
+        ),
+      );
+
+      final corrected = offer(started.add(const Duration(minutes: 10)), 18);
+      await log.refreshForOffer(corrected, [
+        corrected,
+        offer(ended.add(const Duration(minutes: 1)), 50),
+      ]);
+
+      final refreshed = container.read(sessionLogProvider).single;
+      expect(refreshed.completed, 1);
+      expect(refreshed.estimatedEarnings, 18);
+      expect(refreshed.actualEarnings, 30);
+      expect(refreshed.actualEarningsIsManual, isTrue);
+    },
+  );
 }

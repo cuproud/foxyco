@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/offer_summary.dart';
+import '../../services/play_update_service.dart';
 import '../history/history_screen.dart';
 import '../history/offer_detail_sheet.dart';
 import '../home/home_screen.dart';
@@ -63,6 +64,22 @@ class _RootShellState extends ConsumerState<RootShell> {
   /// Re-tapping the ACTIVE tab then scrolls it home — the standard bottom-nav
   /// affordance, which the shell had no way to offer before.
   final _scrolls = List.generate(4, (_) => ScrollController());
+
+  @override
+  void initState() {
+    super.initState();
+    if (ref.read(appUpdatedProvider)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            behavior: SnackBarBehavior.floating,
+            content: Text('FoxyCo updated successfully'),
+          ),
+        );
+      });
+    }
+  }
 
   @override
   void dispose() {

@@ -4,7 +4,7 @@ title: FoxyCo — Privacy Policy
 
 # FoxyCo — Privacy Policy
 
-**Last updated: 9 August 2026**
+**Last updated: 20 August 2026**
 
 FoxyCo ("the app") is published by **Vamsi Naradasu**
 ("we", "us"), contactable at **foxyco.dev@gmail.com**.
@@ -21,10 +21,10 @@ Firebase creates a random anonymous identity for trial-abuse prevention. If you
 start a trial, Google account identity and the server-recorded trial date also
 reach Firebase.
 
-## What stays on your device, always
+## What stays on your device
 
-The following is stored in FoxyCo's private app storage and is never transmitted
-to us or to anyone else:
+The following is stored in FoxyCo's private app storage. It is not sent anywhere
+unless you deliberately include it in feedback or share diagnostic logs:
 
 - **Offer data** — the pay, distance, duration and platform of each offer FoxyCo
   scores, plus the verdict it gave and whether you appeared to take or pass it.
@@ -33,11 +33,11 @@ to us or to anyone else:
 - **Your garage and profile** — the name you enter, your vehicles and any
   reminders you set.
 - **Diagnostic logs** — a rolling local log of what the watcher did, capped at
-  two files. You can view it in Settings → Logs and share it manually if you are
+  two files. You can view it in Settings → Diagnostic logs and share it manually if you are
   reporting a problem. Nothing is uploaded automatically.
 
-You control how long offer history is kept (Settings → retention) and can clear
-it at any time.
+You control how long offer history is kept in **Settings → History** and can
+clear it at any time.
 
 ## What FoxyCo reads on screen, and what it does with it
 
@@ -100,14 +100,27 @@ and [Google's Privacy Policy](https://policies.google.com/privacy).
 payment card, billing address or any financial data. FoxyCo asks Google Play
 whether your account owns the unlock, and receives a yes or no.
 
+**Feedback is sent only when you choose Send feedback and confirm an external
+email or sharing app.** FoxyCo includes your description, feedback category,
+app version, Android version and device model. You may select up to three
+screenshots with Android's system photo picker; FoxyCo does not request access
+to your whole photo library. Selected images are copied to FoxyCo's private
+cache so they can be attached, then removed after 24 hours when the app next
+starts. Screenshots can contain personal, trip or earnings information, so the
+app asks you to review them first. Diagnostic logs are never attached
+automatically. The external app you choose handles the message under its own
+privacy terms.
+
 ## What FoxyCo never collects
 
 - No location data. FoxyCo does not request location permission.
 - No advertising identifiers, no ad networks, no ad SDKs.
 - No analytics or crash-reporting SDK. Firebase Analytics is not included.
-- No contacts, photos, microphone, camera or call data.
-- No earnings totals, offer history or driving behaviour — that data never
-  leaves your phone, so we cannot see it even if asked.
+- No contacts, microphone, camera or call data. FoxyCo can read only the
+  screenshots you select for feedback through Android's system photo picker.
+- No automatic upload of earnings totals, offer history or driving behaviour.
+  We receive these only if you deliberately include them in feedback, a
+  screenshot or shared diagnostic logs.
 
 ## Legal basis (UK/EU users)
 
@@ -126,8 +139,9 @@ that can be restarted forever. It contains a random user ID and a timestamp.
 
 ## Deleting your data
 
-Open **Settings → Unlock → Delete my account** in the app. This deletes your
-Firebase Authentication account, including the email address associated with it.
+Open **Settings → Profile → Access → Delete my account** in the app. This
+deletes your Firebase Authentication account, including the email address
+associated with it.
 
 The trial timestamp row is deliberately retained. After your account is deleted
 FoxyCo's live records contain only a random identifier and a date, with no email

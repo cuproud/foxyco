@@ -191,8 +191,8 @@ Device verification: MANUAL_TESTS.md rows M10.1–M10.30.
       custom, date + lead time (3d–1mo) + note; Settings section + editor
       sheet; due/overdue banner on Home (in-app only, no notification
       permission) — `car_reminder.dart`, `reminder_*.dart`
-- [x] Food-emoji personality in copy spots (greeting snack rotates by shift,
-      empty states, recap title) — never on data rows
+- [x] Plain-language personality pass: clear greetings, empty states and recap
+      title without decorative food emojis (updated 2026-08-20)
 
 **Done when:** analyze clean, tests green (164), debug build green. ✅
 

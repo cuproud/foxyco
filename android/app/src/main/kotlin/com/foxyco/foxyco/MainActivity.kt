@@ -3,13 +3,18 @@ package com.foxyco.foxyco
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import android.os.Build
 import android.os.PersistableBundle
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import android.speech.tts.TextToSpeech
 import androidx.activity.result.ActivityResult
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.FileProvider
 import com.google.android.play.core.appupdate.AppUpdateInfo
 import com.google.android.play.core.appupdate.AppUpdateManager
 import com.google.android.play.core.appupdate.AppUpdateManagerFactory
@@ -24,6 +29,8 @@ import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodChannel
 import slayer.accessibility.service.flutter_accessibility_service.AccessibilityListener
+import java.io.File
+import java.util.UUID
 
 class MainActivity : FlutterFragmentActivity() {
     private companion object {
@@ -42,15 +49,42 @@ class MainActivity : FlutterFragmentActivity() {
         ActivityResultContracts.StartIntentSenderForResult()
     ) { result: ActivityResult ->
         if (result.resultCode != RESULT_OK) {
-            updateEvents?.success(mapOf("state" to "available"))
+            // AppUpdateInfo is single-use. The resume check fetches a fresh one
+            // before offering a retry.
+            appUpdateInfo = null
+            updateEvents?.success(mapOf("state" to "unavailable"))
         }
     }
     private var textToSpeech: TextToSpeech? = null
     private var speechReady = false
     private var pendingSpeech: String? = null
+    private var pendingImageResult: MethodChannel.Result? = null
+    private var pendingImageLimit = 3
+    private val singleImagePicker = registerForActivityResult(
+        ActivityResultContracts.PickVisualMedia()
+    ) { uri -> finishPickingImages(uri?.let(::listOf).orEmpty()) }
+    private val twoImagePicker = registerForActivityResult(
+        ActivityResultContracts.PickMultipleVisualMedia(2)
+    ) { finishPickingImages(it) }
+    private val threeImagePicker = registerForActivityResult(
+        ActivityResultContracts.PickMultipleVisualMedia(3)
+    ) { finishPickingImages(it) }
+
+    private fun finishPickingImages(uris: List<Uri>) {
+        val result = pendingImageResult ?: return
+        pendingImageResult = null
+        try {
+            result.success(
+                uris.distinct().take(pendingImageLimit).mapNotNull(::copyFeedbackImage)
+            )
+        } catch (error: Exception) {
+            result.error("photo_picker_failed", "Couldn't read selected images.", null)
+        }
+    }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        cleanOldFeedbackImages()
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "foxyco/play_updates")
             .setMethodCallHandler { call, result ->
                 when (call.method) {
@@ -99,6 +133,26 @@ class MainActivity : FlutterFragmentActivity() {
                     }
                 }, 60_000)
                 result.success(null)
+            }
+
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "foxyco/feedback")
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "context" -> result.success(feedbackContext())
+                    "pickImages" -> pickFeedbackImages(
+                        (call.argument<Int>("limit") ?: 3).coerceIn(1, 3),
+                        result,
+                    )
+                    "send" -> result.success(
+                        sendFeedback(
+                            call.argument<String>("recipient").orEmpty(),
+                            call.argument<String>("subject").orEmpty(),
+                            call.argument<String>("body").orEmpty(),
+                            call.argument<List<String>>("imagePaths").orEmpty(),
+                        )
+                    )
+                    else -> result.notImplemented()
+                }
             }
 
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "foxyco/ocr")
@@ -162,12 +216,13 @@ class MainActivity : FlutterFragmentActivity() {
             return
         }
         try {
-            appUpdateManager.startUpdateFlowForResult(
+            val started = appUpdateManager.startUpdateFlowForResult(
                 info,
                 updateLauncher,
                 AppUpdateOptions.newBuilder(AppUpdateType.FLEXIBLE).build(),
             )
-            result.success(true)
+            appUpdateInfo = null
+            result.success(started)
         } catch (error: Exception) {
             Log.d(UPDATE_TAG, "start failed", error)
             result.success(false)
@@ -198,7 +253,10 @@ class MainActivity : FlutterFragmentActivity() {
             "downloaded" to state.bytesDownloaded(),
             "total" to state.totalBytesToDownload(),
         )
-        else -> mapOf("state" to "starting")
+        state.installStatus() == InstallStatus.PENDING ||
+            state.installStatus() == InstallStatus.INSTALLING ->
+            mapOf("state" to "starting")
+        else -> mapOf("state" to "unavailable")
     }
 
     private fun speak(text: String) {
@@ -212,6 +270,115 @@ class MainActivity : FlutterFragmentActivity() {
         } else if (speechReady) {
             flushPendingSpeech()
         }
+    }
+
+    private fun feedbackContext(): Map<String, String> {
+        @Suppress("DEPRECATION")
+        val info = packageManager.getPackageInfo(packageName, 0)
+        val build = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            info.longVersionCode.toString()
+        } else {
+            @Suppress("DEPRECATION")
+            info.versionCode.toString()
+        }
+        return mapOf(
+            "version" to (info.versionName ?: "Unknown"),
+            "build" to build,
+            "android" to Build.VERSION.RELEASE,
+            "device" to listOf(Build.MANUFACTURER, Build.MODEL)
+                .filter { it.isNotBlank() }
+                .joinToString(" "),
+        )
+    }
+
+    private fun pickFeedbackImages(limit: Int, result: MethodChannel.Result) {
+        if (pendingImageResult != null) {
+            result.error("photo_picker_busy", "The photo picker is already open.", null)
+            return
+        }
+        pendingImageResult = result
+        pendingImageLimit = limit
+        val request = PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+        try {
+            when (limit) {
+                1 -> singleImagePicker.launch(request)
+                2 -> twoImagePicker.launch(request)
+                else -> threeImagePicker.launch(request)
+            }
+        } catch (error: Exception) {
+            pendingImageResult = null
+            result.error("photo_picker_failed", "Couldn't open the photo picker.", null)
+        }
+    }
+
+    private fun copyFeedbackImage(uri: Uri): String? {
+        val mime = contentResolver.getType(uri).orEmpty()
+        if (mime.isNotEmpty() && !mime.startsWith("image/")) return null
+        val suffix = when (mime) {
+            "image/png" -> ".png"
+            "image/webp" -> ".webp"
+            else -> ".jpg"
+        }
+        val directory = feedbackImageDirectory().apply { mkdirs() }
+        val output = File(directory, "${UUID.randomUUID()}$suffix")
+        contentResolver.openInputStream(uri)?.use { input ->
+            output.outputStream().use(input::copyTo)
+        } ?: return null
+        return output.path
+    }
+
+    private fun sendFeedback(
+        recipient: String,
+        subject: String,
+        body: String,
+        imagePaths: List<String>,
+    ): Boolean {
+        if (recipient.isBlank() || subject.isBlank() || body.isBlank()) return false
+        val directory = feedbackImageDirectory().canonicalFile
+        val uris = imagePaths.take(3).mapNotNull { path ->
+            val file = File(path).canonicalFile
+            if (!file.isFile || file.parentFile != directory) return@mapNotNull null
+            FileProvider.getUriForFile(this, "$packageName.feedback_files", file)
+        }
+        val intent = if (uris.isEmpty()) {
+            Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:${Uri.encode(recipient)}")).apply {
+                putExtra(Intent.EXTRA_SUBJECT, subject)
+                putExtra(Intent.EXTRA_TEXT, body)
+            }
+        } else {
+            Intent(if (uris.size == 1) Intent.ACTION_SEND else Intent.ACTION_SEND_MULTIPLE).apply {
+                type = "*/*"
+                putExtra(Intent.EXTRA_EMAIL, arrayOf(recipient))
+                putExtra(Intent.EXTRA_SUBJECT, subject)
+                putExtra(Intent.EXTRA_TEXT, body)
+                if (uris.size == 1) {
+                    putExtra(Intent.EXTRA_STREAM, uris.first())
+                } else {
+                    putParcelableArrayListExtra(Intent.EXTRA_STREAM, ArrayList(uris))
+                }
+                clipData = ClipData.newUri(contentResolver, "FoxyCo feedback", uris.first()).also {
+                    uris.drop(1).forEach { uri -> it.addItem(ClipData.Item(uri)) }
+                }
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+        }
+        if (intent.resolveActivity(packageManager) == null) return false
+        return try {
+            startActivity(Intent.createChooser(intent, "Send feedback with"))
+            true
+        } catch (error: Exception) {
+            false
+        }
+    }
+
+    private fun feedbackImageDirectory() = File(cacheDir, "feedback")
+
+    private fun cleanOldFeedbackImages() {
+        val cutoff = System.currentTimeMillis() - 24 * 60 * 60 * 1000
+        feedbackImageDirectory()
+            .listFiles()
+            ?.filter { it.lastModified() < cutoff }
+            ?.forEach(File::delete)
     }
 
     private fun flushPendingSpeech() {

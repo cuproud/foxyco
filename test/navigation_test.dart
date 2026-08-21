@@ -5,6 +5,7 @@ import 'package:foxyco/domain/session_summary.dart';
 import 'package:foxyco/parser/parser_registry.dart';
 import 'package:foxyco/router.dart';
 import 'package:foxyco/services/session_log.dart';
+import 'package:foxyco/services/play_update_service.dart';
 import 'package:foxyco/ui/theme/platform_badge.dart';
 import 'package:foxyco/ui/settings/logs_screen.dart';
 import 'package:foxyco/ui/shell/root_shell.dart';
@@ -92,6 +93,17 @@ void main() {
     expect(container.read(tabIndexProvider), 0, reason: 'back lands on Home');
   });
 
+  testWidgets('a completed app update is confirmed once Home mounts', (
+    tester,
+  ) async {
+    tall(tester);
+    final container = scope([appUpdatedProvider.overrideWithValue(true)]);
+
+    await pumpShell(tester, container);
+
+    expect(find.text('FoxyCo updated successfully'), findsOneWidget);
+  });
+
   testWidgets('deep link opens the Rules group it was aimed at', (
     tester,
   ) async {
@@ -146,18 +158,18 @@ void main() {
     expect(list.controller!.offset, 0);
   });
 
-  testWidgets('Logs is reachable from Settings', (tester) async {
+  testWidgets('Diagnostic logs is reachable from Settings', (tester) async {
     tall(tester);
     await pumpShell(tester, scope());
 
     await tester.tap(find.text('Settings').last);
     await beat(tester);
     await tester.scrollUntilVisible(
-      find.text('Logs'),
+      find.text('Diagnostic logs'),
       400,
       scrollable: find.byType(Scrollable).first,
     );
-    await tester.tap(find.text('Logs'));
+    await tester.tap(find.text('Diagnostic logs'));
     await beat(tester);
 
     expect(find.byType(LogsScreen), findsOneWidget);

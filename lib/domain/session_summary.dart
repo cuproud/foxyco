@@ -91,7 +91,9 @@ class SessionSummary {
     required List<OfferSummary> offers,
   }) {
     final sessionOffers = offers
-        .where((o) => !o.seenAt.isBefore(startedAt))
+        .where(
+          (o) => !o.seenAt.isBefore(startedAt) && !o.seenAt.isAfter(endedAt),
+        )
         .toList();
     final stats = OfferStats.from(sessionOffers);
     final completed = sessionOffers

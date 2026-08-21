@@ -149,16 +149,17 @@ Demo data removed — tally/ticket/history are live from logged offers only.
 
 ## M4 — Onboarding (first run, 2026-07-16)
 
-3 swipeable pages: intro → overlay grant → accessibility grant (with the
-plain-language, read-only disclosure). "Skip for now" always exits to Home.
+5 swipeable pages: intro → rules → trial/lifetime → overlay grant →
+accessibility grant (with the plain-language, read-only disclosure). "Skip for
+now" always exits to Home.
 
 | # | How | PASS bar | Status |
 |---|-----|----------|--------|
 | O.1 | Fresh install (or clear app data), open app | Boots into onboarding "Meet FoxyCo", NOT Home — no Home flash first | [ ] |
 | O.2 | Accessibility page text | States plainly: temporarily reads on-screen text in Uber/Lyft/Hopp to identify pay, distance and duration; stores only extracted offer numbers locally; raw text is not saved or sent; **never taps buttons / accepts rides** | [ ] |
-| O.3 | Page 2 "Grant Display over other apps" | System overlay settings opens; grant; return → button becomes **✅ Granted** | [ ] |
-| O.4 | Page 3 "Grant Accessibility Access" | Accessibility settings opens; enable FoxyCo; return → **✅ Granted** | [ ] |
-| O.5 | Both granted → "Start driving smarter" | Lands on Home, status **watching**, bubble up | [ ] |
+| O.3 | Page 4 "Display over other apps" | System overlay settings opens; grant; return → button becomes **✅ Granted** | [ ] |
+| O.4 | Page 5 "Offer access" | Accessibility settings opens; enable FoxyCo; return → **✅ Granted** | [ ] |
+| O.5 | Both granted → "Finish setup" | Lands on Home, ready to go live | [ ] |
 | O.6 | Kill + reopen app | Boots straight to Home — onboarding never shows again | [ ] |
 | O.7 | Fresh install, tap "Skip for now" | Lands on Home, status **blocked**, "Fix permissions" visible | [ ] |
 | O.8 | After O.7, kill + reopen | Still boots to Home (skip also marks onboarding done) | [ ] |
@@ -242,7 +243,7 @@ opaque TextureView made translucent (dark gradient box), node LruCache bounded.
 | M5.1 | Settings → Pill size Large, tap "Show a demo pill" | Pill renders LARGE (window ~348×100dp); Small/Medium likewise exact | [ ] |
 | M5.2 | Change size while a pill is up | Live pill keeps its size; NEXT offer uses the new size | [ ] |
 | M5.3 | Drag large pill to either edge | Still draggable — window under 360dp never pins mid-screen | [ ] |
-| M5.4 | Drive a session, `adb install -r` a new build, open Settings → Logs | Pre-update lines still present | [ ] |
+| M5.4 | Drive a session, `adb install -r` a new build, open Settings → Diagnostic logs | Pre-update lines still present | [ ] |
 | M5.5 | Logs → copy | Clipboard holds the tail; Clear (confirm) empties viewer | [ ] |
 | M5.6 | Fill profile name+vehicle in Settings, back to Home | Hero card: greeting, vehicle line, tinted silhouette matches type+color | [ ] |
 | M5.7 | Clear profile name | Card gone; dashboard exactly as before | [ ] |
@@ -291,7 +292,7 @@ opaque TextureView made translucent (dark gradient box), node LruCache bounded.
 | M6F.6 | Trigger a demo/real pill | $/km figure renders in Fraunces serif (matches the big "37" on Home); "/km", "km", "$/hr" all in Inter — no Roboto mix | [ ] |
 | M6F.7 | Watch the pill for ~3 s | Animated ring around the pill: two bright arcs orbiting a faint outline, GREEN on good / YELLOW on ok / RED on bad. Moving, not static | [ ] |
 | M6F.8 | OS "Remove animations" on, trigger a pill | Ring present but STATIC (color signal kept, no orbit) | [ ] |
-| M6F.9 | Go live, open Uber Driver, wait for ≥10 offer frames, then Settings → Parser health | Uber row reads "Unreadable · OCR needed" (red) if Uber sends textless frames — NOT "No offers yet" | [ ] |
+| M6F.9 | Go live, open Uber Driver, wait for ≥10 offer frames, then Settings → App health → Offer detection | Uber row reads "Unreadable · OCR needed" (red) if Uber sends textless frames — NOT "No offers yet" | [ ] |
 | M6F.10 | Scroll Home to the bottom on a gesture-nav phone | "Show a demo pill" fully visible ABOVE the floating nav; tappable without fighting the bar | [ ] |
 | M6F.11 | While OFFLINE (stopped), tap "Show a demo pill" | Pill shows ~5 s, then pill AND bubble disappear completely — no lingering bubble while the dashboard says stopped | [ ] |
 | M6F.12 | While LIVE, tap "Show a demo pill" | Pill shows ~5 s, then retracts to the resting bubble (bubble stays — you're still watching) | [ ] |
@@ -333,7 +334,7 @@ _Last updated: 2026-07-19 (M7 rows: Uber Match/Accept parsing, pill visibility o
 | M8.4 | Look at the bubble | Full fox head visible incl. both ears (no clipping) on the dark disc | [ ] |
 | M8.5 | Demo pill → wait for retract | Pill cross-fades to bubble smoothly — no hard snap/clip mid-fade | [ ] |
 | M8.6 | History → verdict chips | Good/OK/Bad chips filter the list; "All" resets; combines with app + range chips | [ ] |
-| M8.7 | History → "Top offers only" ≥ $15 with OK/BAD offers over $15 logged | Those offers SHOW (fare floor only — verdict no longer forces GOOD) | [ ] |
+| M8.7 | History → "Filter by minimum fare" ≥ $15 with OK/BAD offers over $15 logged | Those offers SHOW (fare floor only — verdict no longer forces GOOD) | [ ] |
 | M8.8 | Settings → pill size Large on a narrow phone | Preview scales down to fit — no yellow/black overflow stripes | [ ] |
 | M8.9 | Settings → below the preview | "How to read it" legend: verdict block, green km, red km, $/hr rows | [ ] |
 | M8.10 | Go live, swipe FoxyCo out of Recents, reopen | Dashboard shows STOPPED (not a stale "online"); bubble gone | [ ] |
@@ -380,13 +381,13 @@ _Last updated: 2026-07-20 (M9: layered car hero on splash + home)._
 | M10.5 | First day of use (no yesterday data) | Hero trend chip reads "first day", not "+N vs yesterday" | [ ] |
 | M10.6 | Device set to 12-hour clock | Ticket + History times show "6:48 PM" style, not 18:48 | [ ] |
 | M10.7 | History → tap any offer row (also Home ticket) | Bottom sheet: verdict, big fare, per-km/hr, pickup/trip/ride cells, plain-language verdict math line | [ ] |
-| M10.8 | Settings → Verdict thresholds ($/km mode) | Relaxed / Balanced / Picky chips; tap moves both sliders; band shows colored cut-point labels | [ ] |
+| M10.8 | My Rules → Verdict thresholds ($/km mode) | Relaxed / Balanced / Picky chips; tap moves both sliders; band shows colored cut-point labels | [ ] |
 | M10.9 | History with offers | "BY HOUR" 24-bar chart under stats; peak bar solid orange with count label; sparse 12A/6A/12P/6P axis | [ ] |
 | M10.10 | Go live, let ≥1 offer arrive, slide to stop | Shift recap sheet: duration, offers scored, good/ok/bad pills, best $/km, busiest hour | [ ] |
 | M10.11 | Slide to stop with 0 offers seen | NO recap sheet (silent stop) | [ ] |
 | M10.12 | Settings → History → Export CSV | Android share sheet with foxyco_offers.csv; opens with correct header + rows | [ ] |
-| M10.13 | Fresh install → onboarding | 4 pages: fox intro → Set your bar (3 preset cards, tap selects) → overlay grant → accessibility grant; active dot stretches to a pill | [ ] |
-| M10.14 | Onboarding last page WITHOUT accessibility granted | CTA reads "Finish without access", not "Start driving smarter" | [ ] |
+| M10.13 | Fresh install → onboarding | 5 pages: fox intro → Set your bar → trial/lifetime → overlay grant → accessibility grant; active dot stretches to a pill | [ ] |
+| M10.14 | Onboarding last page WITHOUT accessibility granted | Main action reads "Enable offer access" and the separate exit reads "Finish setup without it" | [ ] |
 | M10.15 | Home hero → tap the U/L/H platform badges | Jumps to Settings tab | [ ] |
 | M10.16 | Tap filters/chips/nav across the app | Subtle haptic tick on each selection | [ ] |
 | M10.17 | History stats card | OFFERS sub-line shows counts in verdict colors (green·amber·red), not plain "2·7·2" | [ ] |
@@ -414,7 +415,7 @@ _Last updated: 2026-07-20 (M10: premium polish batches 1–3)._
 | M10.27 | Edit reminder → Delete (trash) | Row gone; Home banner gone | [ ] |
 | M10.28 | Set reminder date to yesterday | Red "1d overdue" pill + red Home banner | [ ] |
 | M10.29 | Kill + reopen app | Reminders persist | [ ] |
-| M10.30 | Home greeting across day parts | Snack emoji rotates: ☕ morning, 🌮 afternoon, 🍜 evening, 🍪 late shift | [ ] |
+| M10.30 | Home greeting across day parts | Plain greeting changes between Good morning / afternoon / evening / Late shift; no decorative food emoji | [ ] |
 
 ---
 
@@ -456,7 +457,7 @@ _Last updated: 2026-07-20 (M10: premium polish batches 1–3)._
 | M12.14 | In Light, Home top-left | **"Good morning, Vamsi"** is visible (was invisible — cream on cream) | [ ] |
 | M12.15 | Both themes, bottom nav | Active tab is an inverted chip: dark fill + light label in Light, cream fill + dark label in Dark. Never same-on-same | [ ] |
 | M12.16 | Both themes, Settings → Pill size → "How to read it" | All four legend swatches visible, including the pale cream **$/hr** dot (it has a hairline so it survives a white card) | [ ] |
-| M12.17 | Settings → Verdict thresholds | Each slider has **−/+** buttons flanking it; one tap moves 5c ($ mode) or 0.1 (km); they dim out at each end of the range and land on exact values | [ ] |
+| M12.17 | My Rules → Verdict thresholds | Each slider has **−/+** buttons flanking it; one tap moves 5c ($ mode) or 0.1 (km); they dim out at each end of the range and land on exact values | [ ] |
 | M12.18 | Settings → Garage → cycle Body through all 13 types | Every vehicle renders at a **similar visual size** — the Jeep/EV/Premium/bike no longer float small in the card (their art had 37-62% dead canvas). Two-wheelers still read smaller than a van | [ ] |
 | M12.19 | Home, before dragging | Slide track is a recessed well in the card; label is high-contrast; the chevron train is clearly visible and marches right (was faint smudges). The gleam sweeping the track is a warm orange wash — **no gray/metallic smear** | [ ] |
 | M12.20 | In Light, Home segment bar + History "BY APP" bars | Segments are clean **green / amber / red**, not olive-and-maroon — solid fills keep the bright tier in both themes | [ ] |
@@ -489,10 +490,10 @@ _Last updated: 2026-07-20 (M10: premium polish batches 1–3)._
 | M12.47 | Settings → Accessibility → Remove animations ON, Home | Car is dead still: no float, no ring pulse, no ambient breath, **no sweep** | [ ] |
 | M12.48 | Scroll Home hard up and down for ~30 s | No jank — the stage should hold 60 fps (car is behind a RepaintBoundary; only the glow layers repaint) | [ ] |
 | M12.49 | Fresh install → wizard page 1 | A **"What should I call you?"** field under the intro copy. Keyboard does NOT pop by itself. Leaving it empty and continuing still works | [ ] |
-| M12.50 | Type a name, swipe through to the end, finish | Home greets you by name immediately (`Late shift, <name> 🍪`) — no trip to Settings → Garage. Settings → Garage shows the same name | [ ] |
+| M12.50 | Type a name, swipe through to the end, finish | Home greets you by name immediately (`Late shift, <name>`) — no trip to Settings → Profile. Settings → Profile shows the same name | [ ] |
 | M12.51 | Type a name, then **Skip for now** on page 1 | Same: the name is saved on the way out either exit | [ ] |
 | M12.52 | Type `  spaces  ` around a name | Saved trimmed; capped at 24 characters | [ ] |
-| M12.53 | Wizard last page | Only ONE exit button — the CTA ("Start driving smarter" / "Finish without access"). No "Skip for now" underneath it, and the CTA doesn't jump position between pages | [ ] |
+| M12.53 | Wizard last page | With access granted, only "Finish setup" appears. Without access, "Enable offer access" and "Finish setup without it" are clearly separate choices | [ ] |
 | M12.54 | Finish the wizard, then force-stop the app immediately and relaunch | Boots to Home, **not** back into the wizard (the onboarded flag is now written before navigation) | [ ] |
 | M12.55 | TalkBack on, walk the wizard | Page dots are silent (decorative). After granting a permission and returning, the **"✅ Granted"** state is announced instead of silently swapping in | [ ] |
 | M12.9 | Theme = **Auto**, flip the phone's system dark mode | App follows immediately, no restart | [ ] |
@@ -508,17 +509,19 @@ _Last updated: 2026-07-25 (M12: polish pass + light theme; white car card + abov
 | M13.1 | On **History**, press system back (gesture or button) | Lands on **Home**, app still open. Press back again → app goes to background | [ ] |
 | M13.2 | Same from **Settings** | Same: back = Home first, only then out | [ ] |
 | M13.3 | On Home, press back straight away | Leaves the app immediately (no extra tap swallowed) | [ ] |
-| M13.4 | Home hero, tap the **app badges** on the status row | Settings opens with **Watched apps** already expanded and scrolled into view — not the top of the list with Profile open | [ ] |
+| M13.4 | Home hero, tap the **app badges** on the status row | My Rules opens with **Watched apps** expanded and scrolled into view | [ ] |
 | M13.5 | With a reminder due, tap the **amber reminder banner** | Settings opens with **Garage** expanded and scrolled into view | [ ] |
-| M13.6 | After M13.4, tap the Settings tab by hand | The accordion is left exactly as you had it — the deep link fires once, not every visit | [ ] |
+| M13.6 | After M13.4, leave and tap My Rules by hand | The accordion is left exactly as you had it — the deep link fires once, not every visit | [ ] |
 | M13.7 | Home → **Last session** card (needs one finished shift) | Tapping it switches to **History**. The empty "No sessions yet" card is NOT tappable | [ ] |
 | M13.8 | Scroll any tab down, then tap **that same tab** in the nav | Scrolls back to the top with an animation. Tapping a different tab still just switches | [ ] |
 | M13.9 | Scroll Home down, switch to History, come back | Home is still where you left it (re-tap only fires on the active tab) | [ ] |
-| M13.10 | Settings, scroll to the bottom | Two link rows: **About & help** (`1.0.0 (build 2)`) and **Logs** (`Watcher record`) | [ ] |
-| M13.11 | Tap **Logs** | The log tail opens with copy + clear actions — the screen About's "Settings → Logs" line has always pointed at | [ ] |
-| M13.12 | Go live, let a real offer pill appear, then **tap the bubble** | App comes forward on **History** with that offer's detail sheet already open | [ ] |
-| M13.13 | Let the pill clear (offer leaves the screen), then tap the bubble | App comes forward on whatever tab you left it on — no stale sheet | [ ] |
-| M13.14 | Tap the bubble after **Show a demo pill** | Same: no sheet (demo pills are never logged, so there's nothing to open) | [ ] |
+| M13.10 | Settings, scroll to the bottom | **Help & support** groups **Send feedback**, **About FoxyCo**, and **Diagnostic logs** | [ ] |
+| M13.11 | Tap **Diagnostic logs** | The existing log tail opens with email, copy, and clear actions | [ ] |
+| M13.12 | Tap **Send feedback** | Four categories, description, optional screenshot picker, privacy note, and disabled Send action render | [ ] |
+| M13.13 | Enter feedback and add three screenshots | A chooser opens with tester recipient, runtime version/device context, and three readable attachments; no logs are included | [ ] |
+| M13.14 | Go live, let a real offer pill appear, then **tap the bubble** | App comes forward on **History** with that offer's detail sheet already open | [ ] |
+| M13.15 | Let the pill clear (offer leaves the screen), then tap the bubble | App comes forward on whatever tab you left it on — no stale sheet | [ ] |
+| M13.16 | Tap the bubble after **Show a demo pill** | Same: no sheet (demo pills are never logged, so there's nothing to open) | [ ] |
 
 ## M14 — Rules and Settings structure
 
@@ -527,7 +530,7 @@ _Last updated: 2026-07-25 (M12: polish pass + light theme; white car card + abov
 | M14.1 | Inspect the bottom navigation | Four one-tap destinations appear in order: **Home · Rules · History · Settings** | [ ] |
 | M14.2 | Open Rules | **Verdict thresholds** is open; Live preview, Pickup guard and Watched apps are on the same page and save immediately | [ ] |
 | M14.3 | Tap a Rules group open, then another | Still single-open — the first collapses. Band headers don't move except by the height the accordion gives back | [ ] |
-| M14.4 | Open Settings and scroll top to bottom | Scoring controls are absent; account/car, diagnostics, look & feel, data and unlock controls remain | [ ] |
+| M14.4 | Open Settings and scroll top to bottom | Scoring controls are absent; account/car, App health, look & feel, data and access controls remain | [ ] |
 | M14.5 | Accessibility → Remove animations ON, open Settings | Every group is in place on the first frame; band rules render normally | [ ] |
 | M14.6 | Home → tap the app badges (M13.4) | Lands on Rules with **Watched apps** expanded and scrolled into view | [ ] |
 | M14.7 | Compare the band rules against Home's "LAST SESSION" and History's date headers | Identical treatment — same small-caps weight, same gap, same hairline (all three now come from one widget) | [ ] |
@@ -558,7 +561,7 @@ _Last updated: 2026-07-25 (M12: polish pass + light theme; white car card + abov
 
 | # | Step | Expect | Pass |
 |---|---|---|---|
-| OCR.1 | Leave Settings → Parser health → Pixel Capture OFF; capture readable Uber/Lyft/Hopp cards | Accessibility produces each verdict; no OCR log entry | [ ] |
+| OCR.1 | Leave Settings → App health → Offer detection → Pixel Capture OFF; capture readable Uber/Lyft/Hopp cards | Accessibility produces each verdict; no OCR log entry | [ ] |
 | OCR.2 | Tap Pixel Capture, then choose **Not now** on FoxyCo's disclosure | Toggle remains off; monitoring still works through Accessibility | [ ] |
 | OCR.3 | Tap Pixel Capture again and choose **Enable OCR**, then start monitoring | Toggle turns on; no Android screen-share prompt, indicator, or Pixel Capture notification appears | [ ] |
 | OCR.4 | Present an accessibility-readable offer while OCR is approved | One verdict/history row from Accessibility; logs contain no OCR request | [ ] |
@@ -585,7 +588,7 @@ layer behind it), the gold `logo 3d` wordmark, and the sleeping fox.
 | M16.6 | Settings → Appearance → switch to the **light** theme, back to Home | Car reads as paint on paper, not a glowing object in a dark room: the back layer is a plain shadow. Going live warms the card edge — the car itself doesn't change (no lights-off art in this set) | [ ] |
 | M16.7 | Watch the hero for ~10 s in both themes | Reflection sweep crosses **the car body only** — no highlight sliding across empty card. The sweep mask is the car core, so any drift shows here | [ ] |
 | M16.8 | Home with no finished shifts (fresh install or cleared data) | The empty session card shows the **sleeping fox on grass**, ~132 dp wide, not squashed into a square | [ ] |
-| M16.9 | Settings → About & help | Header is the **gold wordmark** with the version under it — not a fox head next to the word "FoxyCo" | [ ] |
+| M16.9 | Settings → About FoxyCo | Header is the **gold wordmark** with the version under it — not a fox head next to the word "FoxyCo" | [ ] |
 | M16.10 | Check the fox head is still where it belongs | Home brand bar, shift recap sheet, onboarding, and the overlay bubble all still use the round head. Only the empty-session card and About changed | [ ] |
 | M16.11 | Accessibility → Remove animations ON, cold start | Splash shows the car lit and the wordmark instantly, then moves on. Home's car is static | [ ] |
 | M16.12 | Scroll Home up and down a few times on the oldest device you have | No jank on the hero. It's 2 images now instead of 15 — if this ever regresses, that's the place to look | [ ] |
@@ -611,27 +614,27 @@ Use a **release** build: `flutter build apk --release --dart-define=PLAY_PUBLIC_
 
 | # | Step | Expect | Pass |
 |---|------|--------|------|
-| M18.1 | Fresh install (or clear app data), cold start, release build | App opens straight to Home. NO sign-in prompt, no Google sheet, no dialog | [ ] |
-| M18.2 | Same fresh install, look at the top of Home | Banner reads **"Start your 7-day free trial"** with a chevron | [ ] |
+| M18.1 | Fresh install (or clear app data), cold start, release build | App opens the onboarding wizard. NO sign-in prompt or Google sheet appears until the driver chooses to start the trial | [ ] |
+| M18.2 | Complete or skip onboarding, then look at the top of Home | Banner reads **"Start your 7-day free trial"** with a chevron | [ ] |
 | M18.3 | Go live, let a real offer land, WITHOUT starting the trial | Pill appears but shows **"Unlock FoxyCo / Tap to see this offer"** — no verdict word, no `$/km`, no `$/hr`, no km | [ ] |
 | M18.4 | Tap that locked pill | FoxyCo comes to the foreground, lands on the **Home** tab, paywall sheet is already open | [ ] |
 | M18.5 | Settings → Look & feel → the sample pill; and Home's demo pill | Both still show full numbers — the demo pill is free forever, only the LIVE pill locks | [ ] |
-| M18.6 | Paywall → "Start 7-day free trial" | Google account sheet appears. Pick an account → sheet closes → snackbar "Trial started — 7 days of everything" | [ ] |
+| M18.6 | Paywall → "Start 7-day free trial" | Google account sheet appears. Pick an account → paywall closes and the Home trial banner updates | [ ] |
 | M18.7 | Home top, right after that | Banner calmly reads **"7 days left in your free trial"**; it does not say ended or ask you to unlock | [ ] |
 | M18.8 | Go live again, real offer | Full verdict pill: verdict color, `$/km`, km, `$/hr` | [ ] |
-| M18.9 | Settings → Your unlock → Unlock | Header summary reads **"Trial — 7 days left"**; the signed-in Gmail is shown | [ ] |
+| M18.9 | Settings → Profile → Access | Header summary reads **"Trial active · 7 days remaining"**; the signed-in Gmail is shown | [ ] |
 | M18.10 | **The reinstall test.** Clear app data (or uninstall + reinstall), start trial again with the SAME Google account | Snackbar: **"This Google account already used its free trial."** Pill stays locked. *If this hands out a fresh 7 days, the whole Firestore design has failed — see MONETIZATION §3.4.1* | [ ] |
 | M18.11 | Airplane mode, cold start, mid-trial | App works, pill shows numbers. No error toast | [ ] |
 | M18.12 | Settings → date & time → wind the clock back 3 days, reopen FoxyCo | Trial days-left does NOT go up. (`FoxClock` high-water mark) | [ ] |
 | M18.13 | Wind the clock FORWARD past the trial end, reopen | Pill locks, banner reads "Trial ended — unlock FoxyCo" | [ ] |
 | M18.14 | Wind the clock back to real time, go online, reopen | Correct days-left returns — the ID-token sync heals the poisoned clock, it does not stay expired | [ ] |
-| M18.15 | 💳 Paywall → "Unlock forever — $12.99" | Google Play sheet shows **$12.99** and the words "one-time" / no subscription language | [ ] |
-| M18.16 | 💳 Complete a test purchase | Paywall closes by itself. Settings → Unlock reads **"Unlocked forever"** | [ ] |
+| M18.15 | 💳 Open paywall in Canadian and US Play storefront tests | Paywall and Google Play show **CA$24.99** in Canada or **US$17.99** in the US; wording says one-time / no subscription | [ ] |
+| M18.16 | 💳 Complete a test purchase | Paywall closes by itself. Settings → Profile → Access reads **"Lifetime unlocked"** | [ ] |
 | M18.17 | 💳 Kill the app immediately after paying, before it settles, then reopen | Still unlocked (queryPurchases re-acknowledges on launch). **Check 4 days later that Google did NOT auto-refund** — that is the 72h acknowledgment rule, MONETIZATION §3.8 | [ ] |
 | M18.18 | 💳 Clear app data after purchasing, reopen, paywall → "Restore purchase" | "Purchase restored." Unlocked, and the trial state is irrelevant | [ ] |
 | M18.19 | 💳 Release build WITHOUT `--dart-define=PLAY_PUBLIC_KEY` | Paywall shows "Purchases are unavailable in this build". Nothing unlocks. Fails CLOSED (§3.9) | [ ] |
-| M18.20 | Build with `--dart-define=BUILD_EXPIRY=<yesterday>` | Everything locks regardless of trial or purchase — the tester kill date (§6) | [ ] |
-| M18.21 | Settings → Unlock → Delete my account → confirm | "Account deleted." The Gmail row disappears; app still opens and works | [ ] |
+| M18.20 | Deliberate expiry-only build with `--dart-define=BUILD_EXPIRY=<yesterday>` | Trial access locks, but a verified lifetime purchase stays unlocked. The define does not grant temporary tester access | [ ] |
+| M18.21 | Settings → Profile → Access → Delete my account → confirm | "Account deleted." The Gmail row disappears; app still opens and works | [ ] |
 | M18.22 | Airplane mode for 5+ days mid-trial (or fake it by clearing only the verify timestamp) | Banner: "Couldn't reach Google Play — unlock check needed in N days". Still usable | [ ] |
 
 _Last updated: 2026-07-28 (M18: trial, paywall, locked pill — needs Firebase console setup before any row can run). 2026-07-27 (M17: offer detail sheet scroll + header). 2026-07-26 (M13: shell navigation — back-to-Home, deep-linked Settings sections, tab re-tap, Logs route, bubble → offer. M14: Settings banded into five sections; shared SectionLabel. M15: overlay surface transparency, bubble-tap resume, offer-log de-dupe. M16: Foxy brand art — 2-layer car, gold wordmark, sleeping fox)._

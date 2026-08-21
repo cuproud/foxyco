@@ -459,7 +459,7 @@ FoxyCo's existing authoritative plan is simpler:
 - free download,
 - opt-in seven-day trial,
 - one-time lifetime unlock,
-- planned price `$12.99` using Google Play localized pricing,
+- planned lifetime price **CA$24.99 in Canada / US$17.99 in the US** using Google Play localized pricing,
 - no subscription,
 - no ads.
 
@@ -793,4 +793,3 @@ FoxyCo should not win by displaying the longest platform list. It should win by 
 - verified platform badges rather than marketing-only support.
 
 Comet demonstrates that broad platform coverage, OCR fallback, voice output, richer economics, and internationalization are feasible. Its real Uber error also demonstrates why FoxyCo's expansion must remain fixture-driven and fail-safe.
-

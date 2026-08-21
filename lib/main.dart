@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'domain/app_skin.dart';
 import 'router.dart';
@@ -11,6 +12,7 @@ import 'services/billing/entitlement.dart';
 import 'services/play_update_service.dart';
 import 'ui/home/dashboard_controller.dart';
 import 'ui/onboarding/onboarding_gate.dart';
+import 'ui/settings/about_content.dart';
 import 'ui/overlay/overlay_controller.dart';
 import 'ui/overlay/overlay_entry.dart';
 import 'ui/settings/settings_controller.dart';
@@ -40,7 +42,21 @@ void main() async {
   // Read the first-run flag BEFORE runApp so the app boots straight into the
   // right screen — no flash of Home before onboarding takes over.
   final onboarded = await OnboardingGate.isDone();
-  runApp(ProviderScope(child: FoxyCoApp(showOnboarding: !onboarded)));
+  var updated = false;
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final previous = prefs.getString('foxyco.last_seen_version');
+    updated = onboarded && previous != aboutVersion;
+    await prefs.setString('foxyco.last_seen_version', aboutVersion);
+  } catch (_) {
+    // A confirmation message must never delay or block startup.
+  }
+  runApp(
+    ProviderScope(
+      overrides: [appUpdatedProvider.overrideWithValue(updated)],
+      child: FoxyCoApp(showOnboarding: !onboarded),
+    ),
+  );
 }
 
 /// Entry point for the overlay ISOLATE. `flutter_overlay_window` looks this up

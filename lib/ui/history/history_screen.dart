@@ -7,6 +7,7 @@ import '../../domain/offer_summary.dart';
 import '../../domain/platform.dart';
 import '../../domain/verdict.dart';
 import '../../services/offer_log.dart';
+import '../../services/session_log.dart';
 import '../../parser/parser_registry.dart';
 import '../settings/settings_controller.dart';
 import '../theme/platform_badge.dart';
@@ -19,7 +20,7 @@ import 'offer_detail_sheet.dart';
 
 /// History (references/foxyco_history.html).
 ///
-/// Time range + app, verdict and trip-status filters + a "top offers only"
+/// Time range + app, verdict and trip-status filters + a minimum-fare
 /// filter over the live offer log ([offerLogProvider]) — every scored offer
 /// FoxyCo has seen.
 class HistoryScreen extends ConsumerStatefulWidget {
@@ -954,7 +955,7 @@ class _TopFilter extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Top offers only',
+                      'Filter by minimum fare',
                       style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w700,
@@ -1041,7 +1042,7 @@ class _Switch extends StatelessWidget {
     return Semantics(
       toggled: on,
       button: true,
-      label: 'Top offers only',
+      label: 'Filter by minimum fare',
       child: GestureDetector(
         key: const ValueKey('history-top-toggle'),
         onTap: () {
@@ -1616,7 +1617,14 @@ class _OutcomeMenu extends ConsumerWidget {
             builder: (_) => _OutcomeSheet(selected: offer.outcome),
           );
           if (value != null) {
-            ref.read(offerLogProvider.notifier).setOutcome(offer, value);
+            final changed = ref
+                .read(offerLogProvider.notifier)
+                .setOutcome(offer, value);
+            if (changed) {
+              await ref
+                  .read(sessionLogProvider.notifier)
+                  .refreshForOffer(offer, ref.read(offerLogProvider));
+            }
           }
         },
         child: Container(
@@ -1769,7 +1777,7 @@ class _Empty extends StatelessWidget {
             ),
             const SizedBox(height: Gap.xs),
             Text(
-              'Go live and let the fox hunt.',
+              'Go live to start recording offers.',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 13,

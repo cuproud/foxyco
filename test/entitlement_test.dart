@@ -291,8 +291,8 @@ void main() {
     );
   });
 
-  group('tester build kill date (§6)', () {
-    test('past the kill date everything locks, trial or not', () {
+  group('legacy trial cutoff', () {
+    test('past the cutoff locks an active trial', () {
       final a = derive(
         trial: trialStartedAgo(const Duration(days: 1)),
         buildExpiry: now.subtract(const Duration(days: 1)),
@@ -300,12 +300,13 @@ void main() {
       expect(a.entitled, isFalse);
     });
 
-    test('a purchase does not survive it either — the build is dead', () {
+    test('a verified purchase always survives the trial cutoff', () {
       final a = derive(
         unlock: UnlockStatus.purchased,
         buildExpiry: now.subtract(const Duration(days: 1)),
       );
-      expect(a.entitled, isFalse);
+      expect(a.entitled, isTrue);
+      expect(a.source, AccessSource.purchase);
     });
 
     test('before the date it changes nothing', () {
@@ -316,8 +317,11 @@ void main() {
       expect(a.entitled, isTrue);
     });
 
-    test('locks exactly at the kill-date boundary', () {
-      final a = derive(unlock: UnlockStatus.purchased, buildExpiry: now);
+    test('locks a trial exactly at the cutoff boundary', () {
+      final a = derive(
+        trial: trialStartedAgo(const Duration(days: 1)),
+        buildExpiry: now,
+      );
       expect(a.entitled, isFalse);
     });
   });

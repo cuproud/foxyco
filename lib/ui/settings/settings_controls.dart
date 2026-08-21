@@ -55,23 +55,32 @@ class LinkRow extends StatelessWidget {
               Icon(icon, size: 20, color: const Color(0xFF9AA7B8)),
               const SizedBox(width: Gap.sm + Gap.xs),
               Expanded(
-                child: Text(
-                  title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                    color: FoxColors.textPrimary,
-                  ),
-                ),
-              ),
-              Text(
-                trailing,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: FoxColors.textDisabled,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        color: FoxColors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      trailing,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: FoxColors.textDisabled,
+                      ),
+                    ),
+                  ],
                 ),
               ),
               const SizedBox(width: Gap.xs),

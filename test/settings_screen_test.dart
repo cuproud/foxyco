@@ -80,6 +80,14 @@ String _overflowingRows() {
 }
 
 void main() {
+  test('CSV cells escape separators and block spreadsheet formulas', () {
+    expect(csvCell('UberX'), 'UberX');
+    expect(csvCell('Comfort, XL'), '"Comfort, XL"');
+    expect(csvCell('A "quoted" ride'), '"A ""quoted"" ride"');
+    expect(csvCell('two\nlines'), '"two\nlines"');
+    expect(csvCell('=2+2'), "'=2+2");
+  });
+
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
   testWidgets('renders thresholds and live preview', (tester) async {
@@ -434,13 +442,13 @@ void main() {
     expect(find.text('Enable on-device Pixel Capture?'), findsOneWidget);
     await tester.tap(find.text('Not now'));
     await tester.pumpAndSettle();
-    expect(find.text('This session'), findsOneWidget);
+    expect(find.text('Current session'), findsOneWidget);
 
     await tester.tap(find.text('Pixel Capture (OCR)'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Enable OCR'));
     await tester.pumpAndSettle();
-    expect(find.text('This session · OCR enabled'), findsOneWidget);
+    expect(find.text('Current session · OCR enabled'), findsOneWidget);
 
     final testToggle = find.byKey(const Key('ocr_test_mode_toggle'));
     expect(tester.widget<SwitchListTile>(testToggle).onChanged, isNotNull);
@@ -486,9 +494,10 @@ void main() {
     // Operational settings remain grouped after scoring rules move out.
     for (final band in const [
       'YOU & YOUR CAR',
-      'DIAGNOSTICS',
+      'APP HEALTH',
       'LOOK & FEEL',
       'YOUR DATA',
+      'HELP & SUPPORT',
     ]) {
       expect(find.text(band), findsOneWidget, reason: band);
     }
@@ -496,14 +505,17 @@ void main() {
     // Vertical order is the contract — a band header sits above its groups.
     double y(String label) => tester.getTopLeft(find.text(label)).dy;
     expect(y('YOU & YOUR CAR'), lessThan(y('Profile')));
-    expect(y('DIAGNOSTICS'), lessThan(y('Offer detection')));
+    expect(y('APP HEALTH'), lessThan(y('Offer detection')));
     expect(y('Offer detection'), lessThan(y('Outcome tracking')));
     expect(y('LOOK & FEEL'), greaterThan(y('Outcome tracking')));
     expect(y('YOUR DATA'), lessThan(y('History')));
-    expect(y('History'), lessThan(y('Logs')));
+    expect(y('History'), lessThan(y('HELP & SUPPORT')));
+    expect(y('HELP & SUPPORT'), lessThan(y('Send feedback')));
+    expect(y('Send feedback'), lessThan(y('About FoxyCo')));
+    expect(y('About FoxyCo'), lessThan(y('Diagnostic logs')));
   });
 
-  testWidgets('History actions fit narrow screens', (tester) async {
+  testWidgets('Settings rows fit narrow screens', (tester) async {
     tester.view.physicalSize = const Size(360, 800);
     tester.view.devicePixelRatio = 1;
     tester.platformDispatcher.textScaleFactorTestValue = 1.2;
@@ -544,6 +556,22 @@ void main() {
     expect(find.text('Export CSV'), findsOneWidget);
     expect(find.text('Clear offer history'), findsOneWidget);
     expectNoLayoutError(tester, 'Visible History actions');
+
+    await tester.scrollUntilVisible(
+      find.text('Diagnostic logs'),
+      300,
+      scrollable: settingsScroll,
+    );
+    await tester.pumpAndSettle();
+    expectNoLayoutError(tester, 'Help and support rows');
+    expect(
+      tester.getTopLeft(find.text('Describe a problem')).dy,
+      greaterThan(tester.getTopLeft(find.text('Send feedback')).dy),
+    );
+    expect(
+      tester.getTopLeft(find.text('Troubleshooting details')).dy,
+      greaterThan(tester.getTopLeft(find.text('Diagnostic logs')).dy),
+    );
   });
 
   test('controller clamps GOOD above BAD (band stays coherent)', () {

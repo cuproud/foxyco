@@ -7,7 +7,7 @@ import '../../services/billing/trial_store.dart';
 import '../theme/tokens.dart';
 import 'paywall_sheet.dart';
 
-/// Settings → Unlock. The whole entitlement surface in one accordion: what the
+/// Settings → Profile → Access. The entitlement surface in one accordion: what the
 /// driver currently has, how to get more, and how to leave.
 ///
 /// Play requires an in-app account-deletion path once accounts are collected

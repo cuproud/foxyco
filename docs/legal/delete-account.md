@@ -4,7 +4,7 @@ title: FoxyCo — Delete your account and data
 
 # Delete your FoxyCo account and data
 
-**Last updated: 7 August 2026**
+**Last updated: 20 August 2026**
 
 This page exists because Google Play requires a publicly reachable account
 deletion route for any app that collects an account. It applies to the FoxyCo
@@ -24,7 +24,7 @@ server. Purchases are held by Google Play, not by us.
 ## Option 1 — delete it in the app (fastest)
 
 1. Open FoxyCo.
-2. Go to **Settings → Unlock**.
+2. Go to **Settings → Profile → Access**.
 3. Tap **Delete my account** and confirm.
 
 This deletes your Firebase Authentication account, including the email address

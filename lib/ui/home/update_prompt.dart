@@ -21,9 +21,10 @@ class PlayUpdatePrompt extends ConsumerWidget {
         update.state == PlayUpdateState.starting ||
         update.state == PlayUpdateState.downloading;
     final downloaded = update.state == PlayUpdateState.downloaded;
-    final progressLabel = update.progress == null
-        ? 'Updating FoxyCo…'
-        : 'Updating FoxyCo… ${(update.progress! * 100).round()}%';
+    final hasProgress = update.progress != null && update.progress! > 0;
+    final progressLabel = hasProgress
+        ? 'Updating FoxyCo… ${(update.progress! * 100).round()}%'
+        : 'Preparing update…';
 
     return Align(
       alignment: Alignment.topCenter,
@@ -42,18 +43,23 @@ class PlayUpdatePrompt extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(
-              downloaded
-                  ? 'FoxyCo update ready'
-                  : downloading
-                  ? progressLabel
-                  : 'FoxyCo update available',
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontWeight: FontWeight.w700),
+            Semantics(
+              liveRegion: !downloading,
+              child: Text(
+                downloaded
+                    ? 'FoxyCo update ready'
+                    : downloading
+                    ? progressLabel
+                    : 'FoxyCo update available',
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontWeight: FontWeight.w700),
+              ),
             ),
-            if (downloading && update.progress != null) ...[
+            if (downloading) ...[
               const SizedBox(height: Gap.sm),
-              LinearProgressIndicator(value: update.progress),
+              LinearProgressIndicator(
+                value: hasProgress ? update.progress : null,
+              ),
             ],
             if (!downloading) ...[
               const SizedBox(height: Gap.sm),

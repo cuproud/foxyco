@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../domain/session_summary.dart';
+import '../domain/offer_summary.dart';
 import 'fox_log.dart';
 
 /// Completed watch sessions, newest first — same prefs-blob pattern as
@@ -87,6 +88,28 @@ class SessionLog extends Notifier<List<SessionSummary>> {
     state = next;
     unawaited(_save());
     return true;
+  }
+
+  /// Rebuild the one saved session containing a corrected offer.
+  Future<void> refreshForOffer(
+    OfferSummary changed,
+    List<OfferSummary> offers,
+  ) async {
+    await _loaded.future;
+    if (!ref.mounted) return;
+    state = [
+      for (final session in state)
+        if (!changed.seenAt.isBefore(session.startedAt) &&
+            !changed.seenAt.isAfter(session.endedAt))
+          SessionSummary.from(
+            startedAt: session.startedAt,
+            endedAt: session.endedAt,
+            offers: offers,
+          ).withActualEarnings(session.actualEarnings)
+        else
+          session,
+    ];
+    await _save();
   }
 }
 

@@ -82,7 +82,7 @@ class _ShiftRecapSheet extends ConsumerWidget {
               const SizedBox(width: Gap.sm + Gap.xs),
               Expanded(
                 child: Text(
-                  'Shift recap 🌮',
+                  'Shift recap',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: Theme.of(context).textTheme.titleLarge,

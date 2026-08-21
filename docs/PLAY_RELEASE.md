@@ -1,6 +1,6 @@
 # FoxyCo — Google Play Release & Monetization Guide
 
-**Audience:** first-time Play Store publisher. Written 2026-07-20, updated 2026-08-07.
+**Audience:** first-time Play Store publisher. Written 2026-07-20, updated 2026-08-20.
 **Companion docs:** `MONETIZATION_v1.0.md` (entitlement architecture — **authoritative**), `AUDIT.md` (policy risks + release checklist), `MANUAL_TESTS.md` (device test matrix).
 
 > ## ⚠️ Superseded sections
@@ -12,7 +12,7 @@
 > | Section | Status |
 > |---|---|
 > | §1 model (free + one-time unlock) | ✅ still current |
-> | §2 pricing | ⚠️ **$7.99 founding promo dropped** — $12.99 flat from launch (MONETIZATION §2) |
+> | §2 pricing | ✅ CA$24.99 Canada / US$17.99 US lifetime (MONETIZATION §2) |
 > | §3 publish walkthrough | ⚠️ privacy policy + Data safety answers changed (see §3 notes) |
 > | §4 trial design | ❌ **superseded** — trial lives in Firestore, not SharedPreferences |
 > | §4a lock behavior | ✅ current (MONETIZATION §4 refines the overlay rule) |
@@ -35,8 +35,8 @@
 
 _Added 2026-08-02. §1–§6 are the reasoning; this is the ordered list of moves.
 Everything below is a console/web action except C1. Build 22 was Play-installed
-and device-tested; current source is audit-remediated build 26. See
-`FULL_APP_AUDIT_2026-08-07.md` for current verification and remaining gates;
+and device-tested; current source is build 55. See
+`FULL_APP_AUDIT_2026-08-20.md` for current verification and remaining gates;
 `HANDOFF_2026-08-04.md` documents the historical build-24 artifact._
 
 ### Phase A — no Play Console needed, do it today
@@ -59,7 +59,7 @@ and device-tested; current source is audit-remediated build 26. See
 6. **Accessibility declaration** — answer with the §3 step 3 text; attach the A5 video if asked.
 7. **Content rating** → Everyone. **Target audience** → 18+.
 8. **Monetization setup** → copy the **licensing key** (base64 RSA blob). This is the `PLAY_PUBLIC_KEY` for C1.
-9. **Products → In-app products** → create `foxyco.lifetime`, **non-consumable**, $12.99, activate it.
+9. **Products → In-app products** → create `foxyco.lifetime`, **non-consumable**. Set **CA$24.99** in Canada and **US$17.99** in the United States, then activate it.
 
 ### Phase C — build and upload
 
@@ -229,9 +229,10 @@ Google's service fee is **15% on the first $1M USD/year** (automatic once you en
 
 ### Recommendation
 
-**$12.99 one-time** (experiment range $9.99–14.99).
+**CA$24.99 in Canada and US$17.99 in the United States, one time.**
 
-The math drivers do in their head: *"one avoided bad ride ≈ saved 30 dead minutes ≈ the app paid for itself."* Anchor the paywall copy to exactly that.
+Frame the value without promising earnings: *"See weak offers before you
+decide. Compare offers using your own distance or hourly rules."*
 
 - ~~Launch promo: first month at **$7.99** ("founding driver price").~~
   **Dropped 2026-07-28** (MONETIZATION §2). A one-time unlock bought at $7.99
@@ -240,8 +241,8 @@ The math drivers do in their head: *"one avoided bad ride ≈ saved 30 dead minu
   the first month reads badly in reviews from the people who evangelized you.
   Play price-change scheduling stays available if launch conversion argues
   otherwise — flagged as an open decision in MONETIZATION §9.
-- Worked example at $12.99: 100 unlocks/mo → $1,299 gross → ~$1,104 after Google's 15% → minus ~your income tax. 1,000 trials at a typical 5–10% trial→paid conversion = 50–100 unlocks.
-- Set prices per-country with Play's "price template" auto-conversion, then round weird amounts (₹999, not ₹1,067).
+- Set Canada and the US manually. Use a Play price template as the international
+  baseline, then review important markets for sensible local prices and endings.
 
 ---
 
@@ -421,34 +422,34 @@ Hostile to legit users; pirates strip them first anyway. Pirate users ≈
 people who'd never pay; layers 1–3 cost half a day inside the billing task
 and beat what most paid apps ship.
 
-### 4c. Testers at production launch — nobody keeps it free (decided)
+### 4c. Testers and temporary access
 
 **Tester cap: 20–30.** Play has no "limit reached" banner; the cap IS the
 email list / Google Group — stop adding past 30, outsiders simply can't
 access the listing. Keep the opt-in link private (DM only). 20–30 sits
 comfortably above the 12-concurrent floor and stays manageable.
 
-**Three layers guarantee no permanent free copies:**
+Closed-track membership does not grant premium access. In build 55, ordinary
+testers get the same 7-day trial and paywall as public users.
 
-1. **Trial gate applies to testers too.** 7 days from when THEY start the
-   trial, recorded in Firestore against their Google account — most tester
-   trials expire mid-window, so they test the paywall for real before launch.
-   A tester who reinstalls does not get a fresh 7 days (MONETIZATION §3.4.1).
-2. **License testing is temporary by design.** During the test window,
-   tester Gmails go on Play Console → License testing so they can exercise
-   the purchase flow (real dialog, test card, no charge). **At production
-   launch: clear the list → their test "purchases" vanish → locked → they
-   pay like everyone.** License-test purchases are not real entitlements.
-3. **Build kill-date (belt-and-suspenders).** Closed-track builds bake in a
-   drop-dead date: `now > buildExpiry → paywall regardless of trial state`.
-   One const + one check inside the billing task.
+Use License testing only for trusted billing-QA accounts. Those accounts can
+use Google's test payment methods. Removing an account from License testing is
+not a reliable entitlement reset for an acknowledged non-consumable; refund and
+revoke the test order in Play Console before repeating the purchase.
+
+Google Play promo codes for `foxyco.lifetime` are permanent lifetime grants.
+Do not hand them to random recruits if temporary access is the goal. The planned
+fixed-date tester entitlement is separate and is not implemented yet. The
+existing `BUILD_EXPIRY` define only cuts off trial access after a date. It does
+not grant access and never overrides a verified purchase, so it must not be
+treated as tester access.
 
 Closed track survives production promotion — testers keep the app installed
 and update normally; the layers above decide what they can USE, not whether
 the app runs.
 
-Only deliberate exception, if ever: Play **promo codes** for the unlock —
-your call per person, never automatic.
+Use a small number of promo codes only as permanent rewards for testers who
+made a meaningful contribution.
 
 ---
 
@@ -458,11 +459,11 @@ your call per person, never automatic.
 |---|---|
 | T-14 | Start the mandatory closed test (12+ testers). Fix what they find. |
 | T-3 | Freeze build, promote to production review, prepare screenshots + 30s screen-recording |
-| Day 0 | Production live at **$12.99** (founding promo dropped — see §2). Post in r/uberdrivers, r/couriersofreddit, local driver Facebook/WhatsApp groups — with the trial pitch, not the price pitch |
+| Day 0 | Production live at **CA$24.99 / US$17.99 lifetime**. Post in driver communities with the 7-day-trial and no-subscription message |
 | Day 1–7 | Watch Play Console → Ratings + ANRs/crashes daily. Reply to EVERY review (reviewers get notified, often revise stars) |
 | Day 3 | **Confirm no purchases are auto-refunding.** Unacknowledged purchases reverse silently at 72h (MONETIZATION §3.8) — day 0 buyers are the first cohort that can expose the bug |
 | Day 7 | First trial cohort hits the paywall — watch conversion % |
-| Day 14–30 | A/B the paywall copy (Play "store listing experiments" is free). Price stays $12.99 unless conversion data argues otherwise |
+| Day 14–30 | A/B the store-listing copy. Keep pricing stable until conversion, refund and review data justify a change |
 
 ---
 

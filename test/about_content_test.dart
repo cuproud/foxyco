@@ -23,7 +23,7 @@ void main() {
         )
         .join(' ');
 
-    expect(copy, contains('one non-consumable Google Play purchase'));
+    expect(copy, contains('One Google Play purchase unlocks FoxyCo for life'));
     expect(copy, contains('There is no monthly or annual renewal'));
     expect(copy, contains('one server-stamped trial start time'));
     expect(copy, contains('Raw screen text is used briefly in memory'));

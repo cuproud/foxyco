@@ -79,6 +79,9 @@ final playUpdateGatewayProvider = Provider<PlayUpdateGateway>(
   (ref) => MethodChannelPlayUpdateGateway(),
 );
 
+/// True only for the first shell mounted after an installed version changes.
+final appUpdatedProvider = Provider<bool>((ref) => false);
+
 final playUpdateProvider =
     NotifierProvider<PlayUpdateController, PlayUpdateStatus>(
       PlayUpdateController.new,

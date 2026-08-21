@@ -132,7 +132,7 @@ class _LogsScreenState extends ConsumerState<LogsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Logs'),
+        title: const Text('Diagnostic logs'),
         actions: [
           IconButton(
             key: const ValueKey('email-logs'),

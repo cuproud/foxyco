@@ -361,8 +361,8 @@ class _Hero extends StatelessWidget {
     final online = status == WatchStatus.watching;
     final total = tally.good + tally.ok + tally.bad;
     final statusText = switch (status) {
-      WatchStatus.watching => 'On the prowl',
-      WatchStatus.paused => 'Off duty',
+      WatchStatus.watching => 'Watching offers',
+      WatchStatus.paused => 'Paused',
       WatchStatus.stopped => 'Ready when you are',
       WatchStatus.blocked => 'Access needed',
     };
@@ -1211,7 +1211,7 @@ class _SessionCard extends ConsumerWidget {
               if (s.total == 0) ...[
                 const SizedBox(height: Gap.xs),
                 Text(
-                  'Quiet one — nothing came in while the watcher ran.',
+                  'No offers appeared while FoxyCo was live.',
                   style: text.bodyMedium?.copyWith(
                     color: FoxColors.textSecondary,
                   ),
@@ -1500,10 +1500,10 @@ class _EmptySession extends StatelessWidget {
           // it square would squash the fox.
           Image.asset('assets/branding/foxy_sleeping.png', width: 132),
           const SizedBox(height: Gap.sm),
-          Text('No sessions yet 🍪', style: text.titleMedium),
+          Text('No sessions yet', style: text.titleMedium),
           const SizedBox(height: Gap.xs),
           Text(
-            "Slide to go live — I'll recap the shift here when you stop.",
+            'Go live to record offers. A session summary appears when you stop.',
             textAlign: TextAlign.center,
             style: text.bodyMedium?.copyWith(color: FoxColors.textSecondary),
           ),

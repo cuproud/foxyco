@@ -86,7 +86,10 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Try a week. Pay once.'), findsOneWidget);
     expect(find.textContaining('no subscription'), findsOneWidget);
-    expect(find.textContaining('avoided BAD offer'), findsOneWidget);
+    expect(
+      find.textContaining('There is no subscription or recurring fee.'),
+      findsOneWidget,
+    );
     expect(find.textContaining(['d', 'ud'].join()), findsNothing);
 
     // Page 4 — overlay grant. Off-device the dashboard defaults both grants
@@ -109,7 +112,7 @@ void main() {
 
     // Final CTA replaces Next and lands on Home.
     expect(find.text('Next'), findsNothing);
-    await tester.tap(find.text('Start driving smarter'));
+    await tester.tap(find.text('Finish setup'));
     // Home's car hero runs an endless idle loop — pumpAndSettle would hang.
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));

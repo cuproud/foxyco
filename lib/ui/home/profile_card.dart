@@ -20,15 +20,6 @@ class ProfileCard extends ConsumerWidget {
     return 'Late shift';
   }
 
-  /// Food emoji per band, appended after the name — the fox eats around the
-  /// clock ("Good evening, Vamsi 🍜").
-  static String snackFor(int hour) {
-    if (hour >= 5 && hour < 12) return '☕';
-    if (hour >= 12 && hour < 17) return '🌮';
-    if (hour >= 17 && hour < 22) return '🍜';
-    return '🍪';
-  }
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final name = ref.watch(driverNameProvider).trim();
@@ -45,7 +36,6 @@ class ProfileCard extends ConsumerWidget {
               color: FoxColors.brandFox,
             ),
           ),
-          TextSpan(text: ' ${snackFor(DateTime.now().hour)}'),
         ],
       ),
       // Long names wrap to a second line instead of clipping.

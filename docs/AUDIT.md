@@ -280,7 +280,7 @@ fonts (OFL requires shipping the license with the font). Flutter's built-in
 - [x] Privacy policy + Terms **drafted** (`docs/legal/`) saying "Account info (email), App activity
       (trial/purchase state)" — NOT "no data collected"; that answer is now false
       (`MONETIZATION_v1.0.md` §5). ⏳ still to PUBLISH them and mirror into the Data safety form
-- [x] In-app account deletion reachable (Settings → Unlock); ⏳ public deletion URL drafted
+- [x] In-app account deletion reachable (Settings → Profile → Access); ⏳ public deletion URL drafted
       (`docs/legal/delete-account.md`) but not yet live
 - [ ] Parser fails safe (no confident wrong verdict)
 - [ ] Overlay can't cover Accept/decline on 3 test devices

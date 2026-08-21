@@ -7,6 +7,7 @@ import 'package:foxyco/services/play_update_service.dart';
 class _FakePlayUpdateGateway implements PlayUpdateGateway {
   final events = StreamController<PlayUpdateStatus>.broadcast();
   PlayUpdateStatus next = PlayUpdateStatus.idle;
+  bool startResult = true;
   var starts = 0;
   var completions = 0;
 
@@ -19,7 +20,7 @@ class _FakePlayUpdateGateway implements PlayUpdateGateway {
   @override
   Future<bool> startFlexible() async {
     starts++;
-    return true;
+    return startResult;
   }
 
   @override
@@ -110,5 +111,24 @@ void main() {
     );
     await controller.complete();
     expect(gateway.completions, 1);
+  });
+
+  test('failed update start returns to idle', () async {
+    final gateway = _FakePlayUpdateGateway()
+      ..next = const PlayUpdateStatus(PlayUpdateState.available)
+      ..startResult = false;
+    final container = ProviderContainer(
+      overrides: [playUpdateGatewayProvider.overrideWithValue(gateway)],
+    );
+    addTearDown(() async {
+      container.dispose();
+      await gateway.close();
+    });
+    final controller = container.read(playUpdateProvider.notifier);
+
+    await controller.check();
+    await controller.startFlexible();
+
+    expect(container.read(playUpdateProvider).state, PlayUpdateState.idle);
   });
 }

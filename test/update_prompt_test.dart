@@ -38,6 +38,12 @@ class _Downloading extends PlayUpdateController {
       const PlayUpdateStatus(PlayUpdateState.downloading, progress: 0.64);
 }
 
+class _Preparing extends PlayUpdateController {
+  @override
+  PlayUpdateStatus build() =>
+      const PlayUpdateStatus(PlayUpdateState.downloading, progress: 0);
+}
+
 class _Downloaded extends PlayUpdateController {
   @override
   PlayUpdateStatus build() =>
@@ -68,6 +74,13 @@ void main() {
     expect(find.text('Update now'), findsOneWidget);
     expect(find.byType(OutlinedButton), findsOneWidget);
     expect(find.byType(FilledButton), findsOneWidget);
+    expect(
+      tester
+          .getSemantics(find.text('FoxyCo update available'))
+          .flagsCollection
+          .isLiveRegion,
+      isTrue,
+    );
 
     await tester.tap(find.text('Update now'));
     expect(gateway.starts, 1);
@@ -84,6 +97,23 @@ void main() {
     expect(find.byType(LinearProgressIndicator), findsOneWidget);
   });
 
+  testWidgets('zero progress reads as preparation, not a stalled download', (
+    tester,
+  ) async {
+    final gateway = _Gateway();
+    addTearDown(gateway.events.close);
+    await tester.pumpWidget(_app(_Preparing.new, gateway));
+
+    expect(find.text('Preparing update…'), findsOneWidget);
+    expect(find.textContaining('0%'), findsNothing);
+    expect(
+      tester
+          .widget<LinearProgressIndicator>(find.byType(LinearProgressIndicator))
+          .value,
+      isNull,
+    );
+  });
+
   testWidgets('downloaded update offers restart', (tester) async {
     final gateway = _Gateway();
     addTearDown(gateway.events.close);
@@ -92,6 +122,13 @@ void main() {
     expect(find.text('FoxyCo update ready'), findsOneWidget);
     expect(find.text('Restart now'), findsOneWidget);
     expect(find.text('Later'), findsOneWidget);
+    expect(
+      tester
+          .getSemantics(find.text('FoxyCo update ready'))
+          .flagsCollection
+          .isLiveRegion,
+      isTrue,
+    );
 
     await tester.tap(find.text('Restart now'));
     expect(gateway.completions, 1);

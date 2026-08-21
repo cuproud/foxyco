@@ -253,7 +253,7 @@ void main() {
       const Offset(1080, 0),
     );
     await tester.pump();
-    expect(find.text('On the prowl'), findsOneWidget); // hero status
+    expect(find.text('Watching offers'), findsOneWidget); // hero status
     // 'Live' shows in the above-car status chip and the slide live bar — the
     // brand-bar pill is gone (2026-07-25).
     expect(find.text('Live'), findsNWidgets(2));

@@ -31,7 +31,8 @@ class PaywallRequest extends Notifier<bool> {
 
 /// The unlock sheet: trial start, one-time purchase, restore, redeem.
 ///
-/// Opened from the Home banner, Settings → Unlock, and a tap on the locked pill.
+/// Opened from the Home banner, Settings → Profile → Access, and a tap on the
+/// locked pill.
 Future<void> showPaywall(BuildContext context) => showModalBottomSheet<void>(
   context: context,
   backgroundColor: Colors.transparent,
@@ -160,8 +161,8 @@ class _PaywallSheetState extends ConsumerState<_PaywallSheet> {
       if (unlock == UnlockStatus.purchased) _close();
     });
 
-    // Play supplies a storefront-localized string (for example CA$12.99 or
-    // US$9.99). Never guess a currency while product details are loading.
+    // Play supplies the storefront-localized price. Never guess a currency
+    // while product details are loading.
     final price = ref.watch(billingPriceProvider);
     final canTrial = trial.phase == TrialPhase.preTrial;
     final unlockLabel = price == null
@@ -219,8 +220,8 @@ class _PaywallSheetState extends ConsumerState<_PaywallSheet> {
                           children: [
                             Text(
                               canTrial
-                                  ? 'Put FoxyCo on your next shift'
-                                  : 'Keep every verdict forever',
+                                  ? 'Try FoxyCo on your next shift'
+                                  : 'Unlock every verdict for life',
                               style: TextStyle(
                                 fontFamily: FoxFonts.display,
                                 fontSize: 22,
@@ -230,8 +231,8 @@ class _PaywallSheetState extends ConsumerState<_PaywallSheet> {
                             ),
                             Text(
                               canTrial
-                                  ? '7 days free. Then pay once only if it earns its seat.'
-                                  : 'One Google Play purchase. No monthly meter.',
+                                  ? 'Use every feature free for 7 days, then choose whether to buy lifetime access.'
+                                  : 'One Google Play purchase. No subscription.',
                               style: TextStyle(
                                 fontFamily: FoxFonts.sans,
                                 fontSize: 13,
@@ -257,13 +258,11 @@ class _PaywallSheetState extends ConsumerState<_PaywallSheet> {
                   const SizedBox(height: Gap.md),
                   // Anchor the price to the driver's own arithmetic, not to a
                   // competitor's (§6.3 — a hardcoded rival price rots).
+                  const _Bullet('See weak offers before you decide'),
                   const _Bullet(
-                    'Catch weak per-distance offers before they eat your shift',
+                    'Compare offers using your own distance or hourly rules',
                   ),
-                  const _Bullet('Avoiding one bad offer can pay for FoxyCo'),
-                  const _Bullet(
-                    'Pay once. Keep every verdict. No recurring fee.',
-                  ),
+                  const _Bullet('Pay once for lifetime access'),
                   const SizedBox(height: Gap.md),
                   if (access.licenceKeyMissing)
                     const _Notice(

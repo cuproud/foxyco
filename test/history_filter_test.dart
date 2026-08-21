@@ -93,7 +93,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Show all'), findsNothing);
     expect(find.text('No offers yet'), findsOneWidget);
-    expect(find.text('Go live and let the fox hunt.'), findsOneWidget);
+    expect(find.text('Go live to start recording offers.'), findsOneWidget);
     expect(find.byIcon(Icons.search_off), findsNothing);
     expect(
       find.image(const AssetImage('assets/history/hunt.webp')),

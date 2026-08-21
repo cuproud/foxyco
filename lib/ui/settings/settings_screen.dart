@@ -31,6 +31,17 @@ import 'reminder_section.dart';
 import 'settings_controller.dart';
 import 'settings_controls.dart';
 
+/// RFC 4180-style CSV cell escaping plus a spreadsheet formula guard for text
+/// imported from driver apps.
+String csvCell(Object? value) {
+  var text = value?.toString() ?? '';
+  if (text.isNotEmpty && '=+-@'.contains(text[0])) text = "'$text";
+  if (text.contains(RegExp(r'[",\r\n]'))) {
+    return '"${text.replaceAll('"', '""')}"';
+  }
+  return text;
+}
+
 /// Account, appearance, diagnostics, history, and app-level preferences.
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -195,7 +206,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
         ),
         const SizedBox(height: Gap.lg),
-        const SectionLabel('Diagnostics'),
+        const SectionLabel('App health'),
         const SizedBox(height: Gap.sm + Gap.xs),
         _staggered(
           2,
@@ -203,8 +214,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             title: 'Offer detection',
             icon: Icons.monitor_heart_outlined,
             summary: settings.ocrEnabled
-                ? 'This session · OCR enabled'
-                : 'This session',
+                ? 'Current session · OCR enabled'
+                : 'Current session',
             open: _open == 2,
             accent: _accents[2],
             onTap: () => _toggle(2),
@@ -228,7 +239,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ),
                 const SizedBox(height: Gap.sm),
                 Text(
-                  'This session. "Needs update" means offer cards are arriving '
+                  'Current session. "Needs update" means offer cards are arriving '
                   'but FoxyCo can\'t read them.',
                   style: text.bodyMedium?.copyWith(
                     color: FoxColors.textSecondary,
@@ -344,8 +355,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     Text(
                       'FoxyCo estimates whether an offer was taken or passed '
                       'from the screen that replaces it. It may occasionally '
-                      'be wrong. Manually corrected outcomes remain '
-                      'authoritative. FoxyCo only reads the screen; it never '
+                      'be wrong. Your corrections will not be overwritten. '
+                      'FoxyCo only reads the screen; it never '
                       'taps or accepts anything for you.',
                       style: text.bodyMedium?.copyWith(
                         fontSize: 12,
@@ -603,25 +614,31 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
         ),
         const SizedBox(height: Gap.lg),
-        // Last two rows, plain links rather than accordions — these are pages,
-        // not groups of knobs. Logs is the record About tells drivers to check
-        // when the watcher goes quiet ("Settings → Logs"); it had a screen and
-        // a test but no route and no way in, so that instruction pointed at
-        // nothing.
+        const SectionLabel('Help & support'),
+        const SizedBox(height: Gap.sm + Gap.xs),
+        // Support actions stay together and remain compact link rows: feedback
+        // for testers, self-serve help, then advanced diagnostic logs.
         _staggered(
           7,
           const LinkRow(
-            icon: Icons.info_outline_rounded,
-            title: 'About & help',
-            trailing: aboutVersion,
-            route: '/about',
+            icon: Icons.rate_review_outlined,
+            title: 'Send feedback',
+            trailing: 'Describe a problem',
+            route: '/feedback',
           ),
         ),
         const SizedBox(height: Gap.sm),
         const LinkRow(
+          icon: Icons.info_outline_rounded,
+          title: 'About FoxyCo',
+          trailing: aboutVersion,
+          route: '/about',
+        ),
+        const SizedBox(height: Gap.sm),
+        const LinkRow(
           icon: Icons.receipt_long_outlined,
-          title: 'Logs',
-          trailing: 'Watcher record',
+          title: 'Diagnostic logs',
+          trailing: 'Troubleshooting details',
           route: '/logs',
         ),
       ],
@@ -687,7 +704,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           settings.distanceUnit.rateFromPerKm(o.pricePerKm).toStringAsFixed(2),
           o.pricePerHour.toStringAsFixed(2),
           o.outcome.name,
-        ].join(','),
+        ].map(csvCell).join(','),
       );
     }
     await SharePlus.instance.share(

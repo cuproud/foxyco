@@ -1,7 +1,7 @@
 # FoxyCo — Monetization & Entitlement Architecture
 
-**Version:** 1.2  
-**Decision date:** 2026-07-27 (last revised 2026-07-28)  
+**Version:** 1.3  
+**Decision date:** 2026-07-27 (last revised 2026-08-20)  
 **Replaces:** `references/FoxyCo_Monetization_Architecture_Production.md`  
 **Supersedes:** `docs/PLAY_RELEASE.md` §4, §4a, §4b (trial + anti-piracy design)
 
@@ -17,10 +17,8 @@ has been annotated to point here.
    phone" — still true, since only auth and a trial timestamp cross the wire.
    An app-data clear regranting the trial indefinitely was judged the larger
    cost. See §3.3.
-2. **The $7.99 "founding driver" launch promo** (PLAY_RELEASE §2, §5) is
-   dropped. §2 below is $12.99 flat from launch. Rationale in §2 — reconfirm
-   before the store listing is filled in, since it is a revenue call, not a
-   technical one.
+2. **The old $7.99/$12.99 launch pricing** is superseded. §2 records the
+   current Canada and US prices after reviewing the product in build 55.
 
 ---
 
@@ -38,11 +36,13 @@ argument against keeping the app.
 
 ## 2. Pricing (decided)
 
-| Price | Availability |
-|---|---|
-| $12.99 | From launch (permanent) |
+| Market | Lifetime price |
+|---|---:|
+| Canada | **CA$24.99** |
+| United States | **US$17.99** |
 
-Play takes 15% (first $1M/year). Net at $12.99 ≈ $11.04/unlock.
+These are one-time lifetime prices. The trial remains 7 days and there is no
+subscription.
 
 **No launch promo.** `PLAY_RELEASE.md` §2 proposed $7.99 as a founding price
 rising to $12.99 around day 14–30. Dropped for three reasons: a one-time
@@ -52,8 +52,10 @@ manufacture; and a price rise inside the first month reads badly in reviews
 from the people who evangelized you. Play price-change scheduling stays
 available if launch conversion argues otherwise.
 
-Per-country pricing via Play's price template auto-conversion, then round the
-odd amounts (₹999, not ₹1,067).
+Set Canada and the US manually because they are the key launch markets. Use a
+Play price template as the international baseline, then review important
+markets for sensible local purchasing power and psychological endings. Do not
+force a single mathematical currency conversion everywhere.
 
 ---
 
@@ -367,24 +369,30 @@ there is evidence of the abuse.
 
 ---
 
-## 6. Testers (decided)
+## 6. Testers
 
 Cap at 20–30. Play has no "limit reached" banner — the cap IS the email
 list / Google Group. Keep the opt-in link private (DM only).
 
-Three layers ensure no permanent free copies:
+Closed-track membership does not grant premium access. In the current app,
+ordinary closed testers receive the same 7-day trial and paywall as everyone
+else.
 
-1. **Trial gate applies to testers.** 7 days from their first launch.
-2. **License testing is temporary.** Add tester Gmails to Play Console →
-   License testing so they can exercise the purchase flow (test card, no
-   charge). **At production launch: clear the list.** Their test purchases
-   vanish. They pay like everyone.
-3. **Build kill-date.** Closed-track builds bake in a drop-dead date:
-   `now > buildExpiry → paywall regardless of trial state`. One const.
+Use **License testing only for trusted billing QA accounts**. License testers
+can use Google's test payment methods. Do not add random recruits to that list.
+An acknowledged test purchase of the non-consumable may remain owned; removing
+the account from License testing is not the reset mechanism. Refund and revoke
+the order in Play Console before repeating the purchase test.
+
+Lifetime promo codes are permanent lifetime grants. Use them only as deliberate
+rewards. Time-limited tester access is a separate planned app entitlement and
+is not implemented in build 55. The existing `BUILD_EXPIRY` define only cuts
+off trial access after a date; it does not grant temporary access and never
+overrides a verified purchase. Do not use it for ordinary Play builds.
 
 ### 6.1 Redeem codes (Play Console promo codes)
 
-Add a **Redeem Code** option in **Settings → Unlock** using Google Play promo
+The **Redeem Code** option in **Settings → Profile → Access** uses Google Play promo
 codes. Redemption grants the same permanent entitlement as a purchased
 lifetime unlock — it arrives through `queryPurchases()` as an ordinary
 purchase, so `entitlementProvider` treats redeemed and purchased users
@@ -402,12 +410,12 @@ setting, a flavor string, or a hidden preference.
 
 ### 6.3 Unlock screen copy
 
-- **Unlock FoxyCo forever.** One payment. No subscription. Yours for life.
-- **Pay once. Drive forever.** Lifetime access. Zero monthly fees.
-- **One purchase. Zero subscriptions.** Unlock every premium feature forever.
+- **Unlock FoxyCo for life. One payment. No subscription.**
+- **Use every feature free for 7 days, then choose whether to buy lifetime access.**
+- **Google Play shows your local one-time price before you confirm.**
 
-Anchor to the driver's own arithmetic — *"one avoided bad ride ≈ 30 dead
-minutes saved"* — not to competitor pricing. An earlier draft compared
+Avoid income or payback promises. A safe value frame is: *"See weak offers
+before you decide."* An earlier draft compared
 against "$9.99/mo elsewhere"; a hardcoded competitor price rots the moment
 they change it and is a comparative claim you would have to be able to
 substantiate.
@@ -428,9 +436,9 @@ Each step is independently shippable and testable.
 | 4a | `in_app_purchase` dep, `queryPurchases()` + RSA signature verify + `completePurchase()` acknowledgment (§3.8) | 0.5 day | ✅ done 2026-07-28 |
 | 4b | `foxyco.lifetime` **non-consumable** product in Play Console; paste licensing key via `--dart-define` (§3.9); verify a real purchase on an internal-testing build | 0.5 day | ⛔ blocked on step 0 verification — FIREBASE_SETUP §6 |
 | 5 | `entitlementProvider` wires TrialGate + Billing result; overlay payload carries `entitled` flag; pill locked state | 0.5 day | ✅ 2026-07-28 — `accessProvider`/`entitledProvider`, `OverlayPayload.entitled`, `LockedPill` |
-| 6 | Paywall sheet + "Restore purchase" + "Redeem code" + Home banner | 0.5 day | ✅ 2026-07-28 — `ui/paywall/` (sheet, `AccessBanner`, Settings → Unlock) |
+| 6 | Paywall sheet + "Restore purchase" + "Redeem code" + Home banner | 0.5 day | ✅ 2026-07-28 — `ui/paywall/` (sheet, `AccessBanner`, Settings → Profile → Access) |
 | 7 | Anti-piracy layers: random re-verify, packageName check, boring class names | 0.5 day | 🟡 partial — 1-in-5 re-verify done; resign check deferred (see below) |
-| 8 | Account deletion flow (§5.1) + public web URL | 0.5 day | 🟡 in-app path done (Settings → Unlock); page drafted `docs/legal/delete-account.md`; ⏳ turn on GitHub Pages (PLAY_RELEASE §0 A1) |
+| 8 | Account deletion flow (§5.1) + public web URL | 0.5 day | ✅ in-app path and published instructions use Settings → Profile → Access |
 | 9 | Papers: privacy policy page, Data safety form, manifest INTERNET permission, `AUDIT.md` update | 0.5 day | 🟡 `INTERNET` + `AUDIT.md` done; privacy/terms drafted `docs/legal/`; ⏳ publish them + Data safety form (PLAY_RELEASE §0 A1, B5) |
 | 10 | **SHA-1 registration (Play App Signing key)** in Firebase — this key only exists in Play Console *after* the first bundle upload, so it cannot be done earlier. Skipping it means Google Sign-In works in debug and fails in production. | 0.25 day | ⛔ blocked on first upload — FIREBASE_SETUP §7 |
 
@@ -538,8 +546,9 @@ behavior, and the trial governs entitlement meanwhile.
 - Skips `TrialGate` and forces entitlement to `true`.
 
 ### Unlock screen
-- Displays **$12.99 one-time purchase** (localized price from Play when
-  available, hardcoded fallback until the product query returns).
+- Displays the localized Play price; expected key-market prices are
+  **CA$24.99** in Canada and **US$17.99** in the United States. No hardcoded
+  fallback price is shown while product details load.
 - Clearly states **No subscription**.
 - Includes **Buy**, **Restore purchase**, and **Redeem code** actions.
 
@@ -568,6 +577,14 @@ Google Play Purchase / Promo Code        Firebase Auth (Google)
 ---
 
 ## Changelog
+
+### Version 1.3 (2026-08-20)
+- Set the launch prices to CA$24.99 and US$17.99 after the build-55 product
+  review; kept the 7-day trial and lifetime model.
+- Corrected tester guidance: closed-track membership grants nothing, license
+  testing is for trusted billing QA, and lifetime promo codes are permanent.
+- Recorded that `BUILD_EXPIRY` is a trial cutoff, not temporary tester access.
+- Replaced earnings/payback promises with plain product-value wording.
 
 ### Version 1.2 (2026-07-28)
 - **§3.4.1 added — `credential-already-in-use` handling.** Without the
@@ -615,7 +632,7 @@ Google Play Purchase / Promo Code        Firebase Auth (Google)
 - Flagged the `PLAY_RELEASE.md` line 120 reversal in the header.
 
 ### Version 1.0 (2026-07-27)
-- Permanent $12.99 lifetime unlock.
+- Initial $12.99 lifetime unlock decision (superseded by version 1.3).
 - Added Play promo code redemption.
 - Added debug-only unlock mode.
 - Added Unlock screen copy.
@@ -623,4 +640,4 @@ Google Play Purchase / Promo Code        Firebase Auth (Google)
 
 ---
 
-_Last updated: 2026-07-28_
+_Last updated: 2026-08-20_

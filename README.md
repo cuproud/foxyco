@@ -1,12 +1,12 @@
 # FoxyCo 🦊 — the gig driver's offer analyzer
 
-**FoxyCo** watches every incoming delivery/ride offer and, in one glance, tells the driver
-whether it's worth taking. Your clever co-driver: spots the good ones, ignores the junk.
+**FoxyCo** reads supported delivery and ride offers, compares them with the
+driver's rules, and shows a GOOD, OK or BAD verdict. The driver always decides.
 
 - **Platform:** Android (built with **Flutter** — Dart UI, native Android plugins for the system parts)
 - **Model:** 7-day Google-account trial, then one-time lifetime unlock; no subscription or analytics
-- **Package:** `com.foxyco.app` — published and immutable
-- **Status:** feature-complete for v1 (M10) — device-verified core; Play release prep in `docs/PLAY_RELEASE.md`
+- **Play package:** `com.foxyco.app` — locked; do not change
+- **Status:** build 55 source audited; signed device, billing and Play-policy gates remain
 
 > **Why "FoxyCo"?** *Foxy* = clever, quick, good at spotting value. *Co* = your co-driver /
 > companion riding shotgun on every trip. Friendly + trustworthy — the two things a money tool
@@ -90,8 +90,10 @@ Full spec + the research on how Uber/Hopp lay out their request screens:
 | [`docs/OVERLAY.md`](docs/OVERLAY.md) | Screen-geometry research + pill/bubble spec + how the plugins read/draw |
 | [`docs/REFERENCE_ANALYSIS.md`](docs/REFERENCE_ANALYSIS.md) | Uber + Hopp screenshot breakdown → design + parser base |
 | [`docs/AUDIT.md`](docs/AUDIT.md) | Pre-flight audit: Play policy, ToS risk, battery, privacy, perf, a11y |
+| [`docs/FULL_APP_AUDIT_2026-08-20.md`](docs/FULL_APP_AUDIT_2026-08-20.md) | Current build-55 audit, fixes and remaining release gates |
 | [`docs/PLAY_RELEASE.md`](docs/PLAY_RELEASE.md) | Store listing, policy declarations, signing, and the release checklist |
 | [`docs/MONETIZATION_v1.0.md`](docs/MONETIZATION_v1.0.md) | Trial + one-time unlock: entitlement rules, Play Billing, anti-tamper |
+| [`docs/PRICING_STRATEGY_2026-08-20.md`](docs/PRICING_STRATEGY_2026-08-20.md) | Current CA/US pricing, trial and lifetime-model analysis |
 | [`docs/MANUAL_TESTS.md`](docs/MANUAL_TESTS.md) | Device test log — exact-number checks per build |
 | [`docs/TOOLING.md`](docs/TOOLING.md) | Flutter SDK + packages + Android dev env + verification |
 | [`docs/DECISIONS.md`](docs/DECISIONS.md) | Decision log — every choice + why, so nothing gets re-litigated |

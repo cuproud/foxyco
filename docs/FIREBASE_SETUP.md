@@ -101,8 +101,9 @@ The developer account is verified. This section remains blocked until the first
 Play Console app is created for `com.foxyco.app`.
 
 1. Monetization → Products → **In-app products** → create
-   **`foxyco.lifetime`**, type **non-consumable**, price **$12.99**, then use the
-   price template to fill other countries and round the odd amounts.
+   **`foxyco.lifetime`**, type **non-consumable**. Set **CA$24.99** for Canada
+   and **US$17.99** for the United States. Use a price template as the baseline
+   elsewhere, then review key markets before activation.
 2. Monetization setup → **Licensing** → copy the Base64 RSA public key.
 3. Build with it — the app verifies every receipt against this key locally, and
    **denies all purchases when it is absent** (fail closed, §3.9):
@@ -113,8 +114,10 @@ flutter build appbundle --dart-define=PLAY_PUBLIC_KEY=<paste the base64 key>
 
    A release build without this define locks out every paying customer. The app
    detects it and says so in the paywall sheet, but do not ship it.
-4. Closed-track builds should also carry a kill date so a tester copy can't live
-   forever (§6):
+4. Do **not** add `BUILD_EXPIRY` to an ordinary internal, closed or production
+   build. The current define cuts off trial access after an absolute date; it
+   does not grant tester access and never overrides a verified purchase. It is
+   retained only for deliberate expiry testing:
 
 ```bash
 flutter build appbundle \
@@ -122,9 +125,11 @@ flutter build appbundle \
   --dart-define=BUILD_EXPIRY=2026-09-30
 ```
 
-5. License testing → add tester Gmails so they can exercise the purchase flow
-   with a test card. **Clear this list at production launch** or those testers
-   keep a free copy.
+5. License testing → add only trusted billing-QA accounts so they can exercise
+   Google Play's test payment methods. Closed-test membership alone does not
+   require License testing. Removing an account from the license-test list does
+   not reset an acknowledged non-consumable test purchase; refund and revoke
+   the test order in Play Console when you need to repeat the purchase.
 
 ## 7. After the FIRST bundle upload — the second SHA-1
 

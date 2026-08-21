@@ -83,7 +83,7 @@ class FoxTip {
 | 6 | Maintenance | Green | Check tyre pressure monthly | Under-inflated tyres cut fuel economy by up to 3% and wear unevenly. Takes 5 minutes at any servo. |
 | 7 | Maintenance | Green | Oil change every 5,000 km | Gig drivers average 3–4× the km of a regular driver. Stick to 5,000 km intervals, not the 10,000 km on the sticker. |
 | 8 | Maintenance | Green | Clean your cabin weekly | A 4.9 rating is worth more than a surge. Passengers notice smell and mess before anything else. |
-| 9 | App tip | Fox orange | Set your thresholds first | FoxyCo's verdict is only as good as your numbers. Go to Settings → Verdict thresholds and enter your real cost-per-km. |
+| 9 | App tip | Fox orange | Set your thresholds first | FoxyCo's verdict is only as good as your numbers. Go to My Rules → Verdict thresholds and enter your real cost per kilometre or mile. |
 | 10 | App tip | Fox orange | History shows your real peak | The by-hour chart in History is built from YOUR offers, not city averages. Check it after your first 50 offers. |
 | 11 | App tip | Fox orange | Pickup distance matters | A $20 offer with a 12 km pickup is often worse than a $14 offer with a 1 km pickup. FoxyCo scores both. |
 | 12 | Gig life | Purple | You are running a business | Track fuel, maintenance, and depreciation. At $0.20/km all-in costs, a $15 offer over 20 km nets ~$11, not $15. |

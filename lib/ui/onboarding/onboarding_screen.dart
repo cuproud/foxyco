@@ -98,7 +98,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         ? 'Enable offer access'
         : !last
         ? 'Next'
-        : 'Start driving smarter';
+        : 'Finish setup';
     final permissionPage =
         (_page == 3 && !perms.overlayGranted) ||
         (_page == 4 && !perms.accessibilityGranted);
@@ -115,7 +115,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                 children: [
                   _Page(
                     hero: const _FoxHero(),
-                    title: 'Meet FoxyCo 🍪',
+                    title: 'Meet FoxyCo',
                     body:
                         'FoxyCo reads each offer and scores it GOOD, OK or BAD '
                         'using your chosen \$/km or \$/hr rules. You decide; '
@@ -130,20 +130,19 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                     hero: _GlowIcon(Icons.tune_rounded),
                     title: 'Set your bar',
                     body:
-                        'Choose \$/km or \$/hr and set your GOOD/BAD bar. Minimum '
-                        'Offer protects tiny payouts. Pickup + trip make total '
-                        'distance; the GPS target is green within Pickup Guard '
-                        'and red over it. Voice can announce the final verdict.',
+                        'Choose whether FoxyCo scores by distance or time, then '
+                        'set your GOOD and BAD limits. Minimum Offer marks very '
+                        'small payouts BAD. Pickup Guard highlights long '
+                        'pickups. Voice Verdict can read the result aloud.',
                     footer: _PresetPicker(),
                   ),
                   const _Page(
                     hero: _ArtHero('assets/branding/foxyco_head.png'),
                     title: 'Try a week. Pay once.',
                     body:
-                        'Run every verdict free for 7 days. If FoxyCo earns a '
-                        'seat in your shift, unlock it with one Google Play '
-                        'purchase — no subscription and no monthly meter. One '
-                        'avoided BAD offer can cover it.',
+                        'Use every feature free for 7 days. After the trial, '
+                        'one Google Play purchase unlocks FoxyCo for life. '
+                        'There is no subscription or recurring fee.',
                     footer: _BillingPromise(),
                   ),
                   _GrantPage(
@@ -153,16 +152,12 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                         'FoxyCo floats the verdict pill over your watched gig apps '
                         'so you can read it without switching apps.',
                     granted: perms.overlayGranted,
-                    buttonLabel: 'Allow display over apps',
-                    onGrant: _grantOverlay,
                   ),
                   _GrantPage(
                     hero: const _GlowIcon(Icons.visibility_rounded),
                     title: 'Offer access',
                     body: accessibilityDisclosureBody,
                     granted: perms.accessibilityGranted,
-                    buttonLabel: 'Enable offer access',
-                    onGrant: _grantAccessibility,
                   ),
                 ],
               ),
@@ -220,7 +215,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
             // access", so a skip link under it is the same button twice.
             if (!last || permissionPage)
               TextButton(
-                onPressed: permissionPage && _page == 4 ? _finish : _finish,
+                onPressed: _finish,
                 child: Text(
                   permissionPage && _page == 4
                       ? 'Finish setup without it'
@@ -287,7 +282,7 @@ class _BillingPromise extends StatelessWidget {
         Icon(Icons.all_inclusive_rounded, size: 17, color: FoxColors.brandFox),
         SizedBox(width: Gap.sm),
         Text(
-          'Lifetime unlock · zero recurring fees',
+          'Lifetime unlock · no recurring fees',
           style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
         ),
       ],
@@ -477,16 +472,12 @@ class _GrantPage extends StatelessWidget {
     required this.title,
     required this.body,
     required this.granted,
-    required this.buttonLabel,
-    required this.onGrant,
   });
 
   final Widget hero;
   final String title;
   final String body;
   final bool granted;
-  final String buttonLabel;
-  final VoidCallback onGrant;
 
   @override
   Widget build(BuildContext context) {

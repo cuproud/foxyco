@@ -59,7 +59,7 @@ void main() {
   test('session summary carries accepted count with legacy default', () {
     final session = SessionSummary.from(
       startedAt: DateTime(2026, 7, 16),
-      endedAt: DateTime(2026, 7, 16, 1),
+      endedAt: DateTime(2026, 7, 16, 13),
       offers: [_o(Verdict.good, 15, 10, outcome: OfferOutcome.taken)],
     );
 

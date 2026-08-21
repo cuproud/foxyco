@@ -17,10 +17,8 @@ import 'trial_store.dart';
 /// a flavor string or a hidden preference.
 const kDebugUnlocked = kDebugMode;
 
-/// Drop-dead date for closed-track builds (§6 layer 3): past it, the paywall
-/// applies no matter what the trial says, so a tester build can't become a
-/// permanent free copy. Empty (the default) means no expiry — that is what
-/// production ships with.
+/// Legacy trial cutoff for deliberate expiry testing. It never overrides a
+/// verified lifetime purchase. Empty (the default) is what production ships.
 ///
 /// `flutter build apk --dart-define=BUILD_EXPIRY=2026-09-30`
 const _buildExpiryRaw = String.fromEnvironment('BUILD_EXPIRY');
@@ -135,13 +133,12 @@ class Access {
     final (bool entitled, AccessSource source) = switch (null) {
       // Debug first: a dev build must work with neither Play nor Firebase.
       _ when debugUnlocked => (true, AccessSource.debugBuild),
-      // The kill date beats anything a tester build could otherwise claim.
+      _ when unlock == UnlockStatus.purchased => (true, AccessSource.purchase),
+      _ when cachedPurchase => (true, AccessSource.cachedPurchase),
       _ when buildExpiry != null && !now.isBefore(buildExpiry) => (
         false,
         AccessSource.none,
       ),
-      _ when unlock == UnlockStatus.purchased => (true, AccessSource.purchase),
-      _ when cachedPurchase => (true, AccessSource.cachedPurchase),
       _ when trialUsable => (true, AccessSource.trial),
       // Still asking both sides: stay unresolved rather than flashing a paywall
       // at a driver who is only mid-boot.
@@ -334,9 +331,9 @@ class AccessStore extends Notifier<Access> {
       }
     }
 
-    if (!debugUnlocked) consider(_buildExpiry);
     switch (access.source) {
       case AccessSource.trial:
+        if (!debugUnlocked) consider(_buildExpiry);
         consider(now.add(const Duration(minutes: 1)));
         consider(trial.startedAt?.add(trialDuration));
         consider(trial.verifiedAt?.add(offlineGrace));
@@ -355,7 +352,7 @@ class AccessStore extends Notifier<Access> {
     });
   }
 
-  /// Kill date for closed-track builds (§6 layer 3), or null in production.
+  /// Legacy trial cutoff used only by explicit expiry tests.
   static DateTime? get _buildExpiry => _buildExpiryRaw.isEmpty
       ? null
       : DateTime.tryParse(_buildExpiryRaw)?.toUtc();

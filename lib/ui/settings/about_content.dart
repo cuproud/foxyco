@@ -31,19 +31,19 @@ class AboutSection {
 /// Shown at the top of the screen, above the sections.
 const aboutIntro =
     'FoxyCo reads offer-related text in your watched gig apps, scores each '
-    'offer against your settings, and shows a verdict. Raw '
-    'screen text never leaves your phone, and FoxyCo never touches the offer.';
+    'offer using your rules, and shows a verdict. Raw screen text never leaves '
+    'your phone. FoxyCo never taps buttons or changes anything in a driver app.';
 
 /// Version string. Kept as a plain const rather than adding a native plugin for
 /// one label; `about_content_test.dart` guards it against `pubspec.yaml` drift.
-const aboutVersion = '1.0.9 (build 55)';
+const aboutVersion = '1.0.9 (build 59)';
 
 const aboutSections = <AboutSection>[
   AboutSection(
     title: 'How it works',
     entries: [
       AboutEntry(
-        'What FoxyCo actually does',
+        'What does FoxyCo do?',
         'While the watcher is live, FoxyCo uses screen text from your enabled '
             'gig apps only to detect and score offers and, '
             'if enabled, infer whether an offer was taken or passed. It works '
@@ -62,9 +62,9 @@ const aboutSections = <AboutSection>[
       ),
       AboutEntry(
         'Where do good / ok / bad come from?',
-        'From Settings. You set the rate at or above which an offer counts as '
+        'From My Rules. You set the rate at or above which an offer counts as '
             'good, and the rate below which it counts as bad; everything '
-            'between the two is ok. Switch between distance rate and \$/hr in Settings '
+            'between the two is ok. Switch between distance rate and \$/hr in My Rules '
             '— each mode keeps its own pair of numbers, since the scales are '
             'about twenty times apart.',
       ),
@@ -93,9 +93,9 @@ const aboutSections = <AboutSection>[
       ),
       AboutEntry(
         'What is the pickup distance for?',
-        'Dead mileage. An offer that pays well but starts far away is worth '
-            'less than it looks. Set the distance you consider "near" and the '
-            'pill colours the trip distance accordingly.',
+        'A long unpaid pickup can make a good-looking offer less useful. Set '
+            'the pickup distance you consider near, and the target changes '
+            'colour when the pickup is farther away.',
       ),
     ],
   ),
@@ -104,8 +104,8 @@ const aboutSections = <AboutSection>[
     entries: [
       AboutEntry(
         'Is FoxyCo a subscription?',
-        'No. The paid option is one non-consumable Google Play purchase that '
-            'unlocks FoxyCo for life. There is no monthly or annual renewal. '
+        'No. One Google Play purchase unlocks FoxyCo for life. '
+            'There is no monthly or annual renewal. '
             'Google Play shows the final price in your local currency before '
             'you confirm anything.',
       ),
@@ -169,14 +169,17 @@ const aboutSections = <AboutSection>[
     blurb:
         'Raw offer text is processed in memory and never saved or sent. Offer '
         'history, garage data and settings stay on your phone. '
-        'Firebase stores only the identity and timestamp needed for the trial. '
+        'Firebase creates a random app identity on first launch. If you start '
+        'or restore a trial, it also stores your Google account identity and '
+        'trial start time. '
         'There is no Firebase Analytics. The full Privacy Policy and Terms are '
         'linked at the bottom of this screen.',
     entries: [
       AboutEntry(
         'What gets stored?',
         'On this device: your name, settings, garage, reminders and offer '
-            'history. In Firebase after you start a trial: your Google-backed '
+            'history. Firebase creates a random app identity on first launch. '
+            'If you start or restore a trial, it also stores your Google '
             'account identity and one server-stamped trial start time. Google '
             'Play handles purchases; FoxyCo never receives card details. You '
             'can set how long offers are kept or clear them in Settings.',
@@ -249,9 +252,9 @@ const aboutSections = <AboutSection>[
       ),
       AboutEntry(
         'Something else is wrong',
-        'Settings → Logs keeps a running record of what the watcher saw and '
-            'did. Copy it to the clipboard from there — it is the fastest way '
-            'to show what went wrong.',
+        'Open Settings → Send feedback and describe the problem. Add screenshots '
+            'only if they help. If support asks for technical details, open '
+            'Settings → Diagnostic logs.',
       ),
     ],
   ),
