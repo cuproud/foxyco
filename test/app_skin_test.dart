@@ -44,4 +44,16 @@ void main() {
     expect(Shadows.hero.first.color.a, lessThan(onBlack));
     AppTheme.of(FoxPalette.dark); // leave the default applied for other tests
   });
+
+  test('snackbars use the FoxyCo surface instead of Material black', () {
+    for (final palette in [FoxPalette.light, FoxPalette.dark]) {
+      final snack = AppTheme.of(palette).snackBarTheme;
+      final shape = snack.shape! as RoundedRectangleBorder;
+
+      expect(snack.behavior, SnackBarBehavior.floating);
+      expect(snack.backgroundColor, palette.bgSurface);
+      expect(shape.borderRadius, BorderRadius.circular(Radii.cardSm));
+      expect(shape.side.color, FoxColors.brandFox);
+    }
+  });
 }

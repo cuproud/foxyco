@@ -23,7 +23,6 @@ import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
 import android.content.IntentFilter;
 import android.graphics.Point;
-import android.graphics.Rect;
 import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
@@ -685,8 +684,8 @@ public class OverlayService extends Service implements View.OnTouchListener {
     /// FoxyCo patch: visible drop-to-dismiss zone (device 2026-07-19 — the
     /// drag-to-close gesture existed but nothing on screen ever hinted at it).
     /// While the bubble is dragged, a compact ✕ target fades in over the
-    /// nav-bar area; the ✕ swells + saturates while the finger is inside its
-    /// expanded touch target. The surrounding window stays transparent so Android
+    /// nav-bar area; the ✕ swells + saturates while the finger reaches the
+    /// bottom dismiss strip. The surrounding window stays transparent so Android
     /// cannot composite a rectangular scrim around the bubble. Removed when
     /// the drag ends (with a timeout as protection against a missing UP/CANCEL).
     /// Same window type as the overlay itself and NOT_TOUCHABLE, so it can
@@ -698,12 +697,8 @@ public class OverlayService extends Service implements View.OnTouchListener {
 
     /// The one predicate for "finger is in the close zone" — the visual (hot
     /// state) and the actual dismiss on ACTION_UP must never disagree.
-    private boolean inDismissZone(float rawX, float rawY) {
-        if (dismissIcon == null) return false;
-        Rect bounds = new Rect();
-        if (!dismissIcon.getGlobalVisibleRect(bounds)) return false;
-        bounds.inset(-dpToPx(28), -dpToPx(28));
-        return bounds.contains(Math.round(rawX), Math.round(rawY));
+    private boolean inDismissZone(float rawY) {
+        return rawY >= szWindow.y - navigationBarHeightPx();
     }
 
     private void showDismissZone() {
@@ -761,13 +756,13 @@ public class OverlayService extends Service implements View.OnTouchListener {
         }
     }
 
-    private void updateDismissZone(float rawX, float rawY) {
+    private void updateDismissZone(float rawY) {
         if (dismissIcon == null) return;
         // Every move refreshes the fail-safe. If Android drops ACTION_UP/CANCEL
         // during a window transition, the target still removes itself.
         mAnimationHandler.removeCallbacks(dismissZoneSafetyHide);
         mAnimationHandler.postDelayed(dismissZoneSafetyHide, 2500);
-        boolean hot = inDismissZone(rawX, rawY);
+        boolean hot = inDismissZone(rawY);
         if (hot == dismissHot) return;
         dismissHot = hot;
         if (hot) dismissIcon.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK);
@@ -861,7 +856,7 @@ public class OverlayService extends Service implements View.OnTouchListener {
                     // drag starts (not on a tap) and keep its ✕ hot-state in
                     // sync with the finger. Discoverability for drop-to-close.
                     showDismissZone();
-                    updateDismissZone(event.getRawX(), event.getRawY());
+                    updateDismissZone(event.getRawY());
                     break;
                 case MotionEvent.ACTION_UP:
                 case MotionEvent.ACTION_CANCEL:
@@ -869,16 +864,16 @@ public class OverlayService extends Service implements View.OnTouchListener {
                     // define the target. A canceled gesture is never destructive.
                     boolean shouldDismiss = event.getAction() == MotionEvent.ACTION_UP
                             && dragging
-                            && inDismissZone(event.getRawX(), event.getRawY());
+                            && inDismissZone(event.getRawY());
                     // FoxyCo patch: drag over → drop zone leaves with it.
                     hideDismissZone();
                     // FoxyCo patch: "drop to dismiss". If the user releases the
-                    // drag over the visible ✕ target, close the overlay
+                    // drag into the bottom strip below the visible ✕, close the overlay
                     // instead of snapping it to an edge. Fixes the bubble getting
                     // stuck under the nav bar (the plugin never clamps Y).
-                    // The hit rect is the 48dp icon plus 28dp on every side, so
-                    // the affordance is forgiving without making nearby drops
-                    // destructive.
+                    // This raw screen-Y test is the last device-verified path.
+                    // View rectangles from the separate accessibility overlay
+                    // use a different coordinate space and never became hot.
                     if (shouldDismiss) {
                         // HANDOFF req 10: tell the main isolate we STOPPED, so the
                         // dashboard flips out of "Watching" instead of desyncing.

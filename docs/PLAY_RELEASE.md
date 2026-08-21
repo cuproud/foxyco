@@ -35,7 +35,7 @@
 
 _Added 2026-08-02. §1–§6 are the reasoning; this is the ordered list of moves.
 Everything below is a console/web action except C1. Build 22 was Play-installed
-and device-tested; current release bundle is `1.0.9+64`. See
+and device-tested; current release bundle is `1.0.9+66`. See
 `HANDOFF_2026-08-20_DELIVERY_BETA.md` for current verification and remaining
 delivery gates; older handoffs remain historical records._
 
@@ -79,18 +79,20 @@ Artifacts are copied to `dist/` with version and timestamped names.
 Latest repository-verified bundle (delivery beta still needs live-device verification):
 
 ```text
-dist/FoxyCo-v1.0.9+64-release-20260820-2136.aab
-86,118,737 bytes
-SHA-256 804ffc92081f9981b82d614affb70947753193fba0eded752158f281282943d3
+dist/FoxyCo-v1.0.9+66-release-20260820-2222.aab
+86,121,362 bytes
+SHA-256 3c8159aa690c65e0b3e5eb488259fea7cd274f0eea70b1bf14b43fe98522918a
 ```
 
-The build helper completed dependency resolution, static analysis, all 485
-Flutter tests, Firestore rules tests and the signed release bundle. Build 64
+The build helper completed dependency resolution, static analysis, all 488
+Flutter tests, Firestore rules tests and the signed release bundle. Build 66
 adds the opt-in DoorDash, Instacart and Skip delivery betas, three-app cap,
 persisted selection, delivery rules, workload History fields, app text sizing
-and synchronized Accessibility/legal disclosures. Its visible bubble-dismiss
-target matches the actual drop hitbox and canceled drags cannot stop watching.
-Uber is one watched app covering rides and Eats; Eats cards use delivery rules.
+and synchronized Accessibility/legal disclosures. Build 66 also restores the
+device-verified bottom-edge bubble dismissal after builds 64–65 used unreliable
+cross-window bounds, and gives every app snackbar the rounded FoxyCo surface
+with an orange outline. Canceled drags cannot stop watching. Uber is one watched
+app covering rides and Eats; Eats cards use delivery rules.
 
 The licensing key is an RSA **public** key. It is extractable from any shipped
 APK, so recording it here costs nothing and makes the build reproducible:
@@ -429,7 +431,7 @@ email list / Google Group — stop adding past 30, outsiders simply can't
 access the listing. Keep the opt-in link private (DM only). 20–30 sits
 comfortably above the 12-concurrent floor and stays manageable.
 
-Closed-track membership does not grant premium access. In build 64, ordinary
+Closed-track membership does not grant premium access. In build 66, ordinary
 testers get the same 7-day trial and paywall as public users.
 
 Use License testing only for trusted billing-QA accounts. Those accounts can
@@ -493,8 +495,10 @@ made a meaningful contribution.
 Ordered, actionable version of this list: **§0**. Estimates and code-level
 blockers: **MONETIZATION §7**.
 
-1. **Upload build 64 and run the current quick smoke test** — confirm
-   About shows build 64, Uber says it includes Eats, delivery rules enable correctly, bubble drop-to-dismiss matches the visible ✕, and the unlock sheet closes automatically after a
+1. **Upload build 66 and run the current quick smoke test** — confirm
+   About shows build 66, app messages use the rounded FoxyCo snackbar, dragging
+   the bubble through the ✕ to the red bottom-edge state closes it, Uber says it
+   includes Eats, delivery rules enable correctly, and the unlock sheet closes automatically after a
    purchase, restore or promo redemption while a trial is active.
 2. **Refund/revoke propagation test** — after Play reports no owned lifetime
    product, Restore purchase must clear `Unlocked forever` while network/query
@@ -517,5 +521,5 @@ blockers: **MONETIZATION §7**.
 - Localized store listings (ES/PT = big driver demographics)
 
 ---
-_Last updated: 2026-08-20 — build 64 artifact, Uber Eats rules, delivery beta and overlay dismissal refreshed.
+_Last updated: 2026-08-20 — build 66 artifact, FoxyCo snackbars and device-verified overlay dismissal restored.
 Entitlement architecture lives in `MONETIZATION_v1.0.md`._

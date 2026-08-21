@@ -48,9 +48,10 @@ class AppTheme {
       splashColor: FoxColors.brandFoxSoft,
       highlightColor: Colors.transparent,
     );
+    final textTheme = _textTheme(base.textTheme, palette);
 
     return base.copyWith(
-      textTheme: _textTheme(base.textTheme, palette),
+      textTheme: textTheme,
       cardTheme: CardThemeData(
         color: palette.bgSurface,
         elevation: 0,
@@ -75,6 +76,20 @@ class AppTheme {
           systemNavigationBarIconBrightness: isDark
               ? Brightness.light
               : Brightness.dark,
+        ),
+      ),
+      snackBarTheme: SnackBarThemeData(
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: palette.bgSurface,
+        contentTextStyle: textTheme.bodyMedium?.copyWith(
+          fontWeight: FontWeight.w600,
+        ),
+        actionTextColor: FoxColors.brandFox,
+        elevation: 0,
+        insetPadding: const EdgeInsets.all(Gap.md),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(Radii.cardSm),
+          side: const BorderSide(color: FoxColors.brandFox, width: 1.5),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(

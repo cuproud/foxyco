@@ -127,11 +127,13 @@ themselves do the native `WindowManager` / `AccessibilityService` work under the
 
 - Dragging: the plugin supports moving the overlay; persist the final x/y offset in SharedPreferences
   and restore on next show. Clamp to the safe zone from Part 1.
-- Drop-to-dismiss uses the visible 48dp ✕ as its source of truth, with a 28dp
-  margin on each side for a forgiving 104dp target. The same rectangle drives
-  the red/haptic hover state and `ACTION_UP`; `ACTION_CANCEL` never stops the
-  service. This avoids the former mismatch where the icon appeared above the
-  navigation bar but only the bottom screen strip accepted the drop.
+- Drop-to-dismiss uses the raw screen-Y bottom strip that was verified on the
+  Galaxy S24. Drag through the visible 48dp ✕ toward the bottom edge; the icon
+  turns red and gives one light haptic when the finger enters the strip. The
+  same predicate drives `ACTION_UP`, while `ACTION_CANCEL` never stops the
+  service. Do not derive this hit test from the ✕ view bounds: it lives in a
+  separate Accessibility overlay window whose coordinates did not match the
+  touch window on device (builds 64–65 regression).
 - Both pill and bubble are ordinary Flutter widgets, so they share the `ui/theme/` design tokens
   with the rest of the app — one visual language.
 

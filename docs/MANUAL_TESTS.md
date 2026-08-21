@@ -29,7 +29,8 @@ without requiring DoorDash, Instacart or Skip accounts.
 | Q.8 | Settings support rows at Large text | Send feedback, About and Diagnostic logs align and wrap without truncating their titles | [ ] |
 | Q.9 | Trigger one real Uber/Lyft/Hopp offer with OCR off | Existing parser still shows one correct pill/History row and clears when the card leaves | [ ] |
 | Q.10 | With an older Play build installed and the new test release available, foreground FoxyCo | Update prompt appears once per foreground session and opens the Play update flow | [ ] |
-| Q.11 | Drag the bubble onto the visible ✕ until it turns red, then release | Light haptic fires; overlay closes and Home leaves Watching. Releasing beside it or canceling the drag does not stop the service | [ ] |
+| Q.11 | Drag the bubble through the visible ✕ toward the bottom edge until the ✕ turns red, then release | Light haptic fires; overlay closes and Home leaves Watching. Releasing before red or canceling the drag does not stop the service | [ ] build 66 retest |
+| Q.12 | Trigger update success, Google sign-in cancel/failure, and Name saved | Every message is a floating FoxyCo surface with 16dp corners and orange outline; no default solid-black bar | [ ] build 66 |
 
 ---
 
@@ -64,7 +65,8 @@ have been captured and redacted.
 >
 > ⚠️ Vertical sticking under the status/nav bar is addressed by a "drop-to-
 > dismiss" patch in the VENDORED plugin fork (`third_party/flutter_overlay_window`):
-> releasing the bubble over the visible ✕ closes the overlay. Rows 2.10 /
+> dragging through the visible ✕ to the bottom edge until it turns red, then
+> releasing, closes the overlay. Rows 2.10 /
 > 2.14 were CODED but NOT yet device-verified (session ended first) — check these
 > first next session.
 
@@ -83,7 +85,7 @@ have been captured and redacted.
 | 2.11 | Tap **Hide** on Home | Overlay disappears | [ ] |
 | 2.12 | Tap Simulate | NO bottom popup / snackbar appears | [ ] |
 | 2.13 | With bubble showing, use the rest of the screen / nav bar | Touch works everywhere except on the bubble itself | [ ] |
-| 2.14 | Drag the bubble over the visible ✕ until it turns red, then release; repeat but release beside it; interrupt/cancel a drag | Target gives one light haptic; only the release inside the visible target closes the overlay | [ ] |
+| 2.14 | Drag the bubble through the visible ✕ toward the bottom edge until it turns red, then release; repeat but release before red; interrupt/cancel a drag | Target gives one light haptic; only release after the red state closes the overlay | [ ] build 66 retest |
 
 ## M3 — Real offer reading (accessibility parser)
 

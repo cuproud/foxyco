@@ -1,8 +1,8 @@
-# FoxyCo build 64 — delivery beta handoff
+# FoxyCo build 66 — delivery beta and device-fix handoff
 
-**Source/release:** `1.0.9+64`  
+**Source/release:** `1.0.9+66`  
 **Implementation date:** 20 August 2026  
-**Status:** repository verification complete; delivery-app device verification pending
+**Status:** repository verification complete; build-66 and delivery-app device verification pending
 
 ## What shipped
 
@@ -25,9 +25,24 @@
   packages. Events from a deselected package are dropped before parsing.
 - Existing Uber/Lyft/Hopp parser logic and Accessibility-tool classification
   remain unchanged. Pixel Capture remains an opt-in, on-device fallback.
-- Bubble drop-to-dismiss now uses the visible ✕ plus a 28dp margin as the
-  actual target. Hover feedback and release share that geometry; canceled
-  drags never stop watching.
+- Bubble drop-to-dismiss uses the last device-verified raw screen-Y boundary:
+  drag through the visible ✕ toward the bottom edge until it turns red, then
+  release. Hover and release share that predicate; canceled drags never stop watching.
+- All app snackbars now inherit one FoxyCo theme: floating palette surface,
+  16dp corners, orange outline and matching text. This covers update success,
+  Google sign-in, profile, garage, feedback, logs and purchase messages without
+  per-caller styling.
+
+## Build 66 regression fixes
+
+- Build 64 replaced the working bottom-edge dismiss predicate with a rectangle
+  read from a separate Accessibility overlay window. The coordinate spaces did
+  not agree on the Galaxy S24, so the target never turned red and release never
+  closed the overlay. A build-65 `getLocationOnScreen` attempt compiled but did
+  not restore device behavior. Build 66 removes cross-window rectangle reads
+  and restores the previously verified raw screen-Y predicate.
+- The post-update confirmation and other `SnackBar` callers previously fell
+  back to Material's black bar. `AppTheme` now owns their shared FoxyCo styling.
 
 ## Delivery parser contracts
 
@@ -45,14 +60,14 @@ Public cards are test seeds, not proof of current Accessibility node behavior.
 ## Verification completed
 
 - Static analysis: passed.
-- Flutter tests: **485 passed**.
+- Flutter tests: **488 passed**.
 - Firestore rules tests: passed.
-- Signed release AAB: built successfully with `./scripts/build.sh aab --bump`.
+- Signed release AAB: built successfully with `./scripts/build.sh aab`.
 
 ```text
-dist/FoxyCo-v1.0.9+64-release-20260820-2136.aab
-86,118,737 bytes
-SHA-256 804ffc92081f9981b82d614affb70947753193fba0eded752158f281282943d3
+dist/FoxyCo-v1.0.9+66-release-20260820-2222.aab
+86,121,362 bytes
+SHA-256 3c8159aa690c65e0b3e5eb488259fea7cd274f0eea70b1bf14b43fe98522918a
 ```
 
 ## What remains Beta
@@ -65,7 +80,6 @@ all three delivery platforms.
 
 ## Fast upload check
 
-Run `MANUAL_TESTS.md` rows **Q.1–Q.11**. If time is very short, prioritize Q.1,
-Q.2, Q.3, Q.4, Q.7, Q.8, Q.9 and Q.11. Skip live delivery rows until those apps or a
-tester with them is available; their absence does not justify marking them
-verified.
+Run `MANUAL_TESTS.md` rows **Q.1–Q.12**. For build 66, prioritize Q.1, Q.10,
+Q.11 and Q.12. Skip live delivery rows until those apps or a tester with them is
+available; their absence does not justify marking them verified.

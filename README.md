@@ -6,7 +6,7 @@ driver's rules, and shows a GOOD, OK or BAD verdict. The driver always decides.
 - **Platform:** Android (built with **Flutter** — Dart UI, native Android plugins for the system parts)
 - **Model:** 7-day Google-account trial, then one-time lifetime unlock; no subscription or analytics
 - **Play package:** `com.foxyco.app` — locked; do not change
-- **Status:** `1.0.9+64` release bundle built; delivery betas need live-device fixtures
+- **Status:** `1.0.9+66` release bundle built; build-66 UI/overlay fixes and delivery betas need live-device verification
 
 > **Why "FoxyCo"?** *Foxy* = clever, quick, good at spotting value. *Co* = your co-driver /
 > companion riding shotgun on every trip. Friendly + trustworthy — the two things a money tool
@@ -90,7 +90,7 @@ Full spec + the research on how Uber/Hopp lay out their request screens:
 | [`docs/OVERLAY.md`](docs/OVERLAY.md) | Screen-geometry research + pill/bubble spec + how the plugins read/draw |
 | [`docs/REFERENCE_ANALYSIS.md`](docs/REFERENCE_ANALYSIS.md) | Uber + Hopp screenshot breakdown → design + parser base |
 | [`docs/DELIVERY_PLATFORM_RESEARCH_2026-08-20.md`](docs/DELIVERY_PLATFORM_RESEARCH_2026-08-20.md) | DoorDash + Instacart public-card evidence, parser contract and remaining live fixtures |
-| [`docs/HANDOFF_2026-08-20_DELIVERY_BETA.md`](docs/HANDOFF_2026-08-20_DELIVERY_BETA.md) | Build 60 implementation, verification, limitations and quick device test |
+| [`docs/HANDOFF_2026-08-20_DELIVERY_BETA.md`](docs/HANDOFF_2026-08-20_DELIVERY_BETA.md) | Build 66 implementation, verification, limitations and quick device test |
 | [`docs/AUDIT.md`](docs/AUDIT.md) | Pre-flight audit: Play policy, ToS risk, battery, privacy, perf, a11y |
 | [`docs/FULL_APP_AUDIT_2026-08-20.md`](docs/FULL_APP_AUDIT_2026-08-20.md) | Current build-55 audit, fixes and remaining release gates |
 | [`docs/PLAY_RELEASE.md`](docs/PLAY_RELEASE.md) | Store listing, policy declarations, signing, and the release checklist |
