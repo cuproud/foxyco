@@ -127,7 +127,7 @@ tester/license access incorrectly and treated `BUILD_EXPIRY` as temporary
 premium access. The authoritative model is now:
 
 - Canada: **CA$24.99 lifetime**;
-- United States: **US$17.99 lifetime**;
+- United States: **US$19.99 lifetime**;
 - trial: **7 days**;
 - subscription: **none**;
 - closed-track membership: no automatic entitlement;
@@ -285,7 +285,7 @@ The full analysis is in `PRICING_STRATEGY_2026-08-20.md`. Recommendation:
 
 - **model:** lifetime;
 - **Canada:** CA$24.99;
-- **US:** US$17.99;
+- **US:** US$19.99;
 - **trial:** 7 days;
 - **confidence:** Medium;
 - **launch action:** keep pricing stable and measure trial conversion, refunds,

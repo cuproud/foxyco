@@ -674,7 +674,7 @@ Use a **release** build: `flutter build apk --release --dart-define=PLAY_PUBLIC_
 | M18.12 | Settings → date & time → wind the clock back 3 days, reopen FoxyCo | Trial days-left does NOT go up. (`FoxClock` high-water mark) | [ ] |
 | M18.13 | Wind the clock FORWARD past the trial end, reopen | Pill locks, banner reads "Trial ended — unlock FoxyCo" | [ ] |
 | M18.14 | Wind the clock back to real time, go online, reopen | Correct days-left returns — the ID-token sync heals the poisoned clock, it does not stay expired | [ ] |
-| M18.15 | 💳 Open paywall in Canadian and US Play storefront tests | Paywall and Google Play show **CA$24.99** in Canada or **US$17.99** in the US; wording says one-time / no subscription | [ ] |
+| M18.15 | 💳 Open paywall in Canadian and US Play storefront tests | Paywall and Google Play show **CA$24.99** in Canada or **US$19.99** in the US; wording says one-time / no subscription | [ ] |
 | M18.16 | 💳 Complete a test purchase | Paywall closes by itself. Settings → Profile → Access reads **"Lifetime unlocked"** | [ ] |
 | M18.17 | 💳 Kill the app immediately after paying, before it settles, then reopen | Still unlocked (queryPurchases re-acknowledges on launch). **Check 4 days later that Google did NOT auto-refund** — that is the 72h acknowledgment rule, MONETIZATION §3.8 | [ ] |
 | M18.18 | 💳 Clear app data after purchasing, reopen, paywall → "Restore purchase" | "Purchase restored." Unlocked, and the trial state is irrelevant | [ ] |

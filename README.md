@@ -6,7 +6,7 @@ driver's rules, and shows a GOOD, OK or BAD verdict. The driver always decides.
 - **Platform:** Android (built with **Flutter** — Dart UI, native Android plugins for the system parts)
 - **Model:** 7-day Google-account trial, then one-time lifetime unlock; no subscription or analytics
 - **Play package:** `com.foxyco.app` — locked; do not change
-- **Status:** `1.0.10+67` release bundle built; tour fixes and stacked cross-app offers need live-device verification
+- **Status:** `1.0.10+68` release bundle built; build-68 UI refinements and stacked cross-app offers need live-device verification
 
 > **Why "FoxyCo"?** *Foxy* = clever, quick, good at spotting value. *Co* = your co-driver /
 > companion riding shotgun on every trip. Friendly + trustworthy — the two things a money tool
@@ -91,7 +91,7 @@ Full spec + the research on how Uber/Hopp lay out their request screens:
 | [`docs/REFERENCE_ANALYSIS.md`](docs/REFERENCE_ANALYSIS.md) | Uber + Hopp screenshot breakdown → design + parser base |
 | [`docs/DELIVERY_PLATFORM_RESEARCH_2026-08-20.md`](docs/DELIVERY_PLATFORM_RESEARCH_2026-08-20.md) | DoorDash + Instacart public-card evidence, parser contract and remaining live fixtures |
 | [`docs/HANDOFF_2026-08-20_DELIVERY_BETA.md`](docs/HANDOFF_2026-08-20_DELIVERY_BETA.md) | Build 66 implementation, verification, limitations and quick device test |
-| [`docs/HANDOFF_2026-08-21_TOUR_FIXES.md`](docs/HANDOFF_2026-08-21_TOUR_FIXES.md) | Build 67 tour fixes, release artifact, verification and device-test focus |
+| [`docs/HANDOFF_2026-08-21_BUILD68.md`](docs/HANDOFF_2026-08-21_BUILD68.md) | Build 68 tour fixes, release artifact, verification and device-test focus |
 | [`docs/app-tour-ui-analysis-2026-08-21.md`](docs/app-tour-ui-analysis-2026-08-21.md) | App-tour UI, wording and information-architecture review |
 | [`docs/app-functionality-tour-analysis-2026-08-21.md`](docs/app-functionality-tour-analysis-2026-08-21.md) | Offer parsing, stacked-card and cross-app functionality review |
 | [`docs/AUDIT.md`](docs/AUDIT.md) | Pre-flight audit: Play policy, ToS risk, battery, privacy, perf, a11y |

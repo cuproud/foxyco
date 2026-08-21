@@ -24,6 +24,34 @@ class VehicleEditorScreen extends ConsumerStatefulWidget {
 }
 
 class _VehicleEditorScreenState extends ConsumerState<VehicleEditorScreen> {
+  static const _modelsByMake = <String, List<String>>{
+    'honda': ['Accord', 'Civic', 'CR-V', 'HR-V', 'Odyssey', 'Pilot'],
+    'toyota': ['Camry', 'Corolla', 'Highlander', 'Prius', 'RAV4', 'Sienna'],
+    'hyundai': ['Elantra', 'Ioniq 5', 'Kona', 'Santa Fe', 'Sonata', 'Tucson'],
+    'kia': ['Carnival', 'Forte', 'Niro', 'Seltos', 'Sorento', 'Sportage'],
+    'ford': ['Edge', 'Escape', 'Explorer', 'F-150', 'Fusion', 'Mustang Mach-E'],
+    'chevrolet': [
+      'Bolt EV',
+      'Equinox',
+      'Malibu',
+      'Tahoe',
+      'Trailblazer',
+      'Trax',
+    ],
+    'nissan': ['Altima', 'Leaf', 'Murano', 'Rogue', 'Sentra', 'Versa'],
+    'tesla': ['Model 3', 'Model S', 'Model X', 'Model Y'],
+    'volkswagen': ['Atlas', 'Golf', 'ID.4', 'Jetta', 'Taos', 'Tiguan'],
+    'subaru': [
+      'Ascent',
+      'Crosstrek',
+      'Forester',
+      'Impreza',
+      'Legacy',
+      'Outback',
+    ],
+    'mazda': ['CX-3', 'CX-30', 'CX-5', 'CX-50', 'CX-9', 'Mazda3'],
+  };
+
   late final _make = TextEditingController(text: widget.initial?.make ?? '');
   late final _model = TextEditingController(text: widget.initial?.model ?? '');
   late final _year = TextEditingController(text: widget.initial?.year ?? '');
@@ -56,6 +84,16 @@ class _VehicleEditorScreenState extends ConsumerState<VehicleEditorScreen> {
     return make.isEmpty ||
         model.isEmpty ||
         make.toLowerCase() != model.toLowerCase();
+  }
+
+  List<String> get _modelSuggestions {
+    final models = _modelsByMake[_make.text.trim().toLowerCase()];
+    if (models == null) return const [];
+    final query = _model.text.trim().toLowerCase();
+    return models
+        .where((model) => query.isEmpty || model.toLowerCase().contains(query))
+        .take(6)
+        .toList();
   }
 
   /// Save needs a make OR model, plus a valid year.
@@ -189,6 +227,34 @@ class _VehicleEditorScreenState extends ConsumerState<VehicleEditorScreen> {
               ),
             ],
           ),
+          if (_modelSuggestions.isNotEmpty) ...[
+            const SizedBox(height: Gap.sm),
+            Semantics(
+              label: 'Suggested models for ${_make.text.trim()}',
+              child: Wrap(
+                spacing: Gap.sm,
+                runSpacing: Gap.sm,
+                children: [
+                  for (final model in _modelSuggestions)
+                    ActionChip(
+                      key: ValueKey('model-suggestion-$model'),
+                      label: Text(model),
+                      onPressed: () => setState(() {
+                        _model.text = model;
+                        _model.selection = TextSelection.collapsed(
+                          offset: model.length,
+                        );
+                      }),
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(height: Gap.xs),
+            Text(
+              'Choose a suggestion or type any model.',
+              style: text.bodySmall?.copyWith(color: FoxColors.textSecondary),
+            ),
+          ],
           const SizedBox(height: Gap.md),
           Row(
             children: [

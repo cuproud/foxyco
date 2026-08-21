@@ -10,6 +10,7 @@ import '../home/home_screen.dart';
 import '../paywall/paywall_sheet.dart';
 import '../rules/rules_screen.dart';
 import '../settings/settings_controller.dart';
+import '../settings/about_content.dart';
 import '../settings/settings_screen.dart';
 import '../theme/tokens.dart';
 
@@ -74,7 +75,8 @@ class _RootShellState extends ConsumerState<RootShell> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             behavior: SnackBarBehavior.floating,
-            content: Text('FoxyCo updated successfully'),
+            duration: Duration(seconds: 2),
+            content: Text('Updated to $aboutVersion'),
           ),
         );
       });

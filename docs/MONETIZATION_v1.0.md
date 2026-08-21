@@ -39,7 +39,7 @@ argument against keeping the app.
 | Market | Lifetime price |
 |---|---:|
 | Canada | **CA$24.99** |
-| United States | **US$17.99** |
+| United States | **US$19.99** |
 
 These are one-time lifetime prices. The trial remains 7 days and there is no
 subscription.
@@ -52,10 +52,11 @@ manufacture; and a price rise inside the first month reads badly in reviews
 from the people who evangelized you. Play price-change scheduling stays
 available if launch conversion argues otherwise.
 
-Set Canada and the US manually because they are the key launch markets. Use a
-Play price template as the international baseline, then review important
-markets for sensible local purchasing power and psychological endings. Do not
-force a single mathematical currency conversion everywhere.
+Set Canada and the US manually because they are the key launch markets. For
+future countries, use US$19.99 as the Play Console base and review Google's
+generated local-currency prices, taxes and endings before publishing. The app
+must continue displaying the localized price returned by Google Play rather
+than hardcoding either launch price.
 
 ---
 
@@ -547,7 +548,7 @@ behavior, and the trial governs entitlement meanwhile.
 
 ### Unlock screen
 - Displays the localized Play price; expected key-market prices are
-  **CA$24.99** in Canada and **US$17.99** in the United States. No hardcoded
+  **CA$24.99** in Canada and **US$19.99** in the United States. No hardcoded
   fallback price is shown while product details load.
 - Clearly states **No subscription**.
 - Includes **Buy**, **Restore purchase**, and **Redeem code** actions.
@@ -579,7 +580,7 @@ Google Play Purchase / Promo Code        Firebase Auth (Google)
 ## Changelog
 
 ### Version 1.3 (2026-08-20)
-- Set the launch prices to CA$24.99 and US$17.99 after the build-55 product
+- Set the launch prices to CA$24.99 and US$19.99 after the build-68 product
   review; kept the 7-day trial and lifetime model.
 - Corrected tester guidance: closed-track membership grants nothing, license
   testing is for trusted billing QA, and lifetime promo codes are permanent.

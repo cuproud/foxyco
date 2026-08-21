@@ -459,7 +459,7 @@ FoxyCo's existing authoritative plan is simpler:
 - free download,
 - opt-in seven-day trial,
 - one-time lifetime unlock,
-- planned lifetime price **CA$24.99 in Canada / US$17.99 in the US** using Google Play localized pricing,
+- planned lifetime price **CA$24.99 in Canada / US$19.99 in the US** using Google Play localized pricing,
 - no subscription,
 - no ads.
 

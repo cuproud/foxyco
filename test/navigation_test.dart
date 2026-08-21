@@ -6,6 +6,7 @@ import 'package:foxyco/parser/parser_registry.dart';
 import 'package:foxyco/router.dart';
 import 'package:foxyco/services/session_log.dart';
 import 'package:foxyco/services/play_update_service.dart';
+import 'package:foxyco/ui/settings/about_content.dart';
 import 'package:foxyco/ui/theme/platform_badge.dart';
 import 'package:foxyco/ui/settings/logs_screen.dart';
 import 'package:foxyco/ui/shell/root_shell.dart';
@@ -101,7 +102,7 @@ void main() {
 
     await pumpShell(tester, container);
 
-    expect(find.text('FoxyCo updated successfully'), findsOneWidget);
+    expect(find.text('Updated to $aboutVersion'), findsOneWidget);
   });
 
   testWidgets('deep link opens the Rules group it was aimed at', (

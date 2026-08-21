@@ -884,7 +884,7 @@ class _AppChips extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             if (app != null) ...[
-              PlatformBadge(platform: app, size: 16, active: active),
+              PlatformBadge(platform: app, size: 16),
               const SizedBox(width: 6),
             ],
             Text(
@@ -892,7 +892,7 @@ class _AppChips extends StatelessWidget {
               style: TextStyle(
                 fontSize: 12.5,
                 fontWeight: FontWeight.w700,
-                color: active ? FoxColors.textPrimary : FoxColors.textSecondary,
+                color: FoxColors.textPrimary,
               ),
             ),
           ],
@@ -954,7 +954,7 @@ class _VerdictChips extends StatelessWidget {
               Icon(
                 style.icon,
                 size: 12,
-                color: active ? FoxColors.brandFox : FoxColors.textSecondary,
+                color: active ? FoxColors.brandFox : style.color,
               ),
               const SizedBox(width: 6),
             ],
@@ -963,7 +963,7 @@ class _VerdictChips extends StatelessWidget {
               style: TextStyle(
                 fontSize: 12.5,
                 fontWeight: FontWeight.w700,
-                color: active ? FoxColors.textPrimary : FoxColors.textSecondary,
+                color: FoxColors.textPrimary,
               ),
             ),
           ],

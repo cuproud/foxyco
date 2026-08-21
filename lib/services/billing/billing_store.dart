@@ -75,7 +75,7 @@ class BillingStore extends Notifier<UnlockStatus> {
   int _refreshGeneration = 0;
 
   /// Shop price straight from Play, already localized to the user's currency.
-  /// Null until [_loadProduct] returns — show the hardcoded price until then.
+  /// Null until [_loadProduct] returns — the paywall waits rather than guessing.
   String? get price => _product?.price;
 
   @override

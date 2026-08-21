@@ -263,7 +263,7 @@ class _OfferDetailSheet extends ConsumerWidget {
                         o.totalMinutes > 0
                             ? '${o.totalMinutes.round()} min'
                             : '—',
-                        'TRIP TIME',
+                        'TOTAL TIME',
                       ),
                       const SizedBox(width: Gap.sm),
                       _cell(

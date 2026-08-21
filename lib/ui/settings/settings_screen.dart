@@ -137,25 +137,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         Gap.md,
         Gap.sm,
         Gap.md,
-        100 + MediaQuery.of(context).padding.bottom,
+        112 + MediaQuery.of(context).padding.bottom,
       ),
       children: [
-        OverflowBar(
-          alignment: MainAxisAlignment.spaceBetween,
-          overflowAlignment: OverflowBarAlignment.end,
-          overflowSpacing: Gap.xs,
-          children: [
-            Text('Settings', style: text.headlineMedium),
-            TextButton(
-              onPressed: () => _confirmReset(context, controller),
-              style: TextButton.styleFrom(foregroundColor: FoxColors.brandFox),
-              child: const Text(
-                'Reset preferences',
-                style: TextStyle(fontWeight: FontWeight.w700),
-              ),
-            ),
-          ],
-        ),
+        Text('Settings', style: text.headlineMedium),
         const SizedBox(height: Gap.md),
         const SectionLabel('You & your car'),
         const SizedBox(height: Gap.sm + Gap.xs),
@@ -647,6 +632,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ),
               ],
             ),
+          ),
+        ),
+        const SizedBox(height: Gap.sm),
+        TextButton.icon(
+          onPressed: () => _confirmReset(context, controller),
+          style: TextButton.styleFrom(foregroundColor: VerdictColors.bad),
+          icon: const Icon(Icons.restart_alt_rounded, size: 18),
+          label: const Text(
+            'Reset preferences',
+            style: TextStyle(fontWeight: FontWeight.w700),
           ),
         ),
         const SizedBox(height: Gap.lg),

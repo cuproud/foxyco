@@ -13,9 +13,9 @@ Lifetime
 
 CA$24.99
 
-### Recommended US price
+### Decided US price
 
-US$17.99
+US$19.99
 
 ### Recommended trial
 
@@ -70,13 +70,11 @@ launch scale. CA$24.99 is the balanced psychological point: below CA$25 in
 buyer perception, substantial enough to signal a maintained utility, and still
 a one-time decision.
 
-### United States — US$17.99 lifetime
+### United States — US$19.99 lifetime
 
 **Appropriate.** US$14.99 improves impulse conversion but risks undervaluing the
-live overlay and analysis bundle. US$19.99 is cleaner and likely sustainable,
-but creates more resistance before FoxyCo has public reviews and broad device
-evidence. US$17.99 is an unusual but acceptable middle price and gives the US
-storefront a clear sub-US$20 decision.
+live overlay and analysis bundle. US$19.99 is a clean, sustainable price while
+remaining below the US$20 psychological boundary.
 
 The Canada/US relationship is sensible. It is close enough to currency reality
 without pretending regional pricing is a live exchange-rate conversion, and
@@ -148,7 +146,7 @@ Sources: [Gridwise pricing](https://help.gridwise.io/hc/en-us/articles/360061691
 
 | Driver | Likely reaction |
 |---|---|
-| Casual | May resist CA$24.99 / US$17.99 unless the trial overlaps a real shift |
+| Casual | May resist CA$24.99 / US$19.99 unless the trial overlaps a real shift |
 | Part-time | Reasonable if several offers demonstrate the rules and overlay |
 | Frequent/full-time | Strongest value perception; reliability matters more than a few dollars |
 | One platform | Still useful, but multi-platform architecture adds less perceived value |
@@ -159,11 +157,10 @@ multiple lifetime tiers.
 
 ## Regional pricing
 
-Set Canada and the US manually. Use a Google Play price template as the starting
-point for other countries, then review priority markets for purchasing power,
-tax-inclusive display and familiar price endings. Avoid blindly accepting every
-currency conversion, but also avoid a large manual matrix before international
-demand exists.
+Set Canada and the US manually. For future countries, use US$19.99 as the base
+in Play Console. Google Play generates local-currency prices using exchange
+rates, taxes and local pricing patterns; review priority markets before making
+them available. The app displays the localized Play price at runtime.
 
 ## Trial-to-purchase messaging audit
 
@@ -198,5 +195,5 @@ available in build 55.
    subscription.” Pair it with “See weak offers before you decide.”
 8. **Future price-rise trigger:** verified support for more high-demand
    platforms, consistently strong real-device parsing, materially deeper
-   analysis, or sustained support costs. At that point CA$29.99 / US$19.99 is a
+   analysis, or sustained support costs. At that point CA$29.99 / US$24.99 is a
    reasonable next test for new buyers; existing owners keep lifetime access.

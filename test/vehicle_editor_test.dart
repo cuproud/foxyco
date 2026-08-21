@@ -43,6 +43,7 @@ void main() {
     await tester.pump();
 
     await tester.enterText(find.byKey(const ValueKey('editor-make')), 'Honda');
+    await tester.pump();
     await tester.enterText(find.byKey(const ValueKey('editor-year')), '12');
     await tester.pump();
 
@@ -60,6 +61,27 @@ void main() {
     expect(find.text('Model must differ from make'), findsOneWidget);
     final saveBtn = find.widgetWithText(FilledButton, 'Save');
     expect(tester.widget<FilledButton>(saveBtn).onPressed, isNull);
+  });
+
+  testWidgets('typing a known make suggests models but keeps free text', (
+    tester,
+  ) async {
+    _tall(tester);
+    await tester.pumpWidget(_app(const VehicleEditorScreen()));
+
+    await tester.enterText(find.byKey(const ValueKey('editor-make')), 'Honda');
+    await tester.pump();
+
+    expect(find.text('Accord'), findsOneWidget);
+    expect(find.text('Civic'), findsOneWidget);
+    expect(find.text('Choose a suggestion or type any model.'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('model-suggestion-Civic')));
+    await tester.pump();
+    final model = tester.widget<TextField>(
+      find.byKey(const ValueKey('editor-model')),
+    );
+    expect(model.controller!.text, 'Civic');
   });
 
   testWidgets('implausible year is rejected and text fields are capped', (

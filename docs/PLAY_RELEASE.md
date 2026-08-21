@@ -12,7 +12,7 @@
 > | Section | Status |
 > |---|---|
 > | §1 model (free + one-time unlock) | ✅ still current |
-> | §2 pricing | ✅ CA$24.99 Canada / US$17.99 US lifetime (MONETIZATION §2) |
+> | §2 pricing | ✅ CA$24.99 Canada / US$19.99 US lifetime (MONETIZATION §2) |
 > | §3 publish walkthrough | ⚠️ privacy policy + Data safety answers changed (see §3 notes) |
 > | §4 trial design | ❌ **superseded** — trial lives in Firestore, not SharedPreferences |
 > | §4a lock behavior | ✅ current (MONETIZATION §4 refines the overlay rule) |
@@ -35,8 +35,8 @@
 
 _Added 2026-08-02. §1–§6 are the reasoning; this is the ordered list of moves.
 Everything below is a console/web action except C1. Build 22 was Play-installed
-and device-tested; current release bundle is `1.0.10+67`. See
-`HANDOFF_2026-08-21_TOUR_FIXES.md` for current verification and remaining
+and device-tested; current release bundle is `1.0.10+68`. See
+`HANDOFF_2026-08-21_BUILD68.md` for current verification and remaining
 delivery gates; older handoffs remain historical records._
 
 ### Phase A — no Play Console needed, do it today
@@ -59,7 +59,7 @@ delivery gates; older handoffs remain historical records._
 6. **Accessibility declaration** — answer with the §3 step 3 text; attach the A5 video if asked.
 7. **Content rating** → Everyone. **Target audience** → 18+.
 8. **Monetization setup** → copy the **licensing key** (base64 RSA blob). This is the `PLAY_PUBLIC_KEY` for C1.
-9. **Products → In-app products** → create `foxyco.lifetime`, **non-consumable**. Set **CA$24.99** in Canada and **US$17.99** in the United States, then activate it.
+9. **Products → In-app products** → create `foxyco.lifetime`, **non-consumable**. Set **CA$24.99** in Canada and **US$19.99** in the United States. For future countries, use USD as the base and review Play's generated local prices before activating them.
 
 ### Phase C — build and upload
 
@@ -79,13 +79,13 @@ Artifacts are copied to `dist/` with version and timestamped names.
 Latest repository-verified bundle (delivery beta still needs live-device verification):
 
 ```text
-dist/FoxyCo-v1.0.10+67-release-20260821-1339.aab
-86,152,711 bytes
-SHA-256 f714b94172cd61108852b7ddf3741af929c34999bc290a7ff5eb55cb68147a71
+dist/FoxyCo-v1.0.10+68-release-20260821-1427.aab
+86,186,405 bytes
+SHA-256 ef96c65cd035312e0b44c2a059f8f3c02017eb117bb3e62dd4414f3a56c42286
 ```
 
-The build helper completed dependency resolution, static analysis, all 494
-Flutter tests, Firestore rules tests and the signed release bundle. Build 67
+The build helper completed dependency resolution, static analysis, all 495
+Flutter tests, Firestore rules tests and the signed release bundle. Build 68
 selects the topmost offer window across stacked Uber Radar and cross-app cards,
 clears stale verdicts when that top card is incomplete, and parses an opened
 Lyft Reserve detail without merging scheduled-list cards. History filters now
@@ -229,7 +229,7 @@ Google's service fee is **15% on the first $1M USD/year** (automatic once you en
 
 ### Recommendation
 
-**CA$24.99 in Canada and US$17.99 in the United States, one time.**
+**CA$24.99 in Canada and US$19.99 in the United States, one time.**
 
 Frame the value without promising earnings: *"See weak offers before you
 decide. Compare offers using your own distance or hourly rules."*
@@ -241,8 +241,9 @@ decide. Compare offers using your own distance or hourly rules."*
   the first month reads badly in reviews from the people who evangelized you.
   Play price-change scheduling stays available if launch conversion argues
   otherwise — flagged as an open decision in MONETIZATION §9.
-- Set Canada and the US manually. Use a Play price template as the international
-  baseline, then review important markets for sensible local prices and endings.
+- Set Canada and the US manually. For future countries, use USD as the base;
+  Play generates local-currency prices using current exchange rates and local
+  pricing patterns. Review important markets before publishing.
 
 ---
 
@@ -429,7 +430,7 @@ email list / Google Group — stop adding past 30, outsiders simply can't
 access the listing. Keep the opt-in link private (DM only). 20–30 sits
 comfortably above the 12-concurrent floor and stays manageable.
 
-Closed-track membership does not grant premium access. In build 66, ordinary
+Closed-track membership does not grant premium access. In build 68, ordinary
 testers get the same 7-day trial and paywall as public users.
 
 Use License testing only for trusted billing-QA accounts. Those accounts can
@@ -439,7 +440,8 @@ revoke the test order in Play Console before repeating the purchase.
 
 Google Play promo codes for `foxyco.lifetime` are permanent lifetime grants.
 Do not hand them to random recruits if temporary access is the goal. The planned
-fixed-date tester entitlement is separate and is not implemented yet. The
+fixed-date tester entitlement is separate and is not implemented in build 68.
+There is therefore no November 30 date to extend to December 30. The
 existing `BUILD_EXPIRY` define only cuts off trial access after a date. It does
 not grant access and never overrides a verified purchase, so it must not be
 treated as tester access.
@@ -459,7 +461,7 @@ made a meaningful contribution.
 |---|---|
 | T-14 | Start the mandatory closed test (12+ testers). Fix what they find. |
 | T-3 | Freeze build, promote to production review, prepare screenshots + 30s screen-recording |
-| Day 0 | Production live at **CA$24.99 / US$17.99 lifetime**. Post in driver communities with the 7-day-trial and no-subscription message |
+| Day 0 | Production live at **CA$24.99 / US$19.99 lifetime**. Post in driver communities with the 7-day-trial and no-subscription message |
 | Day 1–7 | Watch Play Console → Ratings + ANRs/crashes daily. Reply to EVERY review (reviewers get notified, often revise stars) |
 | Day 3 | **Confirm no purchases are auto-refunding.** Unacknowledged purchases reverse silently at 72h (MONETIZATION §3.8) — day 0 buyers are the first cohort that can expose the bug |
 | Day 7 | First trial cohort hits the paywall — watch conversion % |
@@ -493,8 +495,8 @@ made a meaningful contribution.
 Ordered, actionable version of this list: **§0**. Estimates and code-level
 blockers: **MONETIZATION §7**.
 
-1. **Upload build 67 and run the current quick smoke test** — confirm About
-   shows build 67; the topmost Uber/Lyft card owns the pill while swiping stacked
+1. **Upload build 68 and run the current quick smoke test** — confirm About
+   shows build 68; the topmost Uber/Lyft card owns the pill while swiping stacked
    Radar cards; opened Lyft Reserve details score without combining list cards;
    and History offers all six app filters. Recheck the build-66 bubble dismissal,
    delivery rules and purchase/restore flows as regression coverage.
@@ -519,5 +521,5 @@ blockers: **MONETIZATION §7**.
 - Localized store listings (ES/PT = big driver demographics)
 
 ---
-_Last updated: 2026-08-21 — build 67 tour fixes and release artifact documented.
+_Last updated: 2026-08-21 — build 68 UI refinements, pricing and release artifact documented.
 Entitlement architecture lives in `MONETIZATION_v1.0.md`._

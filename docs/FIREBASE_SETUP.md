@@ -102,8 +102,8 @@ Play Console app is created for `com.foxyco.app`.
 
 1. Monetization → Products → **In-app products** → create
    **`foxyco.lifetime`**, type **non-consumable**. Set **CA$24.99** for Canada
-   and **US$17.99** for the United States. Use a price template as the baseline
-   elsewhere, then review key markets before activation.
+   and **US$19.99** for the United States. Use USD as the baseline for future
+   countries and review Play's generated local prices before publishing.
 2. Monetization setup → **Licensing** → copy the Base64 RSA public key.
 3. Build with it — the app verifies every receipt against this key locally, and
    **denies all purchases when it is absent** (fail closed, §3.9):

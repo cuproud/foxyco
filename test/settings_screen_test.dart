@@ -278,7 +278,17 @@ void main() {
       ),
     );
 
-    // Header action opens a confirm dialog (destructive gate); confirm it.
+    await tester.scrollUntilVisible(
+      find.text('Reset preferences'),
+      500,
+      scrollable: find.byType(Scrollable).first,
+    );
+    // The maintenance action opens a confirm dialog; confirm it.
+    await tester.scrollUntilVisible(
+      find.text('Reset preferences'),
+      500,
+      scrollable: find.byType(Scrollable).first,
+    );
     await tester.tap(find.text('Reset preferences'));
     await tester.pumpAndSettle();
     expect(find.text('Reset preferences?'), findsOneWidget);
@@ -303,6 +313,11 @@ void main() {
       ),
     );
 
+    await tester.scrollUntilVisible(
+      find.text('Reset preferences'),
+      500,
+      scrollable: find.byType(Scrollable).first,
+    );
     await tester.tap(find.text('Reset preferences'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Cancel'));
@@ -500,7 +515,14 @@ void main() {
     final hopp = find.widgetWithText(SwitchListTile, 'Hopp');
     expect(find.text('Includes Uber Eats'), findsOneWidget);
     expect(find.text('Beta · best effort'), findsNWidgets(3));
-    expect(tester.widget<SwitchListTile>(doorDash).onChanged, isNull);
+    expect(tester.widget<SwitchListTile>(doorDash).onChanged, isNotNull);
+
+    await tester.tap(doorDash);
+    await tester.pump();
+    expect(
+      find.text('You can watch up to 3 apps. Turn one off to add DoorDash.'),
+      findsOneWidget,
+    );
 
     await tester.tap(hopp);
     await tester.pumpAndSettle();

@@ -61,7 +61,7 @@ class HomeScreen extends ConsumerWidget {
         0,
         Gap.sm,
         0,
-        100 + MediaQuery.of(context).padding.bottom,
+        112 + MediaQuery.of(context).padding.bottom,
       ),
       children: [
         const _Padded(child: _BrandBar()),

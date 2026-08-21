@@ -37,25 +37,30 @@ class UnlockSection extends ConsumerWidget {
     final access = ref.watch(accessProvider);
     final trial = ref.watch(trialProvider);
     final text = Theme.of(context).textTheme;
+    final lifetime =
+        access.source == AccessSource.purchase ||
+        access.source == AccessSource.cachedPurchase;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(summaryOf(access, trial), style: text.titleMedium),
-        const SizedBox(height: Gap.xs),
-        Text(switch (access.source) {
-          AccessSource.purchase || AccessSource.cachedPurchase =>
-            'Lifetime access is managed by your Google Play account.',
-          AccessSource.trial =>
-            'Everything is on. Unlock any time to keep access after the trial.',
-          AccessSource.debugBuild =>
-            'Entitlement is forced on in debug builds. Release builds ignore '
-                'this branch entirely.',
-          _ =>
-            'Live watching still starts, but the pill hides the verdict and '
-                'the numbers until you unlock.',
-        }, style: text.bodySmall),
-        if (trial.hasAccount) ...[
+        if (!lifetime) ...[
+          Text(summaryOf(access, trial), style: text.titleMedium),
+          const SizedBox(height: Gap.xs),
+          Text(switch (access.source) {
+            AccessSource.purchase || AccessSource.cachedPurchase =>
+              'Lifetime access is managed by your Google Play account.',
+            AccessSource.trial =>
+              'Everything is on. Unlock any time to keep access after the trial.',
+            AccessSource.debugBuild =>
+              'Entitlement is forced on in debug builds. Release builds ignore '
+                  'this branch entirely.',
+            _ =>
+              'Live watching still starts, but the pill hides the verdict and '
+                  'the numbers until you unlock.',
+          }, style: text.bodySmall),
+        ],
+        if (trial.hasAccount && !lifetime) ...[
           const SizedBox(height: Gap.sm),
           Row(
             children: [
@@ -108,12 +113,15 @@ class UnlockSection extends ConsumerWidget {
         ),
         if (trial.hasAccount) ...[
           Divider(color: FoxColors.border, height: Gap.xl),
-          Text('Google account used for your trial', style: text.titleMedium),
+          Text('Account & privacy', style: text.titleMedium),
           const SizedBox(height: Gap.xs),
           Text(
-            'Signing in protects your trial from resetting. Deleting '
-            'the account removes it from FoxyCo; a non-identifying record of '
-            'when your trial started is kept to prevent trial abuse.',
+            lifetime
+                ? 'Delete your FoxyCo account and email. Your Google Play '
+                      'lifetime purchase remains available to restore.'
+                : 'Signing in protects your trial from resetting. Deleting '
+                      'the account removes it from FoxyCo; a non-identifying '
+                      'trial-start record is kept to prevent trial abuse.',
             style: text.bodySmall,
           ),
           Align(

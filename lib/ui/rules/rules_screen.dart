@@ -435,7 +435,7 @@ class _RulesScreenState extends ConsumerState<RulesScreen> {
         Gap.md,
         Gap.sm,
         Gap.md,
-        100 + MediaQuery.of(context).padding.bottom,
+        112 + MediaQuery.of(context).padding.bottom,
       ),
       children: [
         Text('My Rules', style: text.headlineMedium),
@@ -453,7 +453,8 @@ class _RulesScreenState extends ConsumerState<RulesScreen> {
             title: 'Offer scoring',
             icon: Icons.tune_rounded,
             summary:
-                'OK $money${thresholds.badBelow.toStringAsFixed(2)}–${thresholds.goodAtOrAbove.toStringAsFixed(2)}$unit',
+                'BAD < $money${thresholds.badBelow.toStringAsFixed(2)} · '
+                'GOOD ≥ $money${thresholds.goodAtOrAbove.toStringAsFixed(2)}$unit',
             open: _open == 0,
             accent: _accents[0],
             summaryColor: VerdictColors.ok,
@@ -842,12 +843,25 @@ class _RulesScreenState extends ConsumerState<RulesScreen> {
                           : null,
                       value: settings.watches(app),
                       activeTrackColor: FoxColors.brandFox,
-                      onChanged:
-                          settings.watches(app) ||
-                              settings.watchedApps.length <
-                                  FoxSettings.maxWatchedApps
-                          ? (_) => controller.toggleApp(app)
-                          : null,
+                      onChanged: (_) {
+                        final blocked =
+                            !settings.watches(app) &&
+                            settings.watchedApps.length >=
+                                FoxSettings.maxWatchedApps;
+                        if (blocked) {
+                          ScaffoldMessenger.of(context)
+                            ..hideCurrentSnackBar()
+                            ..showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  'You can watch up to 3 apps. Turn one off to add ${app.label}.',
+                                ),
+                              ),
+                            );
+                          return;
+                        }
+                        controller.toggleApp(app);
+                      },
                     ),
                     if (app != ParserRegistry.supportedPlatforms.last)
                       Divider(color: FoxColors.border, height: 1),
