@@ -36,6 +36,10 @@ class Offer {
   /// Number of Uber Eats deliveries bundled into this card; 0 for rides.
   final int deliveryCount;
 
+  /// Optional delivery workload. Ride parsers leave these at zero.
+  final int itemCount;
+  final int unitCount;
+
   final String? rawText;
 
   const Offer({
@@ -50,6 +54,8 @@ class Offer {
     this.category,
     this.isQueued = false,
     this.deliveryCount = 0,
+    this.itemCount = 0,
+    this.unitCount = 0,
     this.rawText,
   });
 

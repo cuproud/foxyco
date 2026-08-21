@@ -2,6 +2,7 @@ import 'app_currency.dart';
 import 'distance_unit.dart';
 import 'fox_settings.dart';
 import 'rate_mode.dart';
+import 'platform.dart';
 
 /// The scoring inputs that materially explain one historical verdict.
 ///
@@ -33,14 +34,17 @@ class ScoringSnapshot {
     required this.currency,
   });
 
-  factory ScoringSnapshot.fromSettings(FoxSettings s) => ScoringSnapshot(
-    rateMode: s.rateMode,
-    goodPerKm: s.thresholds.goodAtOrAbove,
-    badPerKm: s.thresholds.badBelow,
-    goodPerHour: s.hourThresholds.goodAtOrAbove,
-    badPerHour: s.hourThresholds.badBelow,
-    minimumPayoutEnabled: s.minimumPayoutEnabled,
-    minimumPayout: s.minimumPayout,
+  factory ScoringSnapshot.fromSettings(
+    FoxSettings s, {
+    GigPlatform platform = GigPlatform.uber,
+  }) => ScoringSnapshot(
+    rateMode: s.rateModeFor(platform),
+    goodPerKm: s.distanceThresholdsFor(platform).goodAtOrAbove,
+    badPerKm: s.distanceThresholdsFor(platform).badBelow,
+    goodPerHour: s.hourThresholdsFor(platform).goodAtOrAbove,
+    badPerHour: s.hourThresholdsFor(platform).badBelow,
+    minimumPayoutEnabled: s.minimumPayoutEnabledFor(platform),
+    minimumPayout: s.minimumPayoutFor(platform),
     pickupNearKm: s.pickupNearKm,
     distanceUnit: s.distanceUnit,
     currency: s.currency,

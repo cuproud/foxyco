@@ -87,10 +87,9 @@ void main() {
   test('parser capability is narrower than platform metadata', () {
     expect(ParserRegistry.hasParser(GigPlatform.uber), isTrue);
     expect(ParserRegistry.hasParser(GigPlatform.uberEats), isFalse);
-    expect(ParserRegistry.hasParser(GigPlatform.doorDash), isFalse);
-    expect(
-      ParserRegistry.supportedPlatforms,
-      isNot(contains(GigPlatform.instacart)),
-    );
+    expect(ParserRegistry.hasParser(GigPlatform.doorDash), isTrue);
+    expect(ParserRegistry.hasParser(GigPlatform.instacart), isTrue);
+    expect(FoxSettings.defaults.watches(GigPlatform.doorDash), isFalse);
+    expect(FoxSettings.defaults.watches(GigPlatform.instacart), isFalse);
   });
 }

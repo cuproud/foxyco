@@ -150,6 +150,27 @@ void main() {
         Verdict.good,
       );
     });
+
+    test('delivery apps use delivery rules without changing ride rules', () {
+      final settings = FoxSettings.defaults.copyWith(
+        thresholds: const Thresholds(goodAtOrAbove: 1.5, badBelow: 1),
+        deliveryThresholds: const Thresholds(goodAtOrAbove: 3, badBelow: 2.5),
+      );
+      const ride = Offer(
+        platform: GigPlatform.uber,
+        payout: 10,
+        pickupKm: 0,
+        dropoffKm: 5,
+      );
+      const delivery = Offer(
+        platform: GigPlatform.doorDash,
+        payout: 10,
+        pickupKm: 0,
+        dropoffKm: 5,
+      );
+      expect(engine.scoreOffer(ride, settings), Verdict.good);
+      expect(engine.scoreOffer(delivery, settings), Verdict.bad);
+    });
   });
 
   group('DecisionEngine.qualifiesForVoice', () {

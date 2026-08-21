@@ -18,7 +18,7 @@
 -->
 <accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
     android:description="@string/accessibility_service_description"
-    android:packageNames="com.ubercab.driver,ee.hopp.driver,com.lyft.android.driver"
+    android:packageNames="com.ubercab.driver,ee.hopp.driver,com.lyft.android.driver,com.doordash.driverapp,com.instacart.shopper"
     android:accessibilityEventTypes="typeWindowStateChanged|typeWindowContentChanged|typeWindowsChanged"
     android:accessibilityFeedbackType="feedbackGeneric"
     android:notificationTimeout="300"

@@ -189,6 +189,19 @@ class _OfferDetailSheet extends ConsumerWidget {
                         color: FoxColors.textSecondary,
                       ),
                     ),
+                  if (o.itemCount > 0) ...[
+                    const SizedBox(height: Gap.xs),
+                    Text(
+                      '${o.itemCount} items'
+                      '${o.unitCount > 0 ? ' · ${o.unitCount} units' : ''}'
+                      '${o.deliveryCount > 1 ? ' · ${o.deliveryCount} orders' : ''}',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: FoxColors.textSecondary,
+                      ),
+                    ),
+                  ],
                   if (o.bonus > 0) ...[
                     const SizedBox(height: Gap.sm),
                     Container(

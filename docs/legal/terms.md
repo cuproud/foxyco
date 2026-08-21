@@ -4,7 +4,7 @@ title: FoxyCo — Terms of Use
 
 # FoxyCo — Terms of Use
 
-**Last updated: 9 August 2026**
+**Last updated: 20 August 2026**
 
 These terms are a contract between you and **Vamsi Naradasu** ("we", "us")
 covering your use of the FoxyCo Android app ("FoxyCo"). By installing FoxyCo,
@@ -13,10 +13,12 @@ do not use the app.
 
 ## 1. What FoxyCo is
 
-FoxyCo reads offer-related text in Uber Driver, Lyft Driver and Hopp Driver,
-compares the extracted pay, distance and duration against thresholds **you**
-set, and displays an advisory verdict — good, ok or bad. Supporting another
-driver app requires an explicit FoxyCo update.
+FoxyCo reads offer-related text in Uber Driver, Lyft Driver, Hopp Driver,
+DoorDash Dasher and Instacart Shopper, compares the extracted pay, distance,
+duration and available delivery details against thresholds **you** set, and
+displays an advisory verdict — good, ok or bad. DoorDash and Instacart support
+is beta, off by default and may be less reliable while real offer coverage is
+expanded.
 
 FoxyCo is an information tool. It does not accept, decline, book, cancel or
 alter any offer, and it has no ability to do so.
@@ -33,7 +35,8 @@ stopped and in accordance with the distracted-driving laws where you are.
 ## 3. Your agreements with gig platforms
 
 FoxyCo is an **independent** app. It is **not affiliated with, authorised by,
-sponsored by or endorsed by Uber, Lyft, Hopp** or any other platform. Those
+sponsored by or endorsed by Uber, Lyft, Hopp, DoorDash, Instacart** or any
+other platform. Those
 names and marks belong to their owners and are used here only to describe what
 FoxyCo is compatible with.
 

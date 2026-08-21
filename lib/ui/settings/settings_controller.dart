@@ -8,6 +8,7 @@ import 'package:in_app_purchase/in_app_purchase.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../domain/app_skin.dart';
+import '../../domain/app_text_size.dart';
 import '../../domain/app_currency.dart';
 import '../../domain/bubble_style.dart';
 import '../../domain/distance_unit.dart';
@@ -164,6 +165,7 @@ class SettingsController extends Notifier<FoxSettings> {
         if (next.length == 1) return current;
         next.remove(app);
       } else {
+        if (next.length >= FoxSettings.maxWatchedApps) return current;
         next.add(app);
       }
       return current.copyWith(watchedApps: next);
@@ -175,6 +177,50 @@ class SettingsController extends Notifier<FoxSettings> {
 
   void setPillSize(PillSize size) =>
       _change((current) => current.copyWith(pillSize: size));
+
+  void setAppTextSize(AppTextSize size) =>
+      _change((current) => current.copyWith(appTextSize: size));
+
+  void setDeliveryRateMode(RateMode mode) =>
+      _change((current) => current.copyWith(deliveryRateMode: mode));
+
+  void setDeliveryGood(double value) => _change((current) {
+    final t = current.deliveryRateMode == RateMode.perHour
+        ? current.deliveryHourThresholds
+        : current.deliveryThresholds;
+    final canonical = current.deliveryRateMode == RateMode.perHour
+        ? value
+        : current.distanceUnit.rateToPerKm(value);
+    final next = t.copyWith(
+      goodAtOrAbove: canonical < t.badBelow ? t.badBelow : canonical,
+    );
+    return current.deliveryRateMode == RateMode.perHour
+        ? current.copyWith(deliveryHourThresholds: next)
+        : current.copyWith(deliveryThresholds: next);
+  });
+
+  void setDeliveryBad(double value) => _change((current) {
+    final t = current.deliveryRateMode == RateMode.perHour
+        ? current.deliveryHourThresholds
+        : current.deliveryThresholds;
+    final canonical = current.deliveryRateMode == RateMode.perHour
+        ? value
+        : current.distanceUnit.rateToPerKm(value);
+    final next = t.copyWith(
+      badBelow: canonical > t.goodAtOrAbove ? t.goodAtOrAbove : canonical,
+    );
+    return current.deliveryRateMode == RateMode.perHour
+        ? current.copyWith(deliveryHourThresholds: next)
+        : current.copyWith(deliveryThresholds: next);
+  });
+
+  void setDeliveryMinimumPayoutEnabled(bool enabled) => _change(
+    (current) => current.copyWith(deliveryMinimumPayoutEnabled: enabled),
+  );
+
+  void setDeliveryMinimumPayout(double amount) => _change(
+    (current) => current.copyWith(deliveryMinimumPayout: amount.clamp(0, 500)),
+  );
 
   void setBubbleStyle(BubbleStyle style) =>
       _change((current) => current.copyWith(bubbleStyle: style));

@@ -12,6 +12,27 @@ Legend: 🟢 GOOD  🟡 OK  🔴 BAD (pill shows icon + WORD + `km · $payout`).
 
 ---
 
+## Delivery beta + app text size (2026-08-20)
+
+DoorDash and Instacart are off by default. Their parsers are seeded from public
+offer cards; do not mark the live rows passed until matching real-device cards
+have been captured and redacted.
+
+| # | How | PASS bar | Status |
+|---|-----|----------|--------|
+| D.1 | Fresh install → Rules → Watched apps | Uber, Lyft and Hopp are on; DoorDash and Instacart show **Beta** and are off | [ ] |
+| D.2 | With three apps on, try enabling a fourth | Fourth switch is disabled and says **Turn off another app first** | [ ] |
+| D.3 | Leave only Lyft on, kill and reopen FoxyCo | Only Lyft remains on; Home Ready card shows Lyft only | [ ] |
+| D.4 | Turn Hopp off and DoorDash on | DoorDash appears on Home; **Delivery rules** appears and ride rules remain unchanged | [ ] |
+| D.5 | Open History filters | DoorDash and Instacart app filters are available | [ ] |
+| D.6 | Real DoorDash delivery card with guaranteed pay and route distance | One beta offer logs with exact payout/distance; absolute **Deliver by** time is not treated as duration | [ ] |
+| D.7 | Real DoorDash retail/batched card | Items and order count match the card in offer details and CSV | [ ] |
+| D.8 | Real Instacart shop-and-deliver batch | Payout, route distance, orders, items and units match the card | [ ] |
+| D.9 | Instacart Shop Only/list screen or incomplete delivery card | No pill and no History row (fail safe) | [ ] |
+| D.10 | Settings → Text size → Small, Medium, Large; inspect every tab at 320dp and system font 200% | No clipped text, overflow or overlap; floating pill size does not change | [ ] |
+
+---
+
 ## M2 — Overlay (pill + bubble)
 
 > Verified live on a Galaxy S24 (Android 16). Overlay window is a COMPACT box

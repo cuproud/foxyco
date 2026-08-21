@@ -3,9 +3,11 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:foxyco/domain/app_currency.dart';
+import 'package:foxyco/domain/app_text_size.dart';
 import 'package:foxyco/domain/fox_settings.dart';
 import 'package:foxyco/domain/distance_unit.dart';
 import 'package:foxyco/domain/rate_mode.dart';
+import 'package:foxyco/domain/platform.dart';
 import 'package:foxyco/domain/thresholds.dart';
 import 'package:foxyco/domain/verdict.dart';
 import 'package:foxyco/ui/settings/garage_controller.dart';
@@ -481,6 +483,36 @@ void main() {
     expect(find.text('See how your rules score an offer'), findsOneWidget);
   });
 
+  testWidgets('beta apps respect the cap and reveal delivery rules', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1080, 3600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(_rulesHost());
+    await tester.pumpAndSettle();
+    await openGroup(tester, 'Watched apps');
+
+    final doorDash = find.widgetWithText(SwitchListTile, 'DoorDash');
+    final hopp = find.widgetWithText(SwitchListTile, 'Hopp');
+    expect(find.text('Beta · best effort'), findsNWidgets(2));
+    expect(tester.widget<SwitchListTile>(doorDash).onChanged, isNull);
+
+    await tester.tap(hopp);
+    await tester.pumpAndSettle();
+    expect(tester.widget<SwitchListTile>(doorDash).onChanged, isNotNull);
+    await tester.tap(doorDash);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Delivery rules'), findsOneWidget);
+    final settings = ProviderScope.containerOf(
+      tester.element(find.byType(RulesScreen)),
+    ).read(settingsProvider);
+    expect(settings.watches(GigPlatform.doorDash), isTrue);
+    expect(settings.watchedApps.length, FoxSettings.maxWatchedApps);
+  });
+
   testWidgets('groups are filed under named bands, in band order', (
     tester,
   ) async {
@@ -629,6 +661,56 @@ void main() {
     expect(back.rateMode, RateMode.perHour);
     expect(back.hourThresholds, s.hourThresholds);
     expect(back.thresholds, s.thresholds);
+  });
+
+  test('text size and delivery rules survive a JSON round-trip', () {
+    final settings = FoxSettings.defaults.copyWith(
+      appTextSize: AppTextSize.large,
+      deliveryRateMode: RateMode.perHour,
+      deliveryThresholds: const Thresholds(goodAtOrAbove: 2.2, badBelow: 1.4),
+      deliveryHourThresholds: const Thresholds(goodAtOrAbove: 40, badBelow: 25),
+      deliveryMinimumPayoutEnabled: true,
+      deliveryMinimumPayout: 9,
+    );
+    final back = FoxSettings.fromJson(settings.toJson());
+    expect(back.appTextSize, AppTextSize.large);
+    expect(back.deliveryRateMode, RateMode.perHour);
+    expect(back.deliveryThresholds, settings.deliveryThresholds);
+    expect(back.deliveryHourThresholds, settings.deliveryHourThresholds);
+    expect(back.deliveryMinimumPayoutEnabled, isTrue);
+    expect(back.deliveryMinimumPayout, 9);
+  });
+
+  test('watched apps default to rides and enforce a maximum of three', () {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+    final controller = container.read(settingsProvider.notifier);
+
+    expect(container.read(settingsProvider).watchedApps, {
+      GigPlatform.uber,
+      GigPlatform.hopp,
+      GigPlatform.lyft,
+    });
+    controller.toggleApp(GigPlatform.doorDash);
+    expect(
+      container.read(settingsProvider).watches(GigPlatform.doorDash),
+      isFalse,
+    );
+
+    controller.toggleApp(GigPlatform.hopp);
+    controller.toggleApp(GigPlatform.doorDash);
+    expect(container.read(settingsProvider).watchedApps, {
+      GigPlatform.uber,
+      GigPlatform.lyft,
+      GigPlatform.doorDash,
+    });
+  });
+
+  test('a single watched app survives persistence', () {
+    final settings = FoxSettings.fromJson(
+      FoxSettings.defaults.copyWith(watchedApps: {GigPlatform.lyft}).toJson(),
+    );
+    expect(settings.watchedApps, {GigPlatform.lyft});
   });
 
   test('OCR opt-in survives a JSON round-trip and defaults off', () {

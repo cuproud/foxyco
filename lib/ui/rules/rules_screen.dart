@@ -71,6 +71,7 @@ class _RulesScreenState extends ConsumerState<RulesScreen> {
     const Color(0xFF4FA3E8),
     const Color(0xFFB48AE8),
     const Color(0xFFF0A24B),
+    const Color(0xFF66A86F),
   ];
 
   double _samplePayout = 0;
@@ -82,7 +83,7 @@ class _RulesScreenState extends ConsumerState<RulesScreen> {
   var _exampleStep = 0;
   final _random = math.Random();
   int _open = -1;
-  final _rowKeys = List.generate(5, (_) => GlobalKey());
+  final _rowKeys = List.generate(6, (_) => GlobalKey());
   late final TextEditingController _payoutController;
   late final TextEditingController _pickupDistanceController;
   late final TextEditingController _pickupHoursController;
@@ -403,6 +404,29 @@ class _RulesScreenState extends ConsumerState<RulesScreen> {
     final secondaryDetail = scoringPerHour
         ? '$pickupText · $money$secondaryRateText$secondaryUnit'
         : '$pickupText · Hourly $money${sampleOffer.pricePerHour.toStringAsFixed(2)}/hr';
+    final deliveryPerHour = settings.deliveryRateMode == RateMode.perHour;
+    final deliveryCanonical = deliveryPerHour
+        ? settings.deliveryHourThresholds
+        : settings.deliveryThresholds;
+    final deliveryThresholds = deliveryPerHour
+        ? deliveryCanonical
+        : Thresholds(
+            goodAtOrAbove: settings.distanceUnit.rateFromPerKm(
+              deliveryCanonical.goodAtOrAbove,
+            ),
+            badBelow: settings.distanceUnit.rateFromPerKm(
+              deliveryCanonical.badBelow,
+            ),
+          );
+    final deliveryMin = deliveryPerHour
+        ? _minHr
+        : settings.distanceUnit.rateFromPerKm(_minKm);
+    final deliveryMax = deliveryPerHour
+        ? _maxHr
+        : settings.distanceUnit.rateFromPerKm(_maxKm);
+    final deliveryUnit = deliveryPerHour
+        ? '/hr'
+        : '/${settings.distanceUnit.shortLabel}';
     final text = Theme.of(context).textTheme;
 
     return ListView(
@@ -806,18 +830,124 @@ class _RulesScreenState extends ConsumerState<RulesScreen> {
                       contentPadding: EdgeInsets.zero,
                       secondary: PlatformBadge(platform: app, size: 22),
                       title: Text(app.label, style: text.titleMedium),
+                      subtitle: app.isBeta
+                          ? const Text('Beta · best effort')
+                          : (!settings.watches(app) &&
+                                settings.watchedApps.length >=
+                                    FoxSettings.maxWatchedApps)
+                          ? const Text('Turn off another app first')
+                          : null,
                       value: settings.watches(app),
                       activeTrackColor: FoxColors.brandFox,
-                      onChanged: (_) => controller.toggleApp(app),
+                      onChanged:
+                          settings.watches(app) ||
+                              settings.watchedApps.length <
+                                  FoxSettings.maxWatchedApps
+                          ? (_) => controller.toggleApp(app)
+                          : null,
                     ),
                     if (app != ParserRegistry.supportedPlatforms.last)
                       Divider(color: FoxColors.border, height: 1),
                   ],
+                  const SizedBox(height: Gap.sm),
+                  Text(
+                    'Choose up to ${FoxSettings.maxWatchedApps} apps. Your selection is saved for the next session.',
+                    style: text.bodySmall?.copyWith(
+                      color: FoxColors.textSecondary,
+                    ),
+                  ),
                 ],
               ),
             ),
           ),
         ),
+        if (settings.watchesDelivery) ...[
+          const SizedBox(height: Gap.sm),
+          _row(
+            5,
+            SettingsGroup(
+              title: 'Delivery rules',
+              icon: Icons.local_shipping_outlined,
+              summary:
+                  'Beta · GOOD $money${deliveryThresholds.goodAtOrAbove.toStringAsFixed(2)}$deliveryUnit',
+              open: _open == 5,
+              accent: _accents[5],
+              onTap: () => _toggle(5),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    'Used only for DoorDash and Instacart. Ride rules above '
+                    'continue to control Uber, Lyft and Hopp.',
+                    style: text.bodyMedium?.copyWith(
+                      color: FoxColors.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: Gap.sm),
+                  Center(
+                    child: SegmentedButton<RateMode>(
+                      segments: [
+                        for (final mode in RateMode.values)
+                          ButtonSegment(value: mode, label: Text(mode.label)),
+                      ],
+                      selected: {settings.deliveryRateMode},
+                      onSelectionChanged: (value) =>
+                          controller.setDeliveryRateMode(value.first),
+                    ),
+                  ),
+                  const SizedBox(height: Gap.sm),
+                  ThresholdBand(
+                    thresholds: deliveryThresholds,
+                    min: deliveryMin,
+                    max: deliveryMax,
+                    unit: deliveryUnit,
+                  ),
+                  const SizedBox(height: Gap.sm),
+                  ThresholdSlider(
+                    label: 'GOOD at or above',
+                    color: VerdictColors.good,
+                    value: deliveryThresholds.goodAtOrAbove,
+                    min: deliveryMin,
+                    max: deliveryMax,
+                    currencyPrefix: money,
+                    onChanged: controller.setDeliveryGood,
+                  ),
+                  const SizedBox(height: Gap.sm),
+                  ThresholdSlider(
+                    label: 'BAD below',
+                    color: VerdictColors.bad,
+                    value: deliveryThresholds.badBelow,
+                    min: deliveryMin,
+                    max: deliveryMax,
+                    currencyPrefix: money,
+                    onChanged: controller.setDeliveryBad,
+                  ),
+                  Divider(color: FoxColors.border, height: Gap.xl),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(
+                      'Minimum delivery offer',
+                      style: text.titleMedium,
+                    ),
+                    value: settings.deliveryMinimumPayoutEnabled,
+                    activeTrackColor: FoxColors.brandFox,
+                    onChanged: controller.setDeliveryMinimumPayoutEnabled,
+                  ),
+                  ThresholdSlider(
+                    label: 'BAD if offer is below',
+                    color: FoxColors.brandFox,
+                    value: settings.deliveryMinimumPayout.clamp(0, 50),
+                    min: 0,
+                    max: 50,
+                    currencyPrefix: money,
+                    enabled: settings.deliveryMinimumPayoutEnabled,
+                    onChanged: controller.setDeliveryMinimumPayout,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
         const SizedBox(height: Gap.lg),
         const SectionLabel('Alerts'),
         const SizedBox(height: Gap.sm + Gap.xs),

@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../domain/app_skin.dart';
+import '../../domain/app_text_size.dart';
 import '../../domain/app_currency.dart';
 import '../../domain/bubble_style.dart';
 import '../../domain/distance_unit.dart';
@@ -58,8 +59,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     const Color(0xFF6ABF9E), // 2 Parser health — mint
     const Color(0xFFEF7BA8), // 3 Outcome tracking — rose
     const Color(0xFFD08954), // 4 Pill size — copper
-    const Color(0xFFC8C87A), // 5 Appearance — olive gold
-    const Color(0xFF9AA7B8), // 6 History — slate
+    const Color(0xFF7F9FB8), // 5 Text size — blue gray
+    const Color(0xFFC8C87A), // 6 Appearance — olive gold
+    const Color(0xFF9AA7B8), // 7 History — slate
     FoxColors.brandFox,
   ];
 
@@ -82,7 +84,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   /// extent has no context to scroll to — hence the null guard rather than a
   /// bang. Worst case the group is open but the driver still has to scroll,
   /// which is where every deep link used to land.
-  final _rowKeys = List.generate(8, (_) => GlobalKey());
+  final _rowKeys = List.generate(9, (_) => GlobalKey());
 
   /// Honour a jump made with `TabIndex.go(3, section: n)`: expand the group the
   /// driver actually tapped for and bring it on screen. Consumed once, so
@@ -441,14 +443,45 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         _staggered(
           5,
           SettingsGroup(
+            title: 'Text size',
+            icon: Icons.format_size_rounded,
+            summary: settings.appTextSize.label,
+            open: _open == 5,
+            accent: _accents[5],
+            onTap: () => _toggle(5),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                ChoiceRow<AppTextSize>(
+                  values: AppTextSize.values,
+                  selected: settings.appTextSize,
+                  labelOf: (size) => size.label,
+                  onChanged: controller.setAppTextSize,
+                ),
+                const SizedBox(height: Gap.sm),
+                Text(
+                  'Changes FoxyCo screens only. The floating offer pill keeps '
+                  'its separate Pill size setting.',
+                  style: text.bodySmall?.copyWith(
+                    color: FoxColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: Gap.sm),
+        _staggered(
+          6,
+          SettingsGroup(
             title: 'Appearance',
             icon: Icons.text_fields_rounded,
             summary:
                 '${settings.bubbleStyle.label} · ${settings.skin.label} · '
                 '${settings.distanceUnit.shortLabel} · ${settings.currency.label}',
-            open: _open == 5,
-            accent: _accents[5],
-            onTap: () => _toggle(5),
+            open: _open == 6,
+            accent: _accents[6],
+            onTap: () => _toggle(6),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -553,16 +586,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         const SectionLabel('Your data'),
         const SizedBox(height: Gap.sm + Gap.xs),
         _staggered(
-          6,
+          7,
           SettingsGroup(
             title: 'History',
             icon: Icons.history_rounded,
             summary: settings.retentionDays == FoxSettings.keepForever
                 ? 'Keep forever'
                 : 'Keep ${settings.retentionDays} days',
-            open: _open == 6,
-            accent: _accents[6],
-            onTap: () => _toggle(6),
+            open: _open == 7,
+            accent: _accents[7],
+            onTap: () => _toggle(7),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -619,7 +652,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         // Support actions stay together and remain compact link rows: feedback
         // for testers, self-serve help, then advanced diagnostic logs.
         _staggered(
-          7,
+          8,
           const LinkRow(
             icon: Icons.rate_review_outlined,
             title: 'Send feedback',
@@ -684,7 +717,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       return;
     }
     final buf = StringBuffer(
-      'seen_at,app,category,queued,verdict,currency,fare,bonus,distance_unit,total_distance,pickup_distance,minutes,rate_per_distance,per_hour,outcome\n',
+      'seen_at,app,category,queued,orders,items,units,verdict,currency,fare,bonus,distance_unit,total_distance,pickup_distance,minutes,rate_per_distance,per_hour,outcome\n',
     );
     for (final o in offers) {
       buf.writeln(
@@ -693,6 +726,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           o.platform.label,
           o.category ?? '',
           o.isQueued,
+          o.deliveryCount,
+          o.itemCount,
+          o.unitCount,
           o.verdict.name,
           settings.currency.label,
           o.payout.toStringAsFixed(2),

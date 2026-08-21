@@ -1,4 +1,6 @@
+import 'doordash_parser.dart';
 import 'hopp_parser.dart';
+import 'instacart_parser.dart';
 import 'lyft_parser.dart';
 import 'offer_parser.dart';
 import 'uber_parser.dart';
@@ -24,11 +26,21 @@ class ParserRegistry {
 
   /// Lyft Driver. Confirmed on device 2026-07-12.
   static const lyftPackage = 'com.lyft.android.driver';
+  static const doorDashPackage = 'com.doordash.driverapp';
+  static const instacartPackage = 'com.instacart.shopper';
 
   static const _uber = UberParser();
   static const _hopp = HoppParser();
   static const _lyft = LyftParser();
-  static const parsers = <OfferParser>[_uber, _hopp, _lyft];
+  static const _doorDash = DoorDashParser();
+  static const _instacart = InstacartParser();
+  static const parsers = <OfferParser>[
+    _uber,
+    _hopp,
+    _lyft,
+    _doorDash,
+    _instacart,
+  ];
 
   /// Metadata may list future platforms, but only these have a strict parser
   /// and current fixtures. Keeping this boundary here prevents a badge or
@@ -37,12 +49,16 @@ class ParserRegistry {
     GigPlatform.uber,
     GigPlatform.hopp,
     GigPlatform.lyft,
+    GigPlatform.doorDash,
+    GigPlatform.instacart,
   ];
 
   static const supportedPackages = <String>[
     uberPackage,
     hoppPackage,
     lyftPackage,
+    doorDashPackage,
+    instacartPackage,
   ];
 
   static bool hasParser(GigPlatform platform) =>
@@ -53,6 +69,8 @@ class ParserRegistry {
     uberPackage => _uber,
     hoppPackage => _hopp,
     lyftPackage => _lyft,
+    doorDashPackage => _doorDash,
+    instacartPackage => _instacart,
     _ => null,
   };
 

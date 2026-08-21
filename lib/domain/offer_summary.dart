@@ -34,6 +34,8 @@ class OfferSummary {
   final String? category;
   final bool isQueued;
   final int deliveryCount;
+  final int itemCount;
+  final int unitCount;
 
   const OfferSummary({
     required this.platform,
@@ -51,6 +53,8 @@ class OfferSummary {
     this.category,
     this.isQueued = false,
     this.deliveryCount = 0,
+    this.itemCount = 0,
+    this.unitCount = 0,
   });
 
   /// Same CARD as [other]? Compares what the parser read off the screen, not
@@ -65,7 +69,9 @@ class OfferSummary {
       totalKm == other.totalKm &&
       pickupKm == other.pickupKm &&
       totalMinutes == other.totalMinutes &&
-      deliveryCount == other.deliveryCount;
+      deliveryCount == other.deliveryCount &&
+      itemCount == other.itemCount &&
+      unitCount == other.unitCount;
 
   double get pricePerKm => totalKm > 0 ? payout / totalKm : 0;
 
@@ -89,6 +95,8 @@ class OfferSummary {
         category: category,
         isQueued: isQueued,
         deliveryCount: deliveryCount,
+        itemCount: itemCount,
+        unitCount: unitCount,
       );
 
   Map<String, dynamic> toJson() => {
@@ -107,6 +115,8 @@ class OfferSummary {
     if (category != null) 'category': category,
     if (isQueued) 'isQueued': true,
     if (deliveryCount > 0) 'deliveryCount': deliveryCount,
+    if (itemCount > 0) 'itemCount': itemCount,
+    if (unitCount > 0) 'unitCount': unitCount,
   };
 
   factory OfferSummary.fromJson(Map<String, dynamic> j) => OfferSummary(
@@ -140,5 +150,7 @@ class OfferSummary {
     category: j['category'] is String ? j['category'] as String : null,
     isQueued: j['isQueued'] == true,
     deliveryCount: (j['deliveryCount'] as num?)?.toInt() ?? 0,
+    itemCount: (j['itemCount'] as num?)?.toInt() ?? 0,
+    unitCount: (j['unitCount'] as num?)?.toInt() ?? 0,
   );
 }

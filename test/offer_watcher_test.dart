@@ -240,6 +240,19 @@ void main() {
     expect(pill.verdict.name, 'bad');
   });
 
+  test('an event from a switched-off package is ignored', () async {
+    final c = container();
+    c.read(settingsProvider.notifier).toggleApp(GigPlatform.uber);
+    c.read(offerWatcherProvider);
+    c.read(overlayControllerProvider);
+
+    watcher.emit(_uberA);
+    await Future<void>.delayed(Duration.zero);
+
+    expect(overlay.shown, isEmpty);
+    expect(c.read(offerLogProvider), isEmpty);
+  });
+
   test('voice announces each new GOOD offer only when enabled', () async {
     final c = container();
     c.read(settingsProvider.notifier)

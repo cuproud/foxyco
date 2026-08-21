@@ -279,6 +279,10 @@ class OfferWatcher extends Notifier<Offer?> {
     } else {
       parser = registry.forPackage(read.packageName);
       final settings = ref.read(settingsProvider);
+      // Android scopes events to every supported package, while the in-app
+      // selection is narrower. Never let another parser reinterpret a card
+      // from a package the driver switched off.
+      if (parser != null && !settings.watches(parser.platform)) return;
       if (kDebugMode && settings.ocrEnabled && settings.ocrTestMode) {
         if (read.isActive &&
             parser != null &&
@@ -490,7 +494,12 @@ class OfferWatcher extends Notifier<Offer?> {
       category: offer.category,
       isQueued: offer.isQueued,
       deliveryCount: offer.deliveryCount,
-      scoringSnapshot: ScoringSnapshot.fromSettings(settings),
+      itemCount: offer.itemCount,
+      unitCount: offer.unitCount,
+      scoringSnapshot: ScoringSnapshot.fromSettings(
+        settings,
+        platform: offer.platform,
+      ),
     );
     final summary = ref
         .read(offerLogProvider.notifier)

@@ -156,7 +156,7 @@ a mod ping:
 > **[Android] Free testers wanted — app that scores ride offers before you accept**
 >
 > I built FoxyCo, an Android app for gig drivers. It reads the offer card from
-> Uber / Lyft / Hopp as it appears and shows a floating pill with $/km, $/hr
+> Uber / Lyft / Hopp / DoorDash / Instacart as it appears and shows a floating pill with $/km, $/hr
 > and a take-it-or-not verdict. Read-only — it never taps accept or decline,
 > that stays yours.
 >
@@ -174,7 +174,7 @@ a mod ping:
 Facebook / WhatsApp driver groups — same links, shorter, and ask the admin
 before posting:
 
-> Building an Android app that scores Uber/Lyft/Hopp offers before you accept
+> Building an Android app that scores rideshare and delivery offers before you accept
 > (floating pill, $/hr + $/km, read-only). Google needs 12 testers for 14 days
 > before I can launch. Free for testers. Join → groups.google.com/g/foxyco-testers,
 > then opt in → play.google.com/apps/testing/com.foxyco.app. Two weeks
@@ -268,7 +268,7 @@ decide. Compare offers using your own distance or hourly rules."*
    - **Account deletion** — required once you collect accounts: an in-app path
      AND a public web URL. See MONETIZATION §5.1 — the trial doc is
      deliberately retained, and the privacy policy has to say so.
-   - **Accessibility declaration** — because we use an AccessibilityService, a special form asks WHY. Answer: "Temporarily reads on-screen text in Uber Driver, Lyft Driver and Hopp Driver to identify offer pay, distance and duration and display an earnings verdict. If the driver separately enables Pixel Capture on Android 11+, an unreadable active offer can trigger one Accessibility screenshot for bundled on-device OCR. Screenshots and raw text are discarded immediately and are never saved or sent. Read-only; never acts inside another app; user-enabled after in-app disclosure." Accessibility remains the primary reader. Demonstrate the optional **Pixel Capture (OCR)** toggle, its separate FoxyCo disclosure, one fallback verdict, and the absence of MediaProjection/system screen-sharing UI. Expect possible human review + a request for a screen-recording of the consent flow.
+   - **Accessibility declaration** — because we use an AccessibilityService, a special form asks WHY. Answer: "Temporarily reads on-screen offer text in Uber Driver, Lyft Driver, Hopp Driver, DoorDash Dasher and Instacart Shopper to identify pay, distance, duration and available delivery details and display an earnings verdict. Users choose up to three apps to monitor; DoorDash and Instacart support is beta and off by default. If the driver separately enables Pixel Capture on Android 11+, an unreadable active selected-app offer can trigger one Accessibility screenshot for bundled on-device OCR. Screenshots and raw text are discarded immediately and are never saved or sent. Read-only; never acts inside another app; user-enabled after in-app disclosure." Accessibility remains the primary reader. Demonstrate the optional **Pixel Capture (OCR)** toggle, its separate FoxyCo disclosure, one fallback verdict, and the absence of MediaProjection/system screen-sharing UI. Expect possible human review + a request for a screen-recording of the consent flow.
    - **Data safety impact of OCR** — no new collected-data row while pixels and recognized text remain on-device and are never transmitted. The published privacy policy must nevertheless disclose temporary screen capture exactly as `docs/legal/privacy.md` does.
    - **Content rating questionnaire** → "Everyone".
    - **Target audience** → 18+ (drivers).
@@ -470,7 +470,7 @@ made a meaningful contribution.
 ## 6. Where the app stands today (honest inventory)
 
 ### Has ✅
-- Live offer reading (Uber/Lyft/Hopp) via scoped read-only a11y service — device-verified
+- Live offer reading (Uber/Lyft/Hopp, plus DoorDash/Instacart beta) via scoped read-only a11y service — rideshare device-verified; delivery seeded from public cards pending device verification
 - Verdict pill + draggable bubble overlay, drop-to-dismiss, edge restore
 - $/km and $/hr scoring, custom thresholds, pickup-distance guard
 - Offer history with filters + parse-health self-diagnostics

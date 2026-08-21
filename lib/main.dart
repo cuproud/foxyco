@@ -142,6 +142,9 @@ class _FoxyCoAppState extends ConsumerState<FoxyCoApp>
     // on the rebuild this watch triggers. Building BOTH themes here would leave
     // whichever ran last applied, so only the active one is built.
     final skin = ref.watch(settingsProvider.select((s) => s.skin));
+    final appTextSize = ref.watch(
+      settingsProvider.select((s) => s.appTextSize),
+    );
     final mode = switch (skin) {
       AppSkin.dark => ThemeMode.dark,
       AppSkin.light => ThemeMode.light,
@@ -179,6 +182,15 @@ class _FoxyCoAppState extends ConsumerState<FoxyCoApp>
         darkTheme: theme,
         themeMode: mode,
         routerConfig: _router,
+        builder: (context, child) {
+          final media = MediaQuery.of(context);
+          final systemScale = media.textScaler.scale(1);
+          final scale = (systemScale * appTextSize.factor).clamp(0.8, 2.0);
+          return MediaQuery(
+            data: media.copyWith(textScaler: TextScaler.linear(scale)),
+            child: child!,
+          );
+        },
       ),
     );
   }

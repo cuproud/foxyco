@@ -10,7 +10,7 @@ import '../theme/tokens.dart';
 /// Google account, a public account-deletion URL as well (AUDIT go/no-go).
 /// Terms are not required by Play — Play's own licence agreement covers the
 /// transaction — but FoxyCo scores offers a driver acts on for money, and names
-/// three companies it has nothing to do with, so it carries its own.
+/// companies it has nothing to do with, so it carries its own.
 ///
 /// ⚠️ These must point at pages that are actually live before the first upload.
 /// The drafts are in `docs/legal/`; publish them, then confirm these three
@@ -25,13 +25,11 @@ class FoxLegal {
   static const privacy = '$_base/privacy.html';
   static const deleteAccount = '$_base/delete-account.html';
 
-  /// The affiliation disclaimer. Uber, Lyft and Hopp are other companies'
-  /// trademarks; naming them to say what FoxyCo reads is fair use, implying
-  /// they endorse it is not.
+  /// Platform names are other companies' trademarks; never imply endorsement.
   static const disclaimer =
       'FoxyCo is an independent app. It is not affiliated with, authorised by '
-      'or endorsed by Uber, Lyft or Hopp, and those names are their owners\' '
-      'trademarks.';
+      'or endorsed by Uber, Lyft, Hopp, DoorDash or Instacart, and those names '
+      'are their owners\' trademarks.';
 
   static Future<void> open(String url) async {
     await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);

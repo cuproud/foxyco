@@ -17,7 +17,7 @@ driver's rules, and shows a GOOD, OK or BAD verdict. The driver always decides.
 ## What it does
 
 ```
-Offer appears on Uber / Lyft / Hopp
+Offer appears on a selected rideshare or delivery app
         ↓
 Accessibility reads it first; optional on-device OCR handles unreadable cards
         ↓
@@ -53,7 +53,7 @@ maintained Flutter plugins that wrap the native Android APIs:
 | Native capability | Handled by |
 |---|---|
 | Draw the pill/bubble on top of other apps | [`flutter_overlay_window`](https://pub.dev/packages/flutter_overlay_window) |
-| Read the offer off Uber/Lyft/Hopp first | [`flutter_accessibility_service`](https://pub.dev/packages/flutter_accessibility_service) |
+| Read the offer from selected supported apps first | [`flutter_accessibility_service`](https://pub.dev/packages/flutter_accessibility_service) |
 | Optional in-memory OCR fallback | Accessibility screenshot + bundled ML Kit Text Recognition |
 
 The **brain** (parse → score → verdict) is plain Dart with zero Android dependencies, so it's
@@ -64,7 +64,7 @@ unit-testable with no emulator. That's the one rule that pays off later. See
 
 ## The overlay (the core UX)
 
-Two pieces, both live over the driver's active app (Uber / Lyft / Hopp):
+Two pieces, both live over the driver's selected active app:
 
 1. **Pill** — single line, floats in the top dead-zone but dropped below the very top edge so
    it never covers the platform's own X / decline / fare. Content: `$1.03/km · 19.4 km · $45/hr`.
@@ -108,7 +108,7 @@ Full spec + the research on how Uber/Hopp lay out their request screens:
 - **Overlay:** top pill (dropped from edge) + draggable bubble, single line only
 - **Overlay content:** rate · total distance · $/hr — no fuel/wear math yet
 - **Thresholds:** driver-set in settings, seeded with defaults
-- **Base platforms:** Uber + Lyft + Hopp (real screenshots supplied as parser + design base)
+- **Platforms:** Uber + Lyft + Hopp; DoorDash + Instacart are opt-in beta parsers seeded from public offer cards pending device verification
 - **UI visual language:** direction proposed in `docs/UI_DESIGN.md`, locked at M5
 
 Open / deferred items are tracked in [`docs/DECISIONS.md`](docs/DECISIONS.md).

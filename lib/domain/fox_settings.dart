@@ -1,4 +1,5 @@
 import 'app_skin.dart';
+import 'app_text_size.dart';
 import 'app_currency.dart';
 import 'bubble_style.dart';
 import 'distance_unit.dart';
@@ -40,6 +41,13 @@ class FoxSettings {
   /// over it, red. This is informational and does not change the verdict.
   final double pickupNearKm;
 
+  /// Delivery apps keep independent economics from rideshare.
+  final Thresholds deliveryThresholds;
+  final Thresholds deliveryHourThresholds;
+  final RateMode deliveryRateMode;
+  final bool deliveryMinimumPayoutEnabled;
+  final double deliveryMinimumPayout;
+
   /// Which gig apps FoxyCo reads offers from.
   final Set<GigPlatform> watchedApps;
 
@@ -48,6 +56,10 @@ class FoxSettings {
 
   /// Floating pill size.
   final PillSize pillSize;
+
+  /// Main-app typography only. The driving overlay remains controlled by
+  /// [pillSize] so app text preferences cannot break the floating pill.
+  final AppTextSize appTextSize;
 
   /// Artwork shown by the resting floating overlay bubble.
   final BubbleStyle bubbleStyle;
@@ -96,9 +108,15 @@ class FoxSettings {
     this.minimumPayout = 5,
     this.minimumPayoutVerdict = Verdict.bad,
     required this.pickupNearKm,
+    this.deliveryThresholds = Thresholds.defaults,
+    this.deliveryHourThresholds = defaultHourThresholds,
+    this.deliveryRateMode = RateMode.perKm,
+    this.deliveryMinimumPayoutEnabled = false,
+    this.deliveryMinimumPayout = 7,
     required this.watchedApps,
     required this.retentionDays,
     required this.pillSize,
+    this.appTextSize = AppTextSize.medium,
     this.bubbleStyle = BubbleStyle.coolFox,
     required this.trackOutcomes,
     this.voiceVerdictEnabled = true,
@@ -116,6 +134,7 @@ class FoxSettings {
   });
 
   static const keepForever = 9999;
+  static const maxWatchedApps = 3;
 
   /// $/hr seeds: GOOD ≥ $30/hr, BAD < $20/hr — roughly where full-time
   /// rideshare "worth it / not worth it" talk lands; driver-tunable anyway.
@@ -132,9 +151,15 @@ class FoxSettings {
     minimumPayout: 5,
     minimumPayoutVerdict: Verdict.bad,
     pickupNearKm: 2.0,
+    deliveryThresholds: Thresholds.defaults,
+    deliveryHourThresholds: defaultHourThresholds,
+    deliveryRateMode: RateMode.perKm,
+    deliveryMinimumPayoutEnabled: false,
+    deliveryMinimumPayout: 7,
     watchedApps: {GigPlatform.uber, GigPlatform.hopp, GigPlatform.lyft},
     retentionDays: 30,
     pillSize: PillSize.small,
+    appTextSize: AppTextSize.medium,
     bubbleStyle: BubbleStyle.coolFox,
     trackOutcomes: true,
     voiceVerdictEnabled: true,
@@ -152,6 +177,18 @@ class FoxSettings {
   );
 
   bool watches(GigPlatform p) => watchedApps.contains(p);
+  bool get watchesDelivery => watchedApps.any((app) => app.isDelivery);
+
+  RateMode rateModeFor(GigPlatform platform) =>
+      platform.isDelivery ? deliveryRateMode : rateMode;
+  Thresholds distanceThresholdsFor(GigPlatform platform) =>
+      platform.isDelivery ? deliveryThresholds : thresholds;
+  Thresholds hourThresholdsFor(GigPlatform platform) =>
+      platform.isDelivery ? deliveryHourThresholds : hourThresholds;
+  bool minimumPayoutEnabledFor(GigPlatform platform) =>
+      platform.isDelivery ? deliveryMinimumPayoutEnabled : minimumPayoutEnabled;
+  double minimumPayoutFor(GigPlatform platform) =>
+      platform.isDelivery ? deliveryMinimumPayout : minimumPayout;
 
   /// The cut points for the ACTIVE [rateMode] — what the engine scores with.
   Thresholds get activeThresholds => switch (rateMode) {
@@ -167,9 +204,15 @@ class FoxSettings {
     double? minimumPayout,
     Verdict? minimumPayoutVerdict,
     double? pickupNearKm,
+    Thresholds? deliveryThresholds,
+    Thresholds? deliveryHourThresholds,
+    RateMode? deliveryRateMode,
+    bool? deliveryMinimumPayoutEnabled,
+    double? deliveryMinimumPayout,
     Set<GigPlatform>? watchedApps,
     int? retentionDays,
     PillSize? pillSize,
+    AppTextSize? appTextSize,
     BubbleStyle? bubbleStyle,
     bool? trackOutcomes,
     bool? voiceVerdictEnabled,
@@ -192,9 +235,17 @@ class FoxSettings {
     minimumPayout: minimumPayout ?? this.minimumPayout,
     minimumPayoutVerdict: minimumPayoutVerdict ?? this.minimumPayoutVerdict,
     pickupNearKm: pickupNearKm ?? this.pickupNearKm,
+    deliveryThresholds: deliveryThresholds ?? this.deliveryThresholds,
+    deliveryHourThresholds:
+        deliveryHourThresholds ?? this.deliveryHourThresholds,
+    deliveryRateMode: deliveryRateMode ?? this.deliveryRateMode,
+    deliveryMinimumPayoutEnabled:
+        deliveryMinimumPayoutEnabled ?? this.deliveryMinimumPayoutEnabled,
+    deliveryMinimumPayout: deliveryMinimumPayout ?? this.deliveryMinimumPayout,
     watchedApps: watchedApps ?? this.watchedApps,
     retentionDays: retentionDays ?? this.retentionDays,
     pillSize: pillSize ?? this.pillSize,
+    appTextSize: appTextSize ?? this.appTextSize,
     bubbleStyle: bubbleStyle ?? this.bubbleStyle,
     trackOutcomes: trackOutcomes ?? this.trackOutcomes,
     voiceVerdictEnabled: voiceVerdictEnabled ?? this.voiceVerdictEnabled,
@@ -222,9 +273,17 @@ class FoxSettings {
     'minimumPayout': minimumPayout,
     'minimumPayoutVerdict': minimumPayoutVerdict.name,
     'pickupNearKm': pickupNearKm,
+    'deliveryGood': deliveryThresholds.goodAtOrAbove,
+    'deliveryBad': deliveryThresholds.badBelow,
+    'deliveryHourGood': deliveryHourThresholds.goodAtOrAbove,
+    'deliveryHourBad': deliveryHourThresholds.badBelow,
+    'deliveryRateMode': deliveryRateMode.name,
+    'deliveryMinimumPayoutEnabled': deliveryMinimumPayoutEnabled,
+    'deliveryMinimumPayout': deliveryMinimumPayout,
     'watchedApps': watchedApps.map((p) => p.name).toList(),
     'retentionDays': retentionDays,
     'pillSize': pillSize.name,
+    'appTextSize': appTextSize.name,
     'bubbleStyle': bubbleStyle.id,
     'trackOutcomes': trackOutcomes,
     'voiceVerdictEnabled': voiceVerdictEnabled,
@@ -248,6 +307,30 @@ class FoxSettings {
     final bad = number('bad', d.thresholds.badBelow, 0.5, 3.0);
     final hourGood = number('hourGood', d.hourThresholds.goodAtOrAbove, 10, 60);
     final hourBad = number('hourBad', d.hourThresholds.badBelow, 10, 60);
+    final deliveryGood = number(
+      'deliveryGood',
+      d.deliveryThresholds.goodAtOrAbove,
+      0.5,
+      3.0,
+    );
+    final deliveryBad = number(
+      'deliveryBad',
+      d.deliveryThresholds.badBelow,
+      0.5,
+      3.0,
+    );
+    final deliveryHourGood = number(
+      'deliveryHourGood',
+      d.deliveryHourThresholds.goodAtOrAbove,
+      10,
+      60,
+    );
+    final deliveryHourBad = number(
+      'deliveryHourBad',
+      d.deliveryHourThresholds.badBelow,
+      10,
+      60,
+    );
     final retention = (j['retentionDays'] as num?)?.toInt();
     final apps = (j['watchedApps'] as List<dynamic>?)
         ?.map((n) => GigPlatform.values.where((p) => p.name == n))
@@ -273,13 +356,39 @@ class FoxSettings {
               .firstOrNull ??
           d.minimumPayoutVerdict,
       pickupNearKm: number('pickupNearKm', d.pickupNearKm, 0.5, 10),
-      watchedApps: (apps == null || apps.isEmpty) ? d.watchedApps : apps,
+      deliveryThresholds: deliveryGood >= deliveryBad
+          ? Thresholds(goodAtOrAbove: deliveryGood, badBelow: deliveryBad)
+          : d.deliveryThresholds,
+      deliveryHourThresholds: deliveryHourGood >= deliveryHourBad
+          ? Thresholds(
+              goodAtOrAbove: deliveryHourGood,
+              badBelow: deliveryHourBad,
+            )
+          : d.deliveryHourThresholds,
+      deliveryRateMode:
+          RateMode.values
+              .where((m) => m.name == j['deliveryRateMode'])
+              .firstOrNull ??
+          d.deliveryRateMode,
+      deliveryMinimumPayoutEnabled:
+          (j['deliveryMinimumPayoutEnabled'] as bool?) ??
+          d.deliveryMinimumPayoutEnabled,
+      deliveryMinimumPayout: number(
+        'deliveryMinimumPayout',
+        d.deliveryMinimumPayout,
+        0,
+        500,
+      ),
+      watchedApps: (apps == null || apps.isEmpty)
+          ? d.watchedApps
+          : apps.take(maxWatchedApps).toSet(),
       retentionDays: const [7, 30, 90, keepForever].contains(retention)
           ? retention!
           : d.retentionDays,
       pillSize:
           PillSize.values.where((s) => s.name == j['pillSize']).firstOrNull ??
           d.pillSize,
+      appTextSize: AppTextSize.fromName(j['appTextSize'] as String?),
       bubbleStyle: BubbleStyle.fromId(
         j['bubbleStyle'] is String ? j['bubbleStyle'] as String : null,
       ),
