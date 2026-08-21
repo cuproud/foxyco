@@ -1017,6 +1017,116 @@ void main() {
     expect(c.read(offerLogProvider).single.platform, GigPlatform.uber);
   });
 
+  test('top Uber Radar window replaces a complete Lyft window below', () async {
+    final c = container();
+    c.read(offerWatcherProvider);
+    c.read(overlayControllerProvider);
+
+    watcher.emit(_lyftA);
+    await Future<void>.delayed(Duration.zero);
+    watcher.emit(
+      const ScreenRead(
+        packageName: ParserRegistry.lyftPackage,
+        texts: ['UberX', r'$13.45', 'Match'],
+        isActive: true,
+        windows: [
+          ScreenWindow(
+            id: 22,
+            layer: 9,
+            isFocused: true,
+            texts: [
+              'UberX',
+              r'$13.45',
+              '2 mins (0.1 km) away',
+              '31 mins (16.1 km) trip',
+              'Match',
+            ],
+          ),
+          ScreenWindow(
+            id: 11,
+            layer: 4,
+            texts: [
+              'Lyft',
+              r'$11.04',
+              '4 mins · 0.8 km',
+              '18 mins · 9.1 km',
+              'Accept',
+            ],
+          ),
+        ],
+      ),
+    );
+    await Future<void>.delayed(Duration.zero);
+
+    expect(overlay.shown.last.payout, 13.45);
+    expect(c.read(offerWatcherProvider)!.platform, GigPlatform.uber);
+  });
+
+  test('incomplete new top card clears the lower card verdict', () async {
+    final c = container();
+    c.read(offerWatcherProvider);
+    c.read(overlayControllerProvider);
+
+    watcher.emit(
+      const ScreenRead(
+        packageName: ParserRegistry.lyftPackage,
+        texts: [
+          'Lyft',
+          r'$11.04',
+          '4 mins · 0.8 km',
+          '18 mins · 9.1 km',
+          'Accept',
+        ],
+        isActive: true,
+        windows: [
+          ScreenWindow(
+            id: 11,
+            layer: 4,
+            isFocused: true,
+            texts: [
+              'Lyft',
+              r'$11.04',
+              '4 mins · 0.8 km',
+              '18 mins · 9.1 km',
+              'Accept',
+            ],
+          ),
+        ],
+      ),
+    );
+    await Future<void>.delayed(Duration.zero);
+    watcher.emit(
+      const ScreenRead(
+        packageName: ParserRegistry.lyftPackage,
+        texts: ['UberX', r'$13.45', 'Match'],
+        isActive: true,
+        windows: [
+          ScreenWindow(
+            id: 22,
+            layer: 9,
+            isFocused: true,
+            texts: ['UberX', r'$13.45', 'Match'],
+          ),
+          ScreenWindow(
+            id: 11,
+            layer: 4,
+            texts: [
+              'Lyft',
+              r'$11.04',
+              '4 mins · 0.8 km',
+              '18 mins · 9.1 km',
+              'Accept',
+            ],
+          ),
+        ],
+      ),
+    );
+    await Future<void>.delayed(Duration.zero);
+
+    expect(overlay.clears, 1);
+    expect(c.read(offerWatcherProvider), isNull);
+  });
+
   group('outcome inference', () {
     test('card → browse screen marks the offer missed', () async {
       final c = container();

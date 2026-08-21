@@ -155,7 +155,7 @@ class HomeScreen extends ConsumerWidget {
             onPressed: () =>
                 ref.read(overlayControllerProvider.notifier).simulateOffer(),
             child: Text(
-              'Show a demo pill',
+              'Preview an offer',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                 // textSecondary + 12.5: 36%-alpha at 11.5px failed contrast.
                 color: FoxColors.textSecondary,

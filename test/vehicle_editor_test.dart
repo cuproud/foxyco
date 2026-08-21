@@ -50,6 +50,18 @@ void main() {
     expect(tester.widget<FilledButton>(saveBtn).onPressed, isNull);
   });
 
+  testWidgets('make duplicated into model cannot be saved', (tester) async {
+    _tall(tester);
+    await tester.pumpWidget(_app(const VehicleEditorScreen()));
+    await tester.enterText(find.byKey(const ValueKey('editor-make')), 'Honda');
+    await tester.enterText(find.byKey(const ValueKey('editor-model')), 'Honda');
+    await tester.pump();
+
+    expect(find.text('Model must differ from make'), findsOneWidget);
+    final saveBtn = find.widgetWithText(FilledButton, 'Save');
+    expect(tester.widget<FilledButton>(saveBtn).onPressed, isNull);
+  });
+
   testWidgets('implausible year is rejected and text fields are capped', (
     tester,
   ) async {
@@ -141,7 +153,7 @@ void main() {
         .saveVehicle(existing); // seed garage
     expect(find.widgetWithText(TextField, 'Kia'), findsOneWidget);
     expect(find.text('Red'), findsOneWidget);
-    expect(find.text('SUV Comfort'), findsOneWidget);
+    expect(find.text('Comfort SUV'), findsOneWidget);
 
     await tester.tap(find.byKey(const ValueKey('editor-delete')));
     await tester.pumpAndSettle();
@@ -206,10 +218,10 @@ void main() {
     expect(find.byType(BottomSheet), findsNothing);
     expect(find.text('E-scooter'), findsOneWidget);
     expect(find.byIcon(Icons.check_rounded), findsOneWidget);
-    await tester.tap(find.text('SUV Comfort'));
+    await tester.tap(find.text('Comfort SUV'));
     await tester.pumpAndSettle();
     expect(find.byType(PopupMenuItem), findsNothing);
-    expect(find.text('SUV Comfort'), findsOneWidget);
+    expect(find.text('Comfort SUV'), findsOneWidget);
   });
 
   testWidgets('hybrid fuel badge uses battery and leaf icons', (tester) async {

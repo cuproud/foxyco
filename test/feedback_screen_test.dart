@@ -73,7 +73,7 @@ void main() {
 
     expect(find.text('HELP & SUPPORT'), findsOneWidget);
     expect(find.text('Send feedback'), findsOneWidget);
-    expect(find.text('About FoxyCo'), findsOneWidget);
+    expect(find.text('Help & About'), findsOneWidget);
     expect(find.text('Diagnostic logs'), findsOneWidget);
     await tester.tap(find.text('Send feedback'));
     await tester.pumpAndSettle();

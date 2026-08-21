@@ -69,7 +69,6 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
   final Set<GigPlatform?> _apps = {null}; // null == "All"
   final Set<Verdict?> _verdicts = {null}; // null == "All"
   HistoryOutcomeFilter _outcome = HistoryOutcomeFilter.all;
-  bool _filtersExpanded = false;
   bool _topOnly = false;
   int _minFare = 20;
 
@@ -143,17 +142,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
   @override
   Widget build(BuildContext context) {
     final all = ref.watch(offerLogProvider);
-    final availableApps = <GigPlatform>{
-      ...ParserRegistry.supportedPlatforms.where(
-        ref.read(settingsProvider).watches,
-      ),
-      ...all.map((offer) => offer.platform),
-    }.toList();
-    availableApps.sort(
-      (a, b) => ParserRegistry.supportedPlatforms
-          .indexOf(a)
-          .compareTo(ParserRegistry.supportedPlatforms.indexOf(b)),
-    );
+    final availableApps = ParserRegistry.supportedPlatforms;
     final filtered = all.where(_passes).toList()
       ..sort(
         (a, b) => _topOnly
@@ -196,7 +185,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
             ),
             const SizedBox(height: Gap.md),
             _FiltersCard(
-              expanded: _filtersExpanded,
+              expanded: false,
               range: _range,
               apps: _apps,
               verdicts: _verdicts,
@@ -216,8 +205,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
               onFare: (d) =>
                   setState(() => _minFare = (_minFare + d).clamp(0, 100)),
               onReset: () => setState(_resetFilters),
-              onToggle: () =>
-                  setState(() => _filtersExpanded = !_filtersExpanded),
+              onToggle: () => _showFilters(availableApps),
             ),
             const SizedBox(height: Gap.md),
             const SizedBox(height: Gap.lg),
@@ -287,6 +275,55 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
 
   void _toggleVerdict(Verdict? v) {
     setState(() => _toggleIn(_verdicts, v));
+  }
+
+  Future<void> _showFilters(List<GigPlatform> availableApps) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (context, refreshSheet) {
+          void update(VoidCallback change) {
+            setState(change);
+            refreshSheet(() {});
+          }
+
+          return SingleChildScrollView(
+            padding: EdgeInsets.fromLTRB(
+              Gap.md,
+              Gap.md,
+              Gap.md,
+              Gap.md + MediaQuery.viewInsetsOf(context).bottom,
+            ),
+            child: _FiltersCard(
+              expanded: true,
+              range: _range,
+              apps: _apps,
+              verdicts: _verdicts,
+              availableApps: availableApps,
+              outcome: _outcome,
+              topOnly: _topOnly,
+              minFare: _minFare,
+              matchCount: ref.read(offerLogProvider).where(_passes).length,
+              onRange: (range) => update(() {
+                _range = range;
+                if (range == HistoryRange.all) _resetFilters();
+              }),
+              onApp: (app) => update(() => _toggleIn(_apps, app)),
+              onVerdict: (verdict) =>
+                  update(() => _toggleIn(_verdicts, verdict)),
+              onOutcome: (outcome) => update(() => _outcome = outcome),
+              onTopToggle: () => update(() => _topOnly = !_topOnly),
+              onFare: (delta) =>
+                  update(() => _minFare = (_minFare + delta).clamp(0, 100)),
+              onReset: () => update(_resetFilters),
+              onToggle: () => Navigator.pop(sheetContext),
+            ),
+          );
+        },
+      ),
+    );
   }
 
   void _resetFilters() {
@@ -506,7 +543,9 @@ class _FiltersCard extends StatelessWidget {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Text(
-                            _activeCount == 0
+                            expanded
+                                ? 'Filter offers'
+                                : _activeCount == 0
                                 ? 'Filters'
                                 : 'Filters · $_activeCount active',
                             style: TextStyle(
@@ -585,6 +624,15 @@ class _FiltersCard extends StatelessWidget {
                     matchCount: matchCount,
                     onToggle: onTopToggle,
                     onFare: onFare,
+                  ),
+                ),
+                const SizedBox(height: Gap.lg),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    key: const ValueKey('history-filter-done'),
+                    onPressed: onToggle,
+                    child: const Text('Done'),
                   ),
                 ),
               ],

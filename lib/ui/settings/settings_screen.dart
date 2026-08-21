@@ -150,7 +150,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               onPressed: () => _confirmReset(context, controller),
               style: TextButton.styleFrom(foregroundColor: FoxColors.brandFox),
               child: const Text(
-                'Reset',
+                'Reset preferences',
                 style: TextStyle(fontWeight: FontWeight.w700),
               ),
             ),
@@ -241,8 +241,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ),
                 const SizedBox(height: Gap.sm),
                 Text(
-                  'Current session. "Needs update" means offer cards are arriving '
-                  'but FoxyCo can\'t read them.',
+                  'Current session. If offer cards arrive but FoxyCo cannot '
+                  'read them, update the app or enable the screen-reading fallback.',
                   style: text.bodyMedium?.copyWith(
                     color: FoxColors.textSecondary,
                   ),
@@ -256,9 +256,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       Icons.document_scanner_outlined,
                       color: FoxColors.brandFox,
                     ),
-                    title: Text('Pixel Capture (OCR)', style: text.titleMedium),
+                    title: Text(
+                      'Screen-reading fallback',
+                      style: text.titleMedium,
+                    ),
                     subtitle: const Text(
-                      'Optional fallback when Accessibility cannot read a card',
+                      'Uses on-device OCR when Accessibility cannot read a card',
                     ),
                     value: settings.ocrEnabled,
                     activeTrackColor: FoxColors.brandFox,
@@ -663,7 +666,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         const SizedBox(height: Gap.sm),
         const LinkRow(
           icon: Icons.info_outline_rounded,
-          title: 'About FoxyCo',
+          title: 'Help & About',
           trailing: aboutVersion,
           route: '/about',
         ),
@@ -766,7 +769,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final yes = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Reset all settings?'),
+        title: const Text('Reset preferences?'),
         content: const Text(
           'Thresholds, watched apps, pill size and retention go back to '
           'defaults. Your offer history is kept.',
@@ -779,7 +782,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: TextButton.styleFrom(foregroundColor: VerdictColors.bad),
-            child: const Text('Reset'),
+            child: const Text('Reset preferences'),
           ),
         ],
       ),

@@ -50,10 +50,19 @@ class _VehicleEditorScreenState extends ConsumerState<VehicleEditorScreen> {
     return value != null && value >= 1980 && value <= DateTime.now().year + 1;
   }
 
+  bool get _modelOk {
+    final make = _make.text.trim();
+    final model = _model.text.trim();
+    return make.isEmpty ||
+        model.isEmpty ||
+        make.toLowerCase() != model.toLowerCase();
+  }
+
   /// Save needs a make OR model, plus a valid year.
   bool get _canSave =>
       (_make.text.trim().isNotEmpty || _model.text.trim().isNotEmpty) &&
-      _yearOk;
+      _yearOk &&
+      _modelOk;
 
   Future<void> _save() async {
     final v = Vehicle(
@@ -75,8 +84,8 @@ class _VehicleEditorScreenState extends ConsumerState<VehicleEditorScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Delete vehicle?'),
-        content: const Text(
-          'It disappears from the garage. '
+        content: Text(
+          'Delete ${widget.initial!.title}? It disappears from the garage. '
           'Offer history is not affected.',
         ),
         actions: [
@@ -109,6 +118,7 @@ class _VehicleEditorScreenState extends ConsumerState<VehicleEditorScreen> {
             IconButton(
               key: const ValueKey('editor-delete'),
               onPressed: _confirmDelete,
+              tooltip: 'Delete vehicle',
               icon: Icon(
                 Icons.delete_outline_rounded,
                 color: VerdictColors.bad,
@@ -165,11 +175,16 @@ class _VehicleEditorScreenState extends ConsumerState<VehicleEditorScreen> {
                   controller: _model,
                   onChanged: (_) => setState(() {}),
                   maxLength: 30,
-                  decoration: const InputDecoration(
-                    labelText: 'Model',
-                    isDense: true,
-                    counterText: '',
-                  ),
+                  decoration:
+                      const InputDecoration(
+                        labelText: 'Model',
+                        isDense: true,
+                        counterText: '',
+                      ).copyWith(
+                        errorText: _modelOk
+                            ? null
+                            : 'Model must differ from make',
+                      ),
                 ),
               ),
             ],
@@ -203,7 +218,7 @@ class _VehicleEditorScreenState extends ConsumerState<VehicleEditorScreen> {
                   onChanged: (_) => setState(() {}),
                   maxLength: 12,
                   decoration: const InputDecoration(
-                    labelText: 'Plate · optional',
+                    labelText: 'Plate number (optional)',
                     isDense: true,
                     counterText: '',
                   ),

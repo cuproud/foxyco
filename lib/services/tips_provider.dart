@@ -74,7 +74,7 @@ final tipsProvider = Provider<List<FoxTip>>(
       category: TipCategory.app,
       headline: 'Set thresholds that cover your costs',
       body:
-          'In My Rules → Verdict thresholds, choose numbers that account for '
+          'In My Rules → Offer scoring, choose numbers that account for '
           'fuel, maintenance and unpaid pickup distance.',
       asset: 'assets/tips/fox_tip_app.png',
     ),

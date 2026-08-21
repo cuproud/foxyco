@@ -107,7 +107,7 @@ void main() {
     // Rules groups start collapsed; the driver chooses what to inspect.
     expect(find.text('GOOD at or above'), findsNothing);
     expect(find.text('BAD below'), findsNothing);
-    await openGroup(tester, 'Verdict thresholds');
+    await openGroup(tester, 'Offer scoring');
 
     // Live preview is a separate group; opening it collapses thresholds.
     await openGroup(tester, 'Live preview');
@@ -228,13 +228,13 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
     await tester.pumpWidget(_rulesHost());
 
-    await openGroup(tester, 'Verdict thresholds');
-    expect(find.text('Relaxed'), findsOneWidget);
+    await openGroup(tester, 'Offer scoring');
+    expect(find.text('More offers'), findsOneWidget);
     await tester.tap(find.text(r'$/hr'));
     await tester.pumpAndSettle();
-    expect(find.text('Relaxed'), findsOneWidget);
+    expect(find.text('More offers'), findsOneWidget);
 
-    await tester.tap(find.text('Picky'));
+    await tester.tap(find.text('Higher value'));
     final settings = ProviderScope.containerOf(
       tester.element(find.byType(RulesScreen)),
     ).read(settingsProvider);
@@ -253,7 +253,7 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
     await tester.pumpWidget(_rulesHost());
 
-    await openGroup(tester, 'Offer guard');
+    await openGroup(tester, 'Minimum payout & pickup');
     final toggle = find.byKey(const Key('rules_minimum_payout_toggle'));
     expect(toggle, findsOneWidget);
     expect(find.byKey(const Key('rules_minimum_payout_verdict')), findsNothing);
@@ -278,11 +278,11 @@ void main() {
       ),
     );
 
-    // Header Reset opens a confirm dialog (destructive gate); confirm it.
-    await tester.tap(find.text('Reset'));
+    // Header action opens a confirm dialog (destructive gate); confirm it.
+    await tester.tap(find.text('Reset preferences'));
     await tester.pumpAndSettle();
-    expect(find.text('Reset all settings?'), findsOneWidget);
-    await tester.tap(find.text('Reset').last); // dialog's confirm action
+    expect(find.text('Reset preferences?'), findsOneWidget);
+    await tester.tap(find.text('Reset preferences').last);
     await tester.pumpAndSettle();
 
     expect(container.read(settingsProvider).thresholds, Thresholds.defaults);
@@ -303,7 +303,7 @@ void main() {
       ),
     );
 
-    await tester.tap(find.text('Reset'));
+    await tester.tap(find.text('Reset preferences'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Cancel'));
     await tester.pumpAndSettle();
@@ -428,11 +428,11 @@ void main() {
     await tester.pumpAndSettle();
 
     await openGroup(tester, 'Offer detection');
-    expect(find.text('Pixel Capture (OCR)'), findsOneWidget);
+    expect(find.text('Screen-reading fallback'), findsOneWidget);
     await tester.tap(find.text('How detection works'));
     await tester.pumpAndSettle();
     final toggle = tester.widget<SwitchListTile>(
-      find.widgetWithText(SwitchListTile, 'Pixel Capture (OCR)'),
+      find.widgetWithText(SwitchListTile, 'Screen-reading fallback'),
     );
     expect(toggle.value, isFalse);
     expect(
@@ -441,14 +441,14 @@ void main() {
           .onChanged,
       isNull,
     );
-    await tester.tap(find.text('Pixel Capture (OCR)'));
+    await tester.tap(find.text('Screen-reading fallback'));
     await tester.pumpAndSettle();
     expect(find.text('Enable on-device Pixel Capture?'), findsOneWidget);
     await tester.tap(find.text('Not now'));
     await tester.pumpAndSettle();
     expect(find.text('Current session'), findsOneWidget);
 
-    await tester.tap(find.text('Pixel Capture (OCR)'));
+    await tester.tap(find.text('Screen-reading fallback'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Enable OCR'));
     await tester.pumpAndSettle();
@@ -575,8 +575,8 @@ void main() {
     expect(y('YOUR DATA'), lessThan(y('History')));
     expect(y('History'), lessThan(y('HELP & SUPPORT')));
     expect(y('HELP & SUPPORT'), lessThan(y('Send feedback')));
-    expect(y('Send feedback'), lessThan(y('About FoxyCo')));
-    expect(y('About FoxyCo'), lessThan(y('Diagnostic logs')));
+    expect(y('Send feedback'), lessThan(y('Help & About')));
+    expect(y('Help & About'), lessThan(y('Diagnostic logs')));
   });
 
   testWidgets('Settings rows fit narrow screens', (tester) async {

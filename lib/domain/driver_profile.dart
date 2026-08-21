@@ -24,7 +24,7 @@ extension VehicleTypeArt on VehicleType {
   String get label => switch (this) {
     VehicleType.sedan => 'Sedan',
     VehicleType.suv => 'SUV',
-    VehicleType.suvComfort => 'SUV Comfort',
+    VehicleType.suvComfort => 'Comfort SUV',
     VehicleType.hatchback => 'Hatchback',
     VehicleType.pickup => 'Pickup',
     VehicleType.van => 'Van',

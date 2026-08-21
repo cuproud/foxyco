@@ -20,7 +20,7 @@ class ProfileSection extends ConsumerWidget {
 
     final accessTitle = switch (access.source) {
       AccessSource.purchase ||
-      AccessSource.cachedPurchase => 'Lifetime unlocked',
+      AccessSource.cachedPurchase => 'Lifetime plan · Active',
       AccessSource.trial =>
         'Trial active · ${access.trialDaysLeft} '
             '${access.trialDaysLeft == 1 ? 'day' : 'days'} remaining',
@@ -117,7 +117,7 @@ class ProfileSection extends ConsumerWidget {
               ),
               icon: const Icon(Icons.logout_rounded, size: 18),
               label: const Text(
-                'Sign out of Google account',
+                'Sign out',
                 style: TextStyle(fontWeight: FontWeight.w700),
               ),
             ),
@@ -161,7 +161,7 @@ class ProfileSection extends ConsumerWidget {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Sign out of Google account?'),
+        title: const Text('Sign out?'),
         content: const Text(
           'You will need to sign into the same Google account again to use any '
           'remaining trial days. Lifetime access is separate and stays with '

@@ -36,11 +36,11 @@ const aboutIntro =
 
 /// Version string. Kept as a plain const rather than adding a native plugin for
 /// one label; `about_content_test.dart` guards it against `pubspec.yaml` drift.
-const aboutVersion = '1.0.9 (build 66)';
+const aboutVersion = '1.0.10 (build 67)';
 
 const aboutSections = <AboutSection>[
   AboutSection(
-    title: 'How it works',
+    title: 'Using FoxyCo',
     entries: [
       AboutEntry(
         'What does FoxyCo do?',
@@ -53,7 +53,7 @@ const aboutSections = <AboutSection>[
             'still accept or decline the offer yourself, exactly as before.',
       ),
       AboutEntry(
-        'Does it ever tap for me?',
+        'Can FoxyCo tap or accept offers for me?',
         'No. FoxyCo cannot press anything in the gig apps — it never requests '
             'the permission that would let it. It reads, scores and shows. '
             'Every accept and decline is yours. This is deliberate: '
@@ -61,7 +61,7 @@ const aboutSections = <AboutSection>[
             'account at risk.',
       ),
       AboutEntry(
-        'Where do good / ok / bad come from?',
+        'How are GOOD, OK and BAD decided?',
         'From My Rules. You set the rate at or above which an offer counts as '
             'good, and the rate below which it counts as bad; everything '
             'between the two is ok. Switch between distance rate and \$/hr in My Rules '
@@ -69,7 +69,7 @@ const aboutSections = <AboutSection>[
             'about twenty times apart.',
       ),
       AboutEntry(
-        'Is FoxyCo made by a gig platform?',
+        'Is FoxyCo affiliated with a gig platform?',
         'No. FoxyCo is an independent app, not affiliated with, authorised by '
             'or endorsed by the gig apps it can watch. Their names and '
             'trademarks belong to their respective companies. FoxyCo just '
@@ -84,7 +84,7 @@ const aboutSections = <AboutSection>[
             'the phone is locked is still scored and logged.',
       ),
       AboutEntry(
-        'How does History know I took an offer?',
+        'How does FoxyCo detect accepted offers?',
         'It infers it. When the offer card leaves the screen, FoxyCo looks at '
             'what replaced it: a trip screen means taken, the browse or map '
             'screen means passed. It works even if you accept in one app while '
@@ -92,7 +92,7 @@ const aboutSections = <AboutSection>[
             'rather than guessing. You can turn this off in Settings.',
       ),
       AboutEntry(
-        'What is the pickup distance for?',
+        'How does pickup distance affect a verdict?',
         'A long unpaid pickup can make a good-looking offer less useful. Set '
             'the pickup distance you consider near, and the target changes '
             'colour when the pickup is farther away.',
@@ -100,7 +100,7 @@ const aboutSections = <AboutSection>[
     ],
   ),
   AboutSection(
-    title: 'Trial & lifetime unlock',
+    title: 'Access & billing',
     entries: [
       AboutEntry(
         'Is FoxyCo a subscription?',
@@ -117,7 +117,7 @@ const aboutSections = <AboutSection>[
             'to a new phone does not restart the clock.',
       ),
       AboutEntry(
-        'What does signing in do?',
+        'Why sign in with Google?',
         'It protects your trial start date by linking it to the same Google '
             'account. FoxyCo does not use the account for ads or analytics. '
             'Lifetime access is managed separately by the Google Play account '

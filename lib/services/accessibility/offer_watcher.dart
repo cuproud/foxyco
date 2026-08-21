@@ -54,6 +54,7 @@ class OfferWatcher extends Notifier<Offer?> {
   /// Reset when the offer changes or the card is gone.
   String? _shownKey;
   GigPlatform? _shownPlatform;
+  int? _shownWindowId;
   final Set<String> _suppressedKeys = <String>{};
 
   bool _confirmedCardLeft = false;
@@ -259,6 +260,8 @@ class OfferWatcher extends Notifier<Offer?> {
     final registry = ref.read(parserRegistryProvider);
     OfferParser? parser;
     Offer? offer;
+    ScreenWindow? offerWindow;
+    ScreenWindow? topCardWindow;
     if (read.source == CaptureSource.ocr) {
       final settings = ref.read(settingsProvider);
       if (!settings.ocrEnabled) return;
@@ -268,7 +271,7 @@ class OfferWatcher extends Notifier<Offer?> {
       // OCR is fallback evidence for offers only. It must never drive card-exit
       // or outcome inference from an incomplete screenshot.
       if (offer == null) {
-        if (ParserPatterns.hasAcceptAction(read.texts)) {
+        if (ParserPatterns.hasOfferAction(read.texts)) {
           ref
               .read(parseHealthProvider.notifier)
               .recordCardMiss(parser.platform);
@@ -307,16 +310,34 @@ class OfferWatcher extends Notifier<Offer?> {
             (platform) =>
                 ParserPatterns.looksLikeAcceptedTrip(platform, read.texts),
           );
-      final frames = topIsTerminal || read.windows.isEmpty
-          ? [read.texts]
-          : read.windows.map((window) => window.texts);
-      for (final texts in frames) {
+      final windows = [...read.windows]
+        ..sort((a, b) {
+          final layer = b.layer.compareTo(a.layer);
+          if (layer != 0) return layer;
+          final focused = (b.isFocused ? 1 : 0).compareTo(a.isFocused ? 1 : 0);
+          if (focused != 0) return focused;
+          return (b.isActive ? 1 : 0).compareTo(a.isActive ? 1 : 0);
+        });
+      final cardWindows = windows
+          .where((window) => ParserPatterns.looksLikeOfferCard(window.texts))
+          .toList();
+      topCardWindow = cardWindows.firstOrNull;
+      final frames = topIsTerminal || windows.isEmpty
+          ? [(texts: read.texts, window: null)]
+          : cardWindows.isNotEmpty
+          ? [(texts: cardWindows.first.texts, window: cardWindows.first)]
+          : [
+              for (final window in windows)
+                (texts: window.texts, window: window),
+            ];
+      for (final frame in frames) {
         for (final candidate in registry.candidates(read.packageName)) {
           if (!settings.watches(candidate.platform)) continue;
-          final parsed = candidate.parse(texts);
+          final parsed = candidate.parse(frame.texts);
           if (parsed != null) {
             parser = candidate;
             offer = parsed;
+            offerWindow = frame.window;
             break;
           }
         }
@@ -342,6 +363,11 @@ class OfferWatcher extends Notifier<Offer?> {
     if (offer == null) {
       if (read.source == CaptureSource.ocr) return;
       if (switchedPlatform) _clearNow();
+      if (_shownKey != null &&
+          topCardWindow != null &&
+          topCardWindow.id != _shownWindowId) {
+        _clearNow();
+      }
       if (_shownKey == null &&
           read.isActive &&
           ParserPatterns.looksLikeOfferCard(read.texts)) {
@@ -375,7 +401,7 @@ class OfferWatcher extends Notifier<Offer?> {
         // takeable-offer affordance was very likely a REAL offer card we failed
         // to read. Count it: misses with zero successes = stale selectors
         // (surfaced as "Parser health" in Settings).
-        if (ParserPatterns.hasAcceptAction(read.texts)) {
+        if (ParserPatterns.hasOfferAction(read.texts)) {
           ref
               .read(parseHealthProvider.notifier)
               .recordCardMiss(activeParser.platform);
@@ -456,6 +482,7 @@ class OfferWatcher extends Notifier<Offer?> {
     }
     _shownKey = key;
     _shownPlatform = offer.platform;
+    _shownWindowId = offerWindow?.id;
     _expiryTimer?.cancel();
     _expiryTimer = Timer(maxVisible, () {
       if (_shownKey != key) return;
@@ -711,6 +738,7 @@ class OfferWatcher extends Notifier<Offer?> {
     _suppressedKeys.add(_shownKey!);
     _shownKey = null;
     _shownPlatform = null;
+    _shownWindowId = null;
     state = null;
     ref.read(overlayControllerProvider.notifier).clearOffer();
     ref.read(foxLogProvider).log('overlay', 'pill cleared — offer left screen');

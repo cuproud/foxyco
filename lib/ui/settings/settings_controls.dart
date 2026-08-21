@@ -252,7 +252,7 @@ class HealthRow extends StatelessWidget {
         // a parser update can't fix this; it needs the OCR fallback.
         ? ('Unreadable · OCR needed', VerdictColors.bad, VerdictColors.badBg)
         : health.likelyBroken
-        ? ('Needs update', VerdictColors.bad, VerdictColors.badBg)
+        ? ('Couldn\'t read offers', VerdictColors.bad, VerdictColors.badBg)
         : health.parsed > 0
         ? (
             'OK · ${health.parsed} read',

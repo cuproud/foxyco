@@ -1,6 +1,6 @@
 # FoxyCo — Google Play Release & Monetization Guide
 
-**Audience:** first-time Play Store publisher. Written 2026-07-20, updated 2026-08-20.
+**Audience:** first-time Play Store publisher. Written 2026-07-20, updated 2026-08-21.
 **Companion docs:** `MONETIZATION_v1.0.md` (entitlement architecture — **authoritative**), `AUDIT.md` (policy risks + release checklist), `MANUAL_TESTS.md` (device test matrix).
 
 > ## ⚠️ Superseded sections
@@ -35,8 +35,8 @@
 
 _Added 2026-08-02. §1–§6 are the reasoning; this is the ordered list of moves.
 Everything below is a console/web action except C1. Build 22 was Play-installed
-and device-tested; current release bundle is `1.0.9+66`. See
-`HANDOFF_2026-08-20_DELIVERY_BETA.md` for current verification and remaining
+and device-tested; current release bundle is `1.0.10+67`. See
+`HANDOFF_2026-08-21_TOUR_FIXES.md` for current verification and remaining
 delivery gates; older handoffs remain historical records._
 
 ### Phase A — no Play Console needed, do it today
@@ -79,20 +79,18 @@ Artifacts are copied to `dist/` with version and timestamped names.
 Latest repository-verified bundle (delivery beta still needs live-device verification):
 
 ```text
-dist/FoxyCo-v1.0.9+66-release-20260820-2222.aab
-86,121,362 bytes
-SHA-256 3c8159aa690c65e0b3e5eb488259fea7cd274f0eea70b1bf14b43fe98522918a
+dist/FoxyCo-v1.0.10+67-release-20260821-1339.aab
+86,152,711 bytes
+SHA-256 f714b94172cd61108852b7ddf3741af929c34999bc290a7ff5eb55cb68147a71
 ```
 
-The build helper completed dependency resolution, static analysis, all 488
-Flutter tests, Firestore rules tests and the signed release bundle. Build 66
-adds the opt-in DoorDash, Instacart and Skip delivery betas, three-app cap,
-persisted selection, delivery rules, workload History fields, app text sizing
-and synchronized Accessibility/legal disclosures. Build 66 also restores the
-device-verified bottom-edge bubble dismissal after builds 64–65 used unreliable
-cross-window bounds, and gives every app snackbar the rounded FoxyCo surface
-with an orange outline. Canceled drags cannot stop watching. Uber is one watched
-app covering rides and Eats; Eats cards use delivery rules.
+The build helper completed dependency resolution, static analysis, all 494
+Flutter tests, Firestore rules tests and the signed release bundle. Build 67
+selects the topmost offer window across stacked Uber Radar and cross-app cards,
+clears stale verdicts when that top card is incomplete, and parses an opened
+Lyft Reserve detail without merging scheduled-list cards. History filters now
+always expose Uber, Hopp, Lyft, DoorDash, Instacart and Skip. It also applies the
+tour's Rules, Settings, Help and vehicle wording/validation improvements.
 
 The licensing key is an RSA **public** key. It is extractable from any shipped
 APK, so recording it here costs nothing and makes the build reproducible:
@@ -495,11 +493,11 @@ made a meaningful contribution.
 Ordered, actionable version of this list: **§0**. Estimates and code-level
 blockers: **MONETIZATION §7**.
 
-1. **Upload build 66 and run the current quick smoke test** — confirm
-   About shows build 66, app messages use the rounded FoxyCo snackbar, dragging
-   the bubble through the ✕ to the red bottom-edge state closes it, Uber says it
-   includes Eats, delivery rules enable correctly, and the unlock sheet closes automatically after a
-   purchase, restore or promo redemption while a trial is active.
+1. **Upload build 67 and run the current quick smoke test** — confirm About
+   shows build 67; the topmost Uber/Lyft card owns the pill while swiping stacked
+   Radar cards; opened Lyft Reserve details score without combining list cards;
+   and History offers all six app filters. Recheck the build-66 bubble dismissal,
+   delivery rules and purchase/restore flows as regression coverage.
 2. **Refund/revoke propagation test** — after Play reports no owned lifetime
    product, Restore purchase must clear `Unlocked forever` while network/query
    errors retain the paid driver's offline grace.
@@ -521,5 +519,5 @@ blockers: **MONETIZATION §7**.
 - Localized store listings (ES/PT = big driver demographics)
 
 ---
-_Last updated: 2026-08-20 — build 66 artifact, FoxyCo snackbars and device-verified overlay dismissal restored.
+_Last updated: 2026-08-21 — build 67 tour fixes and release artifact documented.
 Entitlement architecture lives in `MONETIZATION_v1.0.md`._

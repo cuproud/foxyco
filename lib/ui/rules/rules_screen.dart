@@ -60,9 +60,9 @@ class _RulesScreenState extends ConsumerState<RulesScreen> {
   static const _maxHr = 60.0;
   static const _engine = DecisionEngine();
   static const _hourPresets = [
-    ('Relaxed', Thresholds(goodAtOrAbove: 26, badBelow: 18)),
+    ('More offers', Thresholds(goodAtOrAbove: 26, badBelow: 18)),
     ('Balanced', Thresholds(goodAtOrAbove: 30, badBelow: 20)),
-    ('Picky', Thresholds(goodAtOrAbove: 36, badBelow: 24)),
+    ('Higher value', Thresholds(goodAtOrAbove: 36, badBelow: 24)),
   ];
 
   static List<Color> get _accents => [
@@ -450,7 +450,7 @@ class _RulesScreenState extends ConsumerState<RulesScreen> {
         _row(
           0,
           SettingsGroup(
-            title: 'Verdict thresholds',
+            title: 'Offer scoring',
             icon: Icons.tune_rounded,
             summary:
                 'OK $money${thresholds.badBelow.toStringAsFixed(2)}–${thresholds.goodAtOrAbove.toStringAsFixed(2)}$unit',
@@ -532,7 +532,7 @@ class _RulesScreenState extends ConsumerState<RulesScreen> {
         _row(
           1,
           SettingsGroup(
-            title: 'Offer guard',
+            title: 'Minimum payout & pickup',
             icon: Icons.shield_outlined,
             summary: [
               if (settings.minimumPayoutEnabled)
@@ -555,7 +555,7 @@ class _RulesScreenState extends ConsumerState<RulesScreen> {
                 SwitchListTile(
                   key: const Key('rules_minimum_payout_toggle'),
                   contentPadding: EdgeInsets.zero,
-                  title: Text('Minimum offer', style: text.titleMedium),
+                  title: Text('Minimum payout', style: text.titleMedium),
                   value: settings.minimumPayoutEnabled,
                   activeTrackColor: FoxColors.brandFox,
                   onChanged: controller.setMinimumPayoutEnabled,

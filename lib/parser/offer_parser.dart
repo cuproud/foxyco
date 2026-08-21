@@ -87,6 +87,22 @@ class ParserPatterns {
   static bool hasAcceptAction(List<String> nodeTexts) =>
       nodeTexts.any(_acceptAction.hasMatch);
 
+  static final _reserveAction = RegExp(
+    r'^\s*reserve\s*$',
+    caseSensitive: false,
+  );
+  static bool hasReserveAction(List<String> nodeTexts) =>
+      nodeTexts.any(_reserveAction.hasMatch);
+  static bool hasOfferAction(List<String> nodeTexts) =>
+      hasAcceptAction(nodeTexts) || hasReserveAction(nodeTexts);
+
+  static final _scheduledTime = RegExp(
+    r'\b(?:today|tomorrow)\b[^\d]{0,4}\d{1,2}:\d{2}\s*(?:a\.?m\.?|p\.?m\.?)',
+    caseSensitive: false,
+  );
+  static bool hasScheduledTime(List<String> nodeTexts) =>
+      nodeTexts.any(_scheduledTime.hasMatch);
+
   /// Negative markers that only appear on browse / home / map / scheduled-list
   /// screens — never on a single incoming offer card. Captured from the real
   /// device screenshots (bug1 (6) Ride Finder browse, bug1 (8) map bubbles,
@@ -121,7 +137,7 @@ class ParserPatterns {
   /// strict parse) because for the overlay's *lifecycle* a lone "Decline" frame
   /// still means the card is up.
   static final _cardAction = RegExp(
-    r'\b(accept|match|add\s+to\s+queue|decline|dismiss)\b',
+    r'\b(accept|match|add\s+to\s+queue|reserve|decline|dismiss)\b',
     caseSensitive: false,
   );
 
@@ -303,6 +319,13 @@ class ParserPatterns {
       tripKm: tripKm,
       tripMin: tripMin,
     );
+  }
+
+  static ({double tripKm, double tripMin})? foldScheduledLeg(RegExpMatch leg) {
+    final tripMin = double.tryParse(leg.group(1)!) ?? 0;
+    final tripKm = _legKm(leg);
+    if (tripKm <= 0 || tripMin <= 0) return null;
+    return (tripKm: tripKm, tripMin: tripMin);
   }
 
   static double _legKm(RegExpMatch leg) {

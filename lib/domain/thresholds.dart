@@ -13,9 +13,9 @@ class Thresholds {
 
   /// One-tap $/km starting points, shared by onboarding and Settings.
   static const presets = [
-    ('Relaxed', Thresholds(goodAtOrAbove: 1.3, badBelow: 0.9)),
+    ('More offers', Thresholds(goodAtOrAbove: 1.3, badBelow: 0.9)),
     ('Balanced', defaults),
-    ('Picky', Thresholds(goodAtOrAbove: 1.8, badBelow: 1.2)),
+    ('Higher value', Thresholds(goodAtOrAbove: 1.8, badBelow: 1.2)),
   ];
 
   /// True when the band is coherent: GOOD cut must sit at or above the BAD cut.

@@ -34,6 +34,30 @@ class LyftParser implements OfferParser {
   @override
   Offer? parse(List<String> nodeTexts) {
     final joined = nodeTexts.join(' ');
+    final legs = ParserPatterns.leg.allMatches(joined).toList();
+
+    // An opened scheduled ride is a single reserveable card, unlike the
+    // Scheduled Rides browse list that contains several fares and legs. Lyft
+    // does not expose current-to-pickup distance here, so keep pickup at zero
+    // (unknown) and score only the explicitly displayed trip.
+    if (ParserPatterns.hasReserveAction(nodeTexts) &&
+        ParserPatterns.hasScheduledTime(nodeTexts) &&
+        legs.length == 1) {
+      final payout = ParserPatterns.findPayout(nodeTexts);
+      final trip = ParserPatterns.foldScheduledLeg(legs.single);
+      if (payout == null || trip == null) return null;
+      return Offer(
+        platform: GigPlatform.lyft,
+        payout: payout,
+        bonus: ParserPatterns.findBonus(nodeTexts),
+        pickupKm: 0,
+        dropoffKm: trip.tripKm,
+        pickupMinutes: 0,
+        dropoffMinutes: trip.tripMin,
+        category: 'Scheduled',
+        rawText: joined,
+      );
+    }
 
     // Contract gate 1: takeable + not a scheduled-ride list. The native
     // reader merges every same-package window so it can see cards drawn over
@@ -49,8 +73,6 @@ class LyftParser implements OfferParser {
     if (ParserPatterns.looksLikeScheduledRideList(joined)) return null;
 
     final payout = ParserPatterns.findPayout(nodeTexts);
-    final legs = ParserPatterns.leg.allMatches(joined).toList();
-
     // Contract gate 2: money + a pickup and at least one trip leg. A plain ride
     // is two legs; a MULTI-STOP ride adds a row per stop, all summed into the
     // trip total by [foldLegs]. Too few (half-rendered) or too many (a ride

@@ -118,6 +118,8 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Accepted'));
     await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('history-filter-done')));
+    await tester.pumpAndSettle();
 
     expect(find.text('1 today'), findsOneWidget);
     expect(
@@ -125,7 +127,11 @@ void main() {
       findsOneWidget,
     );
 
+    await tester.tap(find.text('Filters · 1 active'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Accepted'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('history-filter-done')));
     await tester.pumpAndSettle();
     expect(find.text('3 today'), findsOneWidget);
   });
@@ -185,6 +191,19 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('SUMMARY'), findsOneWidget);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('filters always include all supported delivery apps', (
+    tester,
+  ) async {
+    await tester.pumpWidget(_app([_offer(DateTime.now())]));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Filters'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('DoorDash'), findsOneWidget);
+    expect(find.text('Instacart'), findsOneWidget);
+    expect(find.text('Skip'), findsOneWidget);
   });
 
   testWidgets('analytical cards use solid surfaces and clear the nav', (
@@ -259,6 +278,8 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('history-top-toggle')));
     await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('history-filter-done')));
+    await tester.pumpAndSettle();
 
     expect(find.text(r'All platforms · $20+ fare · Today'), findsOneWidget);
   });
@@ -317,6 +338,8 @@ void main() {
 
     await tester.tap(find.text('Accepted'));
     await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('history-filter-done')));
+    await tester.pumpAndSettle();
     expect(find.text('1 today'), findsOneWidget);
     expect(
       find.descendant(of: summary, matching: find.text('1')),
@@ -345,6 +368,8 @@ void main() {
     await tester.tap(find.text('Filters'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Accepted'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('history-filter-done')));
     await tester.pumpAndSettle();
     expect(find.text('0 today'), findsOneWidget);
     expect(find.text('Show all'), findsOneWidget);

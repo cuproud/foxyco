@@ -133,6 +133,32 @@ void main() {
     expect(parser.parse(nodes), isNull);
   });
 
+  test('parses an opened scheduled ride without inventing pickup distance', () {
+    final offer = parser.parse([
+      r'$6.53',
+      r'Incl. CA$1.79 bonus',
+      'Today · 8:35AM',
+      'Dunsmore Gdns & Reiner Rd',
+      '7 mins · 2.9 km',
+      'Southbourne Ave & Westgate Blvd',
+      'Reserve',
+    ]);
+
+    expect(offer, isNotNull);
+    expect(offer!.category, 'Scheduled');
+    expect(offer.pickupKm, 0);
+    expect(offer.dropoffKm, 2.9);
+    expect(offer.totalMinutes, 7);
+    expect(offer.pricePerKm, closeTo(2.25, 0.01));
+  });
+
+  test('rejects scheduled-looking content without Reserve', () {
+    expect(
+      parser.parse([r'$6.53', 'Today · 8:35AM', '7 mins · 2.9 km']),
+      isNull,
+    );
+  });
+
   test('parses a live card when background map chrome is merged into it', () {
     // The accessibility service deliberately merges Lyft's card window and
     // background map window. These browse labels are therefore not proof that

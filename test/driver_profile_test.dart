@@ -6,7 +6,7 @@ void main() {
     expect(VehicleType.values.map((type) => type.label).toList(), [
       'Sedan',
       'SUV',
-      'SUV Comfort',
+      'Comfort SUV',
       'Hatchback',
       'Pickup',
       'Van',
