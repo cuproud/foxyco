@@ -147,12 +147,12 @@ skippable after permissions.
 └─────────────────────────────┘
 
 Page 2 — "Draw over other apps"
-  Explains: FoxyCo floats a tiny pill over Uber/Hopp so you never switch apps.
+  Explains: FoxyCo floats a tiny pill over the selected gig app so you never switch apps.
   [ Grant "Display over other apps" ]  → opens system settings, returns
 
 Page 3 — "Read the offer on screen"   ← the sensitive one
-  Explains PLAINLY: FoxyCo temporarily reads on-screen text in Uber Driver, Lyft
-  Driver and Hopp Driver to identify pay, distance and duration. Only extracted
+  Explains PLAINLY: FoxyCo temporarily reads on-screen offer text in the six
+  disclosed supported apps to identify pay, distance, duration and available delivery details. Only extracted
   offer numbers are stored locally; raw screen text is not saved or sent. It
   never taps buttons for you.
   [ Grant Accessibility Access ]  → system settings, returns
@@ -176,7 +176,7 @@ No graphs (MVP). Calm.
 │  ┌───────────────────────┐  │
 │  │  ●  Watching for       │  │   STATUS CARD (hero)
 │  │     offers             │  │   green dot = live & watching
-│  │  Uber · Hopp           │  │   subtitle = active platforms
+│  │  Uber · Hopp · Lyft    │  │   subtitle = selected platforms (one to three)
 │  │            [ Pause ]   │  │   pause = stop the watch loop
 │  └───────────────────────┘  │
 │                             │
@@ -205,7 +205,7 @@ watching; grey = paused; red = a permission is missing (with a one-tap fix). If 
 missing, the status card turns into a call-to-action ("Grant accessibility to start watching").
 
 Empty state (fresh install, no offers yet): tally shows `—`, "Last offer" card replaced by the fox
-mark + "No offers yet. Open Uber or Hopp and drive — I'll start scoring."
+mark + "No offers yet. Open a selected gig app — I'll start scoring."
 
 ---
 

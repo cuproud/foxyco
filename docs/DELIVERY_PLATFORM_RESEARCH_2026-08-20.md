@@ -1,4 +1,4 @@
-# DoorDash and Instacart offer-card research
+# DoorDash, Instacart and Skip offer-card research
 
 **Research date:** 2026-08-20  
 **Purpose:** define a conservative first parser contract from public evidence.
@@ -64,11 +64,44 @@ driving-distance rate, so the initial parser must reject it rather than produce
 a misleading verdict. Multi-store and multi-customer batches require live
 fixtures before their route distance semantics can be considered verified.
 
+### Skip Courier
+
+- [Current Google Play listing](https://play.google.com/store/apps/details?id=com.delco.courier)
+  confirms the Android package `com.delco.courier` and current product name
+  **Skip - Courier**.
+- [Official courier application page](https://couriers.skipthedishes.com/application)
+  publishes a detailed offer screenshot showing complete earnings, total travel
+  distance, pickup, delivery, arrival times, countdown and Accept/Decline.
+- [Official Courier Pay basics](https://insidetrack.skipthedishes.com/faq/courier-pay-basics/)
+  says complete earnings, pickup/delivery locations and estimated distance are
+  shown before acceptance.
+- [Official Offer basics](https://insidetrack.skipthedishes.com/faq/offer-basics/)
+  confirms partner, customer, pay and distance plus a 60-second long-press
+  Accept action.
+- [Official Ontario Bill 88 FAQ](https://insidetrack.skipthedishes.com/faq/bill-88/)
+  confirms total pay is upfront and may include Transit Pay, tips, bonuses and
+  incentives; displayed estimated distance compensation can differ from the
+  final weekly adjustment.
+
+| Card text | FoxyCo field | Initial handling |
+|---|---|---|
+| `$14.40 includes tip and bonus` | `payout` | Required complete offer; never add tip/bonus again |
+| `5 km total travel distance` | `totalKm` | Required; store canonically in kilometres |
+| Pickup/partner row | offer signature | Required route endpoint; address is never persisted |
+| Delivery/customer row | offer signature | Required route endpoint; customer/address is never persisted |
+| Arrival clock times | none yet | Context only; absolute clock times are not job duration |
+| `Accept offer` + countdown | offer signature | Accept required; countdown ignored |
+| Shop + Pay and explicit item count | `category`, `itemCount` | Optional workload metadata when visible |
+
+The initial parser requires pay, distance, Accept and both route endpoints. It
+does not try to reconcile jurisdiction-specific post-delivery distance-payment
+adjustments or infer duration from arrival times.
+
 ## Implementation boundary
 
 - One parser file per platform; shared accessibility/OCR capture remains
   unchanged.
-- Both platforms are labelled **Beta** and disabled by default.
+- All three delivery platforms are labelled **Beta** and disabled by default.
 - Accessibility and OCR text feed the same strict parser.
 - Missing or ambiguous required fields return `null`; zero is never substituted
   for an unknown economic field.

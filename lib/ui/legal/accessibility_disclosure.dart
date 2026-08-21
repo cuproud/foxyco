@@ -3,9 +3,9 @@ import 'package:flutter/material.dart';
 const accessibilityDisclosureTitle = 'Offer access';
 const accessibilityDisclosureBody =
     'Uses Android Accessibility to read offer details from Uber Driver, Lyft '
-    'Driver, Hopp Driver, DoorDash Dasher and Instacart Shopper. You choose up '
-    'to three apps to monitor; DoorDash and Instacart support is beta and off '
-    'by default. FoxyCo reads selected-app offers only to calculate your '
+    'Driver, Hopp Driver, DoorDash Dasher, Instacart Shopper and Skip Courier. '
+    'You choose up to three apps to monitor; delivery-app support is beta and '
+    'off by default. FoxyCo reads selected-app offers only to calculate your '
     'verdict. Numbers stay on this device; '
     'raw screen text is not saved or uploaded. FoxyCo cannot tap, accept, '
     'decline or control any driver app.';

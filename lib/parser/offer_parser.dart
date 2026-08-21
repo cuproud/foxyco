@@ -262,7 +262,8 @@ class ParserPatterns {
       GigPlatform.hopp => throw StateError('handled above'),
       GigPlatform.uberEats ||
       GigPlatform.doorDash ||
-      GigPlatform.instacart => RegExp(r'(?!)'),
+      GigPlatform.instacart ||
+      GigPlatform.skip => RegExp(r'(?!)'),
     };
     return pattern.hasMatch(joined);
   }

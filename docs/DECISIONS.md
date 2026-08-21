@@ -21,6 +21,10 @@ Append-only. Every locked choice + why, so we don't re-argue it. Open items at b
 | 10 | **Full UI design proposed now (UI_DESIGN.md), visual language locked at M5** | User asked for UI designs up front. Screens, components, tokens, and a recommended visual direction are documented; the final look is confirmed after the skeleton runs on a device. | 2026-07-10 |
 | 12 | **Outcome inference is passive + optional (respects #11)** | Taken/missed is GUESSED from the screen that replaces the offer card (browse/map = passed, in-trip nav = taken) — read-only, no new permissions, no taps. Presented as "Likely taken/passed", never certainty. Driver can turn it off (Settings → Outcome tracking, default ON); off = every offer logs unknown. | 2026-07-20 |
 | 13 | **Car reminders are in-app only (no notification permission)** | Inspection/insurance/maintenance dates surface as a Home banner inside the lead window, not as system notifications — zero new permissions for a Play-sensitive a11y app. Real push (flutter_local_notifications + exact alarms) deferred until a driver asks. | 2026-07-20 |
+| 14 | **Maximum three watched apps; never zero** | Five supported packages would add noise and unnecessary processing if all were active. Fresh installs watch Uber/Lyft/Hopp; the driver's one-to-three selection persists across sessions. | 2026-08-20 |
+| 15 | **DoorDash, Instacart and Skip ship as opt-in Beta parsers** | Public offer cards provide a safe initial contract, but real Accessibility/OCR nodes and negative screens are still missing. All fail closed, stay off by default and are promoted only after live fixtures pass. | 2026-08-20 |
+| 16 | **Ride and delivery rules remain separate** | Rideshare and shopping/delivery economics are materially different. The shared decision engine selects a persisted profile by platform; no duplicate engine or overlay is needed. | 2026-08-20 |
+| 17 | **App text size does not resize the overlay** | Small/Medium/Large applies to FoxyCo screens while system accessibility scaling remains respected. Pill size stays independent so a Settings preference cannot obstruct a live offer card. | 2026-08-20 |
 
 ---
 
@@ -41,7 +45,7 @@ Append-only. Every locked choice + why, so we don't re-argue it. Open items at b
 - **Units/currency** — Settings supports USD, CAD, AUD, NZD, MXN, and BRL
   labels without FX conversion. New installs default from the Google Play
   storefront country; unsupported/unavailable countries fall back to CAD.
-- **Platforms** — Uber, Lyft and Hopp.
+- **Next verified platforms after delivery beta** — add only when real card and negative fixtures are available.
 
 ---
 

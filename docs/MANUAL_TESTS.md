@@ -12,24 +12,47 @@ Legend: 🟢 GOOD  🟡 OK  🔴 BAD (pill shows icon + WORD + `km · $payout`).
 
 ---
 
+## Current upload quick smoke (10–15 minutes)
+
+Run these before promoting the AAB. They cover the highest-risk build changes
+without requiring DoorDash, Instacart or Skip accounts.
+
+| # | How | PASS bar | Status |
+|---|-----|----------|--------|
+| Q.1 | Install from the Play test track → Settings → About | About shows the new bumped build; startup and four-tab navigation work | [ ] |
+| Q.2 | Rules → Watched apps | Existing selection survived upgrade; fresh install defaults to Uber/Lyft/Hopp; all three delivery apps show **Beta** and off | [ ] |
+| Q.3 | Try enabling a fourth app; then turn one off and enable Skip | Fourth is blocked; after freeing a slot Skip enables and Home shows exactly the selected apps | [ ] |
+| Q.4 | Leave only Lyft selected, force-stop and reopen | Lyft remains the only watched app; disabled-app events cannot produce a pill | [ ] |
+| Q.5 | Enable any delivery beta → open Delivery rules; change a value and return | Delivery settings persist; ride thresholds above are unchanged | [ ] |
+| Q.6 | History → App filters after enabling each delivery app | DoorDash, Instacart and Skip filters appear when selected or represented in History | [ ] |
+| Q.7 | Settings → Text size → Small/Medium/Large; open every tab | No overflow, clipped headers or overlapping bottom navigation; Pill size/preview does not change | [ ] |
+| Q.8 | Settings support rows at Large text | Send feedback, About and Diagnostic logs align and wrap without truncating their titles | [ ] |
+| Q.9 | Trigger one real Uber/Lyft/Hopp offer with OCR off | Existing parser still shows one correct pill/History row and clears when the card leaves | [ ] |
+| Q.10 | With an older Play build installed and the new test release available, foreground FoxyCo | Update prompt appears once per foreground session and opens the Play update flow | [ ] |
+| Q.11 | Drag the bubble onto the visible ✕ until it turns red, then release | Light haptic fires; overlay closes and Home leaves Watching. Releasing beside it or canceling the drag does not stop the service | [ ] |
+
+---
+
 ## Delivery beta + app text size (2026-08-20)
 
-DoorDash and Instacart are off by default. Their parsers are seeded from public
+DoorDash, Instacart and Skip are off by default. Their parsers are seeded from public
 offer cards; do not mark the live rows passed until matching real-device cards
 have been captured and redacted.
 
 | # | How | PASS bar | Status |
 |---|-----|----------|--------|
-| D.1 | Fresh install → Rules → Watched apps | Uber, Lyft and Hopp are on; DoorDash and Instacart show **Beta** and are off | [ ] |
+| D.1 | Fresh install → Rules → Watched apps | Uber, Lyft and Hopp are on; DoorDash, Instacart and Skip show **Beta** and are off | [ ] |
 | D.2 | With three apps on, try enabling a fourth | Fourth switch is disabled and says **Turn off another app first** | [ ] |
 | D.3 | Leave only Lyft on, kill and reopen FoxyCo | Only Lyft remains on; Home Ready card shows Lyft only | [ ] |
 | D.4 | Turn Hopp off and DoorDash on | DoorDash appears on Home; **Delivery rules** appears and ride rules remain unchanged | [ ] |
-| D.5 | Open History filters | DoorDash and Instacart app filters are available | [ ] |
+| D.5 | Enable each delivery beta and open History filters | DoorDash, Instacart and Skip app filters are available | [ ] |
 | D.6 | Real DoorDash delivery card with guaranteed pay and route distance | One beta offer logs with exact payout/distance; absolute **Deliver by** time is not treated as duration | [ ] |
 | D.7 | Real DoorDash retail/batched card | Items and order count match the card in offer details and CSV | [ ] |
 | D.8 | Real Instacart shop-and-deliver batch | Payout, route distance, orders, items and units match the card | [ ] |
 | D.9 | Instacart Shop Only/list screen or incomplete delivery card | No pill and no History row (fail safe) | [ ] |
 | D.10 | Settings → Text size → Small, Medium, Large; inspect every tab at 320dp and system font 200% | No clipped text, overflow or overlap; floating pill size does not change | [ ] |
+| D.11 | Real Skip detailed offer | Exact complete pay and total travel distance log once; arrival clock times are not treated as duration | [ ] |
+| D.12 | Skip home/earnings, partial offer and Shop + Pay variants | Home/earnings/partial screens show no pill; explicit Shop + Pay items appear in details/CSV | [ ] |
 
 ---
 
@@ -41,7 +64,7 @@ have been captured and redacted.
 >
 > ⚠️ Vertical sticking under the status/nav bar is addressed by a "drop-to-
 > dismiss" patch in the VENDORED plugin fork (`third_party/flutter_overlay_window`):
-> releasing the bubble in the bottom nav-bar zone closes the overlay. Rows 2.10 /
+> releasing the bubble over the visible ✕ closes the overlay. Rows 2.10 /
 > 2.14 were CODED but NOT yet device-verified (session ended first) — check these
 > first next session.
 
@@ -60,7 +83,7 @@ have been captured and redacted.
 | 2.11 | Tap **Hide** on Home | Overlay disappears | [ ] |
 | 2.12 | Tap Simulate | NO bottom popup / snackbar appears | [ ] |
 | 2.13 | With bubble showing, use the rest of the screen / nav bar | Touch works everywhere except on the bubble itself | [ ] |
-| 2.14 | Drag the bubble down onto the nav bar and release | Overlay closes (drop-to-dismiss) | [ ] |
+| 2.14 | Drag the bubble over the visible ✕ until it turns red, then release; repeat but release beside it; interrupt/cancel a drag | Target gives one light haptic; only the release inside the visible target closes the overlay | [ ] |
 
 ## M3 — Real offer reading (accessibility parser)
 
@@ -106,7 +129,7 @@ have been captured and redacted.
 | 3.16 | Turn watching **ON** in-app (no Simulate tap) | Bubble appears on its own; **Pause** dims it; **Resume** un-dims | [ ] |
 | 3.17 | **Drag** bubble far left/right | Whole pill/bubble stays on-screen, never stuck off-edge (bug1 7) | [ ] |
 | 3.18 | **Tap** bubble | FoxyCo comes to the foreground | [x] verified on S24 2026-07-13 |
-| 3.19 | **Drag bubble to bottom** drop zone | Overlay closes AND Home flips out of "Watching" (no desync) | [ ] |
+| 3.19 | **Drag bubble onto the visible ✕** and release | Overlay closes AND Home flips out of "Watching" (no desync) | [ ] |
 
 ### M3-lifetime — pill stays while the card is up, clears on action (2026-07-13)
 

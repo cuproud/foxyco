@@ -16,7 +16,7 @@ them by **directory + dependency discipline** (optionally split into local packa
 lib/
 ├── domain/        → Offer, Verdict, Thresholds, DecisionEngine, platform metadata, snapshots. PURE DART. no Flutter, no plugins.
 ├── data/          → Drift DB, SharedPreferences/settings, repositories (implement domain interfaces)
-├── parser/        → OfferParser interface + per-platform impls (UberParser, HoppParser…). Pure Dart.
+├── parser/        → OfferParser interface + one parser per supported platform. Pure Dart.
 ├── services/
 │   ├── overlay/       → OverlayController — wraps flutter_overlay_window (pill + bubble)
 │   └── accessibility/ → AccessibilityWatcher — wraps flutter_accessibility_service, feeds :parser
@@ -58,7 +58,7 @@ AccessibilityWatcher (watched-app window event + two bounded native re-reads)
 ParserRegistry.candidates(sourcePackage).parse(nodes) : Offer? [parser]
    │  Offer(payout: 10.55, pickupKm: 0.8, dropoffKm: 4.3, platform: uber)
    ▼
-DecisionEngine.evaluate(offer, thresholds) : Verdict   [domain, pure]
+DecisionEngine.scoreOffer(offer, settings) : Verdict   [domain, pure]
    │  totalKm = 5.1, $/km = 2.07 → GOOD
    ▼
 OfferWatcher finalizes identity, snapshot, and verdict [services/accessibility]
@@ -89,7 +89,10 @@ class Offer {
   final double payout;      // dollars
   final double pickupKm;
   final double dropoffKm;
-  final Platform platform;
+  final GigPlatform platform;
+  final int deliveryCount; // delivery orders; zero for rides
+  final int itemCount;     // optional delivery workload
+  final int unitCount;     // optional Instacart workload
   final bool payIsNet;      // Hopp = true (net), Uber = false (gross)
   final String? rawText;    // for debugging the parser
 
@@ -161,9 +164,19 @@ Riverpod providers are the seams: `decisionEngineProvider`, `thresholdsProvider`
 
 `GigPlatform` metadata is separate from parser capability. A platform may have a display name,
 icon, color, package identifiers, and settings presence without being production parser-supported.
-`ParserRegistry` exposes only verified parser candidates for detection; adding metadata does not
-implicitly enable parsing. UI platform lists and History filters are data-driven rather than fixed
-to Uber/Lyft/Hopp.
+`ParserRegistry` exposes Uber, Lyft and Hopp production parsers plus conservative DoorDash,
+Instacart and Skip beta parsers. The delivery parsers live in separate files and reuse the same capture,
+OCR, scoring, overlay and History pipeline. Adding metadata alone still does not imply parser
+support. UI platform lists and History filters are data-driven.
+
+Users select one to three watched apps. Uber, Lyft and Hopp are the fresh-install defaults;
+DoorDash, Instacart and Skip are labelled Beta and off by default. The selection persists. Android's
+Accessibility service is statically scoped to all six packages, then `OfferWatcher` immediately
+drops events from deselected packages before parsing.
+
+Ride and delivery economics are separate settings profiles. `DecisionEngine` chooses the profile
+from `Offer.platform`; delivery cards without a trustworthy duration fall back to the delivery
+distance thresholds. Historical rows store the scoring snapshot that produced their verdict.
 
 `OfferWatcher` owns the capture-to-verdict handoff: it considers candidates from watched platform
 parsers, builds a stable identity, rejects incomplete/duplicate/suppressed identities, scores once,
@@ -173,6 +186,10 @@ are scheduled from the same identity/verdict and invalidated when the offer is r
 The overlay remains one shared system. Bubble appearance is a persisted `BubbleStyle` choice
 (Cool Fox, FoxyCo, or Fox Paw) resolved by the same bubble container; it does not affect pill
 geometry, verdict semantics, platform handling, or position persistence.
+
+Main-app typography is a persisted Small/Medium/Large multiplier applied above the system text
+scale and capped at 2×. The overlay isolate does not consume it; pill geometry remains controlled
+only by Pill size.
 
 ---
 

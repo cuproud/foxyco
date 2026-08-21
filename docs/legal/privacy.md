@@ -16,9 +16,9 @@ package name `com.foxyco.app`.
 ## The short version
 
 FoxyCo reads offer-related text only in Uber Driver, Lyft Driver, Hopp Driver,
-DoorDash Dasher and Instacart Shopper to score offers, and that reading never
-leaves your phone. You choose up to three apps to monitor; DoorDash and
-Instacart support is beta and off by default. On first launch,
+DoorDash Dasher, Instacart Shopper and Skip Courier to score offers, and that
+reading never leaves your phone. You choose up to three apps to monitor;
+delivery-app support is beta and off by default. On first launch,
 Firebase creates a random anonymous identity for trial-abuse prevention. If you
 start a trial, Google account identity and the server-recorded trial date also
 reach Firebase.
@@ -47,11 +47,11 @@ FoxyCo primarily uses Android's AccessibilityService API to read supported
 driver-app offer cards. You can separately enable **Pixel Capture (OCR)** as a
 fallback when a card exposes too little Accessibility text.
 
-- The Accessibility event stream is **restricted to five apps**: Uber Driver,
-  Lyft Driver, Hopp Driver, DoorDash Dasher and Instacart Shopper. FoxyCo
-  processes offer text only for the one to three apps you select. DoorDash and
-  Instacart parsing is labelled beta and is disabled until you select it. A
-  Pixel Capture frame can contain whatever is visible at that instant; FoxyCo
+- The Accessibility event stream is **restricted to six apps**: Uber Driver,
+  Lyft Driver, Hopp Driver, DoorDash Dasher, Instacart Shopper and Skip
+  Courier. FoxyCo processes offer text only for the one to three apps you
+  select. DoorDash, Instacart and Skip parsing is labelled beta and is disabled
+  until you select it. A Pixel Capture frame can contain whatever is visible at that instant; FoxyCo
   requests one only after an active selected-app frame is unreadable.
   FoxyCo's Accessibility service receives no events from any other app,
   including your browser, messages, banking apps or launcher. Supporting

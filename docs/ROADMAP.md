@@ -126,16 +126,24 @@ Goal: NOW make it premium. Lock the visual language from UI_DESIGN.md, apply des
 
 ---
 
-## M6 — Third platform / harden parser (2 days)  🧱
+## M6 — Multi-platform parser expansion  🧱  ✅ CODE-COMPLETE
 
-Goal: prove the parser abstraction scales. Add another platform (e.g. DoorDash or Lyft) without
-touching DecisionEngine/overlay.
+Goal: prove the parser abstraction scales without duplicating capture, scoring or overlay code.
 
-- [ ] New `OfferParser` impl for the next package, handles its quirks gracefully
-- [ ] Platform auto-detect by foreground package
-- [ ] Per-platform tally
+- [x] Lyft parser and live rideshare integration
+- [x] Separate strict `DoorDashParser`, `InstacartParser` and `SkipParser` files
+- [x] Platform dispatch by foreground package, with deselected-package events dropped
+- [x] One-to-three persisted watched-app selection; delivery betas off by default
+- [x] Dynamic Home badges and History app filters
+- [x] Separate ride and delivery scoring profiles
+- [x] Delivery order/item/unit metadata in History detail and CSV
+- [x] Public-card parser fixtures and strict negative tests
+- [ ] DoorDash/Instacart/Skip live Accessibility and OCR captures across current card variants
+- [ ] Promote either delivery parser out of Beta only after the device matrix passes
 
-**Done when:** three platforms analyzed, zero changes to business logic.
+**Done when:** six platform implementations share one pipeline; beta delivery parsers fail safe
+until live-device fixtures justify broader matching. Code is complete; delivery device verification
+remains.
 
 ---
 
@@ -204,7 +212,7 @@ Profit engine (fuel/wear/tax) · ~~auto-accept/decline~~ (**NEVER — product ru
 FoxyCo is strictly manual/read-only; it never acts inside another app. ToS risk, see AUDIT**) ·
 ~~voice announce~~ (GOOD-only system voice shipped 2026-08-15) ·
 mileage GPS tracking · expense manager + OCR · analytics/heatmaps · AI insights · goals ·
-cloud backup · more platforms (Lyft, Skip, Instacart, Flex, Spark). Full list in the
+cloud backup · more platforms (Skip, Flex, Spark, Grubhub). Full list in the
 original `project.txt`. Each is a new layer hanging off the same clean core.
 
 ---

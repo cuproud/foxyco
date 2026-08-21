@@ -89,7 +89,9 @@ void main() {
     expect(ParserRegistry.hasParser(GigPlatform.uberEats), isFalse);
     expect(ParserRegistry.hasParser(GigPlatform.doorDash), isTrue);
     expect(ParserRegistry.hasParser(GigPlatform.instacart), isTrue);
+    expect(ParserRegistry.hasParser(GigPlatform.skip), isTrue);
     expect(FoxSettings.defaults.watches(GigPlatform.doorDash), isFalse);
     expect(FoxSettings.defaults.watches(GigPlatform.instacart), isFalse);
+    expect(FoxSettings.defaults.watches(GigPlatform.skip), isFalse);
   });
 }

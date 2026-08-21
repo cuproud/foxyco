@@ -877,7 +877,7 @@ class _RulesScreenState extends ConsumerState<RulesScreen> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Text(
-                    'Used only for DoorDash and Instacart. Ride rules above '
+                    'Used only for DoorDash, Instacart and Skip. Ride rules above '
                     'continue to control Uber, Lyft and Hopp.',
                     style: text.bodyMedium?.copyWith(
                       color: FoxColors.textSecondary,

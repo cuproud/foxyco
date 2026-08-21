@@ -15,8 +15,8 @@ testing does not count toward the production-access gate.
 
 ## Ordered closed-test checklist
 
-1. Upload build 17 to Internal, verify it, then promote that same release to
-   Closed testing.
+1. Upload the latest bumped AAB to Internal, verify it, then promote that same
+   release to Closed testing.
 2. Confirm the one-time product and its only purchase option are Active.
 3. Confirm the group is self-joinable and connected to the closed track.
 4. Test the three links above in a browser/account that is not the Play Console
@@ -32,12 +32,13 @@ testing does not count toward the production-access gate.
 ## Required disclosure in every recruitment post
 
 - Android only.
-- FoxyCo uses a read-only accessibility service to read Uber/Lyft/Hopp offer
-  text and show an on-screen verdict.
+- FoxyCo uses a read-only accessibility service to read selected supported-app
+  offer text and show an on-screen verdict. DoorDash, Instacart and Skip are
+  Beta and off by default.
 - It never taps Accept/Decline and provides no automation.
 - Offer details and History stay on the phone.
 - Internet is used for Google trial sign-in and Play purchase checks.
-- FoxyCo is independent and is not affiliated with Uber, Lyft or Hopp.
+- FoxyCo is independent and is not affiliated with any supported gig platform.
 
 Check each community's self-promotion and research rules before posting. Ask a
 moderator first where required. Do not spam the same text repeatedly.
@@ -46,7 +47,7 @@ moderator first where required. Do not spam the same text repeatedly.
 
 > **[Android] Looking for closed testers for a read-only ride-offer analyzer**
 >
-> I built FoxyCo for Uber, Lyft and Hopp drivers. It reads the offer card shown
+> I built FoxyCo for Uber, Lyft, Hopp and delivery drivers. It reads the offer card shown
 > on your phone and displays pay per distance/hour, pickup distance and a
 > driver-set GOOD/OK/BAD verdict. It is read-only: it never accepts or declines
 > a trip, and offer details/history stay on the phone.
@@ -58,7 +59,8 @@ moderator first where required. Do not spam the same text repeatedly.
 >
 > The app uses Accessibility only to read offer text and draw its verdict. It
 > uses internet for Google trial sign-in and Play purchase checks. FoxyCo is
-> independent and not affiliated with Uber, Lyft or Hopp. I would especially
+> independent and not affiliated with Uber, Lyft, Hopp, DoorDash, Instacart or
+> Skip. I would especially
 > value screenshots/logs when an offer is missed or parsed incorrectly.
 
 Good candidates include local driver communities and
@@ -69,7 +71,7 @@ posting because many prohibit promotion.
 
 > Hi drivers — I am looking for Android testers for FoxyCo, a read-only app
 > that calculates offer pay per km/mi or hour and shows a GOOD/OK/BAD verdict.
-> It does not auto-accept or control Uber, Lyft or Hopp. Offer data remains on
+> It does not auto-accept or control any gig app. Offer data remains on
 > the phone. Please join the Google tester group first, then opt in:
 >
 > 1. https://groups.google.com/g/foxyco-testers
@@ -84,7 +86,8 @@ posting because many prohibit promotion.
 > Can you help test my Android driver app for 14 days? Join this group first:
 > https://groups.google.com/g/foxyco-testers — then opt in here:
 > https://play.google.com/apps/testing/com.foxyco.app. FoxyCo reads visible
-> Uber/Lyft/Hopp offer text and shows a verdict; it never auto-accepts and keeps
+> selected supported-app offer text and shows a verdict; it never auto-accepts
+> and keeps
 > offer data on the phone. Internet is only for trial sign-in/purchase checks.
 
 ## Direct message

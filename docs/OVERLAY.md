@@ -23,9 +23,13 @@ Sources at bottom. Findings drive every placement decision below.
   rider chip, pickup `3 min · 1.1 km`, dropoff `34 min · 46.3 km`, full-width green Accept.
 - **Pay = NET** (already smarter than Uber's gross). Distances split pickup vs trip, same as Uber.
 
-### DoorDash / delivery (deferred to M6)
-- Offer = bottom sheet: guaranteed pay, distance, item count, Accept/Decline slider. Pay + distance
-  on one screen every time. Reliable, but not a base platform — Uber + Hopp screenshots are the base.
+### Delivery beta — DoorDash, Instacart and Skip
+- Each delivery app has a separate strict parser, while capture, OCR, scoring and overlay stay shared.
+- Pay and total route distance are required. Order/item/unit workload is retained when explicit.
+- Absolute deliver-by/arrival times are not treated as duration. Instacart Shop Only and incomplete
+  or list-only cards fail closed.
+- Public-card evidence seeds the beta tests; live Accessibility/OCR captures are still required.
+  See `DELIVERY_PLATFORM_RESEARCH_2026-08-20.md`.
 
 ### Maxymo (the reference competitor)
 - "Trip optimizer overlay." Uses `Display over other apps` (draw) + **Accessibility Service** (read
@@ -123,35 +127,40 @@ themselves do the native `WindowManager` / `AccessibilityService` work under the
 
 - Dragging: the plugin supports moving the overlay; persist the final x/y offset in SharedPreferences
   and restore on next show. Clamp to the safe zone from Part 1.
+- Drop-to-dismiss uses the visible 48dp ✕ as its source of truth, with a 28dp
+  margin on each side for a forgiving 104dp target. The same rectangle drives
+  the red/haptic hover state and `ACTION_UP`; `ACTION_CANCEL` never stops the
+  service. This avoids the former mismatch where the icon appeared above the
+  navigation bar but only the bottom screen strip accepted the drop.
 - Both pill and bubble are ordinary Flutter widgets, so they share the `ui/theme/` design tokens
   with the rest of the app — one visual language.
 
 ### Reading offers — `flutter_accessibility_service`
 - Wraps `AccessibilityService`. Declare it in `AndroidManifest.xml` with an
   `accessibilityservice` meta-data config: `accessibilityEventTypes` =
-  `typeWindowStateChanged|typeWindowContentChanged`, `packageNames` = `com.ubercab.driver` + Hopp's
-  package, `canRetrieveWindowContent=true`.
+  `typeWindowStateChanged|typeWindowContentChanged|typeWindowsChanged`, with `packageNames`
+  restricted to the six supported gig-app packages, `canRetrieveWindowContent=true`, and no
+  gesture capability.
 - Request permission: `FlutterAccessibilityService.requestAccessibilityPermission()` (opens system
   settings — user must toggle it on). Onboarding must explain **why** (Play policy, AUDIT #1).
 - Listen: `FlutterAccessibilityService.accessStream.listen((event) { ... })`. Each event carries the
   screen's nodes — `event.nodesText` / node bounds / package name.
-- On event: filter to the target package, pull the text nodes, hand to the matching `OfferParser`
-  (regex per REFERENCE_ANALYSIS.md), build an `Offer`.
+- On event: resolve the package, drop it when the driver switched that app off, then hand its text
+  to the matching per-platform `OfferParser`.
 - **Debounce:** content-changed fires a lot; parse on a short debounce + dedupe identical offers
   (battery — AUDIT #4).
-- **Fragility:** selectors break when Uber/Hopp update. Keep each platform parser isolated, tag it
+- **Fragility:** selectors break when gig apps update. Keep each platform parser isolated, tag it
   with the app version it was tuned against, and log the raw node dump behind a debug flag so
   re-tuning is fast. See AUDIT.md.
 
 ### Keeping it alive
 - `flutter_overlay_window`'s overlay + the accessibility service keep FoxyCo's watching alive while
-  the driver is in Uber/Hopp. If a persistent foreground notification is needed for the watch loop,
+  the driver is in a selected supported app. If a persistent foreground notification is needed,
   add `flutter_foreground_task`; otherwise the accessibility service + overlay suffice. Decide at M3.
 
-### Auto-accept (💤 DEFERRED — read AUDIT first)
-- Technically possible: `flutter_accessibility_service` can `performAction` a click on the Accept
-  node. **This is the ToS-risky, deactivation-risky feature. NOT in MVP.** FoxyCo is a
-  *read-and-advise* tool first. If ever added: opt-in, off by default, explicit warning. See AUDIT.md.
+### Auto-accept (permanently out of scope)
+- FoxyCo never performs gestures, taps Accept/Decline or controls another app. Accessibility is
+  read-only; every platform decision remains the driver's.
 
 ---
 

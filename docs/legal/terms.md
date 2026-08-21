@@ -14,11 +14,10 @@ do not use the app.
 ## 1. What FoxyCo is
 
 FoxyCo reads offer-related text in Uber Driver, Lyft Driver, Hopp Driver,
-DoorDash Dasher and Instacart Shopper, compares the extracted pay, distance,
-duration and available delivery details against thresholds **you** set, and
-displays an advisory verdict — good, ok or bad. DoorDash and Instacart support
-is beta, off by default and may be less reliable while real offer coverage is
-expanded.
+DoorDash Dasher, Instacart Shopper and Skip Courier, compares the extracted
+pay, distance, duration and available delivery details against thresholds **you** set, and
+displays an advisory verdict — good, ok or bad. Delivery-app support is beta,
+off by default and may be less reliable while real offer coverage is expanded.
 
 FoxyCo is an information tool. It does not accept, decline, book, cancel or
 alter any offer, and it has no ability to do so.
@@ -35,9 +34,8 @@ stopped and in accordance with the distracted-driving laws where you are.
 ## 3. Your agreements with gig platforms
 
 FoxyCo is an **independent** app. It is **not affiliated with, authorised by,
-sponsored by or endorsed by Uber, Lyft, Hopp, DoorDash, Instacart** or any
-other platform. Those
-names and marks belong to their owners and are used here only to describe what
+sponsored by or endorsed by Uber, Lyft, Hopp, DoorDash, Instacart, Skip** or any
+other platform. Those names and marks belong to their owners and are used here only to describe what
 FoxyCo is compatible with.
 
 You are responsible for complying with the terms of any platform you drive for.

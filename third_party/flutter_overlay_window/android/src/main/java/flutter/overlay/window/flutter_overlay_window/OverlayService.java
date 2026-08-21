@@ -23,6 +23,7 @@ import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
 import android.content.IntentFilter;
 import android.graphics.Point;
+import android.graphics.Rect;
 import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
@@ -31,6 +32,7 @@ import android.util.Log;
 import android.util.TypedValue;
 import android.view.Display;
 import android.view.Gravity;
+import android.view.HapticFeedbackConstants;
 import android.view.MotionEvent;
 import android.view.SurfaceView;
 import android.view.View;
@@ -683,8 +685,8 @@ public class OverlayService extends Service implements View.OnTouchListener {
     /// FoxyCo patch: visible drop-to-dismiss zone (device 2026-07-19 — the
     /// drag-to-close gesture existed but nothing on screen ever hinted at it).
     /// While the bubble is dragged, a compact ✕ target fades in over the
-    /// nav-bar area; the ✕ swells + saturates while the finger is inside the
-    /// dismiss band. The surrounding window stays transparent so Android
+    /// nav-bar area; the ✕ swells + saturates while the finger is inside its
+    /// expanded touch target. The surrounding window stays transparent so Android
     /// cannot composite a rectangular scrim around the bubble. Removed when
     /// the drag ends (with a timeout as protection against a missing UP/CANCEL).
     /// Same window type as the overlay itself and NOT_TOUCHABLE, so it can
@@ -696,8 +698,12 @@ public class OverlayService extends Service implements View.OnTouchListener {
 
     /// The one predicate for "finger is in the close zone" — the visual (hot
     /// state) and the actual dismiss on ACTION_UP must never disagree.
-    private boolean inDismissZone(float rawY) {
-        return rawY >= szWindow.y - navigationBarHeightPx();
+    private boolean inDismissZone(float rawX, float rawY) {
+        if (dismissIcon == null) return false;
+        Rect bounds = new Rect();
+        if (!dismissIcon.getGlobalVisibleRect(bounds)) return false;
+        bounds.inset(-dpToPx(28), -dpToPx(28));
+        return bounds.contains(Math.round(rawX), Math.round(rawY));
     }
 
     private void showDismissZone() {
@@ -755,15 +761,16 @@ public class OverlayService extends Service implements View.OnTouchListener {
         }
     }
 
-    private void updateDismissZone(float rawY) {
+    private void updateDismissZone(float rawX, float rawY) {
         if (dismissIcon == null) return;
         // Every move refreshes the fail-safe. If Android drops ACTION_UP/CANCEL
         // during a window transition, the target still removes itself.
         mAnimationHandler.removeCallbacks(dismissZoneSafetyHide);
         mAnimationHandler.postDelayed(dismissZoneSafetyHide, 2500);
-        boolean hot = inDismissZone(rawY);
+        boolean hot = inDismissZone(rawX, rawY);
         if (hot == dismissHot) return;
         dismissHot = hot;
+        if (hot) dismissIcon.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK);
         GradientDrawable circle = (GradientDrawable) dismissIcon.getBackground();
         circle.setColor(hot ? 0xFFE5352B : 0x88141C17);
         dismissIcon.animate().scaleX(hot ? 1.3f : 1f).scaleY(hot ? 1.3f : 1f)
@@ -838,8 +845,8 @@ public class OverlayService extends Service implements View.OnTouchListener {
                     // CENTER, so params.y is measured from screen centre: the
                     // window stays fully visible while |y| <= (screenH - viewH)/2.
                     // Being merely NEAR the nav bar now just parks the bubble at
-                    // the bottom edge — it keeps watching. Only a deliberate drag
-                    // into the nav-bar strip (handled on ACTION_UP) dismisses.
+                    // the bottom edge — it keeps watching. Only a deliberate drop
+                    // onto the visible dismiss target closes it.
                     int viewH = flutterView.getHeight();
                     int maxY = Math.max(0, (szWindow.y - viewH) / 2);
                     if (yy < -maxY) yy = -maxY;
@@ -854,25 +861,25 @@ public class OverlayService extends Service implements View.OnTouchListener {
                     // drag starts (not on a tap) and keep its ✕ hot-state in
                     // sync with the finger. Discoverability for drop-to-close.
                     showDismissZone();
-                    updateDismissZone(event.getRawY());
+                    updateDismissZone(event.getRawX(), event.getRawY());
                     break;
                 case MotionEvent.ACTION_UP:
                 case MotionEvent.ACTION_CANCEL:
+                    // Evaluate before removing the view whose on-screen bounds
+                    // define the target. A canceled gesture is never destructive.
+                    boolean shouldDismiss = event.getAction() == MotionEvent.ACTION_UP
+                            && dragging
+                            && inDismissZone(event.getRawX(), event.getRawY());
                     // FoxyCo patch: drag over → drop zone leaves with it.
                     hideDismissZone();
                     // FoxyCo patch: "drop to dismiss". If the user releases the
-                    // drag inside the bottom nav-bar zone, close the overlay
+                    // drag over the visible ✕ target, close the overlay
                     // instead of snapping it to an edge. Fixes the bubble getting
                     // stuck under the nav bar (the plugin never clamps Y).
-                    // event.getRawY() is absolute screen Y; szWindow.y is screen
-                    // height. Only when the user actually dragged (not a tap).
-                    // FoxyCo patch (HANDOFF bug 2): the old 72dp band fired when
-                    // the bubble was merely CLOSE to the nav bar, so parking it low
-                    // killed the session. The Y-clamp above now keeps the bubble
-                    // on-screen, so dismissing must be a deliberate shove of the
-                    // FINGER into the nav-bar strip itself (~nav bar height). Tune
-                    // on device if it feels too eager / too hard to hit.
-                    if (dragging && inDismissZone(event.getRawY())) {
+                    // The hit rect is the 48dp icon plus 28dp on every side, so
+                    // the affordance is forgiving without making nearby drops
+                    // destructive.
+                    if (shouldDismiss) {
                         // HANDOFF req 10: tell the main isolate we STOPPED, so the
                         // dashboard flips out of "Watching" instead of desyncing.
                         // Send before tearing down — the messenger routes to the

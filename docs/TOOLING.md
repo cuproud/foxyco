@@ -51,9 +51,9 @@ So the SDK box is ticked. What's left is the Android side of the toolchain.
 - [ ] **Android SDK Platform-Tools** (`adb`, `fastboot`)
 - [ ] **Android command-line tools** + accept licenses (`flutter doctor --android-licenses`)
 - [ ] A **physical Android phone** with USB debugging on — *essential*: overlay + accessibility
-      behave differently on real devices than the emulator; the whole point is real Uber/Hopp offers.
-- [ ] **Uber and/or Hopp driver account** to test against real offers — the only way to tune the
-      parser. Emulator can't get real offers.
+      behave differently on real devices; real gig-app offers cannot be validated in widget tests.
+- [ ] At least one supported gig-driver account. Promoting a delivery parser from Beta additionally
+      requires current screenshots plus Accessibility/OCR captures from that app.
 - [ ] Optional: **scrcpy** — mirror the phone on screen while driving-testing; makes overlay
       debugging way easier.
 
@@ -87,7 +87,7 @@ Don't add these until the milestone needs them (YAGNI — every dep is app size 
 | `shared_preferences` | M1 | settings storage |
 | `flutter_overlay_window` | M2 | draw pill/bubble over other apps |
 | `permission_handler` | M2 | overlay + accessibility permission flows |
-| `flutter_accessibility_service` | M3 | read offers off Uber/Hopp screens |
+| `flutter_accessibility_service` | M3 | read selected supported-app offer screens |
 | `drift` + `sqlite3_flutter_libs` | M4 | offer log DB → tally + future analytics |
 | `flutter_foreground_task` | M3 (if needed) | keep the watch loop alive |
 | `fl_chart` | later | analytics charts |
@@ -98,7 +98,8 @@ Don't add these until the milestone needs them (YAGNI — every dep is app size 
 ## What I need from you to start M0
 
 1. FoxyCo is published as immutable package `com.foxyco.app`.
-2. Current watched apps are Uber, Lyft and Hopp.
+2. Supported apps are Uber, Lyft, Hopp, DoorDash, Instacart and Skip. Fresh installs watch the
+   first three; users can persist any one-to-three selection. Delivery apps are Beta and off by default.
 3. Run `flutter doctor -v` and get an Android device to `flutter devices`.
 4. (Nice-to-have) point me at an Android MCP if you want the cleaner loop; else I use `adb` via Bash.
 

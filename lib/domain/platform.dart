@@ -6,7 +6,8 @@ enum GigPlatform {
   lyft('lyft', 'Lyft', 'L', 0xFFFF37A6, 'com.lyft.android.driver'),
   uberEats('uber_eats', 'Uber Eats', 'E', 0xFF111111, 'com.ubercab.driver'),
   doorDash('doordash', 'DoorDash', 'D', 0xFFFF3008, 'com.doordash.driverapp'),
-  instacart('instacart', 'Instacart', 'I', 0xFF43A047, 'com.instacart.shopper');
+  instacart('instacart', 'Instacart', 'I', 0xFF43A047, 'com.instacart.shopper'),
+  skip('skip', 'Skip', 'S', 0xFFFF8000, 'com.delco.courier');
 
   const GigPlatform(
     this.id,
@@ -21,6 +22,6 @@ enum GigPlatform {
   final int colorValue;
   final String packageName;
 
-  bool get isDelivery => this == doorDash || this == instacart;
+  bool get isDelivery => this == doorDash || this == instacart || this == skip;
   bool get isBeta => isDelivery;
 }

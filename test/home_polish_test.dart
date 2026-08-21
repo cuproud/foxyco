@@ -45,7 +45,7 @@ void main() {
         home: Scaffold(body: PlatformBadges(platforms: GigPlatform.values)),
       ),
     );
-    expect(find.text('+2'), findsOneWidget);
+    expect(find.text('+${GigPlatform.values.length - 4}'), findsOneWidget);
     expect(find.text('H'), findsOneWidget);
   });
 }

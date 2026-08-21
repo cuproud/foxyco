@@ -24,19 +24,17 @@ Android permission Google scrutinizes.
 
 ## 🔴 2. Gig-platform ToS — automation = driver deactivation
 
-Uber/Hopp ToS forbid third-party automation. **Reading** offers is a grey area; **auto-accept/
+Gig-platform terms commonly forbid third-party automation. **Reading** offers is a grey area; **auto-accept/
 auto-decline** (clicking their buttons for the driver) is a clear violation and can get the
 **driver's account deactivated** — that's the driver's livelihood, not just our app.
 
 **Mitigations**
-- MVP is **read-and-advise only**. No clicking their UI. Ship that.
-- Keep auto-accept 💤 deferred and, if ever built: opt-in, off by default, blunt warning screen
-  ("this may get you deactivated"), never the default path.
+- FoxyCo is permanently **read-and-advise only**. No clicking or gestures in another app.
 - Never store/scrape platform credentials. FoxyCo never logs into anything.
 
 ## 🟠 3. Parser fragility
 
-Uber/Hopp ship UI updates constantly. Text-based node selectors break silently → FoxyCo shows
+Gig apps ship UI updates constantly. Text-based node selectors break silently → FoxyCo shows
 wrong/no verdict. A wrong verdict that makes a driver decline a good offer is worse than no app.
 
 **Mitigations**
@@ -51,7 +49,8 @@ The accessibility service fires on every content change in the target apps; the 
 continuously. Done naively this drains battery and gets FoxyCo blamed.
 
 **Mitigations**
-- Scope `packageNames` to Uber + Hopp only — events don't fire system-wide.
+- Scope `packageNames` to the six parser-supported packages only; the Dart gate
+  immediately drops events from apps the driver deselected.
 - Debounce `typeWindowContentChanged` (it machine-guns). Parse on a short debounce + dedupe.
 - Only run the heavy watching while the driver is "on" (bubble long-press pause; auto-idle).
 - No continuous polling or wakelocks. A rate-limited two-read burst (180/450 ms)

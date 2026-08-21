@@ -7,10 +7,9 @@ title: FoxyCo — the gig driver's offer analyzer
 **Know the offer before you accept it.**
 
 FoxyCo reads offer cards from Uber Driver, Lyft Driver, Hopp Driver, DoorDash
-Dasher and Instacart Shopper as they appear on your screen, and shows a floating
-pill with the numbers that
-actually decide it: **$/km or $/mi**, **$/hr**, pickup distance, and a take-it-or-leave-it
-verdict against thresholds you set.
+Dasher, Instacart Shopper and Skip Courier as they appear on your screen, and shows a floating
+pill with the numbers that actually decide it: **$/km or $/mi**, **$/hr**,
+pickup distance, and a take-it-or-leave-it verdict against thresholds you set.
 
 It is **read-only**. FoxyCo never taps accept or decline. That stays yours.
 
@@ -28,7 +27,7 @@ FoxyCo is in closed testing on Google Play.
 
 Project/release references:
 
-- [Current engineering handoff](HANDOFF_2026-08-04.md)
+- [Current engineering handoff](HANDOFF_2026-08-20_DELIVERY_BETA.md)
 - [Tester recruitment and production checklist](TESTER_RECRUITMENT_AND_PRODUCTION.md)
 
 ## Legal
@@ -44,5 +43,5 @@ Project/release references:
 ---
 
 FoxyCo is an independent app. It is not affiliated with, endorsed by, or
-sponsored by Uber, Lyft, Hopp, DoorDash, or Instacart. DoorDash and Instacart
+sponsored by Uber, Lyft, Hopp, DoorDash, Instacart, or Skip. Delivery-app
 support is beta and off by default.

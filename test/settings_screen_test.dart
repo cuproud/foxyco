@@ -496,7 +496,7 @@ void main() {
 
     final doorDash = find.widgetWithText(SwitchListTile, 'DoorDash');
     final hopp = find.widgetWithText(SwitchListTile, 'Hopp');
-    expect(find.text('Beta · best effort'), findsNWidgets(2));
+    expect(find.text('Beta · best effort'), findsNWidgets(3));
     expect(tester.widget<SwitchListTile>(doorDash).onChanged, isNull);
 
     await tester.tap(hopp);

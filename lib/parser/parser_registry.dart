@@ -3,6 +3,7 @@ import 'hopp_parser.dart';
 import 'instacart_parser.dart';
 import 'lyft_parser.dart';
 import 'offer_parser.dart';
+import 'skip_parser.dart';
 import 'uber_parser.dart';
 import '../domain/platform.dart';
 
@@ -28,18 +29,21 @@ class ParserRegistry {
   static const lyftPackage = 'com.lyft.android.driver';
   static const doorDashPackage = 'com.doordash.driverapp';
   static const instacartPackage = 'com.instacart.shopper';
+  static const skipPackage = 'com.delco.courier';
 
   static const _uber = UberParser();
   static const _hopp = HoppParser();
   static const _lyft = LyftParser();
   static const _doorDash = DoorDashParser();
   static const _instacart = InstacartParser();
+  static const _skip = SkipParser();
   static const parsers = <OfferParser>[
     _uber,
     _hopp,
     _lyft,
     _doorDash,
     _instacart,
+    _skip,
   ];
 
   /// Metadata may list future platforms, but only these have a strict parser
@@ -51,6 +55,7 @@ class ParserRegistry {
     GigPlatform.lyft,
     GigPlatform.doorDash,
     GigPlatform.instacart,
+    GigPlatform.skip,
   ];
 
   static const supportedPackages = <String>[
@@ -59,6 +64,7 @@ class ParserRegistry {
     lyftPackage,
     doorDashPackage,
     instacartPackage,
+    skipPackage,
   ];
 
   static bool hasParser(GigPlatform platform) =>
@@ -71,6 +77,7 @@ class ParserRegistry {
     lyftPackage => _lyft,
     doorDashPackage => _doorDash,
     instacartPackage => _instacart,
+    skipPackage => _skip,
     _ => null,
   };
 

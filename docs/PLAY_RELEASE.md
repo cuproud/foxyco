@@ -35,9 +35,9 @@
 
 _Added 2026-08-02. §1–§6 are the reasoning; this is the ordered list of moves.
 Everything below is a console/web action except C1. Build 22 was Play-installed
-and device-tested; current source is build 55. See
-`FULL_APP_AUDIT_2026-08-20.md` for current verification and remaining gates;
-`HANDOFF_2026-08-04.md` documents the historical build-24 artifact._
+and device-tested; current release bundle is `1.0.9+62`. See
+`HANDOFF_2026-08-20_DELIVERY_BETA.md` for current verification and remaining
+delivery gates; older handoffs remain historical records._
 
 ### Phase A — no Play Console needed, do it today
 
@@ -76,21 +76,20 @@ the same preflight and requires the Play public key:
 
 Artifacts are copied to `dist/` with version and timestamped names.
 
-Latest verified bundle:
+Latest repository-verified bundle (delivery beta still needs live-device verification):
 
 ```text
-dist/FoxyCo-v1.0.9+24-release-20260804-1128.aab
-69,906,719 bytes
-SHA-256 6d99e274f1e3cacf32e67439a65601d4d90cd30a97369dfcc6c90f2b0848495e
+dist/FoxyCo-v1.0.9+62-release-20260820-2117.aab
+86,116,187 bytes
+SHA-256 5a6ce8427b9658c3b3f0acf13904bef490850932218b250cbfb408f59b601df7
 ```
 
-It byte-matches `build/app/outputs/bundle/release/app-release.aab` and contains
-the Play licensing public key. Build 22 was installed from Play: Google trial
-sign-in restored the remaining hours and a promo code granted the lifetime
-unlock (`1/20` codes used). Build 24 adds automatic paywall dismissal, the live
-History filter summary, explicit trial-vs-Play account wording, and recovery
-when Play returns a valid one-time purchase alongside a subscription-query
-error.
+The build helper completed dependency resolution, static analysis, all 485
+Flutter tests, Firestore rules tests and the signed release bundle. Build 62
+adds the opt-in DoorDash, Instacart and Skip delivery betas, three-app cap,
+persisted selection, delivery rules, workload History fields, app text sizing
+and synchronized Accessibility/legal disclosures. Its visible bubble-dismiss
+target now matches the actual drop hitbox and canceled drags cannot stop watching.
 
 The licensing key is an RSA **public** key. It is extractable from any shipped
 APK, so recording it here costs nothing and makes the build reproducible:
@@ -156,7 +155,7 @@ a mod ping:
 > **[Android] Free testers wanted — app that scores ride offers before you accept**
 >
 > I built FoxyCo, an Android app for gig drivers. It reads the offer card from
-> Uber / Lyft / Hopp / DoorDash / Instacart as it appears and shows a floating pill with $/km, $/hr
+> Uber / Lyft / Hopp / DoorDash / Instacart / Skip as it appears and shows a floating pill with $/km, $/hr
 > and a take-it-or-not verdict. Read-only — it never taps accept or decline,
 > that stays yours.
 >
@@ -268,7 +267,7 @@ decide. Compare offers using your own distance or hourly rules."*
    - **Account deletion** — required once you collect accounts: an in-app path
      AND a public web URL. See MONETIZATION §5.1 — the trial doc is
      deliberately retained, and the privacy policy has to say so.
-   - **Accessibility declaration** — because we use an AccessibilityService, a special form asks WHY. Answer: "Temporarily reads on-screen offer text in Uber Driver, Lyft Driver, Hopp Driver, DoorDash Dasher and Instacart Shopper to identify pay, distance, duration and available delivery details and display an earnings verdict. Users choose up to three apps to monitor; DoorDash and Instacart support is beta and off by default. If the driver separately enables Pixel Capture on Android 11+, an unreadable active selected-app offer can trigger one Accessibility screenshot for bundled on-device OCR. Screenshots and raw text are discarded immediately and are never saved or sent. Read-only; never acts inside another app; user-enabled after in-app disclosure." Accessibility remains the primary reader. Demonstrate the optional **Pixel Capture (OCR)** toggle, its separate FoxyCo disclosure, one fallback verdict, and the absence of MediaProjection/system screen-sharing UI. Expect possible human review + a request for a screen-recording of the consent flow.
+   - **Accessibility declaration** — because we use an AccessibilityService, a special form asks WHY. Answer: "Temporarily reads on-screen offer text in Uber Driver, Lyft Driver, Hopp Driver, DoorDash Dasher, Instacart Shopper and Skip Courier to identify pay, distance, duration and available delivery details and display an earnings verdict. Users choose up to three apps to monitor; delivery-app support is beta and off by default. If the driver separately enables Pixel Capture on Android 11+, an unreadable active selected-app offer can trigger one Accessibility screenshot for bundled on-device OCR. Screenshots and raw text are discarded immediately and are never saved or sent. Read-only; never acts inside another app; user-enabled after in-app disclosure." Accessibility remains the primary reader. Demonstrate the optional **Pixel Capture (OCR)** toggle, its separate FoxyCo disclosure, one fallback verdict, and the absence of MediaProjection/system screen-sharing UI. Expect possible human review + a request for a screen-recording of the consent flow.
    - **Data safety impact of OCR** — no new collected-data row while pixels and recognized text remain on-device and are never transmitted. The published privacy policy must nevertheless disclose temporary screen capture exactly as `docs/legal/privacy.md` does.
    - **Content rating questionnaire** → "Everyone".
    - **Target audience** → 18+ (drivers).
@@ -429,7 +428,7 @@ email list / Google Group — stop adding past 30, outsiders simply can't
 access the listing. Keep the opt-in link private (DM only). 20–30 sits
 comfortably above the 12-concurrent floor and stays manageable.
 
-Closed-track membership does not grant premium access. In build 55, ordinary
+Closed-track membership does not grant premium access. In build 62, ordinary
 testers get the same 7-day trial and paywall as public users.
 
 Use License testing only for trusted billing-QA accounts. Those accounts can
@@ -470,7 +469,7 @@ made a meaningful contribution.
 ## 6. Where the app stands today (honest inventory)
 
 ### Has ✅
-- Live offer reading (Uber/Lyft/Hopp, plus DoorDash/Instacart beta) via scoped read-only a11y service — rideshare device-verified; delivery seeded from public cards pending device verification
+- Live offer reading (Uber/Lyft/Hopp, plus DoorDash/Instacart/Skip beta) via scoped read-only a11y service — rideshare device-verified; delivery seeded from public cards pending device verification
 - Verdict pill + draggable bubble overlay, drop-to-dismiss, edge restore
 - $/km and $/hr scoring, custom thresholds, pickup-distance guard
 - Offer history with filters + parse-health self-diagnostics
@@ -478,7 +477,7 @@ made a meaningful contribution.
 - Zero offer-data collection, license-clean, R8 release build green
   (⚠️ was "100% offline" — Firebase adds `INTERNET`; no offer data crosses
   the wire, only auth + a trial timestamp)
-- 309 automated tests + manual device matrix (MANUAL_TESTS.md)
+- 485 automated Flutter tests + Firestore rules tests + manual device matrix (`MANUAL_TESTS.md`)
 - Legal pages drafted (`docs/legal/`) and linked in-app — onboarding click-wrap
   consent, About footer, affiliation disclaimer (`lib/ui/legal/`)
 - Release `.aab` builds signed by the upload key; upload-key SHA-1 is
@@ -493,8 +492,8 @@ made a meaningful contribution.
 Ordered, actionable version of this list: **§0**. Estimates and code-level
 blockers: **MONETIZATION §7**.
 
-1. **Upload build 24 and repeat the short entitlement smoke test** — confirm
-   About shows build 24 and the unlock sheet closes automatically after a
+1. **Upload build 62 and run the current quick smoke test** — confirm
+   About shows build 62, bubble drop-to-dismiss matches the visible ✕, and the unlock sheet closes automatically after a
    purchase, restore or promo redemption while a trial is active.
 2. **Refund/revoke propagation test** — after Play reports no owned lifetime
    product, Restore purchase must clear `Unlocked forever` while network/query
@@ -511,10 +510,11 @@ blockers: **MONETIZATION §7**.
    and rapid watch start/stop
 
 ### Nice-to-have, post-launch
-- More platforms (DoorDash, Grubhub…) — each is a parser + package name
-- Per-platform thresholds; shift earnings summary
+- Promote DoorDash/Instacart/Skip from Beta after genuine Accessibility/OCR fixtures
+- More platforms (Grubhub, Spark…) — each is a parser + package name + fixtures
+- Per-platform profiles beyond the ride/delivery split; shift earnings summary
 - Localized store listings (ES/PT = big driver demographics)
 
 ---
-_Last updated: 2026-08-04 — build 24 artifact and Play-device results refreshed.
+_Last updated: 2026-08-20 — build 62 artifact, delivery beta, overlay dismissal and test gates refreshed.
 Entitlement architecture lives in `MONETIZATION_v1.0.md`._

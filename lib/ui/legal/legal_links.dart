@@ -28,8 +28,8 @@ class FoxLegal {
   /// Platform names are other companies' trademarks; never imply endorsement.
   static const disclaimer =
       'FoxyCo is an independent app. It is not affiliated with, authorised by '
-      'or endorsed by Uber, Lyft, Hopp, DoorDash or Instacart, and those names '
-      'are their owners\' trademarks.';
+      'or endorsed by Uber, Lyft, Hopp, DoorDash, Instacart or Skip, and those '
+      'names are their owners\' trademarks.';
 
   static Future<void> open(String url) async {
     await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);

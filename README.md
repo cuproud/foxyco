@@ -6,7 +6,7 @@ driver's rules, and shows a GOOD, OK or BAD verdict. The driver always decides.
 - **Platform:** Android (built with **Flutter** — Dart UI, native Android plugins for the system parts)
 - **Model:** 7-day Google-account trial, then one-time lifetime unlock; no subscription or analytics
 - **Play package:** `com.foxyco.app` — locked; do not change
-- **Status:** build 55 source audited; signed device, billing and Play-policy gates remain
+- **Status:** `1.0.9+62` release bundle built; delivery betas need live-device fixtures
 
 > **Why "FoxyCo"?** *Foxy* = clever, quick, good at spotting value. *Co* = your co-driver /
 > companion riding shotgun on every trip. Friendly + trustworthy — the two things a money tool
@@ -37,7 +37,7 @@ reminders (inspection/insurance/maintenance dates), CSV export, garage + driver 
 $/km or $/hr thresholds with presets.
 
 **Not built** (architecture leaves room): fuel/wear/depreciation math, net profit,
-taxes, mileage tracking, expenses, maps, analytics, AI, more platforms, backups. See
+taxes, mileage tracking, expenses, maps, analytics, AI, additional platforms, backups. See
 [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
 ---
@@ -89,6 +89,8 @@ Full spec + the research on how Uber/Hopp lay out their request screens:
 | [`docs/UI_DESIGN.md`](docs/UI_DESIGN.md) | Screen-by-screen UI design: mockups, components, tokens, motion, a11y |
 | [`docs/OVERLAY.md`](docs/OVERLAY.md) | Screen-geometry research + pill/bubble spec + how the plugins read/draw |
 | [`docs/REFERENCE_ANALYSIS.md`](docs/REFERENCE_ANALYSIS.md) | Uber + Hopp screenshot breakdown → design + parser base |
+| [`docs/DELIVERY_PLATFORM_RESEARCH_2026-08-20.md`](docs/DELIVERY_PLATFORM_RESEARCH_2026-08-20.md) | DoorDash + Instacart public-card evidence, parser contract and remaining live fixtures |
+| [`docs/HANDOFF_2026-08-20_DELIVERY_BETA.md`](docs/HANDOFF_2026-08-20_DELIVERY_BETA.md) | Build 60 implementation, verification, limitations and quick device test |
 | [`docs/AUDIT.md`](docs/AUDIT.md) | Pre-flight audit: Play policy, ToS risk, battery, privacy, perf, a11y |
 | [`docs/FULL_APP_AUDIT_2026-08-20.md`](docs/FULL_APP_AUDIT_2026-08-20.md) | Current build-55 audit, fixes and remaining release gates |
 | [`docs/PLAY_RELEASE.md`](docs/PLAY_RELEASE.md) | Store listing, policy declarations, signing, and the release checklist |
@@ -108,7 +110,7 @@ Full spec + the research on how Uber/Hopp lay out their request screens:
 - **Overlay:** top pill (dropped from edge) + draggable bubble, single line only
 - **Overlay content:** rate · total distance · $/hr — no fuel/wear math yet
 - **Thresholds:** driver-set in settings, seeded with defaults
-- **Platforms:** Uber + Lyft + Hopp; DoorDash + Instacart are opt-in beta parsers seeded from public offer cards pending device verification
+- **Platforms:** Uber + Lyft + Hopp; DoorDash + Instacart + Skip are opt-in beta parsers seeded from public offer cards pending device verification
 - **UI visual language:** direction proposed in `docs/UI_DESIGN.md`, locked at M5
 
 Open / deferred items are tracked in [`docs/DECISIONS.md`](docs/DECISIONS.md).
