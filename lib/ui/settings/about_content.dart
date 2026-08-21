@@ -36,7 +36,7 @@ const aboutIntro =
 
 /// Version string. Kept as a plain const rather than adding a native plugin for
 /// one label; `about_content_test.dart` guards it against `pubspec.yaml` drift.
-const aboutVersion = '1.0.9 (build 62)';
+const aboutVersion = '1.0.9 (build 64)';
 
 const aboutSections = <AboutSection>[
   AboutSection(

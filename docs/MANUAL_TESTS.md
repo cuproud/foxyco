@@ -20,10 +20,10 @@ without requiring DoorDash, Instacart or Skip accounts.
 | # | How | PASS bar | Status |
 |---|-----|----------|--------|
 | Q.1 | Install from the Play test track → Settings → About | About shows the new bumped build; startup and four-tab navigation work | [ ] |
-| Q.2 | Rules → Watched apps | Existing selection survived upgrade; fresh install defaults to Uber/Lyft/Hopp; all three delivery apps show **Beta** and off | [ ] |
+| Q.2 | Rules → Watched apps | Existing selection survived upgrade; fresh install defaults to Uber/Lyft/Hopp; Uber says **Includes Uber Eats**; all three delivery betas are off | [ ] |
 | Q.3 | Try enabling a fourth app; then turn one off and enable Skip | Fourth is blocked; after freeing a slot Skip enables and Home shows exactly the selected apps | [ ] |
 | Q.4 | Leave only Lyft selected, force-stop and reopen | Lyft remains the only watched app; disabled-app events cannot produce a pill | [ ] |
-| Q.5 | Enable any delivery beta → open Delivery rules; change a value and return | Delivery settings persist; ride thresholds above are unchanged | [ ] |
+| Q.5 | Leave only Lyft/Hopp on, then enable Uber and open Delivery rules | Card is always visible but disabled for Lyft/Hopp-only; Uber enables it because it includes Eats; settings persist independently from ride thresholds | [ ] |
 | Q.6 | History → App filters after enabling each delivery app | DoorDash, Instacart and Skip filters appear when selected or represented in History | [ ] |
 | Q.7 | Settings → Text size → Small/Medium/Large; open every tab | No overflow, clipped headers or overlapping bottom navigation; Pill size/preview does not change | [ ] |
 | Q.8 | Settings support rows at Large text | Send feedback, About and Diagnostic logs align and wrap without truncating their titles | [ ] |
@@ -41,10 +41,10 @@ have been captured and redacted.
 
 | # | How | PASS bar | Status |
 |---|-----|----------|--------|
-| D.1 | Fresh install → Rules → Watched apps | Uber, Lyft and Hopp are on; DoorDash, Instacart and Skip show **Beta** and are off | [ ] |
+| D.1 | Fresh install → Rules → Watched apps | Uber says **Includes Uber Eats**; Uber, Lyft and Hopp are on; DoorDash, Instacart and Skip show **Beta** and are off | [ ] |
 | D.2 | With three apps on, try enabling a fourth | Fourth switch is disabled and says **Turn off another app first** | [ ] |
 | D.3 | Leave only Lyft on, kill and reopen FoxyCo | Only Lyft remains on; Home Ready card shows Lyft only | [ ] |
-| D.4 | Turn Hopp off and DoorDash on | DoorDash appears on Home; **Delivery rules** appears and ride rules remain unchanged | [ ] |
+| D.4 | Leave only Lyft/Hopp on, then enable Uber or DoorDash | **Delivery rules** remains visible but disabled first, then enables; Uber Eats/delivery offers use it while ride rules remain unchanged | [ ] |
 | D.5 | Enable each delivery beta and open History filters | DoorDash, Instacart and Skip app filters are available | [ ] |
 | D.6 | Real DoorDash delivery card with guaranteed pay and route distance | One beta offer logs with exact payout/distance; absolute **Deliver by** time is not treated as duration | [ ] |
 | D.7 | Real DoorDash retail/batched card | Items and order count match the card in offer details and CSV | [ ] |

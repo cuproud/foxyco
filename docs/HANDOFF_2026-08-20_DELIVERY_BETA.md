@@ -1,6 +1,6 @@
-# FoxyCo build 62 — delivery beta handoff
+# FoxyCo build 64 — delivery beta handoff
 
-**Source/release:** `1.0.9+62`  
+**Source/release:** `1.0.9+64`  
 **Implementation date:** 20 August 2026  
 **Status:** repository verification complete; delivery-app device verification pending
 
@@ -14,6 +14,9 @@
 - Home badges and History app filters derive from the current selection/history.
 - Ride and delivery scoring profiles are independent. Delivery cards without a
   trustworthy duration fall back to delivery distance rules.
+- Uber is one selectable app covering rides and Uber Eats because both share
+  the Uber Driver package. Eats offers use delivery rules; Uber rides keep ride
+  rules. The Delivery rules card remains visible but disables for Lyft/Hopp-only.
 - Delivery order/item/unit fields flow through offer identity, History details
   and CSV export.
 - Main-app Small/Medium/Large text sizing respects system scaling and does not
@@ -47,9 +50,9 @@ Public cards are test seeds, not proof of current Accessibility node behavior.
 - Signed release AAB: built successfully with `./scripts/build.sh aab --bump`.
 
 ```text
-dist/FoxyCo-v1.0.9+62-release-20260820-2117.aab
-86,116,187 bytes
-SHA-256 5a6ce8427b9658c3b3f0acf13904bef490850932218b250cbfb408f59b601df7
+dist/FoxyCo-v1.0.9+64-release-20260820-2136.aab
+86,118,737 bytes
+SHA-256 804ffc92081f9981b82d614affb70947753193fba0eded752158f281282943d3
 ```
 
 ## What remains Beta

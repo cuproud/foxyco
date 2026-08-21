@@ -498,7 +498,7 @@ class OfferWatcher extends Notifier<Offer?> {
       unitCount: offer.unitCount,
       scoringSnapshot: ScoringSnapshot.fromSettings(
         settings,
-        platform: offer.platform,
+        platform: offer.rulesPlatform,
       ),
     );
     final summary = ref

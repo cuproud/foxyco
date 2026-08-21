@@ -181,11 +181,15 @@ class OverlayController extends Notifier<void> {
           totalKm: offer.totalKm,
           payout: offer.payout,
           totalMinutes: offer.totalMinutes,
-          rateMode: settings.rateModeFor(offer.platform),
+          rateMode: settings.rateModeFor(offer.rulesPlatform),
           pickupKm: offer.pickupKm,
           pickupNearKm: settings.pickupNearKm,
-          hourGoodAt: settings.hourThresholdsFor(offer.platform).goodAtOrAbove,
-          hourBadBelow: settings.hourThresholdsFor(offer.platform).badBelow,
+          hourGoodAt: settings
+              .hourThresholdsFor(offer.rulesPlatform)
+              .goodAtOrAbove,
+          hourBadBelow: settings
+              .hourThresholdsFor(offer.rulesPlatform)
+              .badBelow,
           size: settings.pillSize,
           moneyFont: settings.moneyFont,
           distanceUnit: settings.distanceUnit,

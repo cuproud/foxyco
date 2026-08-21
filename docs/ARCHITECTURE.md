@@ -175,8 +175,11 @@ Accessibility service is statically scoped to all six packages, then `OfferWatch
 drops events from deselected packages before parsing.
 
 Ride and delivery economics are separate settings profiles. `DecisionEngine` chooses the profile
-from `Offer.platform`; delivery cards without a trustworthy duration fall back to the delivery
-distance thresholds. Historical rows store the scoring snapshot that produced their verdict.
+from `Offer.rulesPlatform`; an Uber Eats card remains under the single Uber app selection but uses
+delivery rules, while Uber rides use ride rules. The Delivery rules card stays visible and is enabled
+when Uber or a dedicated delivery app is watched. Delivery cards without a trustworthy duration
+fall back to the delivery distance thresholds. Historical rows store the scoring snapshot that
+produced their verdict.
 
 `OfferWatcher` owns the capture-to-verdict handoff: it considers candidates from watched platform
 parsers, builds a stable identity, rejects incomplete/duplicate/suppressed identities, scores once,

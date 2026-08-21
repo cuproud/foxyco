@@ -22,6 +22,7 @@ enum GigPlatform {
   final int colorValue;
   final String packageName;
 
-  bool get isDelivery => this == doorDash || this == instacart || this == skip;
-  bool get isBeta => isDelivery;
+  bool get isDelivery =>
+      this == uberEats || this == doorDash || this == instacart || this == skip;
+  bool get isBeta => this == doorDash || this == instacart || this == skip;
 }

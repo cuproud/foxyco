@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -496,6 +498,7 @@ void main() {
 
     final doorDash = find.widgetWithText(SwitchListTile, 'DoorDash');
     final hopp = find.widgetWithText(SwitchListTile, 'Hopp');
+    expect(find.text('Includes Uber Eats'), findsOneWidget);
     expect(find.text('Beta · best effort'), findsNWidgets(3));
     expect(tester.widget<SwitchListTile>(doorDash).onChanged, isNull);
 
@@ -511,6 +514,35 @@ void main() {
     ).read(settingsProvider);
     expect(settings.watches(GigPlatform.doorDash), isTrue);
     expect(settings.watchedApps.length, FoxSettings.maxWatchedApps);
+  });
+
+  testWidgets('delivery rules stay visible and enable for Uber Eats', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({
+      'foxyco.settings.v1': jsonEncode(
+        FoxSettings.defaults.copyWith(watchedApps: {GigPlatform.lyft}).toJson(),
+      ),
+    });
+    tester.view.physicalSize = const Size(1080, 3600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(_rulesHost());
+    await tester.pumpAndSettle();
+
+    expect(find.text('Enable Uber or a delivery app'), findsOneWidget);
+    await tester.tap(find.text('Delivery rules'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Used for Uber Eats'), findsNothing);
+
+    await openGroup(tester, 'Watched apps');
+    await tester.tap(find.widgetWithText(SwitchListTile, 'Uber'));
+    await tester.pumpAndSettle();
+    expect(find.text('Includes Uber Eats'), findsOneWidget);
+    await tester.tap(find.text('Delivery rules'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Used for Uber Eats'), findsOneWidget);
   });
 
   testWidgets('groups are filed under named bands, in band order', (

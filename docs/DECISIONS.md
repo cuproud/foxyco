@@ -25,6 +25,7 @@ Append-only. Every locked choice + why, so we don't re-argue it. Open items at b
 | 15 | **DoorDash, Instacart and Skip ship as opt-in Beta parsers** | Public offer cards provide a safe initial contract, but real Accessibility/OCR nodes and negative screens are still missing. All fail closed, stay off by default and are promoted only after live fixtures pass. | 2026-08-20 |
 | 16 | **Ride and delivery rules remain separate** | Rideshare and shopping/delivery economics are materially different. The shared decision engine selects a persisted profile by platform; no duplicate engine or overlay is needed. | 2026-08-20 |
 | 17 | **App text size does not resize the overlay** | Small/Medium/Large applies to FoxyCo screens while system accessibility scaling remains respected. Pill size stays independent so a Settings preference cannot obstruct a live offer card. | 2026-08-20 |
+| 18 | **Uber is one selectable app that includes Uber Eats** | Rides and Eats share `com.ubercab.driver`, so separate app switches would misrepresent Android capture scope. The Uber parser identifies Eats cards; those cards use delivery rules while Uber rides keep ride rules. | 2026-08-20 |
 
 ---
 

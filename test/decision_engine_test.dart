@@ -170,6 +170,20 @@ void main() {
       );
       expect(engine.scoreOffer(ride, settings), Verdict.good);
       expect(engine.scoreOffer(delivery, settings), Verdict.bad);
+      expect(
+        engine.scoreOffer(
+          const Offer(
+            platform: GigPlatform.uber,
+            payout: 10,
+            pickupKm: 0,
+            dropoffKm: 5,
+            deliveryCount: 1,
+          ),
+          settings,
+        ),
+        Verdict.bad,
+        reason: 'Uber Eats shares Uber selection but uses delivery rules',
+      );
     });
   });
 

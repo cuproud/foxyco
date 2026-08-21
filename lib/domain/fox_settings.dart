@@ -178,6 +178,7 @@ class FoxSettings {
 
   bool watches(GigPlatform p) => watchedApps.contains(p);
   bool get watchesDelivery => watchedApps.any((app) => app.isDelivery);
+  bool get watchesDeliveryRules => watches(GigPlatform.uber) || watchesDelivery;
 
   RateMode rateModeFor(GigPlatform platform) =>
       platform.isDelivery ? deliveryRateMode : rateMode;

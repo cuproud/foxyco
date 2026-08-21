@@ -348,6 +348,7 @@ class _RulesScreenState extends ConsumerState<RulesScreen> {
     final max = perHour ? _maxHr : settings.distanceUnit.rateFromPerKm(_maxKm);
     final unit = perHour ? '/hr' : '/${settings.distanceUnit.shortLabel}';
     final money = settings.currency.prefix;
+    final deliveryRulesEnabled = settings.watchesDeliveryRules;
     final sampleOffer = Offer(
       platform: GigPlatform.uber,
       payout: _samplePayout,
@@ -832,9 +833,11 @@ class _RulesScreenState extends ConsumerState<RulesScreen> {
                       title: Text(app.label, style: text.titleMedium),
                       subtitle: app.isBeta
                           ? const Text('Beta · best effort')
-                          : (!settings.watches(app) &&
+                          : app == GigPlatform.uber
+                          ? const Text('Includes Uber Eats')
+                          : !settings.watches(app) &&
                                 settings.watchedApps.length >=
-                                    FoxSettings.maxWatchedApps)
+                                    FoxSettings.maxWatchedApps
                           ? const Text('Turn off another app first')
                           : null,
                       value: settings.watches(app),
@@ -861,93 +864,93 @@ class _RulesScreenState extends ConsumerState<RulesScreen> {
             ),
           ),
         ),
-        if (settings.watchesDelivery) ...[
-          const SizedBox(height: Gap.sm),
-          _row(
-            5,
-            SettingsGroup(
-              title: 'Delivery rules',
-              icon: Icons.local_shipping_outlined,
-              summary:
-                  'Beta · GOOD $money${deliveryThresholds.goodAtOrAbove.toStringAsFixed(2)}$deliveryUnit',
-              open: _open == 5,
-              accent: _accents[5],
-              onTap: () => _toggle(5),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text(
-                    'Used only for DoorDash, Instacart and Skip. Ride rules above '
-                    'continue to control Uber, Lyft and Hopp.',
-                    style: text.bodyMedium?.copyWith(
-                      color: FoxColors.textSecondary,
-                    ),
+        const SizedBox(height: Gap.sm),
+        _row(
+          5,
+          SettingsGroup(
+            title: 'Delivery rules',
+            icon: Icons.local_shipping_outlined,
+            summary: deliveryRulesEnabled
+                ? 'GOOD $money${deliveryThresholds.goodAtOrAbove.toStringAsFixed(2)}$deliveryUnit'
+                : 'Enable Uber or a delivery app',
+            open: deliveryRulesEnabled && _open == 5,
+            enabled: deliveryRulesEnabled,
+            accent: _accents[5],
+            onTap: () => _toggle(5),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  'Used for Uber Eats, DoorDash, Instacart and Skip. Ride rules '
+                  'above continue to control Uber rides, Lyft and Hopp.',
+                  style: text.bodyMedium?.copyWith(
+                    color: FoxColors.textSecondary,
                   ),
-                  const SizedBox(height: Gap.sm),
-                  Center(
-                    child: SegmentedButton<RateMode>(
-                      segments: [
-                        for (final mode in RateMode.values)
-                          ButtonSegment(value: mode, label: Text(mode.label)),
-                      ],
-                      selected: {settings.deliveryRateMode},
-                      onSelectionChanged: (value) =>
-                          controller.setDeliveryRateMode(value.first),
-                    ),
+                ),
+                const SizedBox(height: Gap.sm),
+                Center(
+                  child: SegmentedButton<RateMode>(
+                    segments: [
+                      for (final mode in RateMode.values)
+                        ButtonSegment(value: mode, label: Text(mode.label)),
+                    ],
+                    selected: {settings.deliveryRateMode},
+                    onSelectionChanged: (value) =>
+                        controller.setDeliveryRateMode(value.first),
                   ),
-                  const SizedBox(height: Gap.sm),
-                  ThresholdBand(
-                    thresholds: deliveryThresholds,
-                    min: deliveryMin,
-                    max: deliveryMax,
-                    unit: deliveryUnit,
+                ),
+                const SizedBox(height: Gap.sm),
+                ThresholdBand(
+                  thresholds: deliveryThresholds,
+                  min: deliveryMin,
+                  max: deliveryMax,
+                  unit: deliveryUnit,
+                ),
+                const SizedBox(height: Gap.sm),
+                ThresholdSlider(
+                  label: 'GOOD at or above',
+                  color: VerdictColors.good,
+                  value: deliveryThresholds.goodAtOrAbove,
+                  min: deliveryMin,
+                  max: deliveryMax,
+                  currencyPrefix: money,
+                  onChanged: controller.setDeliveryGood,
+                ),
+                const SizedBox(height: Gap.sm),
+                ThresholdSlider(
+                  label: 'BAD below',
+                  color: VerdictColors.bad,
+                  value: deliveryThresholds.badBelow,
+                  min: deliveryMin,
+                  max: deliveryMax,
+                  currencyPrefix: money,
+                  onChanged: controller.setDeliveryBad,
+                ),
+                Divider(color: FoxColors.border, height: Gap.xl),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(
+                    'Minimum delivery offer',
+                    style: text.titleMedium,
                   ),
-                  const SizedBox(height: Gap.sm),
-                  ThresholdSlider(
-                    label: 'GOOD at or above',
-                    color: VerdictColors.good,
-                    value: deliveryThresholds.goodAtOrAbove,
-                    min: deliveryMin,
-                    max: deliveryMax,
-                    currencyPrefix: money,
-                    onChanged: controller.setDeliveryGood,
-                  ),
-                  const SizedBox(height: Gap.sm),
-                  ThresholdSlider(
-                    label: 'BAD below',
-                    color: VerdictColors.bad,
-                    value: deliveryThresholds.badBelow,
-                    min: deliveryMin,
-                    max: deliveryMax,
-                    currencyPrefix: money,
-                    onChanged: controller.setDeliveryBad,
-                  ),
-                  Divider(color: FoxColors.border, height: Gap.xl),
-                  SwitchListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: Text(
-                      'Minimum delivery offer',
-                      style: text.titleMedium,
-                    ),
-                    value: settings.deliveryMinimumPayoutEnabled,
-                    activeTrackColor: FoxColors.brandFox,
-                    onChanged: controller.setDeliveryMinimumPayoutEnabled,
-                  ),
-                  ThresholdSlider(
-                    label: 'BAD if offer is below',
-                    color: FoxColors.brandFox,
-                    value: settings.deliveryMinimumPayout.clamp(0, 50),
-                    min: 0,
-                    max: 50,
-                    currencyPrefix: money,
-                    enabled: settings.deliveryMinimumPayoutEnabled,
-                    onChanged: controller.setDeliveryMinimumPayout,
-                  ),
-                ],
-              ),
+                  value: settings.deliveryMinimumPayoutEnabled,
+                  activeTrackColor: FoxColors.brandFox,
+                  onChanged: controller.setDeliveryMinimumPayoutEnabled,
+                ),
+                ThresholdSlider(
+                  label: 'BAD if offer is below',
+                  color: FoxColors.brandFox,
+                  value: settings.deliveryMinimumPayout.clamp(0, 50),
+                  min: 0,
+                  max: 50,
+                  currencyPrefix: money,
+                  enabled: settings.deliveryMinimumPayoutEnabled,
+                  onChanged: controller.setDeliveryMinimumPayout,
+                ),
+              ],
             ),
           ),
-        ],
+        ),
         const SizedBox(height: Gap.lg),
         const SectionLabel('Alerts'),
         const SizedBox(height: Gap.sm + Gap.xs),

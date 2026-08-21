@@ -381,6 +381,7 @@ class SettingsGroup extends StatelessWidget {
     required this.open,
     required this.onTap,
     required this.child,
+    this.enabled = true,
     this.accent = FoxColors.brandFox,
     this.summaryColor,
   });
@@ -391,6 +392,7 @@ class SettingsGroup extends StatelessWidget {
   final bool open;
   final VoidCallback onTap;
   final Widget child;
+  final bool enabled;
 
   /// Per-group hue (flat tiles read boring, device 2026-07-21): tints the icon
   /// chip always, and the border + glow while open.
@@ -428,10 +430,12 @@ class SettingsGroup extends StatelessWidget {
         children: [
           InkWell(
             borderRadius: BorderRadius.circular(Radii.card),
-            onTap: () {
-              HapticFeedback.selectionClick();
-              onTap();
-            },
+            onTap: enabled
+                ? () {
+                    HapticFeedback.selectionClick();
+                    onTap();
+                  }
+                : null,
             child: Padding(
               padding: const EdgeInsets.all(Gap.md),
               child: Row(
@@ -466,7 +470,12 @@ class SettingsGroup extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(title, style: text.titleMedium),
+                        Text(
+                          title,
+                          style: text.titleMedium?.copyWith(
+                            color: enabled ? null : FoxColors.textDisabled,
+                          ),
+                        ),
                         if (summary.isNotEmpty) ...[
                           const SizedBox(height: 2),
                           Text(

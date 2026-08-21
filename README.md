@@ -6,7 +6,7 @@ driver's rules, and shows a GOOD, OK or BAD verdict. The driver always decides.
 - **Platform:** Android (built with **Flutter** — Dart UI, native Android plugins for the system parts)
 - **Model:** 7-day Google-account trial, then one-time lifetime unlock; no subscription or analytics
 - **Play package:** `com.foxyco.app` — locked; do not change
-- **Status:** `1.0.9+62` release bundle built; delivery betas need live-device fixtures
+- **Status:** `1.0.9+64` release bundle built; delivery betas need live-device fixtures
 
 > **Why "FoxyCo"?** *Foxy* = clever, quick, good at spotting value. *Co* = your co-driver /
 > companion riding shotgun on every trip. Friendly + trustworthy — the two things a money tool

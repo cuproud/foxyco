@@ -62,6 +62,12 @@ class Offer {
   double get totalKm => pickupKm + dropoffKm;
   double get totalMinutes => pickupMinutes + dropoffMinutes;
 
+  /// Uber rides and Eats share one package/parser, but use different rules.
+  GigPlatform get rulesPlatform =>
+      platform == GigPlatform.uber && deliveryCount > 0
+      ? GigPlatform.uberEats
+      : platform;
+
   /// Dollars per km over the whole job (pickup + trip). The verdict input.
   double get pricePerKm => totalKm > 0 ? payout / totalKm : 0;
 

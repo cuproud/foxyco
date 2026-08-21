@@ -35,7 +35,7 @@
 
 _Added 2026-08-02. §1–§6 are the reasoning; this is the ordered list of moves.
 Everything below is a console/web action except C1. Build 22 was Play-installed
-and device-tested; current release bundle is `1.0.9+62`. See
+and device-tested; current release bundle is `1.0.9+64`. See
 `HANDOFF_2026-08-20_DELIVERY_BETA.md` for current verification and remaining
 delivery gates; older handoffs remain historical records._
 
@@ -79,17 +79,18 @@ Artifacts are copied to `dist/` with version and timestamped names.
 Latest repository-verified bundle (delivery beta still needs live-device verification):
 
 ```text
-dist/FoxyCo-v1.0.9+62-release-20260820-2117.aab
-86,116,187 bytes
-SHA-256 5a6ce8427b9658c3b3f0acf13904bef490850932218b250cbfb408f59b601df7
+dist/FoxyCo-v1.0.9+64-release-20260820-2136.aab
+86,118,737 bytes
+SHA-256 804ffc92081f9981b82d614affb70947753193fba0eded752158f281282943d3
 ```
 
 The build helper completed dependency resolution, static analysis, all 485
-Flutter tests, Firestore rules tests and the signed release bundle. Build 62
+Flutter tests, Firestore rules tests and the signed release bundle. Build 64
 adds the opt-in DoorDash, Instacart and Skip delivery betas, three-app cap,
 persisted selection, delivery rules, workload History fields, app text sizing
 and synchronized Accessibility/legal disclosures. Its visible bubble-dismiss
-target now matches the actual drop hitbox and canceled drags cannot stop watching.
+target matches the actual drop hitbox and canceled drags cannot stop watching.
+Uber is one watched app covering rides and Eats; Eats cards use delivery rules.
 
 The licensing key is an RSA **public** key. It is extractable from any shipped
 APK, so recording it here costs nothing and makes the build reproducible:
@@ -428,7 +429,7 @@ email list / Google Group — stop adding past 30, outsiders simply can't
 access the listing. Keep the opt-in link private (DM only). 20–30 sits
 comfortably above the 12-concurrent floor and stays manageable.
 
-Closed-track membership does not grant premium access. In build 62, ordinary
+Closed-track membership does not grant premium access. In build 64, ordinary
 testers get the same 7-day trial and paywall as public users.
 
 Use License testing only for trusted billing-QA accounts. Those accounts can
@@ -492,8 +493,8 @@ made a meaningful contribution.
 Ordered, actionable version of this list: **§0**. Estimates and code-level
 blockers: **MONETIZATION §7**.
 
-1. **Upload build 62 and run the current quick smoke test** — confirm
-   About shows build 62, bubble drop-to-dismiss matches the visible ✕, and the unlock sheet closes automatically after a
+1. **Upload build 64 and run the current quick smoke test** — confirm
+   About shows build 64, Uber says it includes Eats, delivery rules enable correctly, bubble drop-to-dismiss matches the visible ✕, and the unlock sheet closes automatically after a
    purchase, restore or promo redemption while a trial is active.
 2. **Refund/revoke propagation test** — after Play reports no owned lifetime
    product, Restore purchase must clear `Unlocked forever` while network/query
@@ -516,5 +517,5 @@ blockers: **MONETIZATION §7**.
 - Localized store listings (ES/PT = big driver demographics)
 
 ---
-_Last updated: 2026-08-20 — build 62 artifact, delivery beta, overlay dismissal and test gates refreshed.
+_Last updated: 2026-08-20 — build 64 artifact, Uber Eats rules, delivery beta and overlay dismissal refreshed.
 Entitlement architecture lives in `MONETIZATION_v1.0.md`._
