@@ -32,12 +32,16 @@ OfferSummary _offer(
   DateTime seenAt, {
   OfferOutcome outcome = OfferOutcome.unknown,
   double payout = 20,
+  double? finalPayout,
+  double bonus = 0,
   Verdict verdict = Verdict.good,
   GigPlatform platform = GigPlatform.uber,
 }) => OfferSummary(
   platform: platform,
   verdict: verdict,
   payout: payout,
+  finalPayout: finalPayout,
+  bonus: bonus,
   totalKm: 10,
   seenAt: seenAt,
   outcome: outcome,
@@ -175,6 +179,79 @@ void main() {
     expect(find.text('Accepted'), findsOneWidget);
   });
 
+  testWidgets('accepted status stays on one line in a narrow card', (
+    tester,
+  ) async {
+    final offer = _offer(DateTime.now(), outcome: OfferOutcome.taken);
+    await tester.pumpWidget(_app([offer]));
+    await tester.pumpAndSettle();
+
+    final status = find.byKey(
+      ValueKey('offer_outcome_${offer.seenAt.microsecondsSinceEpoch}'),
+    );
+    await tester.scrollUntilVisible(
+      status,
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    final label = find.descendant(of: status, matching: find.text('Accepted'));
+    final text = tester.widget<Text>(label);
+    expect(text.maxLines, 1);
+    expect(text.softWrap, isFalse);
+  });
+
+  testWidgets('realized payout does not crush accepted offer details', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(360, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(
+      _app([
+        _offer(
+          DateTime.now(),
+          outcome: OfferOutcome.taken,
+          payout: 19.70,
+          finalPayout: 22.06,
+          bonus: 4.55,
+        ),
+      ]),
+    );
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.text('+CA\$4.55 bonus'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+
+    expect(find.text('CA\$22.06'), findsOneWidget);
+    expect(find.text('from CA\$19.70'), findsOneWidget);
+    expect(tester.getSize(find.text('+CA\$4.55 bonus')).height, lessThan(20));
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('three-digit payout keeps history details aligned', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(360, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(
+      _app([_offer(DateTime.now(), payout: 123.45, bonus: 12.34)]),
+    );
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.text('CA\$123.45'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+
+    expect(find.text('+CA\$12.34 bonus'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('filters use one All and fit a narrow phone', (tester) async {
     tester.view.physicalSize = const Size(360, 800);
     tester.view.devicePixelRatio = 1;
@@ -188,12 +265,18 @@ void main() {
     expect(find.text('All platforms · Any fare · Today'), findsOneWidget);
     expect(find.text('All'), findsNothing);
     expect(find.text('APP'), findsNothing);
+
     await tester.tap(find.text('Filters'));
     await tester.pumpAndSettle();
     expect(find.text('All'), findsOneWidget);
     expect(find.text('All apps'), findsNothing);
     expect(find.text('All ratings'), findsNothing);
     expect(find.text('All trips'), findsNothing);
+    await tester.ensureVisible(find.text('4. Outcome'));
+    await tester.pumpAndSettle();
+    final verdictBottom = tester.getBottomRight(find.text('BAD')).dy;
+    final outcomeTop = tester.getTopLeft(find.text('4. Outcome')).dy;
+    expect(outcomeTop - verdictBottom, lessThan(40));
     final firstLayoutError = tester.takeException();
     expect(
       firstLayoutError,
@@ -325,18 +408,31 @@ void main() {
 
     final summary = find.byKey(const ValueKey('history-summary'));
     expect(
-      find.descendant(of: summary, matching: find.text('4')),
-      findsOneWidget,
+      tester
+          .widget<Text>(find.byKey(const ValueKey('history-summary-total')))
+          .data,
+      '4',
     );
     expect(
-      find.descendant(
-        of: summary,
-        matching: find.text('1 good  ·  1 ok  ·  2 bad'),
-      ),
-      findsOneWidget,
+      tester
+          .widget<Text>(find.byKey(const ValueKey('history-summary-good')))
+          .data,
+      '1',
     );
     expect(
-      find.descendant(of: summary, matching: find.text('2 of 4 accepted')),
+      tester
+          .widget<Text>(find.byKey(const ValueKey('history-summary-ok')))
+          .data,
+      '1',
+    );
+    expect(
+      tester
+          .widget<Text>(find.byKey(const ValueKey('history-summary-bad')))
+          .data,
+      '2',
+    );
+    expect(
+      find.descendant(of: summary, matching: find.text('Peak offer time')),
       findsOneWidget,
     );
 
@@ -346,19 +442,28 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('2 today'), findsOneWidget);
     expect(
-      find.descendant(of: summary, matching: find.text('2')),
-      findsOneWidget,
+      tester
+          .widget<Text>(find.byKey(const ValueKey('history-summary-total')))
+          .data,
+      '2',
     );
     expect(
-      find.descendant(
-        of: summary,
-        matching: find.text('0 good  ·  0 ok  ·  2 bad'),
-      ),
-      findsOneWidget,
+      tester
+          .widget<Text>(find.byKey(const ValueKey('history-summary-good')))
+          .data,
+      '0',
     );
     expect(
-      find.descendant(of: summary, matching: find.text('1 of 2 accepted')),
-      findsOneWidget,
+      tester
+          .widget<Text>(find.byKey(const ValueKey('history-summary-ok')))
+          .data,
+      '0',
+    );
+    expect(
+      tester
+          .widget<Text>(find.byKey(const ValueKey('history-summary-bad')))
+          .data,
+      '2',
     );
 
     await tester.ensureVisible(find.text('Accepted'));
@@ -369,19 +474,28 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('1 today'), findsOneWidget);
     expect(
-      find.descendant(of: summary, matching: find.text('1')),
-      findsOneWidget,
+      tester
+          .widget<Text>(find.byKey(const ValueKey('history-summary-total')))
+          .data,
+      '1',
     );
     expect(
-      find.descendant(
-        of: summary,
-        matching: find.text('0 good  ·  0 ok  ·  1 bad'),
-      ),
-      findsOneWidget,
+      tester
+          .widget<Text>(find.byKey(const ValueKey('history-summary-good')))
+          .data,
+      '0',
     );
     expect(
-      find.descendant(of: summary, matching: find.text('1 of 1 accepted')),
-      findsOneWidget,
+      tester
+          .widget<Text>(find.byKey(const ValueKey('history-summary-ok')))
+          .data,
+      '0',
+    );
+    expect(
+      tester
+          .widget<Text>(find.byKey(const ValueKey('history-summary-bad')))
+          .data,
+      '1',
     );
   });
 

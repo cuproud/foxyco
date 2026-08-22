@@ -46,7 +46,25 @@ class ProfileSection extends ConsumerWidget {
       children: [
         const DriverNameCard(),
         const SizedBox(height: Gap.lg),
-        Text('ACCOUNT & ACCESS', style: text.labelSmall),
+        Row(
+          children: [
+            Expanded(child: Text('ACCOUNT & ACCESS', style: text.labelSmall)),
+            if (trial.hasAccount)
+              TextButton.icon(
+                key: const ValueKey('logout-account'),
+                onPressed: () => _confirmSignOut(context, ref),
+                style: TextButton.styleFrom(
+                  foregroundColor: VerdictColors.bad,
+                  minimumSize: const Size(44, 44),
+                ),
+                icon: const Icon(Icons.logout_rounded, size: 18),
+                label: const Text(
+                  'Sign out',
+                  style: TextStyle(fontWeight: FontWeight.w700),
+                ),
+              ),
+          ],
+        ),
         const SizedBox(height: Gap.sm),
         Container(
           padding: const EdgeInsets.all(Gap.md),
@@ -104,28 +122,8 @@ class ProfileSection extends ConsumerWidget {
               label: const Text('Sign in with Google to protect your trial'),
             ),
           ),
-        ] else ...[
-          const SizedBox(height: Gap.sm),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: TextButton.icon(
-              key: const ValueKey('logout-account'),
-              onPressed: () => _confirmSignOut(context, ref),
-              style: TextButton.styleFrom(
-                foregroundColor: FoxColors.textSecondary,
-                minimumSize: const Size(44, 44),
-              ),
-              icon: const Icon(Icons.logout_rounded, size: 18),
-              label: const Text(
-                'Sign out',
-                style: TextStyle(fontWeight: FontWeight.w700),
-              ),
-            ),
-          ),
         ],
-        const SizedBox(height: Gap.lg),
-        Text('ACCESS', style: text.labelSmall),
-        const SizedBox(height: Gap.sm),
+        const SizedBox(height: Gap.md),
         const UnlockSection(),
       ],
     );

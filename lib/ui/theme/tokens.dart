@@ -222,6 +222,7 @@ class FoxColors {
     textPrimary = p.textPrimary;
     textSecondary = p.textSecondary;
     textDisabled = p.textDisabled;
+    brandText = p.brightness == Brightness.light ? brandFoxDeep : brandFox;
     inkSoft = p.cardTop;
     ink = p.cardBottom;
     cream = p.onCard;
@@ -240,6 +241,7 @@ class FoxColors {
   static Color textPrimary = FoxPalette.dark.textPrimary;
   static Color textSecondary = FoxPalette.dark.textSecondary;
   static Color textDisabled = FoxPalette.dark.textDisabled;
+  static Color brandText = brandFox;
 
   // ── Gradient-card interior (varies; see the class doc on the names) ──────
   static Color ink = FoxPalette.dark.cardBottom;

@@ -208,7 +208,6 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
               onToggle: () => _showFilters(availableApps),
             ),
             const SizedBox(height: Gap.md),
-            const SizedBox(height: Gap.lg),
             if (filtered.isEmpty)
               _Empty(
                 hiddenCount: all.length,
@@ -660,7 +659,7 @@ class _FiltersCard extends StatelessWidget {
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const SizedBox(height: Gap.lg),
+                const SizedBox(height: Gap.md),
                 Row(
                   children: [
                     const Expanded(child: _FilterHeading('1. Date range')),
@@ -672,7 +671,7 @@ class _FiltersCard extends StatelessWidget {
                 ),
                 const SizedBox(height: Gap.xs),
                 _RangeControl(value: range, onChanged: onRange),
-                const SizedBox(height: Gap.lg),
+                const SizedBox(height: Gap.sm),
                 _FilterGroup(
                   label: '2. Platforms',
                   child: _AppChips(
@@ -681,21 +680,17 @@ class _FiltersCard extends StatelessWidget {
                     onToggle: onApp,
                   ),
                 ),
-                const SizedBox(height: Gap.lg),
+                const SizedBox(height: Gap.sm),
                 _FilterGroup(
                   label: '3. Verdict',
-                  child: _VerdictChips(
-                    selected: verdicts,
-                    onToggle: onVerdict,
-                    trailing: const SizedBox.shrink(),
-                  ),
+                  child: _VerdictChips(selected: verdicts, onToggle: onVerdict),
                 ),
-                const SizedBox(height: Gap.lg),
+                const SizedBox(height: Gap.sm),
                 _FilterGroup(
                   label: '4. Outcome',
                   child: _OutcomeChips(selected: outcome, onChanged: onOutcome),
                 ),
-                const SizedBox(height: Gap.lg),
+                const SizedBox(height: Gap.sm),
                 _FilterGroup(
                   label: '5. Minimum fare',
                   child: _TopFilter(
@@ -727,7 +722,7 @@ class _FilterGroup extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _FilterHeading(label),
-        const SizedBox(height: Gap.sm),
+        const SizedBox(height: Gap.xs),
         child,
       ],
     );
@@ -992,21 +987,15 @@ class _AppChips extends StatelessWidget {
 /// Verdict grouping chips (good / ok / bad), same multi-select + "All"
 /// behavior as [_AppChips]. Icon + word, never color alone (colorblind-safe).
 class _VerdictChips extends StatelessWidget {
-  const _VerdictChips({
-    required this.selected,
-    required this.onToggle,
-    required this.trailing,
-  });
+  const _VerdictChips({required this.selected, required this.onToggle});
   final Set<Verdict?> selected;
   final ValueChanged<Verdict?> onToggle;
-  final Widget trailing;
 
   @override
   Widget build(BuildContext context) {
     return _ThreeColumnGrid(
       children: [
         for (final v in const [Verdict.good, Verdict.ok, Verdict.bad]) _chip(v),
-        trailing,
       ],
     );
   }
@@ -1574,6 +1563,46 @@ class _OfferRow extends ConsumerWidget {
       TimeOfDay.fromDateTime(offer.seenAt),
       alwaysUse24HourFormat: MediaQuery.of(context).alwaysUse24HourFormat,
     );
+    final payout = Column(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(
+            offer.effectivePayout == offer.effectivePayout.roundToDouble()
+                ? '${settings.currency.prefix}${offer.effectivePayout.toStringAsFixed(0)}'
+                : '${settings.currency.prefix}${offer.effectivePayout.toStringAsFixed(2)}',
+            style: TextStyle(
+              fontFamily: FoxFonts.display,
+              fontSize: 19,
+              fontWeight: FontWeight.w700,
+              color: FoxColors.textPrimary,
+              fontFeatures: [FontFeature.tabularFigures()],
+            ),
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          time,
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+            color: FoxColors.textSecondary,
+          ),
+        ),
+        if (offer.finalPayout != null)
+          Text(
+            'from ${settings.currency.prefix}${offer.payout.toStringAsFixed(2)}',
+            maxLines: 1,
+            style: TextStyle(
+              fontSize: 10.5,
+              fontWeight: FontWeight.w600,
+              color: FoxColors.textSecondary,
+              fontFeatures: [FontFeature.tabularFigures()],
+            ),
+          ),
+      ],
+    );
     return InkWell(
       borderRadius: BorderRadius.circular(Radii.cardSm),
       onTap: () => showOfferDetail(context, offer),
@@ -1609,30 +1638,38 @@ class _OfferRow extends ConsumerWidget {
                 children: [
                   Row(
                     children: [
-                      PlatformBadge(platform: offer.platform, size: 18),
-                      const SizedBox(width: 6),
-                      Text(
-                        offer.platform.label,
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                          color: FoxColors.textPrimary,
+                      Expanded(
+                        child: Row(
+                          children: [
+                            PlatformBadge(platform: offer.platform, size: 18),
+                            const SizedBox(width: 6),
+                            Text(
+                              offer.platform.label,
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                                color: FoxColors.textPrimary,
+                              ),
+                            ),
+                            if (offer.category != null) ...[
+                              const SizedBox(width: 6),
+                              Flexible(
+                                child: Text(
+                                  offer.category!,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: FoxColors.textSecondary,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
                         ),
                       ),
-                      if (offer.category != null) ...[
-                        const SizedBox(width: 6),
-                        Flexible(
-                          child: Text(
-                            offer.category!,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: FoxColors.textSecondary,
-                            ),
-                          ),
-                        ),
-                      ],
+                      const SizedBox(width: Gap.sm),
+                      SizedBox(width: 112, child: payout),
                     ],
                   ),
                   const SizedBox(height: 6),
@@ -1653,80 +1690,72 @@ class _OfferRow extends ConsumerWidget {
                             color: FoxColors.textSecondary,
                           ),
                         ),
-                      if (offer.bonus > 0)
-                        Text(
-                          '+${settings.currency.prefix}${offer.bonus.toStringAsFixed(2)} bonus',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                            color: VerdictColors.good,
-                            fontFeatures: [FontFeature.tabularFigures()],
-                          ),
-                        ),
                     ],
                   ),
-                  const SizedBox(height: 4),
-                  Text.rich(
-                    TextSpan(
-                      children: [
-                        TextSpan(
-                          text:
-                              '${settings.distanceUnit.distanceFromKm(offer.totalKm).toStringAsFixed(1)} ${settings.distanceUnit.shortLabel}  ',
-                        ),
-                        TextSpan(
-                          text:
-                              '${settings.currency.prefix}${settings.distanceUnit.rateFromPerKm(offer.effectivePricePerKm).toStringAsFixed(2)}/${settings.distanceUnit.shortLabel}',
-                          style: TextStyle(
-                            color: FoxColors.textPrimary,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ],
+                  if (offer.bonus > 0) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      '+${settings.currency.prefix}${offer.bonus.toStringAsFixed(2)} bonus',
+                      maxLines: 1,
                       style: TextStyle(
-                        fontSize: 12,
-                        color: FoxColors.textSecondary,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: VerdictColors.good,
                         fontFeatures: [FontFeature.tabularFigures()],
                       ),
                     ),
+                  ],
+                  const SizedBox(height: Gap.sm),
+                  Divider(height: 1, color: FoxColors.borderSoft),
+                  const SizedBox(height: Gap.sm),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.location_on_rounded,
+                        size: 16,
+                        color: FoxColors.textSecondary,
+                      ),
+                      const SizedBox(width: Gap.xs),
+                      Text(
+                        '${settings.distanceUnit.distanceFromKm(offer.totalKm).toStringAsFixed(1)} ${settings.distanceUnit.shortLabel}',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: FoxColors.textSecondary,
+                          fontFeatures: [FontFeature.tabularFigures()],
+                        ),
+                      ),
+                      const SizedBox(width: Gap.sm),
+                      SizedBox(
+                        height: 20,
+                        child: VerticalDivider(color: FoxColors.border),
+                      ),
+                      const SizedBox(width: Gap.sm),
+                      Icon(
+                        Icons.speed_rounded,
+                        size: 16,
+                        color: FoxColors.textSecondary,
+                      ),
+                      const SizedBox(width: Gap.xs),
+                      Expanded(
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            '${settings.currency.prefix}${settings.distanceUnit.rateFromPerKm(offer.effectivePricePerKm).toStringAsFixed(2)}/${settings.distanceUnit.shortLabel}',
+                            maxLines: 1,
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: FoxColors.textPrimary,
+                              fontFeatures: [FontFeature.tabularFigures()],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
-            ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: Text(
-                    offer.finalPayout == null
-                        ? offer.payout == offer.payout.roundToDouble()
-                              ? '${settings.currency.prefix}${offer.payout.toStringAsFixed(0)}'
-                              : '${settings.currency.prefix}${offer.payout.toStringAsFixed(2)}'
-                        : '${settings.currency.prefix}${offer.payout.toStringAsFixed(2)} → ${settings.currency.prefix}${offer.finalPayout!.toStringAsFixed(2)}',
-                    style: TextStyle(
-                      fontFamily: FoxFonts.display,
-                      fontSize: 19,
-                      fontWeight: FontWeight.w700,
-                      color: FoxColors.textPrimary,
-                      fontFeatures: [FontFeature.tabularFigures()],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      time,
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: FoxColors.textDisabled,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
             ),
           ],
         ),
@@ -1782,6 +1811,8 @@ class _OutcomeMenu extends ConsumerWidget {
               const SizedBox(width: 4),
               Text(
                 style.label,
+                maxLines: 1,
+                softWrap: false,
                 style: TextStyle(
                   fontSize: 10.5,
                   fontWeight: FontWeight.w700,
@@ -1890,7 +1921,7 @@ class _Empty extends StatelessWidget {
             Icon(
               Icons.filter_alt_off_outlined,
               size: 36,
-              color: FoxColors.textDisabled,
+              color: FoxColors.textSecondary,
             ),
             const SizedBox(height: Gap.sm),
             Text(
@@ -2008,33 +2039,7 @@ class _StatsCard extends ConsumerWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(
-                child: _Stat(
-                  label: 'OFFERS',
-                  value: '${s.total}',
-                  emphasis: true,
-                  color: FoxColors.textSecondary,
-                  // Verdict-colored counts instead of the cryptic "2·7·2".
-                  subSpan: TextSpan(
-                    children: [
-                      TextSpan(
-                        text: '${s.good} good',
-                        style: TextStyle(color: VerdictColors.good),
-                      ),
-                      const TextSpan(text: '  ·  '),
-                      TextSpan(
-                        text: '${s.ok} ok',
-                        style: TextStyle(color: VerdictColors.ok),
-                      ),
-                      const TextSpan(text: '  ·  '),
-                      TextSpan(
-                        text: '${s.bad} bad',
-                        style: TextStyle(color: VerdictColors.bad),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
+              Expanded(child: _OffersStat(stats: s)),
               const SizedBox(width: Gap.md),
               Expanded(
                 child: _Stat(
@@ -2073,7 +2078,7 @@ class _StatsCard extends ConsumerWidget {
                   value: s.busiestHour != null
                       ? _hourLabel(s.busiestHour!)
                       : '—',
-                  sub: '${s.accepted} of ${s.total} accepted',
+                  sub: 'Peak offer time',
                   color: FoxColors.brandFox,
                 ),
               ),
@@ -2090,19 +2095,13 @@ class _Stat extends StatelessWidget {
     required this.label,
     required this.value,
     this.sub,
-    this.subSpan,
     required this.color,
-    this.emphasis = false,
-  }) : assert(sub != null || subSpan != null);
+  });
 
   final String label;
   final String value;
   final String? sub;
-  final TextSpan? subSpan;
   final Color color;
-  final bool emphasis;
-
-  static bool _isInt(String s) => int.tryParse(s) != null;
   static TextStyle get _valueStyle => TextStyle(
     fontFamily: FoxFonts.display,
     fontSize: 17,
@@ -2140,42 +2139,26 @@ class _Stat extends StatelessWidget {
           ),
           const SizedBox(height: Gap.xs),
           SizedBox(
-            height: emphasis ? 40 : 28,
+            height: 28,
             child: Align(
               alignment: Alignment.centerLeft,
-              child: _isInt(value)
-                  ? TweenAnimationBuilder<int>(
-                      tween: IntTween(begin: 0, end: int.parse(value)),
-                      duration: MediaQuery.of(context).disableAnimations
-                          ? Duration.zero
-                          : Motion.count,
-                      curve: Motion.curve,
-                      builder: (context, v, _) => Text(
-                        '$v',
-                        style: _valueStyle.copyWith(
-                          color: FoxColors.textPrimary,
-                          fontSize: emphasis ? 36 : 17,
-                          height: emphasis ? 1 : null,
-                        ),
-                      ),
-                    )
-                  : Text(
-                      value,
-                      maxLines: 1,
-                      style: _valueStyle.copyWith(
-                        color: FoxColors.textPrimary,
-                        fontSize: emphasis ? 36 : 17,
-                        height: emphasis ? 1 : null,
-                      ),
-                    ),
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  value,
+                  maxLines: 1,
+                  style: _valueStyle.copyWith(color: FoxColors.textPrimary),
+                ),
+              ),
             ),
           ),
           const SizedBox(height: 2),
           FittedBox(
             fit: BoxFit.scaleDown,
             alignment: Alignment.centerLeft,
-            child: Text.rich(
-              subSpan ?? TextSpan(text: sub),
+            child: Text(
+              sub ?? '',
               maxLines: 1,
               style: TextStyle(
                 fontSize: 10.5,
@@ -2188,4 +2171,89 @@ class _Stat extends StatelessWidget {
       ),
     );
   }
+}
+
+class _OffersStat extends StatelessWidget {
+  const _OffersStat({required this.stats});
+
+  final OfferStats stats;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    excludeSemantics: true,
+    label:
+        '${stats.total} offers: ${stats.good} good, ${stats.ok} okay, ${stats.bad} bad',
+    child: Container(
+      constraints: const BoxConstraints(minHeight: 112),
+      padding: const EdgeInsets.all(Gap.md),
+      decoration: BoxDecoration(
+        color: FoxColors.textSecondary.withValues(alpha: 0.075),
+        borderRadius: BorderRadius.circular(Radii.cardSm),
+        border: Border.all(
+          color: FoxColors.textSecondary.withValues(alpha: 0.22),
+        ),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  'OFFERS',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.8,
+                    color: FoxColors.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: Gap.xs),
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    '${stats.total}',
+                    key: const ValueKey('history-summary-total'),
+                    style: _Stat._valueStyle.copyWith(fontSize: 36, height: 1),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          VerticalDivider(color: FoxColors.border, width: Gap.md),
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                Text(
+                  '${stats.good}',
+                  key: const ValueKey('history-summary-good'),
+                  style: _countStyle(VerdictColors.good),
+                ),
+                Text(
+                  '${stats.ok}',
+                  key: const ValueKey('history-summary-ok'),
+                  style: _countStyle(VerdictColors.ok),
+                ),
+                Text(
+                  '${stats.bad}',
+                  key: const ValueKey('history-summary-bad'),
+                  style: _countStyle(VerdictColors.bad),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+
+  TextStyle _countStyle(Color color) => TextStyle(
+    fontFamily: FoxFonts.display,
+    fontSize: 15,
+    fontWeight: FontWeight.w800,
+    color: color,
+    fontFeatures: const [FontFeature.tabularFigures()],
+  );
 }

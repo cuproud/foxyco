@@ -59,38 +59,56 @@ class DriverNameCardState extends ConsumerState<DriverNameCard> {
     // (TextField + Save while dirty). Empty saved name starts in edit mode
     // so first-run still has an obvious field.
     if (!_editing && saved.isNotEmpty) {
-      return Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Name',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: FoxColors.textSecondary,
+      return Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: Gap.md,
+          vertical: Gap.sm + Gap.xs,
+        ),
+        decoration: BoxDecoration(
+          color: FoxColors.brandFox.withValues(alpha: 0.06),
+          borderRadius: BorderRadius.circular(Radii.cardSm),
+          border: Border.all(color: FoxColors.brandFox.withValues(alpha: 0.22)),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'DRIVER',
+                    style: TextStyle(
+                      fontSize: 10,
+                      letterSpacing: 0.8,
+                      fontWeight: FontWeight.w700,
+                      color: FoxColors.brandFoxDeep,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 2),
-                Text(saved, style: Theme.of(context).textTheme.titleMedium),
-              ],
+                  const SizedBox(height: Gap.xs),
+                  Text(
+                    saved,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w800,
+                      color: FoxColors.textPrimary,
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-          IconButton(
-            key: const ValueKey('edit-name'),
-            onPressed: () => setState(() {
-              _name.text = saved; // discard any stale draft
-              _editing = true;
-            }),
-            icon: Icon(
-              Icons.edit_outlined,
-              color: FoxColors.textSecondary,
-              size: 18,
+            IconButton(
+              key: const ValueKey('edit-name'),
+              tooltip: 'Edit driver name',
+              onPressed: () => setState(() {
+                _name.text = saved; // discard any stale draft
+                _editing = true;
+              }),
+              icon: const Icon(Icons.edit_outlined),
+              color: FoxColors.brandFox,
             ),
-          ),
-        ],
+          ],
+        ),
       );
     }
 

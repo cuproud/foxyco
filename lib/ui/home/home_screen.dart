@@ -1160,7 +1160,7 @@ class _SessionCard extends ConsumerWidget {
                           style: TextStyle(
                             fontSize: 11.5,
                             fontWeight: FontWeight.w600,
-                            color: FoxColors.textDisabled,
+                            color: FoxColors.textSecondary,
                             fontFeatures: [FontFeature.tabularFigures()],
                           ),
                         ),
@@ -1191,17 +1191,6 @@ class _SessionCard extends ConsumerWidget {
                           fontFeatures: const [FontFeature.tabularFigures()],
                         ),
                       ),
-                      IconButton(
-                        tooltip: 'Edit session earnings',
-                        icon: const Icon(Icons.edit_outlined, size: 17),
-                        color: FoxColors.textSecondary,
-                        onPressed: () => _editSessionEarnings(
-                          context,
-                          ref,
-                          s,
-                          settings.currency.prefix,
-                        ),
-                      ),
                     ],
                   ),
                 ],
@@ -1220,7 +1209,17 @@ class _SessionCard extends ConsumerWidget {
                 const SizedBox(height: Gap.sm + Gap.xs),
                 _SessionQuality(session: s),
                 const SizedBox(height: Gap.sm),
-                SessionPerformance(session: s, settings: settings, text: text),
+                SessionPerformance(
+                  session: s,
+                  settings: settings,
+                  text: text,
+                  onEdit: () => _editSessionEarnings(
+                    context,
+                    ref,
+                    s,
+                    settings.currency.prefix,
+                  ),
+                ),
                 const SizedBox(height: Gap.sm),
                 Row(
                   children: [
@@ -1253,8 +1252,6 @@ class _SessionCard extends ConsumerWidget {
                     ),
                   ],
                 ),
-                const SizedBox(height: Gap.sm),
-                _SessionInsight(session: s),
               ],
             ],
           ),
@@ -1319,7 +1316,6 @@ class _SessionVolume extends StatelessWidget {
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
       Expanded(
-        flex: 2,
         child: _volumeMetric(
           '${session.total}',
           session.total == 1 ? 'offer scored' : 'offers scored',
@@ -1334,7 +1330,7 @@ class _SessionVolume extends StatelessWidget {
           ),
         ),
       ),
-      const SizedBox(width: Gap.lg),
+      const SizedBox(width: Gap.md),
       Expanded(
         child: Container(
           padding: const EdgeInsets.symmetric(
@@ -1388,7 +1384,6 @@ class _SessionVolume extends StatelessWidget {
       Text(
         label,
         maxLines: 1,
-        overflow: TextOverflow.ellipsis,
         style: TextStyle(
           fontSize: 12.5,
           fontWeight: FontWeight.w600,
@@ -1417,13 +1412,26 @@ class _SessionQuality extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Offer quality',
-            style: TextStyle(
-              fontSize: 11.5,
-              fontWeight: FontWeight.w700,
-              color: FoxColors.textSecondary,
-            ),
+          Row(
+            children: [
+              Text(
+                'Offer quality',
+                style: TextStyle(
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w700,
+                  color: FoxColors.textPrimary,
+                ),
+              ),
+              const Spacer(),
+              Text(
+                'View details  ›',
+                style: TextStyle(
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w700,
+                  color: FoxColors.brandFox,
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: Gap.sm),
           ClipRRect(
@@ -1489,88 +1497,38 @@ class _SessionStat extends StatelessWidget {
         borderRadius: BorderRadius.circular(Radii.cardSm),
         border: Border.all(color: color.withValues(alpha: 0.24)),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(icon, size: 24, color: color),
-          const SizedBox(width: Gap.sm),
-          Expanded(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                FittedBox(
-                  fit: BoxFit.scaleDown,
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    value,
-                    style: TextStyle(
-                      fontFamily: FoxFonts.display,
-                      fontSize: 17,
-                      fontWeight: FontWeight.w700,
-                      color: FoxColors.textPrimary,
-                      fontFeatures: const [FontFeature.tabularFigures()],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 10.5,
-                    fontWeight: FontWeight.w600,
-                    color: FoxColors.textSecondary,
-                  ),
-                ),
-              ],
+          const SizedBox(height: Gap.sm),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              value,
+              style: TextStyle(
+                fontFamily: FoxFonts.display,
+                fontSize: 17,
+                fontWeight: FontWeight.w700,
+                color: FoxColors.textPrimary,
+                fontFeatures: const [FontFeature.tabularFigures()],
+              ),
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            maxLines: 1,
+            style: TextStyle(
+              fontSize: 10.5,
+              fontWeight: FontWeight.w600,
+              color: FoxColors.textSecondary,
             ),
           ),
         ],
       ),
-    ),
-  );
-}
-
-class _SessionInsight extends StatelessWidget {
-  const _SessionInsight({required this.session});
-
-  final SessionSummary session;
-
-  @override
-  Widget build(BuildContext context) => Container(
-    width: double.infinity,
-    padding: const EdgeInsets.symmetric(horizontal: Gap.md, vertical: Gap.sm),
-    decoration: BoxDecoration(
-      color: FoxColors.bgSurface2.withValues(alpha: 0.28),
-      borderRadius: BorderRadius.circular(Radii.cardSm),
-      border: Border.all(color: FoxColors.borderSoft),
-    ),
-    child: Row(
-      children: [
-        const Icon(Icons.pets_outlined, size: 18, color: FoxColors.brandFox),
-        const SizedBox(width: Gap.sm),
-        Expanded(
-          child: Text.rich(
-            TextSpan(
-              children: [
-                TextSpan(
-                  text: '${session.good} of ${session.total} offers were ',
-                ),
-                TextSpan(
-                  text: 'GOOD',
-                  style: TextStyle(
-                    color: VerdictColors.good,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ],
-            ),
-            style: TextStyle(fontSize: 11.5, color: FoxColors.textPrimary),
-          ),
-        ),
-        Icon(Icons.chevron_right_rounded, color: FoxColors.textDisabled),
-      ],
     ),
   );
 }
@@ -1581,11 +1539,13 @@ class SessionPerformance extends StatelessWidget {
     required this.session,
     required this.settings,
     required this.text,
+    this.onEdit,
   });
 
   final SessionSummary session;
   final FoxSettings settings;
   final TextTheme text;
+  final VoidCallback? onEdit;
 
   @override
   Widget build(BuildContext context) {
@@ -1597,7 +1557,7 @@ class SessionPerformance extends StatelessWidget {
         : '—';
     final metrics = [
       _SessionMetric(
-        title: 'Estimated earnings',
+        title: session.hasActualEarnings ? 'Actual earnings' : 'Est. earnings',
         value: earnings,
         support: session.earnings > 0
             ? (session.hasActualEarnings ? 'Actual total' : 'Estimated')
@@ -1605,9 +1565,9 @@ class SessionPerformance extends StatelessWidget {
         text: text,
       ),
       _SessionMetric(
-        title: '\$/hr',
+        title: 'Session rate',
         value: hourly,
-        support: 'Session rate',
+        support: 'Per active hour',
         text: text,
       ),
     ];
@@ -1648,6 +1608,15 @@ class SessionPerformance extends StatelessWidget {
                   color: FoxColors.textSecondary,
                 ),
               ),
+              const Spacer(),
+              if (onEdit != null)
+                IconButton(
+                  tooltip: 'Edit session earnings',
+                  visualDensity: VisualDensity.compact,
+                  icon: const Icon(Icons.edit_outlined, size: 18),
+                  color: FoxColors.textSecondary,
+                  onPressed: onEdit,
+                ),
             ],
           ),
           const SizedBox(height: Gap.sm),
@@ -1686,14 +1655,17 @@ class _SessionMetric extends StatelessWidget {
         ),
       ),
       const SizedBox(height: 2),
-      Text(
-        value,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: text.titleLarge?.copyWith(
-          color: FoxColors.cream,
-          fontWeight: FontWeight.w800,
-          fontFeatures: const [FontFeature.tabularFigures()],
+      FittedBox(
+        fit: BoxFit.scaleDown,
+        alignment: Alignment.centerLeft,
+        child: Text(
+          value,
+          maxLines: 1,
+          style: text.titleLarge?.copyWith(
+            color: FoxColors.cream,
+            fontWeight: FontWeight.w800,
+            fontFeatures: const [FontFeature.tabularFigures()],
+          ),
         ),
       ),
       Text(
@@ -1715,23 +1687,33 @@ class _EmptySession extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(Gap.lg),
       decoration: BoxDecoration(
-        color: FoxColors.bgSurface,
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [FoxColors.inkSoft, FoxColors.ink],
+        ),
         borderRadius: BorderRadius.circular(Radii.card),
         border: Border.all(color: FoxColors.borderSoft),
         boxShadow: Shadows.card,
       ),
-      child: Column(
+      child: Row(
         children: [
-          // Foxy asleep on the grass: a landscape crop, so width only — forcing
-          // it square would squash the fox.
-          Image.asset('assets/branding/foxy_sleeping.png', width: 132),
-          const SizedBox(height: Gap.sm),
-          Text('No sessions yet', style: text.titleMedium),
-          const SizedBox(height: Gap.xs),
-          Text(
-            'Go live to record offers. A session summary appears when you stop.',
-            textAlign: TextAlign.center,
-            style: text.bodyMedium?.copyWith(color: FoxColors.textSecondary),
+          Image.asset('assets/branding/foxy_sleeping.png', width: 104),
+          const SizedBox(width: Gap.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('No sessions yet', style: text.titleMedium),
+                const SizedBox(height: Gap.xs),
+                Text(
+                  'Go live, then your session summary will appear here.',
+                  style: text.bodyMedium?.copyWith(
+                    color: FoxColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),

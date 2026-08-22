@@ -371,14 +371,7 @@ class _RulesScreenState extends ConsumerState<RulesScreen> {
               settings.thresholds.badBelow,
             ),
           );
-    final previewUnit = scoringPerHour
-        ? '/hr'
-        : '/${settings.distanceUnit.shortLabel}';
-    final activeRate = scoringPerHour
-        ? sampleOffer.pricePerHour
-        : settings.distanceUnit.rateFromPerKm(sampleOffer.pricePerKm);
     final verdictLabel = sampleVerdict.name.toUpperCase();
-    final activeRateText = activeRate.toStringAsFixed(2);
     final badRateText = previewThresholds.badBelow.toStringAsFixed(2);
     final goodRateText = previewThresholds.goodAtOrAbove.toStringAsFixed(2);
     final verdictStyle = VerdictStyle.of(sampleVerdict);
@@ -453,8 +446,8 @@ class _RulesScreenState extends ConsumerState<RulesScreen> {
             title: 'Offer scoring',
             icon: Icons.tune_rounded,
             summary:
-                'BAD < $money${thresholds.badBelow.toStringAsFixed(2)} · '
-                'GOOD ≥ $money${thresholds.goodAtOrAbove.toStringAsFixed(2)}$unit',
+                'OK: $money${thresholds.badBelow.toStringAsFixed(2)}–'
+                '$money${thresholds.goodAtOrAbove.toStringAsFixed(2)}$unit',
             open: _open == 0,
             accent: _accents[0],
             summaryColor: VerdictColors.ok,
@@ -749,14 +742,6 @@ class _RulesScreenState extends ConsumerState<RulesScreen> {
                   style: text.headlineSmall?.copyWith(
                     color: verdictStyle.color,
                     fontWeight: FontWeight.w800,
-                  ),
-                ),
-                Text(
-                  '$money$activeRateText$previewUnit',
-                  textAlign: TextAlign.center,
-                  style: text.titleLarge?.copyWith(
-                    color: verdictStyle.color,
-                    fontWeight: FontWeight.w700,
                   ),
                 ),
                 const SizedBox(height: Gap.xs),

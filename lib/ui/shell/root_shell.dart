@@ -327,7 +327,7 @@ class _NavItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // Active = the ink on the orange indicator above; the two are a pair.
-    final color = active ? _onBrand : FoxColors.textDisabled;
+    final color = active ? _onBrand : FoxColors.textSecondary;
     return Semantics(
       button: true,
       selected: active,

@@ -44,6 +44,11 @@ class UnlockSection extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        if (lifetime)
+          Text(
+            'Use Restore purchase after reinstalling FoxyCo or changing devices.',
+            style: text.bodyMedium?.copyWith(color: FoxColors.textPrimary),
+          ),
         if (!lifetime) ...[
           Text(summaryOf(access, trial), style: text.titleMedium),
           const SizedBox(height: Gap.xs),
@@ -81,13 +86,13 @@ class UnlockSection extends ConsumerWidget {
             ],
           ),
         ],
-        const SizedBox(height: Gap.md),
+        SizedBox(height: lifetime ? Gap.sm : Gap.md),
         if (!access.entitled || access.onTrial)
           Align(
             alignment: Alignment.centerLeft,
             child: TextButton.icon(
               onPressed: () => showPaywall(context),
-              style: TextButton.styleFrom(foregroundColor: FoxColors.brandFox),
+              style: TextButton.styleFrom(foregroundColor: FoxColors.brandText),
               icon: const Icon(Icons.lock_open_rounded, size: 16),
               label: Text(
                 trial.phase == TrialPhase.preTrial
@@ -97,19 +102,14 @@ class UnlockSection extends ConsumerWidget {
               ),
             ),
           ),
-        Row(
-          children: [
-            TextButton(
-              onPressed: () => _restore(context, ref),
-              style: TextButton.styleFrom(
-                foregroundColor: FoxColors.textSecondary,
-              ),
-              child: const Text(
-                'Restore purchase',
-                style: TextStyle(fontWeight: FontWeight.w700),
-              ),
-            ),
-          ],
+        OutlinedButton.icon(
+          onPressed: () => _restore(context, ref),
+          style: OutlinedButton.styleFrom(foregroundColor: FoxColors.brandText),
+          icon: const Icon(Icons.restore_rounded, size: 18),
+          label: const Text(
+            'Restore purchase',
+            style: TextStyle(fontWeight: FontWeight.w700),
+          ),
         ),
         if (trial.hasAccount) ...[
           Divider(color: FoxColors.border, height: Gap.xl),

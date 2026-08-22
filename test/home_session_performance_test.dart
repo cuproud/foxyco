@@ -40,9 +40,9 @@ void main() {
 
     await tester.pumpWidget(_app(_session()));
 
-    expect(find.text('Estimated earnings'), findsOneWidget);
+    expect(find.text('Est. earnings'), findsOneWidget);
     expect(find.text('Accepted offers only'), findsOneWidget);
-    expect(find.text(r'$/hr'), findsOneWidget);
+    expect(find.text('Session rate'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
