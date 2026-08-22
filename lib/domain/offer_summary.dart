@@ -19,6 +19,7 @@ class OfferSummary {
   final GigPlatform platform;
   final Verdict verdict;
   final double payout; // dollars
+  final double? finalPayout; // manually entered realized earnings
   final double bonus; // included in payout; 0 when absent/unknown
   final double pickupKm; // dead mileage to the rider; 0 when unknown
   final double totalKm; // pickup + dropoff
@@ -41,6 +42,7 @@ class OfferSummary {
     required this.platform,
     required this.verdict,
     required this.payout,
+    this.finalPayout,
     this.bonus = 0,
     required this.totalKm,
     required this.seenAt,
@@ -78,11 +80,17 @@ class OfferSummary {
   /// Dollars per hour; 0 when no time was parsed (UI hides it, no ∞).
   double get pricePerHour => totalMinutes > 0 ? payout / totalMinutes * 60 : 0;
 
+  double get effectivePayout => finalPayout ?? payout;
+  double get effectivePricePerKm => totalKm > 0 ? effectivePayout / totalKm : 0;
+  double get effectivePricePerHour =>
+      totalMinutes > 0 ? effectivePayout / totalMinutes * 60 : 0;
+
   OfferSummary withOutcome(OfferOutcome o, {bool manual = false}) =>
       OfferSummary(
         platform: platform,
         verdict: verdict,
         payout: payout,
+        finalPayout: finalPayout,
         bonus: bonus,
         pickupKm: pickupKm,
         totalKm: totalKm,
@@ -99,10 +107,32 @@ class OfferSummary {
         unitCount: unitCount,
       );
 
+  OfferSummary withFinalPayout(double? value) => OfferSummary(
+    platform: platform,
+    verdict: verdict,
+    payout: payout,
+    finalPayout: value,
+    bonus: bonus,
+    pickupKm: pickupKm,
+    totalKm: totalKm,
+    totalMinutes: totalMinutes,
+    seenAt: seenAt,
+    outcome: outcome,
+    outcomeIsManual: outcomeIsManual,
+    detectedOutcome: detectedOutcome,
+    scoringSnapshot: scoringSnapshot,
+    category: category,
+    isQueued: isQueued,
+    deliveryCount: deliveryCount,
+    itemCount: itemCount,
+    unitCount: unitCount,
+  );
+
   Map<String, dynamic> toJson() => {
     'platform': platform.name,
     'verdict': verdict.name,
     'payout': payout,
+    if (finalPayout != null) 'finalPayout': finalPayout,
     'bonus': bonus,
     'pickupKm': pickupKm,
     'totalKm': totalKm,
@@ -127,6 +157,7 @@ class OfferSummary {
         Verdict.values.where((v) => v.name == j['verdict']).firstOrNull ??
         Verdict.unknown,
     payout: (j['payout'] as num?)?.toDouble() ?? 0,
+    finalPayout: (j['finalPayout'] as num?)?.toDouble(),
     bonus: (j['bonus'] as num?)?.toDouble() ?? 0,
     pickupKm: (j['pickupKm'] as num?)?.toDouble() ?? 0,
     totalKm: (j['totalKm'] as num?)?.toDouble() ?? 0,

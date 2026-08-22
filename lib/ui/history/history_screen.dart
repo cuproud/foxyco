@@ -135,7 +135,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     // verdict == GOOD, which read as "filter broken": raise the fare and a
     // $22 OK offer silently vanished (device 2026-07-19). Verdict now has its
     // own chips above.
-    if (_topOnly && o.payout < _minFare) return false;
+    if (_topOnly && o.effectivePayout < _minFare) return false;
     return true;
   }
 
@@ -146,7 +146,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     final filtered = all.where(_passes).toList()
       ..sort(
         (a, b) => _topOnly
-            ? b.pricePerKm.compareTo(a.pricePerKm)
+            ? b.effectivePricePerKm.compareTo(a.effectivePricePerKm)
             : b.seenAt.compareTo(a.seenAt),
       );
     final stats = OfferStats.from(filtered);
@@ -282,6 +282,10 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
+      backgroundColor: FoxColors.bgBase,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(Radii.hero)),
+      ),
       builder: (sheetContext) => StatefulBuilder(
         builder: (context, refreshSheet) {
           void update(VoidCallback change) {
@@ -289,36 +293,93 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
             refreshSheet(() {});
           }
 
-          return SingleChildScrollView(
-            padding: EdgeInsets.fromLTRB(
-              Gap.md,
-              Gap.md,
-              Gap.md,
-              Gap.md + MediaQuery.viewInsetsOf(context).bottom,
-            ),
-            child: _FiltersCard(
-              expanded: true,
-              range: _range,
-              apps: _apps,
-              verdicts: _verdicts,
-              availableApps: availableApps,
-              outcome: _outcome,
-              topOnly: _topOnly,
-              minFare: _minFare,
-              matchCount: ref.read(offerLogProvider).where(_passes).length,
-              onRange: (range) => update(() {
-                _range = range;
-                if (range == HistoryRange.all) _resetFilters();
-              }),
-              onApp: (app) => update(() => _toggleIn(_apps, app)),
-              onVerdict: (verdict) =>
-                  update(() => _toggleIn(_verdicts, verdict)),
-              onOutcome: (outcome) => update(() => _outcome = outcome),
-              onTopToggle: () => update(() => _topOnly = !_topOnly),
-              onFare: (delta) =>
-                  update(() => _minFare = (_minFare + delta).clamp(0, 100)),
-              onReset: () => update(_resetFilters),
-              onToggle: () => Navigator.pop(sheetContext),
+          return FractionallySizedBox(
+            heightFactor: 0.92,
+            child: Column(
+              children: [
+                const SizedBox(height: Gap.sm),
+                Container(
+                  width: 44,
+                  height: 5,
+                  decoration: BoxDecoration(
+                    color: FoxColors.border,
+                    borderRadius: BorderRadius.circular(Radii.pill),
+                  ),
+                ),
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: EdgeInsets.fromLTRB(
+                      Gap.md,
+                      Gap.sm,
+                      Gap.md,
+                      Gap.md + MediaQuery.viewInsetsOf(context).bottom,
+                    ),
+                    child: _FiltersCard(
+                      expanded: true,
+                      range: _range,
+                      apps: _apps,
+                      verdicts: _verdicts,
+                      availableApps: availableApps,
+                      outcome: _outcome,
+                      topOnly: _topOnly,
+                      minFare: _minFare,
+                      matchCount: ref
+                          .read(offerLogProvider)
+                          .where(_passes)
+                          .length,
+                      onRange: (range) => update(() {
+                        _range = range;
+                        if (range == HistoryRange.all) _resetFilters();
+                      }),
+                      onApp: (app) => update(() => _toggleIn(_apps, app)),
+                      onVerdict: (verdict) =>
+                          update(() => _toggleIn(_verdicts, verdict)),
+                      onOutcome: (outcome) => update(() => _outcome = outcome),
+                      onTopToggle: () => update(() => _topOnly = !_topOnly),
+                      onFare: (delta) => update(
+                        () => _minFare = (_minFare + delta).clamp(0, 100),
+                      ),
+                      onReset: () => update(_resetFilters),
+                      onToggle: () => Navigator.pop(sheetContext),
+                    ),
+                  ),
+                ),
+                Container(
+                  padding: EdgeInsets.fromLTRB(
+                    Gap.md,
+                    Gap.sm,
+                    Gap.md,
+                    Gap.sm + MediaQuery.paddingOf(context).bottom,
+                  ),
+                  decoration: BoxDecoration(
+                    color: FoxColors.bgSurface,
+                    border: Border(
+                      top: BorderSide(color: FoxColors.borderSoft),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () => update(_resetFilters),
+                          child: const Text('Clear'),
+                        ),
+                      ),
+                      const SizedBox(width: Gap.sm),
+                      Expanded(
+                        flex: 2,
+                        child: FilledButton(
+                          key: const ValueKey('history-filter-done'),
+                          onPressed: () => Navigator.pop(sheetContext),
+                          child: Text(
+                            'Show ${ref.read(offerLogProvider).where(_passes).length} offers',
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
           );
         },
@@ -499,12 +560,12 @@ class _FiltersCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(Gap.md),
+      padding: EdgeInsets.all(expanded ? Gap.sm : Gap.md),
       decoration: BoxDecoration(
-        color: FoxColors.bgSurface,
+        color: expanded ? Colors.transparent : FoxColors.bgSurface,
         borderRadius: BorderRadius.circular(Radii.card),
-        border: Border.all(color: FoxColors.borderSoft),
-        boxShadow: Shadows.soft,
+        border: expanded ? null : Border.all(color: FoxColors.borderSoft),
+        boxShadow: expanded ? null : Shadows.soft,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -520,7 +581,9 @@ class _FiltersCard extends StatelessWidget {
                 child: Row(
                   children: [
                     Container(
-                      padding: const EdgeInsets.all(Gap.sm),
+                      padding: EdgeInsets.all(
+                        expanded ? Gap.sm + Gap.xs : Gap.sm,
+                      ),
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         gradient: RadialGradient(
@@ -549,14 +612,14 @@ class _FiltersCard extends StatelessWidget {
                                 ? 'Filters'
                                 : 'Filters · $_activeCount active',
                             style: TextStyle(
-                              fontSize: 15,
+                              fontSize: expanded ? 20 : 15,
                               fontWeight: FontWeight.w700,
                               color: FoxColors.textPrimary,
                             ),
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            _summary,
+                            expanded ? 'Refine your history results' : _summary,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
@@ -568,12 +631,22 @@ class _FiltersCard extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: Gap.sm),
-                    AnimatedRotation(
-                      turns: expanded ? 0.5 : 0,
-                      duration: Motion.base,
-                      child: Icon(
-                        Icons.keyboard_arrow_down_rounded,
-                        color: FoxColors.textSecondary,
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: FoxColors.bgSurface,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: FoxColors.borderSoft),
+                        boxShadow: expanded ? Shadows.soft : null,
+                      ),
+                      child: AnimatedRotation(
+                        turns: expanded ? 0.5 : 0,
+                        duration: Motion.base,
+                        child: Icon(
+                          Icons.keyboard_arrow_down_rounded,
+                          color: FoxColors.textSecondary,
+                        ),
                       ),
                     ),
                   ],
@@ -585,39 +658,44 @@ class _FiltersCard extends StatelessWidget {
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const SizedBox(height: Gap.sm),
-                _RangeControl(value: range, onChanged: onRange),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: TextButton(
-                    onPressed: _activeCount == 0 ? null : onReset,
-                    child: const Text('Reset filters'),
-                  ),
+                const SizedBox(height: Gap.lg),
+                Row(
+                  children: [
+                    const Expanded(child: _FilterHeading('1. Date range')),
+                    TextButton(
+                      onPressed: _activeCount == 0 ? null : onReset,
+                      child: const Text('Reset filters'),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: Gap.sm + Gap.xs),
+                const SizedBox(height: Gap.xs),
+                _RangeControl(value: range, onChanged: onRange),
+                const SizedBox(height: Gap.lg),
                 _FilterGroup(
-                  label: 'APP',
+                  label: '2. Platforms',
                   child: _AppChips(
                     selected: apps,
                     availableApps: availableApps,
                     onToggle: onApp,
                   ),
                 ),
-                const SizedBox(height: Gap.sm + Gap.xs),
+                const SizedBox(height: Gap.lg),
                 _FilterGroup(
-                  label: 'VERDICT & OUTCOME',
+                  label: '3. Verdict',
                   child: _VerdictChips(
                     selected: verdicts,
                     onToggle: onVerdict,
-                    trailing: _OutcomeChip(
-                      value: outcome,
-                      onChanged: onOutcome,
-                    ),
+                    trailing: const SizedBox.shrink(),
                   ),
                 ),
-                const SizedBox(height: Gap.sm + Gap.xs),
+                const SizedBox(height: Gap.lg),
                 _FilterGroup(
-                  label: 'DISPLAY',
+                  label: '4. Outcome',
+                  child: _OutcomeChips(selected: outcome, onChanged: onOutcome),
+                ),
+                const SizedBox(height: Gap.lg),
+                _FilterGroup(
+                  label: '5. Minimum fare',
                   child: _TopFilter(
                     on: topOnly,
                     minFare: minFare,
@@ -626,15 +704,7 @@ class _FiltersCard extends StatelessWidget {
                     onFare: onFare,
                   ),
                 ),
-                const SizedBox(height: Gap.lg),
-                SizedBox(
-                  width: double.infinity,
-                  child: FilledButton(
-                    key: const ValueKey('history-filter-done'),
-                    onPressed: onToggle,
-                    child: const Text('Done'),
-                  ),
-                ),
+                const SizedBox(height: Gap.md),
               ],
             ),
         ],
@@ -654,80 +724,72 @@ class _FilterGroup extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 9.5,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 0.8,
-            color: FoxColors.textDisabled,
-          ),
-        ),
-        const SizedBox(height: Gap.xs),
+        _FilterHeading(label),
+        const SizedBox(height: Gap.sm),
         child,
       ],
     );
   }
 }
 
-/// Only confirmed accepted trips are included; an unconfirmed outcome must
-/// never be presented as accepted.
-class _OutcomeChip extends StatelessWidget {
-  const _OutcomeChip({required this.value, required this.onChanged});
+class _FilterHeading extends StatelessWidget {
+  const _FilterHeading(this.label);
 
-  final HistoryOutcomeFilter value;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) => Text(
+    label,
+    style: TextStyle(
+      fontSize: 14,
+      fontWeight: FontWeight.w800,
+      color: FoxColors.textPrimary,
+    ),
+  );
+}
+
+class _OutcomeChips extends StatelessWidget {
+  const _OutcomeChips({required this.selected, required this.onChanged});
+
+  final HistoryOutcomeFilter selected;
   final ValueChanged<HistoryOutcomeFilter> onChanged;
 
   @override
-  Widget build(BuildContext context) {
-    final active = value != HistoryOutcomeFilter.all;
-    const activeColor = FoxColors.brandFox;
+  Widget build(BuildContext context) => Wrap(
+    spacing: Gap.sm,
+    runSpacing: Gap.sm,
+    children: [
+      for (final value in HistoryOutcomeFilter.values.skip(1)) _chip(value),
+    ],
+  );
+
+  Widget _chip(HistoryOutcomeFilter value) {
+    final active = selected == value;
+    final style = switch (value) {
+      HistoryOutcomeFilter.accepted ||
+      HistoryOutcomeFilter.completed => VerdictColors.good,
+      HistoryOutcomeFilter.cancelled => VerdictColors.bad,
+      _ => VerdictColors.unknown,
+    };
     return Semantics(
       selected: active,
       button: true,
-      label: 'Outcome filter',
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: () {
           HapticFeedback.selectionClick();
-          onChanged(
-            active ? HistoryOutcomeFilter.all : HistoryOutcomeFilter.accepted,
-          );
-        },
-        onLongPress: () async {
-          HapticFeedback.selectionClick();
-          final box = context.findRenderObject() as RenderBox?;
-          if (box == null) return;
-          final topLeft = box.localToGlobal(Offset.zero);
-          final chosen = await showMenu<HistoryOutcomeFilter>(
-            context: context,
-            position: RelativeRect.fromLTRB(
-              topLeft.dx,
-              topLeft.dy + box.size.height,
-              topLeft.dx + box.size.width,
-              0,
-            ),
-            items: [
-              for (final option in HistoryOutcomeFilter.values)
-                PopupMenuItem(
-                  value: option,
-                  child: Text(_outcomeLabel(option)),
-                ),
-            ],
-          );
-          if (chosen != null) onChanged(chosen);
+          onChanged(active ? HistoryOutcomeFilter.all : value);
         },
         child: AnimatedContainer(
           duration: Motion.base,
-          curve: Motion.curve,
           constraints: const BoxConstraints(minHeight: 48),
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
           decoration: BoxDecoration(
-            color: active ? FoxColors.brandFoxSoft : FoxColors.bgSurface,
+            color: active ? style.withValues(alpha: 0.10) : FoxColors.bgSurface,
             borderRadius: BorderRadius.circular(Radii.pill),
             border: Border.all(
               color: active
-                  ? FoxColors.brandFox.withValues(alpha: 0.6)
+                  ? style.withValues(alpha: 0.65)
                   : FoxColors.borderSoft,
             ),
             boxShadow: active ? null : Shadows.soft,
@@ -736,19 +798,23 @@ class _OutcomeChip extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(
-                Icons.check_circle_outline_rounded,
-                size: 13,
-                color: active ? activeColor : FoxColors.textSecondary,
+                value == HistoryOutcomeFilter.cancelled
+                    ? Icons.cancel_outlined
+                    : value == HistoryOutcomeFilter.unknown
+                    ? Icons.help_outline_rounded
+                    : value == HistoryOutcomeFilter.declined
+                    ? Icons.remove_circle_outline_rounded
+                    : Icons.check_circle_outline_rounded,
+                size: 15,
+                color: active ? style : FoxColors.textSecondary,
               ),
               const SizedBox(width: 6),
               Text(
-                value == HistoryOutcomeFilter.all
-                    ? 'Accepted'
-                    : _outcomeLabel(value),
+                _outcomeLabel(value),
                 style: TextStyle(
                   fontSize: 12.5,
                   fontWeight: FontWeight.w700,
-                  color: active ? activeColor : FoxColors.textSecondary,
+                  color: active ? style : FoxColors.textSecondary,
                 ),
               ),
             ],
@@ -1587,7 +1653,7 @@ class _OfferRow extends ConsumerWidget {
                         ),
                         TextSpan(
                           text:
-                              '${settings.currency.prefix}${settings.distanceUnit.rateFromPerKm(offer.pricePerKm).toStringAsFixed(2)}/${settings.distanceUnit.shortLabel}',
+                              '${settings.currency.prefix}${settings.distanceUnit.rateFromPerKm(offer.effectivePricePerKm).toStringAsFixed(2)}/${settings.distanceUnit.shortLabel}',
                           style: TextStyle(
                             color: FoxColors.textPrimary,
                             fontWeight: FontWeight.w700,
@@ -1607,16 +1673,21 @@ class _OfferRow extends ConsumerWidget {
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                Text(
-                  offer.payout == offer.payout.roundToDouble()
-                      ? '${settings.currency.prefix}${offer.payout.toStringAsFixed(0)}'
-                      : '${settings.currency.prefix}${offer.payout.toStringAsFixed(2)}',
-                  style: TextStyle(
-                    fontFamily: FoxFonts.display,
-                    fontSize: 19,
-                    fontWeight: FontWeight.w700,
-                    color: FoxColors.textPrimary,
-                    fontFeatures: [FontFeature.tabularFigures()],
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    offer.finalPayout == null
+                        ? offer.payout == offer.payout.roundToDouble()
+                              ? '${settings.currency.prefix}${offer.payout.toStringAsFixed(0)}'
+                              : '${settings.currency.prefix}${offer.payout.toStringAsFixed(2)}'
+                        : '${settings.currency.prefix}${offer.payout.toStringAsFixed(2)} → ${settings.currency.prefix}${offer.finalPayout!.toStringAsFixed(2)}',
+                    style: TextStyle(
+                      fontFamily: FoxFonts.display,
+                      fontSize: 19,
+                      fontWeight: FontWeight.w700,
+                      color: FoxColors.textPrimary,
+                      fontFeatures: [FontFeature.tabularFigures()],
+                    ),
                   ),
                 ),
                 const SizedBox(height: 2),
@@ -1875,6 +1946,13 @@ class _StatsCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final s = stats;
     final settings = ref.watch(settingsProvider);
+    final best = s.best;
+    final bestColor = switch (best?.verdict) {
+      Verdict.good => VerdictColors.good,
+      Verdict.ok => VerdictColors.ok,
+      Verdict.bad => VerdictColors.bad,
+      _ => FoxColors.textSecondary,
+    };
     return Container(
       key: const ValueKey('history-summary'),
       padding: const EdgeInsets.all(Gap.md + Gap.xs),
@@ -1889,9 +1967,29 @@ class _StatsCard extends ConsumerWidget {
         children: [
           Row(
             children: [
-              Icon(Icons.insights_rounded, size: 16, color: FoxColors.brandFox),
+              Container(
+                padding: const EdgeInsets.all(Gap.sm),
+                decoration: BoxDecoration(
+                  color: FoxColors.brandFox.withValues(alpha: 0.08),
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: FoxColors.brandFox.withValues(alpha: 0.18),
+                  ),
+                ),
+                child: const Icon(
+                  Icons.insights_rounded,
+                  size: 16,
+                  color: FoxColors.brandFox,
+                ),
+              ),
               const SizedBox(width: Gap.sm),
-              Text('SUMMARY', style: Theme.of(context).textTheme.labelSmall),
+              Text(
+                'SUMMARY',
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: FoxColors.brandFox,
+                  letterSpacing: 1.2,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: Gap.md),
@@ -1903,6 +2001,7 @@ class _StatsCard extends ConsumerWidget {
                   label: 'OFFERS',
                   value: '${s.total}',
                   emphasis: true,
+                  color: FoxColors.textSecondary,
                   // Verdict-colored counts instead of the cryptic "2·7·2".
                   subSpan: TextSpan(
                     children: [
@@ -1932,28 +2031,27 @@ class _StatsCard extends ConsumerWidget {
                       ? '${settings.currency.prefix}${settings.distanceUnit.rateFromPerKm(s.goodAvgPerKm).toStringAsFixed(2)}'
                       : '—',
                   sub: 'per ${settings.distanceUnit.shortLabel}',
-                  valueColor: FoxColors.textPrimary,
+                  color: s.goodAvgPerKm > 0
+                      ? VerdictColors.good
+                      : FoxColors.textSecondary,
                 ),
               ),
             ],
           ),
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: Gap.md),
-            child: Divider(height: 1),
-          ),
+          const SizedBox(height: Gap.sm),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
                 child: _Stat(
                   label: 'BEST RATE',
-                  value: s.best != null && s.best!.pricePerKm > 0
-                      ? '${settings.currency.prefix}${settings.distanceUnit.rateFromPerKm(s.best!.pricePerKm).toStringAsFixed(2)}'
+                  value: best != null && best.effectivePricePerKm > 0
+                      ? '${settings.currency.prefix}${settings.distanceUnit.rateFromPerKm(best.effectivePricePerKm).toStringAsFixed(2)}'
                       : '—',
-                  sub: s.best != null
-                      ? '${s.best!.platform.label} · per ${settings.distanceUnit.shortLabel}'
+                  sub: best != null
+                      ? '${best.platform.label} · per ${settings.distanceUnit.shortLabel}'
                       : '',
-                  valueColor: FoxColors.textPrimary,
+                  color: bestColor,
                 ),
               ),
               const SizedBox(width: Gap.md),
@@ -1964,6 +2062,7 @@ class _StatsCard extends ConsumerWidget {
                       ? _hourLabel(s.busiestHour!)
                       : '—',
                   sub: '${s.accepted} of ${s.total} accepted',
+                  color: FoxColors.brandFox,
                 ),
               ),
             ],
@@ -1980,7 +2079,7 @@ class _Stat extends StatelessWidget {
     required this.value,
     this.sub,
     this.subSpan,
-    this.valueColor,
+    required this.color,
     this.emphasis = false,
   }) : assert(sub != null || subSpan != null);
 
@@ -1988,7 +2087,7 @@ class _Stat extends StatelessWidget {
   final String value;
   final String? sub;
   final TextSpan? subSpan;
-  final Color? valueColor;
+  final Color color;
   final bool emphasis;
 
   static bool _isInt(String s) => int.tryParse(s) != null;
@@ -2002,65 +2101,79 @@ class _Stat extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 10,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 0.8,
-            color: FoxColors.textDisabled,
-          ),
+    return Container(
+      constraints: const BoxConstraints(minHeight: 112),
+      padding: const EdgeInsets.all(Gap.md),
+      decoration: BoxDecoration(
+        color: color.withValues(
+          alpha: FoxColors.palette.brightness == Brightness.light
+              ? 0.075
+              : 0.12,
         ),
-        const SizedBox(height: Gap.xs),
-        SizedBox(
-          height: emphasis ? 40 : 28,
-          child: Align(
-            alignment: Alignment.centerLeft,
-            child: _isInt(value)
-                ? TweenAnimationBuilder<int>(
-                    tween: IntTween(begin: 0, end: int.parse(value)),
-                    duration: MediaQuery.of(context).disableAnimations
-                        ? Duration.zero
-                        : Motion.count,
-                    curve: Motion.curve,
-                    builder: (context, v, _) => Text(
-                      '$v',
+        borderRadius: BorderRadius.circular(Radii.cardSm),
+        border: Border.all(color: color.withValues(alpha: 0.22)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.8,
+              color: FoxColors.textDisabled,
+            ),
+          ),
+          const SizedBox(height: Gap.xs),
+          SizedBox(
+            height: emphasis ? 40 : 28,
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: _isInt(value)
+                  ? TweenAnimationBuilder<int>(
+                      tween: IntTween(begin: 0, end: int.parse(value)),
+                      duration: MediaQuery.of(context).disableAnimations
+                          ? Duration.zero
+                          : Motion.count,
+                      curve: Motion.curve,
+                      builder: (context, v, _) => Text(
+                        '$v',
+                        style: _valueStyle.copyWith(
+                          color: FoxColors.textPrimary,
+                          fontSize: emphasis ? 36 : 17,
+                          height: emphasis ? 1 : null,
+                        ),
+                      ),
+                    )
+                  : Text(
+                      value,
+                      maxLines: 1,
                       style: _valueStyle.copyWith(
-                        color: valueColor,
+                        color: FoxColors.textPrimary,
                         fontSize: emphasis ? 36 : 17,
                         height: emphasis ? 1 : null,
                       ),
                     ),
-                  )
-                : Text(
-                    value,
-                    maxLines: 1,
-                    style: _valueStyle.copyWith(
-                      color: valueColor,
-                      fontSize: emphasis ? 36 : 17,
-                      height: emphasis ? 1 : null,
-                    ),
-                  ),
-          ),
-        ),
-        const SizedBox(height: 2),
-        FittedBox(
-          fit: BoxFit.scaleDown,
-          alignment: Alignment.centerLeft,
-          child: Text.rich(
-            subSpan ?? TextSpan(text: sub),
-            maxLines: 1,
-            style: TextStyle(
-              fontSize: 10.5,
-              color: FoxColors.textSecondary,
-              fontFeatures: [FontFeature.tabularFigures()],
             ),
           ),
-        ),
-      ],
+          const SizedBox(height: 2),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text.rich(
+              subSpan ?? TextSpan(text: sub),
+              maxLines: 1,
+              style: TextStyle(
+                fontSize: 10.5,
+                color: FoxColors.textSecondary,
+                fontFeatures: [FontFeature.tabularFigures()],
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

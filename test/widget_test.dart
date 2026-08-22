@@ -197,9 +197,9 @@ void main() {
 
     expect(find.textContaining('offers scored'), findsAtLeastNWidgets(1));
     expect(find.text('accepted'), findsAtLeastNWidgets(1));
-    expect(find.text(r'BEST $/KM'), findsOneWidget);
-    expect(find.text('GOOD AVG'), findsOneWidget);
-    expect(find.text('BUSIEST'), findsOneWidget);
+    expect(find.text(r'Best $/km'), findsOneWidget);
+    expect(find.text('Good avg'), findsOneWidget);
+    expect(find.text('Busiest'), findsOneWidget);
     expect(find.textContaining('completed ·'), findsNothing);
     expect(find.textContaining('not taken'), findsNothing);
   });

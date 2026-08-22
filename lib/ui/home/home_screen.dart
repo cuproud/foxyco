@@ -1218,38 +1218,43 @@ class _SessionCard extends ConsumerWidget {
                 ),
               ] else ...[
                 const SizedBox(height: Gap.sm + Gap.xs),
-                VerdictSplitPills(good: s.good, ok: s.ok, bad: s.bad),
+                _SessionQuality(session: s),
                 const SizedBox(height: Gap.sm),
                 SessionPerformance(session: s, settings: settings, text: text),
                 const SizedBox(height: Gap.sm),
-                IntrinsicHeight(
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      StatTile(
-                        value: s.bestPerKm > 0
-                            ? '${settings.currency.prefix}${settings.distanceUnit.rateFromPerKm(s.bestPerKm).toStringAsFixed(2)}'
-                            : '—',
-                        label:
-                            'BEST \$/${settings.distanceUnit.shortLabel.toUpperCase()}',
-                      ),
-                      const SizedBox(width: Gap.sm),
-                      StatTile(
-                        value: s.goodAvgPerKm > 0
-                            ? '${settings.currency.prefix}${settings.distanceUnit.rateFromPerKm(s.goodAvgPerKm).toStringAsFixed(2)}'
-                            : '—',
-                        label: 'GOOD AVG',
-                      ),
-                      const SizedBox(width: Gap.sm),
-                      StatTile(
-                        value: s.busiestHour != null
-                            ? hourLabel(s.busiestHour!)
-                            : '—',
-                        label: 'BUSIEST',
-                      ),
-                    ],
-                  ),
+                Row(
+                  children: [
+                    _SessionStat(
+                      icon: Icons.route_rounded,
+                      color: VerdictColors.good,
+                      value: s.bestPerKm > 0
+                          ? '${settings.currency.prefix}${settings.distanceUnit.rateFromPerKm(s.bestPerKm).toStringAsFixed(2)}'
+                          : '—',
+                      label:
+                          'Best \$/${settings.distanceUnit.shortLabel.toLowerCase()}',
+                    ),
+                    const SizedBox(width: Gap.sm),
+                    _SessionStat(
+                      icon: Icons.trending_up_rounded,
+                      color: VerdictColors.ok,
+                      value: s.goodAvgPerKm > 0
+                          ? '${settings.currency.prefix}${settings.distanceUnit.rateFromPerKm(s.goodAvgPerKm).toStringAsFixed(2)}'
+                          : '—',
+                      label: 'Good avg',
+                    ),
+                    const SizedBox(width: Gap.sm),
+                    _SessionStat(
+                      icon: Icons.schedule_rounded,
+                      color: VerdictColors.bad,
+                      value: s.busiestHour != null
+                          ? hourLabel(s.busiestHour!)
+                          : '—',
+                      label: 'Busiest',
+                    ),
+                  ],
                 ),
+                const SizedBox(height: Gap.sm),
+                _SessionInsight(session: s),
               ],
             ],
           ),
@@ -1331,18 +1336,31 @@ class _SessionVolume extends StatelessWidget {
       ),
       const SizedBox(width: Gap.lg),
       Expanded(
-        child: _volumeMetric(
-          '${session.accepted}',
-          'accepted',
-          text.titleMedium?.copyWith(
-            fontFamily: FoxFonts.display,
-            fontSize: 28,
-            height: 1,
-            fontWeight: FontWeight.w700,
-            color: FoxColors.cream,
-            fontFeatures: const [FontFeature.tabularFigures()],
+        child: Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: Gap.md,
+            vertical: Gap.sm + Gap.xs,
           ),
-          icon: Icons.check_circle_outline,
+          decoration: BoxDecoration(
+            color: VerdictColors.goodBg,
+            borderRadius: BorderRadius.circular(Radii.cardSm),
+            border: Border.all(
+              color: VerdictColors.good.withValues(alpha: 0.28),
+            ),
+          ),
+          child: _volumeMetric(
+            '${session.accepted}',
+            'accepted',
+            text.titleMedium?.copyWith(
+              fontFamily: FoxFonts.display,
+              fontSize: 28,
+              height: 1,
+              fontWeight: FontWeight.w700,
+              color: FoxColors.cream,
+              fontFeatures: const [FontFeature.tabularFigures()],
+            ),
+            icon: Icons.check_circle_outline,
+          ),
         ),
       ),
     ],
@@ -1381,6 +1399,182 @@ class _SessionVolume extends StatelessWidget {
   );
 }
 
+class _SessionQuality extends StatelessWidget {
+  const _SessionQuality({required this.session});
+
+  final SessionSummary session;
+
+  @override
+  Widget build(BuildContext context) {
+    final total = session.total;
+    return Container(
+      padding: const EdgeInsets.fromLTRB(Gap.sm, Gap.sm, Gap.sm, Gap.sm),
+      decoration: BoxDecoration(
+        color: FoxColors.bgSurface2.withValues(alpha: 0.32),
+        borderRadius: BorderRadius.circular(Radii.cardSm),
+        border: Border.all(color: FoxColors.borderSoft),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Offer quality',
+            style: TextStyle(
+              fontSize: 11.5,
+              fontWeight: FontWeight.w700,
+              color: FoxColors.textSecondary,
+            ),
+          ),
+          const SizedBox(height: Gap.sm),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(Radii.pill),
+            child: SizedBox(
+              height: 9,
+              child: Row(
+                children: [
+                  if (session.good > 0)
+                    Expanded(
+                      flex: session.good,
+                      child: Container(color: VerdictColors.goodFill),
+                    ),
+                  if (session.ok > 0)
+                    Expanded(
+                      flex: session.ok,
+                      child: Container(color: VerdictColors.okFill),
+                    ),
+                  if (session.bad > 0)
+                    Expanded(
+                      flex: session.bad,
+                      child: Container(color: VerdictColors.badFill),
+                    ),
+                  if (total == 0)
+                    Expanded(child: Container(color: FoxColors.border)),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: Gap.sm),
+          VerdictSplitPills(
+            good: session.good,
+            ok: session.ok,
+            bad: session.bad,
+            fontSize: 11,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SessionStat extends StatelessWidget {
+  const _SessionStat({
+    required this.icon,
+    required this.color,
+    required this.value,
+    required this.label,
+  });
+
+  final IconData icon;
+  final Color color;
+  final String value;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) => Expanded(
+    child: Container(
+      constraints: const BoxConstraints(minHeight: 76),
+      padding: const EdgeInsets.all(Gap.sm + Gap.xs),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(Radii.cardSm),
+        border: Border.all(color: color.withValues(alpha: 0.24)),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, size: 24, color: color),
+          const SizedBox(width: Gap.sm),
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    value,
+                    style: TextStyle(
+                      fontFamily: FoxFonts.display,
+                      fontSize: 17,
+                      fontWeight: FontWeight.w700,
+                      color: FoxColors.textPrimary,
+                      fontFeatures: const [FontFeature.tabularFigures()],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w600,
+                    color: FoxColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+class _SessionInsight extends StatelessWidget {
+  const _SessionInsight({required this.session});
+
+  final SessionSummary session;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    width: double.infinity,
+    padding: const EdgeInsets.symmetric(horizontal: Gap.md, vertical: Gap.sm),
+    decoration: BoxDecoration(
+      color: FoxColors.bgSurface2.withValues(alpha: 0.28),
+      borderRadius: BorderRadius.circular(Radii.cardSm),
+      border: Border.all(color: FoxColors.borderSoft),
+    ),
+    child: Row(
+      children: [
+        const Icon(Icons.pets_outlined, size: 18, color: FoxColors.brandFox),
+        const SizedBox(width: Gap.sm),
+        Expanded(
+          child: Text.rich(
+            TextSpan(
+              children: [
+                TextSpan(
+                  text: '${session.good} of ${session.total} offers were ',
+                ),
+                TextSpan(
+                  text: 'GOOD',
+                  style: TextStyle(
+                    color: VerdictColors.good,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ],
+            ),
+            style: TextStyle(fontSize: 11.5, color: FoxColors.textPrimary),
+          ),
+        ),
+        Icon(Icons.chevron_right_rounded, color: FoxColors.textDisabled),
+      ],
+    ),
+  );
+}
+
 class SessionPerformance extends StatelessWidget {
   const SessionPerformance({
     super.key,
@@ -1407,7 +1601,7 @@ class SessionPerformance extends StatelessWidget {
         value: earnings,
         support: session.earnings > 0
             ? (session.hasActualEarnings ? 'Actual total' : 'Estimated')
-            : 'Completed offers only',
+            : 'Accepted offers only',
         text: text,
       ),
       _SessionMetric(
@@ -1428,7 +1622,39 @@ class SessionPerformance extends StatelessWidget {
       ],
     );
 
-    return row(metrics);
+    return Container(
+      padding: const EdgeInsets.all(Gap.sm + Gap.xs),
+      decoration: BoxDecoration(
+        color: FoxColors.brandFox.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(Radii.cardSm),
+        border: Border.all(color: FoxColors.brandFox.withValues(alpha: 0.20)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                Icons.query_stats_rounded,
+                size: 16,
+                color: FoxColors.brandFox,
+              ),
+              const SizedBox(width: Gap.sm),
+              Text(
+                'Session performance',
+                style: TextStyle(
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w700,
+                  color: FoxColors.textSecondary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: Gap.sm),
+          row(metrics),
+        ],
+      ),
+    );
   }
 }
 

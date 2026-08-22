@@ -41,7 +41,7 @@ void main() {
     await tester.pumpWidget(_app(_session()));
 
     expect(find.text('Estimated earnings'), findsOneWidget);
-    expect(find.text('Completed offers only'), findsOneWidget);
+    expect(find.text('Accepted offers only'), findsOneWidget);
     expect(find.text(r'$/hr'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });

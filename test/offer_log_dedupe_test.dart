@@ -183,6 +183,23 @@ void main() {
     },
   );
 
+  test('final payout preserves upfront offer and survives JSON', () {
+    final l = log();
+    final upfront = l.record(offer(seenAt: t, payout: 19.70, totalKm: 14.1));
+
+    expect(l.setFinalPayout(upfront, 22.26), isTrue);
+    final updated = l.state.single;
+    expect(updated.payout, 19.70);
+    expect(updated.finalPayout, 22.26);
+    expect(updated.effectivePricePerKm, closeTo(22.26 / 14.1, 1e-9));
+
+    final restored = OfferSummary.fromJson(updated.toJson());
+    expect(restored.payout, 19.70);
+    expect(restored.finalPayout, 22.26);
+    expect(l.setFinalPayout(updated, null), isTrue);
+    expect(l.state.single.effectivePayout, 19.70);
+  });
+
   test('offer received during hydration survives with disk history', () async {
     final stored = offer(seenAt: t.subtract(const Duration(hours: 1)));
     SharedPreferences.setMockInitialValues({

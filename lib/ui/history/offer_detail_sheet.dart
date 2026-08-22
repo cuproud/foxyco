@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/offer_summary.dart';
 import '../../domain/rate_mode.dart';
+import '../../services/offer_log.dart';
+import '../../services/session_log.dart';
 import '../settings/settings_controller.dart';
 import '../theme/platform_badge.dart';
 import '../theme/outcome_style.dart';
@@ -34,15 +36,22 @@ class _OfferDetailSheet extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final o = offer;
-    final style = VerdictStyle.of(o.verdict);
-    final outcome = OutcomeStyle.of(o.outcome);
+    final o = ref
+        .watch(offerLogProvider)
+        .where(
+          (candidate) =>
+              candidate.seenAt == offer.seenAt && candidate.sameCardAs(offer),
+        )
+        .firstOrNull;
+    final current = o ?? offer;
+    final style = VerdictStyle.of(current.verdict);
+    final outcome = OutcomeStyle.of(current.outcome);
     final settings = ref.watch(settingsProvider);
-    final snapshot = o.scoringSnapshot;
+    final snapshot = current.scoringSnapshot;
     final currency = snapshot?.currency ?? settings.currency;
     final distanceUnit = snapshot?.distanceUnit ?? settings.distanceUnit;
     final time = MaterialLocalizations.of(context).formatTimeOfDay(
-      TimeOfDay.fromDateTime(o.seenAt),
+      TimeOfDay.fromDateTime(current.seenAt),
       alwaysUse24HourFormat: MediaQuery.of(context).alwaysUse24HourFormat,
     );
 
@@ -131,10 +140,13 @@ class _OfferDetailSheet extends ConsumerWidget {
                                 ),
                               ),
                               const SizedBox(width: Gap.sm + Gap.xs),
-                              PlatformBadge(platform: o.platform, size: 20),
+                              PlatformBadge(
+                                platform: current.platform,
+                                size: 20,
+                              ),
                               const SizedBox(width: 6),
                               Text(
-                                o.platform.label,
+                                current.platform.label,
                                 style: TextStyle(
                                   fontSize: 14,
                                   fontWeight: FontWeight.w700,
@@ -164,7 +176,7 @@ class _OfferDetailSheet extends ConsumerWidget {
                     fit: BoxFit.scaleDown,
                     alignment: Alignment.centerLeft,
                     child: Text(
-                      '${currency.prefix}${o.payout.toStringAsFixed(2)}',
+                      '${currency.prefix}${current.effectivePayout.toStringAsFixed(2)}',
                       maxLines: 1,
                       style: TextStyle(
                         fontFamily: FoxFonts.display,
@@ -178,9 +190,37 @@ class _OfferDetailSheet extends ConsumerWidget {
                       ),
                     ),
                   ),
-                  if (o.category != null)
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          current.finalPayout == null
+                              ? 'Upfront offer'
+                              : 'Final earnings · upfront ${currency.prefix}${current.payout.toStringAsFixed(2)}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: FoxColors.textSecondary,
+                          ),
+                        ),
+                      ),
+                      TextButton.icon(
+                        onPressed: () => _editFinalPayout(
+                          context,
+                          ref,
+                          current,
+                          currency.prefix,
+                        ),
+                        icon: const Icon(Icons.edit_rounded, size: 15),
+                        label: Text(
+                          current.finalPayout == null ? 'Add final' : 'Edit',
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (current.category != null)
                     Text(
-                      o.category!,
+                      current.category!,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
@@ -189,12 +229,12 @@ class _OfferDetailSheet extends ConsumerWidget {
                         color: FoxColors.textSecondary,
                       ),
                     ),
-                  if (o.itemCount > 0) ...[
+                  if (current.itemCount > 0) ...[
                     const SizedBox(height: Gap.xs),
                     Text(
-                      '${o.itemCount} items'
-                      '${o.unitCount > 0 ? ' · ${o.unitCount} units' : ''}'
-                      '${o.deliveryCount > 1 ? ' · ${o.deliveryCount} orders' : ''}',
+                      '${current.itemCount} items'
+                      '${current.unitCount > 0 ? ' · ${current.unitCount} units' : ''}'
+                      '${current.deliveryCount > 1 ? ' · ${current.deliveryCount} orders' : ''}',
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
@@ -202,7 +242,7 @@ class _OfferDetailSheet extends ConsumerWidget {
                       ),
                     ),
                   ],
-                  if (o.bonus > 0) ...[
+                  if (current.bonus > 0) ...[
                     const SizedBox(height: Gap.sm),
                     Container(
                       padding: const EdgeInsets.symmetric(
@@ -217,7 +257,7 @@ class _OfferDetailSheet extends ConsumerWidget {
                         ),
                       ),
                       child: Text(
-                        'Includes ${currency.prefix}${o.bonus.toStringAsFixed(2)} bonus',
+                        'Includes ${currency.prefix}${current.bonus.toStringAsFixed(2)} bonus',
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w700,
@@ -232,19 +272,19 @@ class _OfferDetailSheet extends ConsumerWidget {
                   Row(
                     children: [
                       _cell(
-                        '${currency.prefix}${distanceUnit.rateFromPerKm(o.pricePerKm).toStringAsFixed(2)}',
+                        '${currency.prefix}${distanceUnit.rateFromPerKm(current.effectivePricePerKm).toStringAsFixed(2)}',
                         'PER ${distanceUnit.shortLabel.toUpperCase()}',
                       ),
                       const SizedBox(width: Gap.sm),
                       _cell(
-                        o.pricePerHour > 0
-                            ? '${settings.currency.prefix}${o.pricePerHour.toStringAsFixed(0)}'
+                        current.effectivePricePerHour > 0
+                            ? '${settings.currency.prefix}${current.effectivePricePerHour.toStringAsFixed(0)}'
                             : '—',
                         'PER HOUR',
                       ),
                       const SizedBox(width: Gap.sm),
                       _cell(
-                        '${distanceUnit.distanceFromKm(o.totalKm).toStringAsFixed(1)} ${distanceUnit.shortLabel}',
+                        '${distanceUnit.distanceFromKm(current.totalKm).toStringAsFixed(1)} ${distanceUnit.shortLabel}',
                         'TOTAL',
                       ),
                     ],
@@ -253,29 +293,30 @@ class _OfferDetailSheet extends ConsumerWidget {
                   Row(
                     children: [
                       _cell(
-                        o.pickupKm > 0
-                            ? '${distanceUnit.distanceFromKm(o.pickupKm).toStringAsFixed(1)} ${distanceUnit.shortLabel}'
+                        current.pickupKm > 0
+                            ? '${distanceUnit.distanceFromKm(current.pickupKm).toStringAsFixed(1)} ${distanceUnit.shortLabel}'
                             : '—',
                         'PICKUP',
                       ),
                       const SizedBox(width: Gap.sm),
                       _cell(
-                        o.totalMinutes > 0
-                            ? '${o.totalMinutes.round()} min'
+                        current.totalMinutes > 0
+                            ? '${current.totalMinutes.round()} min'
                             : '—',
                         'TOTAL TIME',
                       ),
                       const SizedBox(width: Gap.sm),
                       _cell(
-                        o.pickupKm > 0 && o.totalKm > o.pickupKm
-                            ? '${distanceUnit.distanceFromKm(o.totalKm - o.pickupKm).toStringAsFixed(1)} ${distanceUnit.shortLabel}'
+                        current.pickupKm > 0 &&
+                                current.totalKm > current.pickupKm
+                            ? '${distanceUnit.distanceFromKm(current.totalKm - current.pickupKm).toStringAsFixed(1)} ${distanceUnit.shortLabel}'
                             : '—',
                         'RIDE',
                       ),
                     ],
                   ),
                   const SizedBox(height: Gap.md),
-                  _VerdictMath(offer: o),
+                  _VerdictMath(offer: current),
                   const SizedBox(height: Gap.sm),
                   Container(
                     padding: const EdgeInsets.all(12),
@@ -324,6 +365,68 @@ class _OfferDetailSheet extends ConsumerWidget {
         ],
       ),
     );
+  }
+
+  Future<void> _editFinalPayout(
+    BuildContext context,
+    WidgetRef ref,
+    OfferSummary offer,
+    String prefix,
+  ) async {
+    final controller = TextEditingController(
+      text: offer.finalPayout?.toStringAsFixed(2) ?? '',
+    );
+    String? error;
+    final value = await showDialog<double>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: const Text('Final earnings'),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: InputDecoration(
+              prefixText: prefix,
+              labelText: 'Amount received',
+              errorText: error,
+            ),
+          ),
+          actions: [
+            if (offer.finalPayout != null)
+              TextButton(
+                onPressed: () => Navigator.pop(context, double.nan),
+                child: const Text('Remove'),
+              ),
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () {
+                final parsed = double.tryParse(controller.text.trim());
+                if (parsed == null || !parsed.isFinite || parsed <= 0) {
+                  setState(() => error = 'Enter an amount above zero');
+                  return;
+                }
+                Navigator.pop(context, parsed);
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        ),
+      ),
+    );
+    controller.dispose();
+    if (value == null) return;
+    final changed = ref
+        .read(offerLogProvider.notifier)
+        .setFinalPayout(offer, value.isNaN ? null : value);
+    if (changed) {
+      await ref
+          .read(sessionLogProvider.notifier)
+          .refreshForOffer(offer, ref.read(offerLogProvider));
+    }
   }
 
   Widget _cell(String value, String label) => Expanded(

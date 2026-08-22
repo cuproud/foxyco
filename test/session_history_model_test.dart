@@ -51,7 +51,7 @@ void main() {
     expect(corrected.detectedOutcome, OfferOutcome.taken);
   });
 
-  test('session earnings only estimate completed offers', () {
+  test('session earnings estimate accepted and completed offers', () {
     final start = DateTime(2026, 8, 18, 10);
     final session = SessionSummary.from(
       startedAt: start,
@@ -64,11 +64,39 @@ void main() {
       ],
     );
 
-    expect(session.estimatedEarnings, 25);
+    expect(session.estimatedEarnings, 65);
     expect(session.completed, 1);
     expect(session.cancelled, 1);
     expect(session.declined, 1);
-    expect(session.hourlyEarnings, 12.5);
+    expect(session.hourlyEarnings, 32.5);
+  });
+
+  test('completed earnings prefer an entered final payout', () {
+    final start = DateTime(2026, 8, 21, 15);
+    final offer = OfferSummary(
+      platform: GigPlatform.lyft,
+      verdict: Verdict.ok,
+      payout: 19.70,
+      finalPayout: 22.26,
+      totalKm: 14.1,
+      totalMinutes: 43,
+      seenAt: start.add(const Duration(minutes: 1)),
+      outcome: OfferOutcome.completed,
+    );
+
+    final session = SessionSummary.from(
+      startedAt: start,
+      endedAt: start.add(const Duration(hours: 1)),
+      offers: [offer],
+    );
+
+    expect(session.estimatedEarnings, 22.26);
+    expect(session.bestPerKm, closeTo(22.26 / 14.1, 1e-9));
+    expect(
+      offer.verdict,
+      Verdict.ok,
+      reason: 'upfront verdict stays immutable',
+    );
   });
 
   test('manual actual session earnings do not alter captured offers', () {

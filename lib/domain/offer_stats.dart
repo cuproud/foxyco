@@ -49,8 +49,8 @@ class OfferStats {
       switch (o.verdict) {
         case Verdict.good:
           good++;
-          if (o.pricePerKm > 0) {
-            goodPerKmSum += o.pricePerKm;
+          if (o.effectivePricePerKm > 0) {
+            goodPerKmSum += o.effectivePricePerKm;
             goodPerKmCount++;
           }
         case Verdict.ok:
@@ -61,7 +61,9 @@ class OfferStats {
           break;
       }
       if (o.outcome == OfferOutcome.taken) accepted++;
-      if (best == null || o.pricePerKm > best.pricePerKm) best = o;
+      if (best == null || o.effectivePricePerKm > best.effectivePricePerKm) {
+        best = o;
+      }
       byHour.update(o.seenAt.hour, (n) => n + 1, ifAbsent: () => 1);
     }
 

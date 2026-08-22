@@ -224,11 +224,15 @@ class _RecapEarnings extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Only completed rows are realized enough for an automatic estimate.
-    // Accepted/not-taken rows stay out until the driver confirms completion.
+    // Accepted offers are the best available earnings estimate until the
+    // driver marks them completed or enters final earnings.
     final completed = offers
-        .where((offer) => offer.outcome == OfferOutcome.completed)
-        .fold(0.0, (sum, offer) => sum + offer.payout);
+        .where(
+          (offer) =>
+              offer.outcome == OfferOutcome.taken ||
+              offer.outcome == OfferOutcome.completed,
+        )
+        .fold(0.0, (sum, offer) => sum + offer.effectivePayout);
     final earnings = completed > 0
         ? '${settings.currency.prefix}${completed.toStringAsFixed(2)}'
         : '—';
@@ -242,7 +246,7 @@ class _RecapEarnings extends StatelessWidget {
           child: _metric(
             'Estimated earnings',
             earnings,
-            'Completed offers only',
+            'Accepted and completed offers',
           ),
         ),
         const SizedBox(width: Gap.md),

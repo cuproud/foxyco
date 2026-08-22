@@ -206,6 +206,23 @@ class OfferLog extends Notifier<List<OfferSummary>> {
   bool setOutcome(OfferSummary offer, OfferOutcome outcome) =>
       markOutcome(offer, outcome, includeQueued: true, manual: true);
 
+  /// Set realized earnings without rewriting the original offer or verdict.
+  bool setFinalPayout(OfferSummary offer, double? value) {
+    if (value != null && (!value.isFinite || value <= 0)) return false;
+    final index = state.indexWhere(
+      (candidate) =>
+          candidate.seenAt == offer.seenAt && candidate.sameCardAs(offer),
+    );
+    if (index < 0) return false;
+    state = [
+      ...state.take(index),
+      state[index].withFinalPayout(value),
+      ...state.skip(index + 1),
+    ];
+    _saveSoon();
+    return true;
+  }
+
   /// Drop entries older than [days] (retention purge). Returns removed count.
   int purgeOlderThan(int days) {
     final cutoff = DateTime.now().subtract(Duration(days: days));

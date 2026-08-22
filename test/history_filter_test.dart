@@ -6,6 +6,7 @@ import 'package:foxyco/domain/platform.dart';
 import 'package:foxyco/domain/verdict.dart';
 import 'package:foxyco/services/offer_log.dart';
 import 'package:foxyco/ui/history/history_screen.dart';
+import 'package:foxyco/ui/theme/app_theme.dart';
 import 'package:foxyco/ui/theme/tokens.dart';
 
 class _FixedLog extends OfferLog {
@@ -46,6 +47,17 @@ Widget _app(List<OfferSummary> offers) => ProviderScope(
   overrides: [offerLogProvider.overrideWith(() => _FixedLog(offers))],
   child: const MaterialApp(home: Scaffold(body: HistoryScreen())),
 );
+
+Widget _themedApp(List<OfferSummary> offers, FoxPalette palette) {
+  final theme = AppTheme.of(palette);
+  return ProviderScope(
+    overrides: [offerLogProvider.overrideWith(() => _FixedLog(offers))],
+    child: MaterialApp(
+      theme: theme,
+      home: const Scaffold(body: HistoryScreen()),
+    ),
+  );
+}
 
 void main() {
   test('headerLabel names the filtered range (spec M6 §5.1)', () {
@@ -116,6 +128,8 @@ void main() {
     expect(find.text('3 today'), findsOneWidget);
     await tester.tap(find.text('Filters'));
     await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Accepted'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Accepted'));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('history-filter-done')));
@@ -128,6 +142,8 @@ void main() {
     );
 
     await tester.tap(find.text('Filters · 1 active'));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Accepted'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Accepted'));
     await tester.pumpAndSettle();
@@ -224,6 +240,11 @@ void main() {
       isA<EdgeInsets>().having((p) => p.bottom, 'bottom', greaterThan(100)),
     );
     expect(find.byKey(const Key('history_by_hour')), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('history_by_app')),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
     expect(find.byKey(const Key('history_by_app')), findsOneWidget);
     final byHour = tester.widget<Container>(
       find.byKey(const Key('history_by_hour')),
@@ -275,6 +296,10 @@ void main() {
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('Filters'));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('history-top-toggle')),
+    );
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('history-top-toggle')));
     await tester.pumpAndSettle();
@@ -336,6 +361,8 @@ void main() {
       findsOneWidget,
     );
 
+    await tester.ensureVisible(find.text('Accepted'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Accepted'));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('history-filter-done')));
@@ -367,6 +394,8 @@ void main() {
 
     await tester.tap(find.text('Filters'));
     await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Accepted'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Accepted'));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('history-filter-done')));
@@ -385,4 +414,35 @@ void main() {
     await tester.pump();
     expect(find.text('1 all time'), findsOneWidget);
   });
+
+  for (final (name, palette) in [
+    ('light', FoxPalette.light),
+    ('dark', FoxPalette.dark),
+  ]) {
+    testWidgets('$name theme redesign fits a narrow, scaled screen', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(1200, 2400);
+      tester.view.devicePixelRatio = 3;
+      tester.platformDispatcher.textScaleFactorTestValue = 1.3;
+      addTearDown(tester.view.reset);
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+
+      await tester.pumpWidget(
+        _themedApp([
+          _offer(DateTime.now(), outcome: OfferOutcome.taken),
+          _offer(DateTime.now(), verdict: Verdict.ok),
+        ], palette),
+      );
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('history-summary')), findsOneWidget);
+      expect(tester.takeException(), isNull);
+
+      await tester.tap(find.text('Filters'));
+      await tester.pumpAndSettle();
+      expect(find.text('Filter offers'), findsOneWidget);
+      expect(find.byKey(const ValueKey('history-filter-done')), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+  }
 }

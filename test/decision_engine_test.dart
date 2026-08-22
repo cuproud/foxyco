@@ -197,11 +197,46 @@ void main() {
       dropoffMinutes: 50,
     );
 
-    test('voice follows the final verdict without extra payout gates', () {
+    test('GOOD voice requires both rate thresholds', () {
       expect(
         engine.qualifiesForVoice(premium, FoxSettings.defaults, Verdict.good),
         isTrue,
       );
+      const lyftScreenshot = Offer(
+        platform: GigPlatform.lyft,
+        payout: 5.04,
+        pickupKm: 0.4,
+        dropoffKm: 1.5,
+        pickupMinutes: 5,
+        dropoffMinutes: 7,
+      );
+      const uberScreenshot = Offer(
+        platform: GigPlatform.uber,
+        payout: 11.28,
+        pickupKm: 0.1,
+        dropoffKm: 14,
+        pickupMinutes: 2,
+        dropoffMinutes: 24,
+      );
+      expect(
+        engine.qualifiesForVoice(
+          lyftScreenshot,
+          FoxSettings.defaults,
+          Verdict.good,
+        ),
+        isFalse,
+      );
+      expect(
+        engine.qualifiesForVoice(
+          uberScreenshot,
+          FoxSettings.defaults,
+          Verdict.good,
+        ),
+        isFalse,
+      );
+    });
+
+    test('OK voice follows the displayed verdict', () {
       expect(
         engine.qualifiesForVoice(
           premium,
@@ -212,7 +247,7 @@ void main() {
       );
     });
 
-    test('voice accepts the final verdict even without secondary metrics', () {
+    test('GOOD voice requires time data', () {
       const noTime = Offer(
         platform: GigPlatform.uber,
         payout: 30,
@@ -221,7 +256,7 @@ void main() {
       );
       expect(
         engine.qualifiesForVoice(noTime, FoxSettings.defaults, Verdict.good),
-        isTrue,
+        isFalse,
       );
     });
   });

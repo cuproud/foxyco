@@ -44,8 +44,13 @@ class DecisionEngine {
     return evaluate(offer.pricePerKm, s.distanceThresholdsFor(platform));
   }
 
-  /// Voice follows the already-final verdict exactly. Minimum Offer and the
-  /// active rate mode have already been applied by [scoreOffer].
-  bool qualifiesForVoice(Offer offer, FoxSettings s, Verdict verdict) =>
-      verdict == Verdict.good || verdict == Verdict.ok;
+  /// GOOD voice alerts require both rate rules; OK follows the displayed
+  /// verdict. Without time data, the hourly GOOD rule cannot be verified.
+  bool qualifiesForVoice(Offer offer, FoxSettings s, Verdict verdict) {
+    if (verdict != Verdict.good) return verdict == Verdict.ok;
+    final platform = offer.rulesPlatform;
+    return offer.totalMinutes > 0 &&
+        offer.pricePerKm >= s.distanceThresholdsFor(platform).goodAtOrAbove &&
+        offer.pricePerHour >= s.hourThresholdsFor(platform).goodAtOrAbove;
+  }
 }

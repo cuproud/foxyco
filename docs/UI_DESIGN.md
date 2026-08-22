@@ -207,9 +207,25 @@ missing, the status card turns into a call-to-action ("Grant accessibility to st
 Empty state (fresh install, no offers yet): tally shows `—`, "Last offer" card replaced by the fox
 mark + "No offers yet. Open a selected gig app — I'll start scoring."
 
+The current **Last session** card separates the offer count, accepted count, quality distribution,
+session earnings/rate, and supporting stats into distinct theme-aware regions. Earnings include
+accepted offers and use their final payout when one has been recorded. The layout must remain
+readable in light and dark themes at 400 dp width and increased text scale.
+
+### 5.3 History
+
+History starts with a compact filter launcher, a 2×2 summary grid, hourly activity, and offer rows.
+Summary metric wells use stronger theme-aware surfaces; rate-dependent wells use GOOD/OK/BAD tinting
+from the saved offer verdict rather than recomputing historical rules. Offer details show upfront pay
+and allow the final payout to be added or corrected without overwriting the original.
+
+The filter bottom sheet groups date, platform, verdict, outcome, and minimum fare. Minimum fare keeps
+the existing minus/plus control (no slider), and the sticky action reports the matching offer count.
+Every surface, border, tint, and label must remain distinct in both light and dark themes.
+
 ---
 
-### 5.3 Settings
+### 5.4 Settings
 
 The core knob (thresholds) up top, everything else below. Every change persists instantly (no Save
 button) and live-updates the verdict engine.

@@ -157,8 +157,10 @@ Riverpod providers are the seams: `decisionEngineProvider`, `thresholdsProvider`
 - **Offer history/session storage** — persisted offer-time scoring snapshots, detected and final
   outcomes plus manual-correction metadata, captured offer economics, and conservative session
   summaries. Legacy records load with safe Unknown/legacy behavior when fields are absent.
-- Session earnings keep captured offer-card amounts separate from estimated completed-offer
-  earnings and editable actual session totals. Session $/hr uses elapsed session duration.
+- Offer history preserves the upfront payout and an optional editable final payout. Derived payout,
+  $/km, and $/hr values use the final payout when present without discarding the original offer.
+- Session earnings total accepted or completed offers, using each offer's effective payout. Editable
+  actual session totals remain separate, and session $/hr uses elapsed session duration.
 
 ## Current platform and verdict boundaries
 
@@ -185,6 +187,8 @@ produced their verdict.
 parsers, builds a stable identity, rejects incomplete/duplicate/suppressed identities, scores once,
 stores the scoring snapshot, and passes that finalized verdict to the overlay. Voice announcements
 are scheduled from the same identity/verdict and invalidated when the offer is replaced or cleared.
+GOOD voice announcements require both configured GOOD thresholds when both distance and duration
+are available; changing either rule changes the announcement decision.
 
 The overlay remains one shared system. Bubble appearance is a persisted `BubbleStyle` choice
 (Cool Fox, FoxyCo, or Fox Paw) resolved by the same bubble container; it does not affect pill
