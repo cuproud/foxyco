@@ -35,7 +35,7 @@
 
 _Added 2026-08-02. §1–§6 are the reasoning; this is the ordered list of moves.
 Everything below is a console/web action except C1. Build 22 was Play-installed
-and device-tested; current release bundle is `1.0.10+68`. See
+and device-tested; current release bundle is `1.0.10+69`. See
 `HANDOFF_2026-08-21_BUILD68.md` for current verification and remaining
 delivery gates; older handoffs remain historical records._
 
@@ -79,12 +79,12 @@ Artifacts are copied to `dist/` with version and timestamped names.
 Latest repository-verified bundle (delivery beta still needs live-device verification):
 
 ```text
-dist/FoxyCo-v1.0.10+68-release-20260821-1427.aab
-86,186,405 bytes
-SHA-256 ef96c65cd035312e0b44c2a059f8f3c02017eb117bb3e62dd4414f3a56c42286
+dist/FoxyCo-v1.0.10+69-release-20260821-2133.aab
+86,228,273 bytes
+SHA-256 2d5732094c177f42200d3110de99b2a14364d3d23e8996318f654e96f75b2a90
 ```
 
-The build helper completed dependency resolution, static analysis, all 495
+The build helper completed dependency resolution, static analysis, all 500
 Flutter tests, Firestore rules tests and the signed release bundle. Build 68
 selects the topmost offer window across stacked Uber Radar and cross-app cards,
 clears stale verdicts when that top card is incomplete, and parses an opened
@@ -495,8 +495,8 @@ made a meaningful contribution.
 Ordered, actionable version of this list: **§0**. Estimates and code-level
 blockers: **MONETIZATION §7**.
 
-1. **Upload build 68 and run the current quick smoke test** — confirm About
-   shows build 68; the topmost Uber/Lyft card owns the pill while swiping stacked
+1. **Upload build 69 and run the current quick smoke test** — confirm About
+   shows build 69; the topmost Uber/Lyft card owns the pill while swiping stacked
    Radar cards; opened Lyft Reserve details score without combining list cards;
    and History offers all six app filters. Recheck the build-66 bubble dismissal,
    delivery rules and purchase/restore flows as regression coverage.
@@ -521,5 +521,5 @@ blockers: **MONETIZATION §7**.
 - Localized store listings (ES/PT = big driver demographics)
 
 ---
-_Last updated: 2026-08-21 — build 68 UI refinements, pricing and release artifact documented.
+_Last updated: 2026-08-21 — build 69 history/session polish and release artifact documented.
 Entitlement architecture lives in `MONETIZATION_v1.0.md`._
