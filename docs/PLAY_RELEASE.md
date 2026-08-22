@@ -35,7 +35,7 @@
 
 _Added 2026-08-02. §1–§6 are the reasoning; this is the ordered list of moves.
 Everything below is a console/web action except C1. Build 22 was Play-installed
-and device-tested; current release bundle is `1.0.10+69`. See
+and device-tested; current release bundle is `1.0.10+70`. See
 `HANDOFF_2026-08-21_BUILD68.md` for current verification and remaining
 delivery gates; older handoffs remain historical records._
 
@@ -79,18 +79,17 @@ Artifacts are copied to `dist/` with version and timestamped names.
 Latest repository-verified bundle (delivery beta still needs live-device verification):
 
 ```text
-dist/FoxyCo-v1.0.10+69-release-20260821-2133.aab
-86,228,273 bytes
-SHA-256 2d5732094c177f42200d3110de99b2a14364d3d23e8996318f654e96f75b2a90
+dist/FoxyCo-v1.0.10+70-release-20260822-0055.aab
+86,250,553 bytes
+SHA-256 e2986aea114d44e3fec6793cc7f0c5e4b4846d1bd4397a0bc8caffaafee539f5
 ```
 
 The build helper completed dependency resolution, static analysis, all 500
-Flutter tests, Firestore rules tests and the signed release bundle. Build 68
-selects the topmost offer window across stacked Uber Radar and cross-app cards,
-clears stale verdicts when that top card is incomplete, and parses an opened
-Lyft Reserve detail without merging scheduled-list cards. History filters now
-always expose Uber, Hopp, Lyft, DoorDash, Instacart and Skip. It also applies the
-tour's Rules, Settings, Help and vehicle wording/validation improvements.
+Flutter tests, Firestore rules tests and the signed release bundle. Build 70
+uses compact three-column History filters, moves the Summary heading outside
+its card, gives offer-detail metrics a verdict tint, and places delivery BETA
+labels inline in Watched apps. It retains build 69's final-pay editing and
+history/session corrections.
 
 The licensing key is an RSA **public** key. It is extractable from any shipped
 APK, so recording it here costs nothing and makes the build reproducible:
@@ -495,8 +494,9 @@ made a meaningful contribution.
 Ordered, actionable version of this list: **§0**. Estimates and code-level
 blockers: **MONETIZATION §7**.
 
-1. **Upload build 69 and run the current quick smoke test** — confirm About
-   shows build 69; the topmost Uber/Lyft card owns the pill while swiping stacked
+1. **Upload build 70 and run the current quick smoke test** — confirm About
+   shows build 70; check the compact History filters and verdict-tinted offer
+   detail metrics; then confirm the topmost Uber/Lyft card owns the pill while swiping stacked
    Radar cards; opened Lyft Reserve details score without combining list cards;
    and History offers all six app filters. Recheck the build-66 bubble dismissal,
    delivery rules and purchase/restore flows as regression coverage.
@@ -521,5 +521,5 @@ blockers: **MONETIZATION §7**.
 - Localized store listings (ES/PT = big driver demographics)
 
 ---
-_Last updated: 2026-08-21 — build 69 history/session polish and release artifact documented.
+_Last updated: 2026-08-22 — build 70 UI polish and Play bundle documented.
 Entitlement architecture lives in `MONETIZATION_v1.0.md`._

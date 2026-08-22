@@ -215,6 +215,8 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                 onShowAll: all.isEmpty ? null : () => setState(_resetFilters),
               )
             else ...[
+              const _SummaryHeading(),
+              const SizedBox(height: Gap.sm),
               _StatsCard(stats: stats),
               const SizedBox(height: Gap.sm),
               _HourlyChart(offers: filtered),
@@ -748,6 +750,23 @@ class _FilterHeading extends StatelessWidget {
   );
 }
 
+class _ThreeColumnGrid extends StatelessWidget {
+  const _ThreeColumnGrid({required this.children});
+
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) => GridView.count(
+    crossAxisCount: 3,
+    mainAxisSpacing: Gap.sm,
+    crossAxisSpacing: Gap.sm,
+    mainAxisExtent: 48,
+    shrinkWrap: true,
+    physics: const NeverScrollableScrollPhysics(),
+    children: children,
+  );
+}
+
 class _OutcomeChips extends StatelessWidget {
   const _OutcomeChips({required this.selected, required this.onChanged});
 
@@ -755,9 +774,7 @@ class _OutcomeChips extends StatelessWidget {
   final ValueChanged<HistoryOutcomeFilter> onChanged;
 
   @override
-  Widget build(BuildContext context) => Wrap(
-    spacing: Gap.sm,
-    runSpacing: Gap.sm,
+  Widget build(BuildContext context) => _ThreeColumnGrid(
     children: [
       for (final value in HistoryOutcomeFilter.values.skip(1)) _chip(value),
     ],
@@ -794,30 +811,33 @@ class _OutcomeChips extends StatelessWidget {
             ),
             boxShadow: active ? null : Shadows.soft,
           ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                value == HistoryOutcomeFilter.cancelled
-                    ? Icons.cancel_outlined
-                    : value == HistoryOutcomeFilter.unknown
-                    ? Icons.help_outline_rounded
-                    : value == HistoryOutcomeFilter.declined
-                    ? Icons.remove_circle_outline_rounded
-                    : Icons.check_circle_outline_rounded,
-                size: 15,
-                color: active ? style : FoxColors.textSecondary,
-              ),
-              const SizedBox(width: 6),
-              Text(
-                _outcomeLabel(value),
-                style: TextStyle(
-                  fontSize: 12.5,
-                  fontWeight: FontWeight.w700,
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  value == HistoryOutcomeFilter.cancelled
+                      ? Icons.cancel_outlined
+                      : value == HistoryOutcomeFilter.unknown
+                      ? Icons.help_outline_rounded
+                      : value == HistoryOutcomeFilter.declined
+                      ? Icons.remove_circle_outline_rounded
+                      : Icons.check_circle_outline_rounded,
+                  size: 15,
                   color: active ? style : FoxColors.textSecondary,
                 ),
-              ),
-            ],
+                const SizedBox(width: 6),
+                Text(
+                  _outcomeLabel(value),
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w700,
+                    color: active ? style : FoxColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -919,9 +939,7 @@ class _AppChips extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Wrap(
-      spacing: Gap.sm,
-      runSpacing: Gap.sm,
+    return _ThreeColumnGrid(
       children: [for (final p in availableApps) _chip(p, p.label)],
     );
   }
@@ -946,22 +964,25 @@ class _AppChips extends StatelessWidget {
           ),
           boxShadow: active ? null : Shadows.soft,
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (app != null) ...[
-              PlatformBadge(platform: app, size: 16),
-              const SizedBox(width: 6),
-            ],
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 12.5,
-                fontWeight: FontWeight.w700,
-                color: FoxColors.textPrimary,
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (app != null) ...[
+                PlatformBadge(platform: app, size: 16),
+                const SizedBox(width: 6),
+              ],
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w700,
+                  color: FoxColors.textPrimary,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -982,9 +1003,7 @@ class _VerdictChips extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Wrap(
-      spacing: Gap.sm,
-      runSpacing: Gap.sm,
+    return _ThreeColumnGrid(
       children: [
         for (final v in const [Verdict.good, Verdict.ok, Verdict.bad]) _chip(v),
         trailing,
@@ -1013,26 +1032,29 @@ class _VerdictChips extends StatelessWidget {
           ),
           boxShadow: active ? null : Shadows.soft,
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (style != null) ...[
-              Icon(
-                style.icon,
-                size: 12,
-                color: active ? FoxColors.brandFox : style.color,
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (style != null) ...[
+                Icon(
+                  style.icon,
+                  size: 12,
+                  color: active ? FoxColors.brandFox : style.color,
+                ),
+                const SizedBox(width: 6),
+              ],
+              Text(
+                style!.label,
+                style: TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w700,
+                  color: FoxColors.textPrimary,
+                ),
               ),
-              const SizedBox(width: 6),
             ],
-            Text(
-              style!.label,
-              style: TextStyle(
-                fontSize: 12.5,
-                fontWeight: FontWeight.w700,
-                color: FoxColors.textPrimary,
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );
@@ -1930,6 +1952,24 @@ class _Empty extends StatelessWidget {
 /// Shift-summary rollup over the CURRENTLY FILTERED offers, so the numbers
 /// always mean "for the range/apps you picked". Count-only + two derived
 /// figures — no graphs (MVP).
+class _SummaryHeading extends StatelessWidget {
+  const _SummaryHeading();
+
+  @override
+  Widget build(BuildContext context) => Row(
+    children: [
+      const Icon(Icons.insights_rounded, size: 16, color: FoxColors.brandFox),
+      const SizedBox(width: Gap.sm),
+      Text(
+        'SUMMARY',
+        style: Theme.of(
+          context,
+        ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+      ),
+    ],
+  );
+}
+
 class _StatsCard extends ConsumerWidget {
   const _StatsCard({required this.stats});
 
@@ -1965,34 +2005,6 @@ class _StatsCard extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(Gap.sm),
-                decoration: BoxDecoration(
-                  color: FoxColors.brandFox.withValues(alpha: 0.08),
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: FoxColors.brandFox.withValues(alpha: 0.18),
-                  ),
-                ),
-                child: const Icon(
-                  Icons.insights_rounded,
-                  size: 16,
-                  color: FoxColors.brandFox,
-                ),
-              ),
-              const SizedBox(width: Gap.sm),
-              Text(
-                'SUMMARY',
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: FoxColors.brandFox,
-                  letterSpacing: 1.2,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: Gap.md),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [

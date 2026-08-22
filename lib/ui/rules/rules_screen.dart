@@ -831,10 +831,23 @@ class _RulesScreenState extends ConsumerState<RulesScreen> {
                     SwitchListTile(
                       contentPadding: EdgeInsets.zero,
                       secondary: PlatformBadge(platform: app, size: 22),
-                      title: Text(app.label, style: text.titleMedium),
-                      subtitle: app.isBeta
-                          ? const Text('Beta · best effort')
-                          : app == GigPlatform.uber
+                      title: Row(
+                        children: [
+                          Text(app.label, style: text.titleMedium),
+                          if (app.isBeta) ...[
+                            const SizedBox(width: Gap.sm),
+                            Text(
+                              'BETA',
+                              style: text.labelSmall?.copyWith(
+                                color: FoxColors.textSecondary,
+                                letterSpacing: 0.8,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                      subtitle: app == GigPlatform.uber
                           ? const Text('Includes Uber Eats')
                           : !settings.watches(app) &&
                                 settings.watchedApps.length >=

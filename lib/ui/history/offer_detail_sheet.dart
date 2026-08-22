@@ -274,6 +274,7 @@ class _OfferDetailSheet extends ConsumerWidget {
                       _cell(
                         '${currency.prefix}${distanceUnit.rateFromPerKm(current.effectivePricePerKm).toStringAsFixed(2)}',
                         'PER ${distanceUnit.shortLabel.toUpperCase()}',
+                        style.color,
                       ),
                       const SizedBox(width: Gap.sm),
                       _cell(
@@ -281,11 +282,13 @@ class _OfferDetailSheet extends ConsumerWidget {
                             ? '${settings.currency.prefix}${current.effectivePricePerHour.toStringAsFixed(0)}'
                             : '—',
                         'PER HOUR',
+                        style.color,
                       ),
                       const SizedBox(width: Gap.sm),
                       _cell(
                         '${distanceUnit.distanceFromKm(current.totalKm).toStringAsFixed(1)} ${distanceUnit.shortLabel}',
                         'TOTAL',
+                        style.color,
                       ),
                     ],
                   ),
@@ -297,6 +300,7 @@ class _OfferDetailSheet extends ConsumerWidget {
                             ? '${distanceUnit.distanceFromKm(current.pickupKm).toStringAsFixed(1)} ${distanceUnit.shortLabel}'
                             : '—',
                         'PICKUP',
+                        style.color,
                       ),
                       const SizedBox(width: Gap.sm),
                       _cell(
@@ -304,6 +308,7 @@ class _OfferDetailSheet extends ConsumerWidget {
                             ? '${current.totalMinutes.round()} min'
                             : '—',
                         'TOTAL TIME',
+                        style.color,
                       ),
                       const SizedBox(width: Gap.sm),
                       _cell(
@@ -312,6 +317,7 @@ class _OfferDetailSheet extends ConsumerWidget {
                             ? '${distanceUnit.distanceFromKm(current.totalKm - current.pickupKm).toStringAsFixed(1)} ${distanceUnit.shortLabel}'
                             : '—',
                         'RIDE',
+                        style.color,
                       ),
                     ],
                   ),
@@ -429,13 +435,13 @@ class _OfferDetailSheet extends ConsumerWidget {
     }
   }
 
-  Widget _cell(String value, String label) => Expanded(
+  Widget _cell(String value, String label, Color verdictColor) => Expanded(
     child: Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: FoxColors.bgSurface2.withValues(alpha: 0.55),
+        color: verdictColor.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(Radii.field),
-        border: Border.all(color: FoxColors.borderSoft),
+        border: Border.all(color: verdictColor.withValues(alpha: 0.22)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
