@@ -150,7 +150,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Open paywall'));
     await tester.pumpAndSettle();
-    expect(find.text('Unlock now with Google Play'), findsOneWidget);
+    expect(find.text(r'Unlock now — US$19.99'), findsOneWidget);
     await tester.tap(find.text('Start 7-day free trial'));
     await tester.pumpAndSettle();
 

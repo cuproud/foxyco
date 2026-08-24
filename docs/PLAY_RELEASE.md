@@ -1,6 +1,6 @@
 # FoxyCo — Google Play Release & Monetization Guide
 
-**Audience:** first-time Play Store publisher. Written 2026-07-20, updated 2026-08-21.
+**Audience:** first-time Play Store publisher. Written 2026-07-20, updated 2026-08-24.
 **Companion docs:** `MONETIZATION_v1.0.md` (entitlement architecture — **authoritative**), `AUDIT.md` (policy risks + release checklist), `MANUAL_TESTS.md` (device test matrix).
 
 > ## ⚠️ Superseded sections
@@ -35,8 +35,8 @@
 
 _Added 2026-08-02. §1–§6 are the reasoning; this is the ordered list of moves.
 Everything below is a console/web action except C1. Build 22 was Play-installed
-and device-tested; current release bundle is `1.0.10+77`. See
-`HANDOFF_2026-08-21_BUILD68.md` for current verification and remaining
+and device-tested; current release bundle is `1.0.10+80`. See
+`HANDOFF_2026-08-24_BUILD80.md` for current verification and remaining
 delivery gates; older handoffs remain historical records._
 
 ### Phase A — no Play Console needed, do it today
@@ -79,15 +79,16 @@ Artifacts are copied to `dist/` with version and timestamped names.
 Latest repository-verified bundle (delivery beta still needs live-device verification):
 
 ```text
-dist/FoxyCo-v1.0.10+77-release-20260823-2033.aab
-86,265,144 bytes
-SHA-256 e77a944bfba9eb21ebf7f7c1bf4a962e50dbfc3c7272b8f1987d0bc9cd2065fc
+dist/FoxyCo-v1.0.10+80-release-20260824-1740.aab
+86,550,764 bytes
+SHA-256 468fe7bb954c0386a7a5c4ecf6ad29860568fc4d2e4ec56113c0881c92a90bd2
 ```
 
-The build helper completed dependency resolution, static analysis, all 503
-Flutter tests, Firestore rules tests and the signed release bundle. Build 77
-adds the compact History summary layout, accepted-trip and distance totals,
-locale-neutral analytics currency symbols, and the session recap alignment.
+The build helper completed dependency resolution, static analysis, the full
+Flutter suite, Firestore rules tests and the signed release bundle. Build 80
+adds matching light/dark History artwork, a compact platform-colored recent
+trip timeline, session/history alignment fixes, and visible launch-price copy
+while Google Play product details load.
 
 The licensing key is an RSA **public** key. It is extractable from any shipped
 APK, so recording it here costs nothing and makes the build reproducible:

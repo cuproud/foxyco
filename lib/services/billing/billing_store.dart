@@ -8,6 +8,14 @@ import 'package:in_app_purchase_android/in_app_purchase_android.dart';
 
 import 'purchase_verifier.dart';
 
+const _usdLifetimePrice = r'US$19.99';
+
+/// Launch-price copy used while Play product details are loading. Google Play
+/// remains authoritative at checkout and replaces this with its localized
+/// [ProductDetails.price] as soon as it responds.
+String lifetimePriceForCountry(String? countryCode) =>
+    countryCode?.toUpperCase() == 'CA' ? r'CA$24.99' : _usdLifetimePrice;
+
 /// Where the one-time unlock stands right now.
 enum UnlockStatus {
   /// Still asking Play. Never lock the UI on this — it is the boot state.
@@ -275,4 +283,13 @@ final billingProvider = NotifierProvider<BillingStore, UnlockStatus>(
 final billingPriceProvider = Provider<String?>((ref) {
   ref.watch(billingProvider);
   return ref.read(billingProvider.notifier).price;
+});
+
+final fallbackBillingPriceProvider = FutureProvider<String>((ref) async {
+  if (!Platform.isAndroid) return _usdLifetimePrice;
+  try {
+    return lifetimePriceForCountry(await InAppPurchase.instance.countryCode());
+  } catch (_) {
+    return _usdLifetimePrice;
+  }
 });

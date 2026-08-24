@@ -2020,6 +2020,7 @@ class _HistoryPerformanceState extends State<_HistoryPerformance> {
         : '—';
     final textScale = MediaQuery.textScalerOf(context).scale(1);
     final expandedHeight = 260.0 + (textScale > 1 ? (textScale - 1) * 80 : 0);
+    final light = Theme.of(context).brightness == Brightness.light;
 
     return Semantics(
       button: true,
@@ -2034,26 +2035,37 @@ class _HistoryPerformanceState extends State<_HistoryPerformance> {
           child: Container(
             height: _expanded ? expandedHeight : 72,
             decoration: BoxDecoration(
-              color: const Color(0xFF090D1C),
-              image: const DecorationImage(
-                image: AssetImage('assets/history/sunset.webp'),
+              color: light ? const Color(0xFFFFF8EE) : const Color(0xFF090D1C),
+              image: DecorationImage(
+                image: AssetImage(
+                  light
+                      ? 'assets/history/city_light.webp'
+                      : 'assets/history/city_dark.webp',
+                ),
                 fit: BoxFit.cover,
                 alignment: Alignment.centerRight,
+                opacity: light ? 0.46 : 1,
               ),
             ),
             child: Stack(
               fit: StackFit.expand,
               children: [
-                const DecoratedBox(
+                DecoratedBox(
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       begin: Alignment.centerLeft,
                       end: Alignment.centerRight,
-                      colors: [
-                        Color(0xFA071020),
-                        Color(0xE6071022),
-                        Color(0x8A24133A),
-                      ],
+                      colors: light
+                          ? const [
+                              Color(0xFAFFF9F0),
+                              Color(0xE8FFF8EE),
+                              Color(0x8AFFF4E8),
+                            ]
+                          : const [
+                              Color(0xFA071020),
+                              Color(0xE6071022),
+                              Color(0x8A24133A),
+                            ],
                       stops: [0, 0.55, 1],
                     ),
                   ),
@@ -2065,13 +2077,18 @@ class _HistoryPerformanceState extends State<_HistoryPerformance> {
                       padding: const EdgeInsets.all(Gap.md),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: _expanded
+                            ? MainAxisAlignment.start
+                            : MainAxisAlignment.center,
                         children: [
                           Row(
                             children: [
-                              const Icon(
+                              Icon(
                                 Icons.insights_rounded,
                                 size: 18,
-                                color: Color(0xFF79DC91),
+                                color: light
+                                    ? FoxColors.brandFox
+                                    : const Color(0xFF79DC91),
                               ),
                               const SizedBox(width: Gap.sm),
                               Expanded(
@@ -2087,7 +2104,7 @@ class _HistoryPerformanceState extends State<_HistoryPerformance> {
                                         : FoxFonts.display,
                                     fontSize: _expanded ? 13 : 16,
                                     fontWeight: FontWeight.w700,
-                                    color: Colors.white,
+                                    color: FoxColors.textPrimary,
                                     fontFeatures: const [
                                       FontFeature.tabularFigures(),
                                     ],
@@ -2098,14 +2115,14 @@ class _HistoryPerformanceState extends State<_HistoryPerformance> {
                                 _expanded
                                     ? Icons.expand_less_rounded
                                     : Icons.expand_more_rounded,
-                                color: Colors.white70,
+                                color: FoxColors.textSecondary,
                               ),
                             ],
                           ),
                           if (_expanded) ...[
                             const Spacer(),
                             Row(
-                              crossAxisAlignment: CrossAxisAlignment.end,
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Expanded(
                                   flex: 11,
@@ -2118,7 +2135,7 @@ class _HistoryPerformanceState extends State<_HistoryPerformance> {
                                 Container(
                                   width: 1,
                                   height: 62,
-                                  color: Colors.white24,
+                                  color: FoxColors.border,
                                 ),
                                 Expanded(
                                   flex: 9,
@@ -2143,11 +2160,13 @@ class _HistoryPerformanceState extends State<_HistoryPerformance> {
                                 horizontal: Gap.sm,
                               ),
                               decoration: BoxDecoration(
-                                color: const Color(0xCC0B1122),
+                                color: light
+                                    ? Colors.white.withValues(alpha: 0.78)
+                                    : const Color(0xCC0B1122),
                                 borderRadius: BorderRadius.circular(
                                   Radii.cardSm,
                                 ),
-                                border: Border.all(color: Colors.white24),
+                                border: Border.all(color: FoxColors.border),
                               ),
                               child: Row(
                                 children: [
@@ -2209,7 +2228,7 @@ class _HeroValue extends StatelessWidget {
         style: TextStyle(
           fontSize: 11,
           fontWeight: FontWeight.w700,
-          color: Colors.white70,
+          color: FoxColors.textSecondary,
         ),
       ),
       const SizedBox(height: 2),
@@ -2219,7 +2238,7 @@ class _HeroValue extends StatelessWidget {
           fontFamily: FoxFonts.display,
           fontSize: fontSize,
           fontWeight: FontWeight.w700,
-          color: Colors.white,
+          color: FoxColors.textPrimary,
           fontFeatures: const [FontFeature.tabularFigures()],
         ),
       ),
@@ -2227,7 +2246,7 @@ class _HeroValue extends StatelessWidget {
         const SizedBox(height: 2),
         Text(
           sub!,
-          style: const TextStyle(fontSize: 10.5, color: Colors.white70),
+          style: TextStyle(fontSize: 10.5, color: FoxColors.textSecondary),
         ),
       ],
     ],
@@ -2254,7 +2273,7 @@ class _HeroStat extends StatelessWidget {
               fontFamily: FoxFonts.display,
               fontSize: 18,
               fontWeight: FontWeight.w700,
-              color: Colors.white,
+              color: FoxColors.textPrimary,
               fontFeatures: [FontFeature.tabularFigures()],
             ),
           ),
@@ -2262,7 +2281,7 @@ class _HeroStat extends StatelessWidget {
         Text(
           label,
           maxLines: 1,
-          style: const TextStyle(fontSize: 9.5, color: Colors.white70),
+          style: TextStyle(fontSize: 9.5, color: FoxColors.textSecondary),
         ),
       ],
     ),
@@ -2274,7 +2293,7 @@ class _GlassDivider extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) =>
-      Container(width: 1, height: 34, color: Colors.white24);
+      Container(width: 1, height: 34, color: FoxColors.border);
 }
 
 class _OutcomeSheet extends StatelessWidget {

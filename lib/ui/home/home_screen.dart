@@ -13,7 +13,6 @@ import '../../domain/session_summary.dart';
 import '../../services/offer_log.dart';
 import '../../services/session_log.dart';
 import '../overlay/overlay_controller.dart';
-import '../history/history_intent.dart';
 import '../paywall/access_banner.dart';
 import '../legal/accessibility_disclosure.dart';
 import '../settings/reminder_controller.dart';
@@ -55,13 +54,6 @@ class HomeScreen extends ConsumerWidget {
         )
         .take(3)
         .toList();
-    final needsReview = ref.watch(offerLogProvider).where((offer) {
-      final accepted =
-          offer.outcome == OfferOutcome.taken ||
-          offer.outcome == OfferOutcome.completed;
-      return offer.outcome == OfferOutcome.unknown ||
-          (accepted && offer.finalPayout == null);
-    }).length;
     Future<void> requestMissingPermissions() =>
         controller.requestMissingPermissions(
           confirmAccessibility: () => showAccessibilityDisclosure(context),
@@ -156,20 +148,6 @@ class HomeScreen extends ConsumerWidget {
           ),
         ),
         const SizedBox(height: Gap.lg),
-        if (needsReview > 0) ...[
-          _Padded(
-            child: _NeedsReviewBanner(
-              count: needsReview,
-              onTap: () {
-                ref
-                    .read(pendingHistoryIntentProvider.notifier)
-                    .open(HistoryIntent.needsReview);
-                ref.read(tabIndexProvider.notifier).go(2);
-              },
-            ),
-          ),
-          const SizedBox(height: Gap.sm),
-        ],
         if (recentAccepted.isNotEmpty) ...[
           _Padded(child: _RecentAccepted(offers: recentAccepted)),
           const SizedBox(height: Gap.lg),
@@ -197,55 +175,6 @@ class HomeScreen extends ConsumerWidget {
       ],
     );
   }
-}
-
-class _NeedsReviewBanner extends StatelessWidget {
-  const _NeedsReviewBanner({required this.count, required this.onTap});
-
-  final int count;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) => Material(
-    color: Colors.transparent,
-    child: InkWell(
-      borderRadius: BorderRadius.circular(Radii.cardSm),
-      onTap: onTap,
-      child: Ink(
-        padding: const EdgeInsets.symmetric(horizontal: Gap.md, vertical: 12),
-        decoration: BoxDecoration(
-          color: VerdictColors.ok.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(Radii.cardSm),
-          border: Border.all(color: VerdictColors.ok.withValues(alpha: 0.28)),
-        ),
-        child: Row(
-          children: [
-            Icon(Icons.task_alt_rounded, color: VerdictColors.ok, size: 20),
-            const SizedBox(width: Gap.sm),
-            Expanded(
-              child: Text(
-                '$count ${count == 1 ? 'trip needs' : 'trips need'} review',
-                style: const TextStyle(fontWeight: FontWeight.w700),
-              ),
-            ),
-            Text(
-              'Review',
-              style: TextStyle(
-                color: FoxColors.brandFox,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            const SizedBox(width: 2),
-            Icon(
-              Icons.chevron_right_rounded,
-              color: FoxColors.brandFox,
-              size: 20,
-            ),
-          ],
-        ),
-      ),
-    ),
-  );
 }
 
 class _RecentAccepted extends ConsumerStatefulWidget {
@@ -326,17 +255,18 @@ class _RecentAcceptedState extends ConsumerState<_RecentAccepted> {
         if (_expanded) ...[
           const SizedBox(height: Gap.md),
           for (var i = 0; i < widget.offers.length; i++) ...[
-            _AcceptedTripCard(
+            _AcceptedTripTimelineItem(
               key: ValueKey(
                 'recent-accepted-${widget.offers[i].seenAt.microsecondsSinceEpoch}',
               ),
               offer: widget.offers[i],
+              isFirst: i == 0,
+              isLast: i == widget.offers.length - 1,
               onTap: () {
                 HapticFeedback.selectionClick();
                 ref.read(pendingOfferProvider.notifier).set(widget.offers[i]);
               },
             ),
-            if (i < widget.offers.length - 1) const SizedBox(height: Gap.sm),
           ],
         ],
       ],
@@ -344,14 +274,18 @@ class _RecentAcceptedState extends ConsumerState<_RecentAccepted> {
   );
 }
 
-class _AcceptedTripCard extends ConsumerWidget {
-  const _AcceptedTripCard({
+class _AcceptedTripTimelineItem extends ConsumerWidget {
+  const _AcceptedTripTimelineItem({
     super.key,
     required this.offer,
+    required this.isFirst,
+    required this.isLast,
     required this.onTap,
   });
 
   final OfferSummary offer;
+  final bool isFirst;
+  final bool isLast;
   final VoidCallback onTap;
 
   @override
@@ -364,73 +298,194 @@ class _AcceptedTripCard extends ConsumerWidget {
       TimeOfDay.fromDateTime(offer.seenAt),
       alwaysUse24HourFormat: MediaQuery.of(context).alwaysUse24HourFormat,
     );
-    final platformColor = Color(offer.platform.colorValue);
+    final platformColor = switch (offer.platform) {
+      GigPlatform.uber || GigPlatform.uberEats => FoxColors.uber,
+      _ => Color(offer.platform.colorValue),
+    };
+    final distance =
+        '${unit.distanceFromKm(offer.totalKm).toStringAsFixed(1)} ${unit.shortLabel}';
+    final payout =
+        '${currency.prefix}${offer.effectivePayout.toStringAsFixed(2)}';
+    final dark = Theme.of(context).brightness == Brightness.dark;
 
     return Semantics(
       button: true,
-      label:
-          '${offer.platform.label}, accepted, ${currency.prefix}${offer.effectivePayout.toStringAsFixed(2)}',
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: onTap,
-        child: Container(
-          constraints: const BoxConstraints(minHeight: 84),
-          padding: const EdgeInsets.all(Gap.sm + Gap.xs),
-          decoration: BoxDecoration(
-            color: platformColor.withValues(alpha: 0.055),
-            borderRadius: BorderRadius.circular(Radii.cardSm),
-            border: Border.all(color: platformColor.withValues(alpha: 0.18)),
-          ),
-          child: Row(
-            children: [
-              PlatformBadge(platform: offer.platform, size: 32),
-              const SizedBox(width: Gap.sm + Gap.xs),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    FittedBox(
-                      fit: BoxFit.scaleDown,
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        '${currency.prefix}${offer.effectivePayout.toStringAsFixed(2)}',
-                        maxLines: 1,
-                        style: TextStyle(
-                          fontFamily: FoxFonts.display,
-                          fontSize: 20,
-                          fontWeight: FontWeight.w700,
-                          color: FoxColors.textPrimary,
-                          fontFeatures: const [FontFeature.tabularFigures()],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: Gap.xs),
-                    Text(
-                      '$time  ·  ${unit.distanceFromKm(offer.totalKm).toStringAsFixed(1)} ${unit.shortLabel}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 11.5,
-                        fontWeight: FontWeight.w600,
-                        color: FoxColors.textSecondary,
-                        fontFeatures: const [FontFeature.tabularFigures()],
-                      ),
+      label: '${offer.platform.label}, accepted, $payout, $time, $distance',
+      child: SizedBox(
+        height: 72,
+        child: Stack(
+          children: [
+            Positioned(
+              left: 15,
+              top: isFirst ? 36 : 0,
+              bottom: isLast ? 36 : 0,
+              child: Container(width: 2, color: FoxColors.brandFox),
+            ),
+            Positioned(
+              left: 7,
+              top: 27,
+              child: Container(
+                width: 18,
+                height: 18,
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: FoxColors.bgSurface,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: FoxColors.brandFox, width: 2),
+                  boxShadow: [
+                    BoxShadow(
+                      color: FoxColors.brandFox.withValues(alpha: 0.24),
+                      blurRadius: 8,
                     ),
                   ],
                 ),
+                child: const DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: FoxColors.brandFox,
+                    shape: BoxShape.circle,
+                  ),
+                ),
               ),
-              const SizedBox(width: Gap.xs),
-              Icon(
-                Icons.chevron_right_rounded,
-                color: FoxColors.textDisabled,
-                size: 20,
+            ),
+            Positioned.fill(
+              left: 36,
+              child: Material(
+                color: Colors.transparent,
+                child: Ink(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(Radii.field),
+                    gradient: LinearGradient(
+                      colors: [
+                        platformColor.withValues(alpha: dark ? 0.18 : 0.10),
+                        platformColor.withValues(alpha: dark ? 0.06 : 0.025),
+                        Colors.transparent,
+                      ],
+                      stops: const [0, 0.42, 1],
+                    ),
+                  ),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(Radii.field),
+                    onTap: onTap,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: Gap.sm),
+                      child: LayoutBuilder(
+                        builder: (context, constraints) {
+                          final compact =
+                              constraints.maxWidth < 225 ||
+                              MediaQuery.textScalerOf(context).scale(1) > 1.2;
+                          return Row(
+                            children: [
+                              PlatformBadge(platform: offer.platform, size: 34),
+                              const SizedBox(width: Gap.sm),
+                              Expanded(
+                                child: compact
+                                    ? Column(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          _AcceptedTripPayout(payout),
+                                          const SizedBox(height: 2),
+                                          _AcceptedTripDetails(
+                                            time: time,
+                                            distance: distance,
+                                          ),
+                                        ],
+                                      )
+                                    : Row(
+                                        children: [
+                                          Flexible(
+                                            flex: 4,
+                                            child: _AcceptedTripPayout(payout),
+                                          ),
+                                          const SizedBox(width: Gap.sm),
+                                          Container(
+                                            width: 1,
+                                            height: 28,
+                                            color: FoxColors.border,
+                                          ),
+                                          const SizedBox(width: Gap.sm),
+                                          Expanded(
+                                            flex: 5,
+                                            child: _AcceptedTripDetails(
+                                              time: time,
+                                              distance: distance,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                              ),
+                              const SizedBox(width: Gap.xs),
+                              Icon(
+                                Icons.chevron_right_rounded,
+                                color: FoxColors.textSecondary,
+                                size: 22,
+                              ),
+                            ],
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                ),
               ),
-            ],
-          ),
+            ),
+            if (!isLast)
+              Positioned(
+                left: 48,
+                right: Gap.sm,
+                bottom: 0,
+                child: Container(height: 1, color: FoxColors.borderSoft),
+              ),
+          ],
         ),
       ),
     );
   }
+}
+
+class _AcceptedTripPayout extends StatelessWidget {
+  const _AcceptedTripPayout(this.value);
+
+  final String value;
+
+  @override
+  Widget build(BuildContext context) => FittedBox(
+    fit: BoxFit.scaleDown,
+    alignment: Alignment.centerLeft,
+    child: Text(
+      value,
+      maxLines: 1,
+      style: TextStyle(
+        fontFamily: FoxFonts.display,
+        fontSize: 20,
+        fontWeight: FontWeight.w700,
+        color: FoxColors.textPrimary,
+        fontFeatures: const [FontFeature.tabularFigures()],
+      ),
+    ),
+  );
+}
+
+class _AcceptedTripDetails extends StatelessWidget {
+  const _AcceptedTripDetails({required this.time, required this.distance});
+
+  final String time;
+  final String distance;
+
+  @override
+  Widget build(BuildContext context) => Text(
+    '$time  ·  $distance',
+    maxLines: 1,
+    overflow: TextOverflow.ellipsis,
+    style: TextStyle(
+      fontSize: 11.5,
+      fontWeight: FontWeight.w600,
+      color: FoxColors.textSecondary,
+      fontFeatures: const [FontFeature.tabularFigures()],
+    ),
+  );
 }
 
 /// Amber banner for the soonest due car reminder ("Safety inspection in 12
@@ -1471,100 +1526,13 @@ class _SessionCard extends ConsumerWidget {
                 const SizedBox(height: Gap.sm + Gap.xs),
                 _SessionQuality(session: s),
                 const SizedBox(height: Gap.sm),
-                SessionPerformance(
-                  session: s,
-                  settings: settings,
-                  text: text,
-                  onEdit: () => _editSessionEarnings(
-                    context,
-                    ref,
-                    s,
-                    settings.currency.prefix,
-                  ),
-                ),
+                SessionPerformance(session: s, settings: settings, text: text),
               ],
             ],
           ),
         ),
       ),
     );
-  }
-
-  Future<void> _editSessionEarnings(
-    BuildContext context,
-    WidgetRef ref,
-    SessionSummary session,
-    String prefix,
-  ) async {
-    final controller = TextEditingController(
-      text: session.hasActualEarnings
-          ? session.earnings.toStringAsFixed(2)
-          : '',
-    );
-    String? error;
-    final value = await showDialog<double?>(
-      context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setState) {
-          void save() {
-            final parsed = double.tryParse(
-              controller.text.trim().replaceAll(',', '.'),
-            );
-            if (parsed == null || !parsed.isFinite || parsed <= 0) {
-              setState(() => error = 'Enter an amount above zero');
-              return;
-            }
-            Navigator.pop(context, (parsed * 100).round() / 100);
-          }
-
-          return AlertDialog(
-            title: const Text('Session earnings'),
-            content: TextField(
-              controller: controller,
-              autofocus: true,
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
-              ),
-              textInputAction: TextInputAction.done,
-              inputFormatters: [
-                TextInputFormatter.withFunction(
-                  (oldValue, newValue) =>
-                      RegExp(r'^\d*(?:[.,]\d{0,2})?$').hasMatch(newValue.text)
-                      ? newValue
-                      : oldValue,
-                ),
-              ],
-              onSubmitted: (_) => save(),
-              decoration: InputDecoration(
-                labelText: 'Actual total',
-                prefixText: prefix,
-                helperText:
-                    'Trip payouts: $prefix${session.estimatedEarnings.toStringAsFixed(2)}',
-                errorText: error,
-              ),
-            ),
-            actions: [
-              if (session.hasActualEarnings)
-                TextButton(
-                  onPressed: () => Navigator.pop(context, double.nan),
-                  child: const Text('Use trip payouts'),
-                ),
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Cancel'),
-              ),
-              FilledButton(onPressed: save, child: const Text('Save')),
-            ],
-          );
-        },
-      ),
-    );
-    controller.dispose();
-    if (value != null && context.mounted) {
-      ref
-          .read(sessionLogProvider.notifier)
-          .setActualEarnings(session, value.isNaN ? null : value);
-    }
   }
 }
 
@@ -1802,13 +1770,11 @@ class SessionPerformance extends StatefulWidget {
     required this.session,
     required this.settings,
     required this.text,
-    this.onEdit,
   });
 
   final SessionSummary session;
   final FoxSettings settings;
   final TextTheme text;
-  final VoidCallback? onEdit;
 
   @override
   State<SessionPerformance> createState() => _SessionPerformanceState();
@@ -1863,7 +1829,7 @@ class _SessionPerformanceState extends State<SessionPerformance> {
             behavior: HitTestBehavior.opaque,
             onTap: () => setState(() => _expanded = !_expanded),
             child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: Gap.xs),
+              padding: const EdgeInsets.only(top: 6, bottom: 2),
               child: Row(
                 children: [
                   Icon(
@@ -1906,14 +1872,6 @@ class _SessionPerformanceState extends State<SessionPerformance> {
                 Expanded(child: metrics[0]),
                 const SizedBox(width: Gap.md),
                 Expanded(child: metrics[1]),
-                if (widget.onEdit != null)
-                  IconButton(
-                    tooltip: 'Edit session earnings',
-                    visualDensity: VisualDensity.compact,
-                    icon: const Icon(Icons.edit_outlined, size: 18),
-                    color: FoxColors.textSecondary,
-                    onPressed: widget.onEdit,
-                  ),
               ],
             ),
             const SizedBox(height: Gap.sm),

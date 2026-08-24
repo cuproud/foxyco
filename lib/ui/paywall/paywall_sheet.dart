@@ -161,15 +161,15 @@ class _PaywallSheetState extends ConsumerState<_PaywallSheet> {
       if (unlock == UnlockStatus.purchased) _close();
     });
 
-    // Play supplies the storefront-localized price. Never guess a currency
-    // while product details are loading.
-    final price = ref.watch(billingPriceProvider);
+    final playPrice = ref.watch(billingPriceProvider);
+    final price =
+        playPrice ??
+        ref.watch(fallbackBillingPriceProvider).asData?.value ??
+        lifetimePriceForCountry(null);
     final canTrial = trial.phase == TrialPhase.preTrial;
-    final unlockLabel = price == null
-        ? (canTrial
-              ? 'Unlock now with Google Play'
-              : 'Unlock forever with Google Play')
-        : (canTrial ? 'Unlock now — $price' : 'Unlock forever — $price');
+    final unlockLabel = canTrial
+        ? 'Unlock now — $price'
+        : 'Unlock forever — $price';
 
     return Container(
       margin: const EdgeInsets.all(Gap.sm),
@@ -300,7 +300,8 @@ class _PaywallSheetState extends ConsumerState<_PaywallSheet> {
                     note: 'One-time purchase through Google Play.',
                     outlined: canTrial,
                     busy: _working,
-                    onTap: unlock == UnlockStatus.unavailable || price == null
+                    onTap:
+                        unlock == UnlockStatus.unavailable || playPrice == null
                         ? null
                         : _buy,
                   ),

@@ -19,7 +19,10 @@ class PlatformBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = Color(platform.colorValue);
+    final color = switch (platform) {
+      GigPlatform.uber || GigPlatform.uberEats => FoxColors.uber,
+      _ => Color(platform.colorValue),
+    };
     // Contrast against the ROUNDEL, not the page: bgBase resolved to cream in
     // light mode, which put a white letter on Uber's near-white badge (device
     // 2026-07-25). Near-black rather than pure black to match Uber's brand.
