@@ -1062,6 +1062,22 @@ void main() {
     expect(c.read(offerWatcherProvider)!.platform, GigPlatform.uber);
   });
 
+  test('revealed Lyft card regains verdict after Uber closes', () async {
+    final c = container();
+    c.read(offerWatcherProvider);
+    c.read(overlayControllerProvider);
+
+    watcher.emit(_lyftA);
+    await Future<void>.delayed(Duration.zero);
+    watcher.emit(_uberA);
+    await Future<void>.delayed(Duration.zero);
+    watcher.emit(_lyftA);
+    await Future<void>.delayed(Duration.zero);
+
+    expect(overlay.shown, hasLength(3));
+    expect(c.read(offerWatcherProvider)!.platform, GigPlatform.lyft);
+  });
+
   test('incomplete new top card clears the lower card verdict', () async {
     final c = container();
     c.read(offerWatcherProvider);

@@ -484,16 +484,21 @@ public class OverlayService extends Service implements View.OnTouchListener {
     private void restoreSurfaceTransparency() {
         if (flutterView == null) return;
         flutterView.setBackgroundColor(Color.TRANSPARENT);
-        if (!(flutterView instanceof ViewGroup)) return;
-        ViewGroup root = (ViewGroup) flutterView;
+        restoreSurfaceTransparency(flutterView);
+    }
+
+    private void restoreSurfaceTransparency(View view) {
+        view.setBackgroundColor(Color.TRANSPARENT);
+        if (view instanceof SurfaceView) {
+            SurfaceView surface = (SurfaceView) view;
+            surface.setZOrderOnTop(true);
+            surface.getHolder().setFormat(PixelFormat.TRANSLUCENT);
+        }
+        if (!(view instanceof ViewGroup)) return;
+        ViewGroup root = (ViewGroup) view;
         for (int i = 0; i < root.getChildCount(); i++) {
             View child = root.getChildAt(i);
-            if (child instanceof SurfaceView) {
-                SurfaceView surface = (SurfaceView) child;
-                surface.setZOrderOnTop(true);
-                surface.getHolder().setFormat(PixelFormat.TRANSLUCENT);
-                surface.setBackgroundColor(Color.TRANSPARENT);
-            }
+            restoreSurfaceTransparency(child);
         }
     }
 

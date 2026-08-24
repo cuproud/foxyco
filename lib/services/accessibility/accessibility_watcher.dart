@@ -93,7 +93,8 @@ class AccessibilityWatcher {
     final controller = StreamController<ScreenRead>();
     Timer? debounceTimer;
     AccessibilityEvent? pending;
-    final lastKeyByPackage = <String, String>{};
+    String? lastPackage;
+    String? lastKey;
 
     void flush() {
       final event = pending;
@@ -133,11 +134,14 @@ class AccessibilityWatcher {
         );
         return;
       }
-      // Dedupe: skip if identical to the last emitted read for this package.
+      // Dedupe only consecutive identical frames. A Lyft card can remain under
+      // an Uber card and become visible again unchanged; remembering Lyft's
+      // last frame forever swallowed that reveal and left it without a verdict.
       final package = event.packageName ?? '';
       final key = texts.join('');
-      if (key == lastKeyByPackage[package]) return;
-      lastKeyByPackage[package] = key;
+      if (package == lastPackage && key == lastKey) return;
+      lastPackage = package;
+      lastKey = key;
       controller.add(
         ScreenRead(
           packageName: package,

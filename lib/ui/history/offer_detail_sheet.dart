@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/offer_summary.dart';
@@ -50,6 +51,10 @@ class _OfferDetailSheet extends ConsumerWidget {
     final snapshot = current.scoringSnapshot;
     final currency = snapshot?.currency ?? settings.currency;
     final distanceUnit = snapshot?.distanceUnit ?? settings.distanceUnit;
+    final canEditFinalPayout =
+        current.outcome == OfferOutcome.taken ||
+        current.outcome == OfferOutcome.completed ||
+        current.finalPayout != null;
     final time = MaterialLocalizations.of(context).formatTimeOfDay(
       TimeOfDay.fromDateTime(current.seenAt),
       alwaysUse24HourFormat: MediaQuery.of(context).alwaysUse24HourFormat,
@@ -204,18 +209,19 @@ class _OfferDetailSheet extends ConsumerWidget {
                           ),
                         ),
                       ),
-                      TextButton.icon(
-                        onPressed: () => _editFinalPayout(
-                          context,
-                          ref,
-                          current,
-                          currency.prefix,
+                      if (canEditFinalPayout)
+                        TextButton.icon(
+                          onPressed: () => _editFinalPayout(
+                            context,
+                            ref,
+                            current,
+                            currency.prefix,
+                          ),
+                          icon: const Icon(Icons.edit_rounded, size: 15),
+                          label: Text(
+                            current.finalPayout == null ? 'Add final' : 'Edit',
+                          ),
                         ),
-                        icon: const Icon(Icons.edit_rounded, size: 15),
-                        label: Text(
-                          current.finalPayout == null ? 'Add final' : 'Edit',
-                        ),
-                      ),
                     ],
                   ),
                   if (current.category != null)
@@ -379,51 +385,67 @@ class _OfferDetailSheet extends ConsumerWidget {
     OfferSummary offer,
     String prefix,
   ) async {
-    final controller = TextEditingController(
-      text: offer.finalPayout?.toStringAsFixed(2) ?? '',
-    );
+    var input = offer.finalPayout?.toStringAsFixed(2) ?? '';
     String? error;
     final value = await showDialog<double>(
       context: context,
       builder: (context) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
-          title: const Text('Final earnings'),
-          content: TextField(
-            controller: controller,
-            autofocus: true,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            decoration: InputDecoration(
-              prefixText: prefix,
-              labelText: 'Amount received',
-              errorText: error,
-            ),
-          ),
-          actions: [
-            if (offer.finalPayout != null)
-              TextButton(
-                onPressed: () => Navigator.pop(context, double.nan),
-                child: const Text('Remove'),
+        builder: (context, setState) {
+          void save() {
+            final parsed = double.tryParse(input.trim().replaceAll(',', '.'));
+            if (parsed == null || !parsed.isFinite || parsed <= 0) {
+              setState(() => error = 'Enter an amount above zero');
+              return;
+            }
+            Navigator.pop(context, (parsed * 100).round() / 100);
+          }
+
+          return AlertDialog(
+            title: const Text('Final earnings'),
+            content: TextFormField(
+              initialValue: input,
+              autofocus: true,
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
               ),
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
+              textInputAction: TextInputAction.done,
+              inputFormatters: [
+                TextInputFormatter.withFunction(
+                  (oldValue, newValue) =>
+                      RegExp(r'^\d*(?:[.,]\d{0,2})?$').hasMatch(newValue.text)
+                      ? newValue
+                      : oldValue,
+                ),
+              ],
+              onChanged: (value) => input = value,
+              onFieldSubmitted: (_) => save(),
+              decoration: InputDecoration(
+                prefixText: prefix,
+                labelText: 'Amount received',
+                helperText:
+                    'Upfront offer: $prefix${offer.payout.toStringAsFixed(2)}',
+                errorText: error,
+              ),
             ),
-            FilledButton(
-              onPressed: () {
-                final parsed = double.tryParse(controller.text.trim());
-                if (parsed == null || !parsed.isFinite || parsed <= 0) {
-                  setState(() => error = 'Enter an amount above zero');
-                  return;
-                }
-                Navigator.pop(context, parsed);
-              },
-              child: const Text('Save'),
-            ),
-          ],
-        ),
+            actions: [
+              if (offer.finalPayout != null)
+                TextButton(
+                  style: TextButton.styleFrom(
+                    foregroundColor: VerdictColors.bad,
+                  ),
+                  onPressed: () => Navigator.pop(context, double.nan),
+                  child: const Text('Remove'),
+                ),
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(onPressed: save, child: const Text('Save')),
+            ],
+          );
+        },
       ),
     );
-    controller.dispose();
     if (value == null) return;
     final changed = ref
         .read(offerLogProvider.notifier)

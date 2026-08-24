@@ -2,14 +2,26 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:foxyco/domain/session_summary.dart';
+import 'package:foxyco/domain/offer_summary.dart';
+import 'package:foxyco/domain/platform.dart';
+import 'package:foxyco/domain/verdict.dart';
 import 'package:foxyco/parser/parser_registry.dart';
 import 'package:foxyco/router.dart';
+import 'package:foxyco/services/offer_log.dart';
 import 'package:foxyco/services/session_log.dart';
 import 'package:foxyco/services/play_update_service.dart';
 import 'package:foxyco/ui/settings/about_content.dart';
 import 'package:foxyco/ui/theme/platform_badge.dart';
 import 'package:foxyco/ui/settings/logs_screen.dart';
 import 'package:foxyco/ui/shell/root_shell.dart';
+
+class _NavigationOfferLog extends OfferLog {
+  _NavigationOfferLog(this.offers);
+  final List<OfferSummary> offers;
+
+  @override
+  List<OfferSummary> build() => offers;
+}
 
 /// Shell navigation: the connective tissue between the four tabs. Everything
 /// here used to be a dead end — back left the app, tab jumps landed on a
@@ -92,6 +104,56 @@ void main() {
 
     await systemBack(tester);
     expect(container.read(tabIndexProvider), 0, reason: 'back lands on Home');
+  });
+
+  testWidgets('recent accepted trip opens its editable History detail', (
+    tester,
+  ) async {
+    tall(tester);
+    final seenAt = DateTime(2026, 8, 24, 10, 3);
+    final offer = OfferSummary(
+      platform: GigPlatform.uber,
+      verdict: Verdict.good,
+      payout: 18.60,
+      totalKm: 8.5,
+      totalMinutes: 24,
+      seenAt: seenAt,
+      outcome: OfferOutcome.taken,
+    );
+    final container = scope([
+      offerLogProvider.overrideWith(() => _NavigationOfferLog([offer])),
+    ]);
+    await pumpShell(tester, container);
+
+    expect(find.text('Recent accepted'), findsOneWidget);
+    expect(
+      find.byKey(ValueKey('recent-accepted-${seenAt.microsecondsSinceEpoch}')),
+      findsNothing,
+    );
+
+    await tester.tap(find.text('Recent accepted'));
+    await beat(tester);
+    final card = find.byKey(
+      ValueKey('recent-accepted-${seenAt.microsecondsSinceEpoch}'),
+    );
+    expect(card, findsOneWidget);
+
+    await tester.tap(card);
+    await beat(tester);
+
+    expect(container.read(tabIndexProvider), 2);
+    expect(find.text('Add final'), findsOneWidget);
+
+    await tester.tap(find.text('Add final'));
+    await beat(tester);
+    expect(find.text(r'Upfront offer: CA$18.60'), findsOneWidget);
+    await tester.enterText(find.byType(TextField).last, '18,61');
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await beat(tester);
+
+    expect(find.text(r'CA$18.61'), findsAtLeastNWidgets(1));
+    expect(container.read(offerLogProvider).single.finalPayout, 18.61);
+    await tester.pump(const Duration(seconds: 3));
   });
 
   testWidgets('a completed app update is confirmed once Home mounts', (

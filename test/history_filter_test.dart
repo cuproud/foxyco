@@ -437,7 +437,15 @@ void main() {
       '2',
     );
     expect(
-      find.descendant(of: summary, matching: find.text('Peak offer time')),
+      find.descendant(of: summary, matching: find.text('OFFERS')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: summary, matching: find.text('ACCEPTED')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: summary, matching: find.text('KM')),
       findsOneWidget,
     );
 

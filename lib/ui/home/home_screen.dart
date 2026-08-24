@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/car_reminder.dart';
 import '../../domain/fox_settings.dart';
+import '../../domain/offer_summary.dart';
 import '../../domain/platform.dart';
 import '../../parser/parser_registry.dart';
 import '../../domain/session_summary.dart';
@@ -27,7 +28,6 @@ import 'dashboard_state.dart';
 import 'fox_tips_card.dart';
 import 'profile_card.dart';
 import 'recap_widgets.dart';
-import 'shift_recap_sheet.dart';
 import 'slide_to_live.dart';
 import 'update_prompt.dart';
 
@@ -45,6 +45,15 @@ class HomeScreen extends ConsumerWidget {
     final state = ref.watch(dashboardProvider);
     final controller = ref.read(dashboardProvider.notifier);
     final blocked = state.status == WatchStatus.blocked;
+    final recentAccepted = ref
+        .watch(offerLogProvider)
+        .where(
+          (offer) =>
+              offer.outcome == OfferOutcome.taken ||
+              offer.outcome == OfferOutcome.completed,
+        )
+        .take(3)
+        .toList();
     Future<void> requestMissingPermissions() =>
         controller.requestMissingPermissions(
           confirmAccessibility: () => showAccessibilityDisclosure(context),
@@ -102,14 +111,7 @@ class HomeScreen extends ConsumerWidget {
             // Slide-to-go-live is the Start/Stop outer gate (spec M6 §3.2);
             // pause stays on the bubble long-press.
             onStart: () => unawaited(controller.startMonitoring()),
-            onStop: () {
-              final since = controller.stopMonitoring();
-              maybeShowShiftRecap(
-                context,
-                liveSince: since,
-                allOffers: ref.read(offerLogProvider),
-              );
-            },
+            onStop: controller.stopMonitoring,
             onFix: requestMissingPermissions,
             // Rules section 3 is "Watched apps" — the badges' own controls.
             // on Settings with it still collapsed and off-screen isn't a jump,
@@ -146,6 +148,10 @@ class HomeScreen extends ConsumerWidget {
           ),
         ),
         const SizedBox(height: Gap.lg),
+        if (recentAccepted.isNotEmpty) ...[
+          _Padded(child: _RecentAccepted(offers: recentAccepted)),
+          const SizedBox(height: Gap.lg),
+        ],
         const _Padded(child: SectionLabel('Fox tips')),
         const SizedBox(height: Gap.sm + Gap.xs),
         const _Padded(child: FoxTipsCard()),
@@ -167,6 +173,230 @@ class HomeScreen extends ConsumerWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _RecentAccepted extends ConsumerStatefulWidget {
+  const _RecentAccepted({required this.offers});
+
+  final List<OfferSummary> offers;
+
+  @override
+  ConsumerState<_RecentAccepted> createState() => _RecentAcceptedState();
+}
+
+class _RecentAcceptedState extends ConsumerState<_RecentAccepted> {
+  bool _expanded = false;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.all(Gap.md),
+    decoration: BoxDecoration(
+      color: FoxColors.bgSurface,
+      borderRadius: BorderRadius.circular(Radii.card),
+      border: Border.all(color: FoxColors.borderSoft),
+      boxShadow: Shadows.card,
+    ),
+    child: Column(
+      children: [
+        Semantics(
+          button: true,
+          expanded: _expanded,
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () => setState(() => _expanded = !_expanded),
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.bar_chart_rounded,
+                  color: FoxColors.brandFox,
+                  size: 22,
+                ),
+                const SizedBox(width: Gap.sm + Gap.xs),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Recent accepted',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w800,
+                          color: FoxColors.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        _expanded
+                            ? 'Tap a trip to update its payout'
+                            : '${widget.offers.length} recent ${widget.offers.length == 1 ? 'trip' : 'trips'}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          color: FoxColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(
+                  _expanded
+                      ? Icons.expand_less_rounded
+                      : Icons.expand_more_rounded,
+                  color: FoxColors.textSecondary,
+                  size: 24,
+                ),
+              ],
+            ),
+          ),
+        ),
+        if (_expanded) ...[
+          const SizedBox(height: Gap.md),
+          for (var i = 0; i < widget.offers.length; i++) ...[
+            _AcceptedTripCard(
+              key: ValueKey(
+                'recent-accepted-${widget.offers[i].seenAt.microsecondsSinceEpoch}',
+              ),
+              offer: widget.offers[i],
+              onTap: () {
+                HapticFeedback.selectionClick();
+                ref.read(tabIndexProvider.notifier).go(2);
+                ref.read(pendingOfferProvider.notifier).set(widget.offers[i]);
+              },
+            ),
+            if (i < widget.offers.length - 1) const SizedBox(height: Gap.sm),
+          ],
+        ],
+      ],
+    ),
+  );
+}
+
+class _AcceptedTripCard extends ConsumerWidget {
+  const _AcceptedTripCard({
+    super.key,
+    required this.offer,
+    required this.onTap,
+  });
+
+  final OfferSummary offer;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final settings = ref.watch(settingsProvider);
+    final snapshot = offer.scoringSnapshot;
+    final currency = snapshot?.currency ?? settings.currency;
+    final unit = snapshot?.distanceUnit ?? settings.distanceUnit;
+    final time = MaterialLocalizations.of(context).formatTimeOfDay(
+      TimeOfDay.fromDateTime(offer.seenAt),
+      alwaysUse24HourFormat: MediaQuery.of(context).alwaysUse24HourFormat,
+    );
+    final platformColor = Color(offer.platform.colorValue);
+
+    return Semantics(
+      button: true,
+      label:
+          '${offer.platform.label}, accepted, ${currency.prefix}${offer.effectivePayout.toStringAsFixed(2)}',
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: Container(
+          constraints: const BoxConstraints(minHeight: 84),
+          padding: const EdgeInsets.all(Gap.sm + Gap.xs),
+          decoration: BoxDecoration(
+            color: platformColor.withValues(alpha: 0.055),
+            borderRadius: BorderRadius.circular(Radii.cardSm),
+            border: Border.all(color: platformColor.withValues(alpha: 0.18)),
+          ),
+          child: Row(
+            children: [
+              PlatformBadge(platform: offer.platform, size: 32),
+              const SizedBox(width: Gap.sm + Gap.xs),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              '${currency.prefix}${offer.effectivePayout.toStringAsFixed(2)}',
+                              maxLines: 1,
+                              style: TextStyle(
+                                fontFamily: FoxFonts.display,
+                                fontSize: 20,
+                                fontWeight: FontWeight.w700,
+                                color: FoxColors.textPrimary,
+                                fontFeatures: const [
+                                  FontFeature.tabularFigures(),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: Gap.sm),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: VerdictColors.goodBg,
+                            borderRadius: BorderRadius.circular(Radii.pill),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.check_circle_rounded,
+                                size: 12,
+                                color: VerdictColors.good,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                'Accepted',
+                                style: TextStyle(
+                                  fontSize: 10.5,
+                                  fontWeight: FontWeight.w700,
+                                  color: VerdictColors.good,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: Gap.xs),
+                    Text(
+                      '$time  ·  ${unit.distanceFromKm(offer.totalKm).toStringAsFixed(1)} ${unit.shortLabel}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w600,
+                        color: FoxColors.textSecondary,
+                        fontFeatures: const [FontFeature.tabularFigures()],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: Gap.xs),
+              Icon(
+                Icons.chevron_right_rounded,
+                color: FoxColors.textDisabled,
+                size: 20,
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
@@ -1220,38 +1450,6 @@ class _SessionCard extends ConsumerWidget {
                     settings.currency.prefix,
                   ),
                 ),
-                const SizedBox(height: Gap.sm),
-                Row(
-                  children: [
-                    _SessionStat(
-                      icon: Icons.route_rounded,
-                      color: VerdictColors.good,
-                      value: s.bestPerKm > 0
-                          ? '${settings.currency.prefix}${settings.distanceUnit.rateFromPerKm(s.bestPerKm).toStringAsFixed(2)}'
-                          : '—',
-                      label:
-                          'Best \$/${settings.distanceUnit.shortLabel.toLowerCase()}',
-                    ),
-                    const SizedBox(width: Gap.sm),
-                    _SessionStat(
-                      icon: Icons.trending_up_rounded,
-                      color: VerdictColors.ok,
-                      value: s.goodAvgPerKm > 0
-                          ? '${settings.currency.prefix}${settings.distanceUnit.rateFromPerKm(s.goodAvgPerKm).toStringAsFixed(2)}'
-                          : '—',
-                      label: 'Good avg',
-                    ),
-                    const SizedBox(width: Gap.sm),
-                    _SessionStat(
-                      icon: Icons.schedule_rounded,
-                      color: VerdictColors.bad,
-                      value: s.busiestHour != null
-                          ? hourLabel(s.busiestHour!)
-                          : '—',
-                      label: 'Busiest',
-                    ),
-                  ],
-                ),
               ],
             ],
           ),
@@ -1533,7 +1731,7 @@ class _SessionStat extends StatelessWidget {
   );
 }
 
-class SessionPerformance extends StatelessWidget {
+class SessionPerformance extends StatefulWidget {
   const SessionPerformance({
     super.key,
     required this.session,
@@ -1548,12 +1746,22 @@ class SessionPerformance extends StatelessWidget {
   final VoidCallback? onEdit;
 
   @override
+  State<SessionPerformance> createState() => _SessionPerformanceState();
+}
+
+class _SessionPerformanceState extends State<SessionPerformance> {
+  bool _expanded = false;
+
+  @override
   Widget build(BuildContext context) {
+    final session = widget.session;
+    final settings = widget.settings;
+    final text = widget.text;
     final earnings = session.earnings > 0
-        ? '\$${session.earnings.toStringAsFixed(2)}'
+        ? '${settings.currency.prefix}${session.earnings.toStringAsFixed(2)}'
         : '—';
     final hourly = session.hourlyEarnings > 0
-        ? '\$${session.hourlyEarnings.toStringAsFixed(0)}'
+        ? '${settings.currency.prefix}${session.hourlyEarnings.toStringAsFixed(0)}/hr'
         : '—';
     final metrics = [
       _SessionMetric(
@@ -1566,21 +1774,11 @@ class SessionPerformance extends StatelessWidget {
       ),
       _SessionMetric(
         title: 'Session rate',
-        value: hourly,
+        value: hourly == '—' ? hourly : hourly.replaceFirst('/hr', ''),
         support: 'Per active hour',
         text: text,
       ),
     ];
-
-    Widget row(List<Widget> children) => Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        for (var i = 0; i < children.length; i++) ...[
-          if (i > 0) const SizedBox(width: Gap.md),
-          Expanded(child: children[i]),
-        ],
-      ],
-    );
 
     return Container(
       padding: const EdgeInsets.all(Gap.sm + Gap.xs),
@@ -1592,35 +1790,94 @@ class SessionPerformance extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              const Icon(
-                Icons.query_stats_rounded,
-                size: 16,
-                color: FoxColors.brandFox,
+          GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () => setState(() => _expanded = !_expanded),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: Gap.xs),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.query_stats_rounded,
+                    size: 16,
+                    color: VerdictColors.good,
+                  ),
+                  const SizedBox(width: Gap.sm),
+                  Expanded(
+                    child: Text(
+                      _expanded ? 'Session performance' : '$earnings · $hourly',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontFamily: _expanded ? null : FoxFonts.display,
+                        fontSize: _expanded ? 11.5 : 15,
+                        fontWeight: FontWeight.w700,
+                        color: FoxColors.textPrimary,
+                        fontFeatures: const [FontFeature.tabularFigures()],
+                      ),
+                    ),
+                  ),
+                  Icon(
+                    _expanded
+                        ? Icons.expand_less_rounded
+                        : Icons.expand_more_rounded,
+                    color: FoxColors.textSecondary,
+                  ),
+                ],
               ),
-              const SizedBox(width: Gap.sm),
-              Text(
-                'Session performance',
-                style: TextStyle(
-                  fontSize: 11.5,
-                  fontWeight: FontWeight.w700,
-                  color: FoxColors.textSecondary,
-                ),
-              ),
-              const Spacer(),
-              if (onEdit != null)
-                IconButton(
-                  tooltip: 'Edit session earnings',
-                  visualDensity: VisualDensity.compact,
-                  icon: const Icon(Icons.edit_outlined, size: 18),
-                  color: FoxColors.textSecondary,
-                  onPressed: onEdit,
-                ),
-            ],
+            ),
           ),
-          const SizedBox(height: Gap.sm),
-          row(metrics),
+          if (_expanded) ...[
+            const SizedBox(height: Gap.sm),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(child: metrics[0]),
+                const SizedBox(width: Gap.md),
+                Expanded(child: metrics[1]),
+                if (widget.onEdit != null)
+                  IconButton(
+                    tooltip: 'Edit session earnings',
+                    visualDensity: VisualDensity.compact,
+                    icon: const Icon(Icons.edit_outlined, size: 18),
+                    color: FoxColors.textSecondary,
+                    onPressed: widget.onEdit,
+                  ),
+              ],
+            ),
+            const SizedBox(height: Gap.sm),
+            Row(
+              children: [
+                _SessionStat(
+                  icon: Icons.route_rounded,
+                  color: VerdictColors.good,
+                  value: session.bestPerKm > 0
+                      ? '${settings.currency.prefix}${settings.distanceUnit.rateFromPerKm(session.bestPerKm).toStringAsFixed(2)}'
+                      : '—',
+                  label:
+                      'Best \$/${settings.distanceUnit.shortLabel.toLowerCase()}',
+                ),
+                const SizedBox(width: Gap.sm),
+                _SessionStat(
+                  icon: Icons.trending_up_rounded,
+                  color: VerdictColors.ok,
+                  value: session.goodAvgPerKm > 0
+                      ? '${settings.currency.prefix}${settings.distanceUnit.rateFromPerKm(session.goodAvgPerKm).toStringAsFixed(2)}'
+                      : '—',
+                  label: 'Good avg',
+                ),
+                const SizedBox(width: Gap.sm),
+                _SessionStat(
+                  icon: Icons.schedule_rounded,
+                  color: FoxColors.brandFox,
+                  value: session.busiestHour != null
+                      ? hourLabel(session.busiestHour!)
+                      : '—',
+                  label: 'Busiest',
+                ),
+              ],
+            ),
+          ],
         ],
       ),
     );
