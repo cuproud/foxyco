@@ -117,7 +117,7 @@ class _ShiftRecapSheet extends ConsumerWidget {
             children: [
               StatTile(
                 value: s.best != null && s.best!.pricePerKm > 0
-                    ? '${settings.currency.prefix}${settings.distanceUnit.rateFromPerKm(s.best!.pricePerKm).toStringAsFixed(2)}'
+                    ? '\$${settings.distanceUnit.rateFromPerKm(s.best!.pricePerKm).toStringAsFixed(2)}'
                     : '—',
                 label:
                     'BEST \$/${settings.distanceUnit.shortLabel.toUpperCase()}',
@@ -125,7 +125,7 @@ class _ShiftRecapSheet extends ConsumerWidget {
               const SizedBox(width: Gap.sm),
               StatTile(
                 value: s.goodAvgPerKm > 0
-                    ? '${settings.currency.prefix}${settings.distanceUnit.rateFromPerKm(s.goodAvgPerKm).toStringAsFixed(2)}'
+                    ? '\$${settings.distanceUnit.rateFromPerKm(s.goodAvgPerKm).toStringAsFixed(2)}'
                     : '—',
                 label: 'GOOD AVG',
               ),
@@ -233,12 +233,10 @@ class _RecapEarnings extends StatelessWidget {
               offer.outcome == OfferOutcome.completed,
         )
         .fold(0.0, (sum, offer) => sum + offer.effectivePayout);
-    final earnings = completed > 0
-        ? '${settings.currency.prefix}${completed.toStringAsFixed(2)}'
-        : '—';
+    final earnings = completed > 0 ? '\$${completed.toStringAsFixed(2)}' : '—';
     final hourly = completed > 0 && duration.inMinutes > 0
-        ? '${settings.currency.prefix}${(completed / (duration.inMinutes / 60)).toStringAsFixed(0)}/hr'
-        : '—/hr';
+        ? '\$${(completed / (duration.inMinutes / 60)).toStringAsFixed(0)}'
+        : '—';
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [

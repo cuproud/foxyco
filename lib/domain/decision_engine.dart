@@ -44,13 +44,13 @@ class DecisionEngine {
     return evaluate(offer.pricePerKm, s.distanceThresholdsFor(platform));
   }
 
-  /// GOOD voice alerts require both rate rules; OK follows the displayed
-  /// verdict. Without time data, the hourly GOOD rule cannot be verified.
+  /// GOOD voice alerts require time data and either rate rule; OK follows the
+  /// displayed verdict.
   bool qualifiesForVoice(Offer offer, FoxSettings s, Verdict verdict) {
     if (verdict != Verdict.good) return verdict == Verdict.ok;
     final platform = offer.rulesPlatform;
     return offer.totalMinutes > 0 &&
-        offer.pricePerKm >= s.distanceThresholdsFor(platform).goodAtOrAbove &&
-        offer.pricePerHour >= s.hourThresholdsFor(platform).goodAtOrAbove;
+        (offer.pricePerKm >= s.distanceThresholdsFor(platform).goodAtOrAbove ||
+            offer.pricePerHour >= s.hourThresholdsFor(platform).goodAtOrAbove);
   }
 }

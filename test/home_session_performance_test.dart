@@ -56,9 +56,9 @@ void main() {
 
     await tester.pumpWidget(_app(_session(estimatedEarnings: 126.40)));
 
-    expect(find.text(r'CA$126.40'), findsOneWidget);
+    expect(find.text(r'$126.40'), findsOneWidget);
     expect(find.text('Estimated'), findsOneWidget);
-    expect(find.text(r'CA$42/hr'), findsOneWidget);
+    expect(find.text(r'$42'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }

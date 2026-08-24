@@ -56,6 +56,35 @@ void main() {
     expect(stats.accepted, 2);
   });
 
+  test('performance totals include taken and completed offers', () {
+    final stats = OfferStats.from([
+      OfferSummary(
+        platform: GigPlatform.uber,
+        verdict: Verdict.good,
+        payout: 20,
+        totalKm: 10,
+        totalMinutes: 30,
+        seenAt: DateTime(2026, 7, 16, 12),
+        outcome: OfferOutcome.taken,
+      ),
+      OfferSummary(
+        platform: GigPlatform.lyft,
+        verdict: Verdict.ok,
+        payout: 15,
+        finalPayout: 18,
+        totalKm: 5,
+        totalMinutes: 30,
+        seenAt: DateTime(2026, 7, 16, 13),
+        outcome: OfferOutcome.completed,
+      ),
+      _o(Verdict.bad, 50, 50),
+    ]);
+
+    expect(stats.acceptedEarnings, 38);
+    expect(stats.acceptedKm, 15);
+    expect(stats.acceptedMinutes, 60);
+  });
+
   test('session summary carries accepted count with legacy default', () {
     final session = SessionSummary.from(
       startedAt: DateTime(2026, 7, 16),

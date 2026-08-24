@@ -1550,10 +1550,10 @@ class SessionPerformance extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final earnings = session.earnings > 0
-        ? '${settings.currency.prefix}${session.earnings.toStringAsFixed(2)}'
+        ? '\$${session.earnings.toStringAsFixed(2)}'
         : '—';
     final hourly = session.hourlyEarnings > 0
-        ? '${settings.currency.prefix}${session.hourlyEarnings.toStringAsFixed(0)}/hr'
+        ? '\$${session.hourlyEarnings.toStringAsFixed(0)}'
         : '—';
     final metrics = [
       _SessionMetric(

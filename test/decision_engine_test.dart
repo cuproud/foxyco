@@ -197,7 +197,7 @@ void main() {
       dropoffMinutes: 50,
     );
 
-    test('GOOD voice requires both rate thresholds', () {
+    test('GOOD voice requires time and either rate threshold', () {
       expect(
         engine.qualifiesForVoice(premium, FoxSettings.defaults, Verdict.good),
         isTrue,
@@ -224,7 +224,7 @@ void main() {
           FoxSettings.defaults,
           Verdict.good,
         ),
-        isFalse,
+        isTrue,
       );
       expect(
         engine.qualifiesForVoice(

@@ -322,16 +322,21 @@ void main() {
       tester.widget<ListView>(find.byType(ListView)).padding,
       isA<EdgeInsets>().having((p) => p.bottom, 'bottom', greaterThan(100)),
     );
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('history_by_hour')),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
     expect(find.byKey(const Key('history_by_hour')), findsOneWidget);
+    final byHour = tester.widget<Container>(
+      find.byKey(const Key('history_by_hour')),
+    );
     await tester.scrollUntilVisible(
       find.byKey(const Key('history_by_app')),
       200,
       scrollable: find.byType(Scrollable).first,
     );
     expect(find.byKey(const Key('history_by_app')), findsOneWidget);
-    final byHour = tester.widget<Container>(
-      find.byKey(const Key('history_by_hour')),
-    );
     expect((byHour.decoration! as BoxDecoration).color, FoxColors.bgSurface);
     final byApp = tester.widget<Container>(
       find.byKey(const Key('history_by_app')),

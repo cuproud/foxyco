@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/offer_stats.dart';
 import '../../domain/offer_summary.dart';
+import '../../domain/fox_settings.dart';
 import '../../domain/platform.dart';
 import '../../domain/verdict.dart';
 import '../../services/offer_log.dart';
@@ -1581,15 +1582,6 @@ class _OfferRow extends ConsumerWidget {
             ),
           ),
         ),
-        const SizedBox(height: 2),
-        Text(
-          time,
-          style: TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w600,
-            color: FoxColors.textSecondary,
-          ),
-        ),
         if (offer.finalPayout != null)
           Text(
             'from ${settings.currency.prefix}${offer.payout.toStringAsFixed(2)}',
@@ -1710,46 +1702,37 @@ class _OfferRow extends ConsumerWidget {
                   const SizedBox(height: Gap.sm),
                   Row(
                     children: [
-                      Icon(
-                        Icons.location_on_rounded,
-                        size: 16,
-                        color: FoxColors.textSecondary,
-                      ),
-                      const SizedBox(width: Gap.xs),
-                      Text(
-                        '${settings.distanceUnit.distanceFromKm(offer.totalKm).toStringAsFixed(1)} ${settings.distanceUnit.shortLabel}',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: FoxColors.textSecondary,
-                          fontFeatures: [FontFeature.tabularFigures()],
+                      Expanded(
+                        child: _OfferMetric(
+                          icon: Icons.location_on_rounded,
+                          value:
+                              '${settings.distanceUnit.distanceFromKm(offer.totalKm).toStringAsFixed(1)} ${settings.distanceUnit.shortLabel}',
                         ),
                       ),
-                      const SizedBox(width: Gap.sm),
+                      const SizedBox(width: Gap.xs),
                       SizedBox(
                         height: 20,
                         child: VerticalDivider(color: FoxColors.border),
                       ),
-                      const SizedBox(width: Gap.sm),
-                      Icon(
-                        Icons.speed_rounded,
-                        size: 16,
-                        color: FoxColors.textSecondary,
+                      const SizedBox(width: Gap.xs),
+                      Expanded(
+                        child: _OfferMetric(
+                          icon: Icons.speed_rounded,
+                          value:
+                              '${settings.currency.prefix}${settings.distanceUnit.rateFromPerKm(offer.effectivePricePerKm).toStringAsFixed(2)}/${settings.distanceUnit.shortLabel}',
+                          emphasized: true,
+                        ),
+                      ),
+                      const SizedBox(width: Gap.xs),
+                      SizedBox(
+                        height: 20,
+                        child: VerticalDivider(color: FoxColors.border),
                       ),
                       const SizedBox(width: Gap.xs),
                       Expanded(
-                        child: FittedBox(
-                          fit: BoxFit.scaleDown,
-                          alignment: Alignment.centerLeft,
-                          child: Text(
-                            '${settings.currency.prefix}${settings.distanceUnit.rateFromPerKm(offer.effectivePricePerKm).toStringAsFixed(2)}/${settings.distanceUnit.shortLabel}',
-                            maxLines: 1,
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                              color: FoxColors.textPrimary,
-                              fontFeatures: [FontFeature.tabularFigures()],
-                            ),
-                          ),
+                        child: _OfferMetric(
+                          icon: Icons.schedule_rounded,
+                          value: time,
                         ),
                       ),
                     ],
@@ -1762,6 +1745,44 @@ class _OfferRow extends ConsumerWidget {
       ),
     );
   }
+}
+
+class _OfferMetric extends StatelessWidget {
+  const _OfferMetric({
+    required this.icon,
+    required this.value,
+    this.emphasized = false,
+  });
+
+  final IconData icon;
+  final String value;
+  final bool emphasized;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    children: [
+      Icon(icon, size: 16, color: FoxColors.textSecondary),
+      const SizedBox(width: Gap.xs),
+      Expanded(
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.centerLeft,
+          child: Text(
+            value,
+            maxLines: 1,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: emphasized ? FontWeight.w700 : FontWeight.w500,
+              color: emphasized
+                  ? FoxColors.textPrimary
+                  : FoxColors.textSecondary,
+              fontFeatures: const [FontFeature.tabularFigures()],
+            ),
+          ),
+        ),
+      ),
+    ],
+  );
 }
 
 class _OutcomeMenu extends ConsumerWidget {
@@ -1860,6 +1881,238 @@ class _VerdictTag extends StatelessWidget {
       ),
     );
   }
+}
+
+class _VerdictSummaryRow extends StatelessWidget {
+  const _VerdictSummaryRow({required this.stats});
+
+  final OfferStats stats;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    children: [
+      _VerdictSummaryChip(
+        count: stats.good,
+        verdict: Verdict.good,
+        icon: Icons.check_circle_outline_rounded,
+      ),
+      const SizedBox(width: Gap.sm),
+      _VerdictSummaryChip(
+        count: stats.ok,
+        verdict: Verdict.ok,
+        icon: Icons.radio_button_checked_rounded,
+      ),
+      const SizedBox(width: Gap.sm),
+      _VerdictSummaryChip(
+        count: stats.bad,
+        verdict: Verdict.bad,
+        icon: Icons.cancel_outlined,
+      ),
+    ],
+  );
+}
+
+class _VerdictSummaryChip extends StatelessWidget {
+  const _VerdictSummaryChip({
+    required this.count,
+    required this.verdict,
+    required this.icon,
+  });
+
+  final int count;
+  final Verdict verdict;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    final style = VerdictStyle.of(verdict);
+    return Expanded(
+      child: Container(
+        height: 42,
+        decoration: BoxDecoration(
+          color: style.bg,
+          borderRadius: BorderRadius.circular(Radii.cardSm),
+          border: Border.all(color: style.color.withValues(alpha: 0.42)),
+        ),
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 21, color: style.color),
+              const SizedBox(width: 6),
+              Text(
+                '$count',
+                key: ValueKey('history-summary-${verdict.name}'),
+                style: TextStyle(
+                  fontFamily: FoxFonts.display,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: style.color,
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _HistoryPerformance extends StatelessWidget {
+  const _HistoryPerformance({required this.stats, required this.settings});
+
+  final OfferStats stats;
+  final FoxSettings settings;
+
+  @override
+  Widget build(BuildContext context) {
+    final earnings = stats.acceptedEarnings > 0
+        ? '\$${stats.acceptedEarnings.toStringAsFixed(2)}'
+        : '—';
+    final hourly = stats.acceptedMinutes > 0
+        ? '\$${(stats.acceptedEarnings / stats.acceptedMinutes * 60).toStringAsFixed(2)}'
+        : '—';
+    final acceptedDistance = stats.acceptedKm > 0
+        ? '${settings.distanceUnit.distanceFromKm(stats.acceptedKm).toStringAsFixed(1)} ${settings.distanceUnit.shortLabel} accepted'
+        : 'Accepted offers only';
+
+    return Container(
+      padding: const EdgeInsets.all(Gap.md),
+      decoration: BoxDecoration(
+        color: FoxColors.brandFox.withValues(alpha: 0.07),
+        borderRadius: BorderRadius.circular(Radii.cardSm),
+        border: Border.all(color: FoxColors.brandFox.withValues(alpha: 0.28)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                Icons.insights_rounded,
+                size: 16,
+                color: FoxColors.brandFox,
+              ),
+              const SizedBox(width: Gap.sm),
+              Expanded(
+                child: Text(
+                  'HISTORY PERFORMANCE',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.5,
+                    color: FoxColors.textSecondary,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: Gap.sm),
+          Row(
+            children: [
+              Expanded(
+                child: _PerformanceValue(
+                  label: 'Est. earnings',
+                  value: earnings == '—' ? earnings : '$earnings total',
+                  sub: acceptedDistance,
+                ),
+              ),
+              Container(width: 1, height: 48, color: FoxColors.border),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.only(left: Gap.md),
+                  child: _PerformanceValue(
+                    label: 'History rate',
+                    value: hourly,
+                    sub: 'Per accepted hour',
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AcceptedStats extends StatelessWidget {
+  const _AcceptedStats({required this.stats, required this.settings});
+
+  final OfferStats stats;
+  final FoxSettings settings;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    children: [
+      Expanded(
+        child: _Stat(
+          label: 'ACCEPTED TRIPS',
+          value: '${stats.accepted}',
+          sub: 'Accepted offers',
+          color: VerdictColors.good,
+        ),
+      ),
+      const SizedBox(width: Gap.sm),
+      Expanded(
+        child: _Stat(
+          label: 'TOTAL KM DRIVEN',
+          value: stats.acceptedKm > 0
+              ? '${settings.distanceUnit.distanceFromKm(stats.acceptedKm).toStringAsFixed(1)} ${settings.distanceUnit.shortLabel}'
+              : '—',
+          sub: 'Accepted offers',
+          color: VerdictColors.good,
+        ),
+      ),
+    ],
+  );
+}
+
+class _PerformanceValue extends StatelessWidget {
+  const _PerformanceValue({
+    required this.label,
+    required this.value,
+    required this.sub,
+  });
+
+  final String label;
+  final String value;
+  final String sub;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(
+        label,
+        style: TextStyle(
+          fontSize: 10.5,
+          fontWeight: FontWeight.w700,
+          color: FoxColors.textSecondary,
+        ),
+      ),
+      const SizedBox(height: 2),
+      Text(
+        value,
+        style: TextStyle(
+          fontFamily: FoxFonts.display,
+          fontSize: 21,
+          fontWeight: FontWeight.w700,
+          color: FoxColors.textPrimary,
+          fontFeatures: const [FontFeature.tabularFigures()],
+        ),
+      ),
+      const SizedBox(height: 2),
+      Text(
+        sub,
+        style: TextStyle(fontSize: 10.5, color: FoxColors.textSecondary),
+      ),
+    ],
+  );
 }
 
 class _OutcomeSheet extends StatelessWidget {
@@ -2036,42 +2289,45 @@ class _StatsCard extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(child: _OffersStat(stats: s)),
-              const SizedBox(width: Gap.md),
-              Expanded(
-                child: _Stat(
-                  label: 'GOOD AVG',
-                  value: s.goodAvgPerKm > 0
-                      ? '${settings.currency.prefix}${settings.distanceUnit.rateFromPerKm(s.goodAvgPerKm).toStringAsFixed(2)}'
-                      : '—',
-                  sub: 'per ${settings.distanceUnit.shortLabel}',
-                  color: s.goodAvgPerKm > 0
-                      ? VerdictColors.good
-                      : FoxColors.textSecondary,
-                ),
-              ),
-            ],
-          ),
+          _VerdictSummaryRow(stats: s),
+          const SizedBox(height: Gap.sm),
+          _HistoryPerformance(stats: s, settings: settings),
+          const SizedBox(height: Gap.sm),
+          _AcceptedStats(stats: s, settings: settings),
+          const SizedBox(height: Gap.sm),
+          _OffersStat(stats: s),
           const SizedBox(height: Gap.sm),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
                 child: _Stat(
+                  label: 'GOOD AVG',
+                  value: s.goodAvgPerKm > 0
+                      ? '\$${settings.distanceUnit.rateFromPerKm(s.goodAvgPerKm).toStringAsFixed(2)}'
+                      : '—',
+                  sub: 'per ${settings.distanceUnit.shortLabel}',
+                  color: s.goodAvgPerKm > 0
+                      ? VerdictColors.good
+                      : FoxColors.textSecondary,
+                  compact: true,
+                ),
+              ),
+              const SizedBox(width: Gap.sm),
+              Expanded(
+                child: _Stat(
                   label: 'BEST RATE',
                   value: best != null && best.effectivePricePerKm > 0
-                      ? '${settings.currency.prefix}${settings.distanceUnit.rateFromPerKm(best.effectivePricePerKm).toStringAsFixed(2)}'
+                      ? '\$${settings.distanceUnit.rateFromPerKm(best.effectivePricePerKm).toStringAsFixed(2)}'
                       : '—',
                   sub: best != null
                       ? '${best.platform.label} · per ${settings.distanceUnit.shortLabel}'
                       : '',
                   color: bestColor,
+                  compact: true,
                 ),
               ),
-              const SizedBox(width: Gap.md),
+              const SizedBox(width: Gap.sm),
               Expanded(
                 child: _Stat(
                   label: 'BUSIEST HOUR',
@@ -2080,6 +2336,7 @@ class _StatsCard extends ConsumerWidget {
                       : '—',
                   sub: 'Peak offer time',
                   color: FoxColors.brandFox,
+                  compact: true,
                 ),
               ),
             ],
@@ -2091,17 +2348,19 @@ class _StatsCard extends ConsumerWidget {
 }
 
 class _Stat extends StatelessWidget {
+  final String label;
+  final String value;
+  final String? sub;
+  final Color color;
+  final bool compact;
+
   const _Stat({
     required this.label,
     required this.value,
     this.sub,
     required this.color,
+    this.compact = false,
   });
-
-  final String label;
-  final String value;
-  final String? sub;
-  final Color color;
   static TextStyle get _valueStyle => TextStyle(
     fontFamily: FoxFonts.display,
     fontSize: 17,
@@ -2113,8 +2372,8 @@ class _Stat extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      constraints: const BoxConstraints(minHeight: 112),
-      padding: const EdgeInsets.all(Gap.md),
+      constraints: BoxConstraints(minHeight: compact ? 76 : 112),
+      padding: EdgeInsets.all(compact ? Gap.sm + Gap.xs : Gap.md),
       decoration: BoxDecoration(
         color: color.withValues(
           alpha: FoxColors.palette.brightness == Brightness.light
@@ -2139,7 +2398,7 @@ class _Stat extends StatelessWidget {
           ),
           const SizedBox(height: Gap.xs),
           SizedBox(
-            height: 28,
+            height: compact ? 24 : 28,
             child: Align(
               alignment: Alignment.centerLeft,
               child: FittedBox(
@@ -2181,8 +2440,7 @@ class _OffersStat extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Semantics(
     excludeSemantics: true,
-    label:
-        '${stats.total} offers: ${stats.good} good, ${stats.ok} okay, ${stats.bad} bad',
+    label: '${stats.total} offers',
     child: Container(
       constraints: const BoxConstraints(minHeight: 112),
       padding: const EdgeInsets.all(Gap.md),
@@ -2193,15 +2451,19 @@ class _OffersStat extends StatelessWidget {
           color: FoxColors.textSecondary.withValues(alpha: 0.22),
         ),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Text(
                   'OFFERS',
+                  maxLines: 1,
                   style: TextStyle(
                     fontSize: 10,
                     fontWeight: FontWeight.w700,
@@ -2209,51 +2471,20 @@ class _OffersStat extends StatelessWidget {
                     color: FoxColors.textSecondary,
                   ),
                 ),
-                const SizedBox(height: Gap.xs),
-                FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: Text(
-                    '${stats.total}',
-                    key: const ValueKey('history-summary-total'),
-                    style: _Stat._valueStyle.copyWith(fontSize: 36, height: 1),
-                  ),
+              ),
+              const SizedBox(height: Gap.xs),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  '${stats.total}',
+                  key: const ValueKey('history-summary-total'),
+                  style: _Stat._valueStyle.copyWith(fontSize: 36, height: 1),
                 ),
-              ],
-            ),
-          ),
-          VerticalDivider(color: FoxColors.border, width: Gap.md),
-          Expanded(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                Text(
-                  '${stats.good}',
-                  key: const ValueKey('history-summary-good'),
-                  style: _countStyle(VerdictColors.good),
-                ),
-                Text(
-                  '${stats.ok}',
-                  key: const ValueKey('history-summary-ok'),
-                  style: _countStyle(VerdictColors.ok),
-                ),
-                Text(
-                  '${stats.bad}',
-                  key: const ValueKey('history-summary-bad'),
-                  style: _countStyle(VerdictColors.bad),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
         ],
       ),
     ),
-  );
-
-  TextStyle _countStyle(Color color) => TextStyle(
-    fontFamily: FoxFonts.display,
-    fontSize: 15,
-    fontWeight: FontWeight.w800,
-    color: color,
-    fontFeatures: const [FontFeature.tabularFigures()],
   );
 }

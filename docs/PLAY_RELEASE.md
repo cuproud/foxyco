@@ -35,7 +35,7 @@
 
 _Added 2026-08-02. §1–§6 are the reasoning; this is the ordered list of moves.
 Everything below is a console/web action except C1. Build 22 was Play-installed
-and device-tested; current release bundle is `1.0.10+70`. See
+and device-tested; current release bundle is `1.0.10+77`. See
 `HANDOFF_2026-08-21_BUILD68.md` for current verification and remaining
 delivery gates; older handoffs remain historical records._
 
@@ -79,17 +79,15 @@ Artifacts are copied to `dist/` with version and timestamped names.
 Latest repository-verified bundle (delivery beta still needs live-device verification):
 
 ```text
-dist/FoxyCo-v1.0.10+70-release-20260822-0055.aab
-86,250,553 bytes
-SHA-256 e2986aea114d44e3fec6793cc7f0c5e4b4846d1bd4397a0bc8caffaafee539f5
+dist/FoxyCo-v1.0.10+77-release-20260823-2033.aab
+86,265,144 bytes
+SHA-256 e77a944bfba9eb21ebf7f7c1bf4a962e50dbfc3c7272b8f1987d0bc9cd2065fc
 ```
 
-The build helper completed dependency resolution, static analysis, all 500
-Flutter tests, Firestore rules tests and the signed release bundle. Build 70
-uses compact three-column History filters, moves the Summary heading outside
-its card, gives offer-detail metrics a verdict tint, and places delivery BETA
-labels inline in Watched apps. It retains build 69's final-pay editing and
-history/session corrections.
+The build helper completed dependency resolution, static analysis, all 503
+Flutter tests, Firestore rules tests and the signed release bundle. Build 77
+adds the compact History summary layout, accepted-trip and distance totals,
+locale-neutral analytics currency symbols, and the session recap alignment.
 
 The licensing key is an RSA **public** key. It is extractable from any shipped
 APK, so recording it here costs nothing and makes the build reproducible:
