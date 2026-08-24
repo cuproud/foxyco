@@ -88,6 +88,10 @@ void main() {
         find.textContaining('22 offers outside these filters'),
         findsOneWidget,
       );
+      expect(
+        find.image(const AssetImage('assets/history/hunt.webp')),
+        findsOneWidget,
+      );
       await tester.drag(find.byType(ListView), const Offset(0, -240));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Show all'));
@@ -573,6 +577,17 @@ void main() {
 
       await tester.tap(find.byKey(const Key('history-performance-toggle')));
       await tester.pumpAndSettle();
+      expect(
+        tester
+            .widget<Text>(
+              find.byKey(const ValueKey('history-performance-earnings')),
+            )
+            .style
+            ?.color,
+        palette == FoxPalette.light
+            ? FoxColors.brandFoxDeep
+            : FoxColors.brandFox,
+      );
       expect(tester.takeException(), isNull);
 
       await tester.tap(find.text('Filters'));

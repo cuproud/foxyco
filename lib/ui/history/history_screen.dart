@@ -2044,7 +2044,7 @@ class _HistoryPerformanceState extends State<_HistoryPerformance> {
                 ),
                 fit: BoxFit.cover,
                 alignment: Alignment.centerRight,
-                opacity: light ? 0.46 : 1,
+                opacity: light ? 0.72 : 1,
               ),
             ),
             child: Stack(
@@ -2057,14 +2057,14 @@ class _HistoryPerformanceState extends State<_HistoryPerformance> {
                       end: Alignment.centerRight,
                       colors: light
                           ? const [
-                              Color(0xFAFFF9F0),
-                              Color(0xE8FFF8EE),
-                              Color(0x8AFFF4E8),
+                              Color(0xEFFFF9F0),
+                              Color(0xC8FFF8EE),
+                              Color(0x40FFF4E8),
                             ]
                           : const [
-                              Color(0xFA071020),
-                              Color(0xE6071022),
-                              Color(0x8A24133A),
+                              Color(0xE6071020),
+                              Color(0xB8071022),
+                              Color(0x4024133A),
                             ],
                       stops: [0, 0.55, 1],
                     ),
@@ -2130,6 +2130,12 @@ class _HistoryPerformanceState extends State<_HistoryPerformance> {
                                     label: 'Estimated earnings',
                                     value: earnings,
                                     fontSize: compact ? 25 : 29,
+                                    valueKey: const ValueKey(
+                                      'history-performance-earnings',
+                                    ),
+                                    color: light
+                                        ? FoxColors.brandFoxDeep
+                                        : FoxColors.brandFox,
                                   ),
                                 ),
                                 Container(
@@ -2212,12 +2218,16 @@ class _HeroValue extends StatelessWidget {
     required this.value,
     required this.fontSize,
     this.sub,
+    this.color,
+    this.valueKey,
   });
 
   final String label;
   final String value;
   final String? sub;
   final double fontSize;
+  final Color? color;
+  final Key? valueKey;
 
   @override
   Widget build(BuildContext context) => Column(
@@ -2234,11 +2244,12 @@ class _HeroValue extends StatelessWidget {
       const SizedBox(height: 2),
       Text(
         value,
+        key: valueKey,
         style: TextStyle(
           fontFamily: FoxFonts.display,
           fontSize: fontSize,
           fontWeight: FontWeight.w700,
-          color: FoxColors.textPrimary,
+          color: color ?? FoxColors.textPrimary,
           fontFeatures: const [FontFeature.tabularFigures()],
         ),
       ),
@@ -2391,23 +2402,23 @@ class _Empty extends StatelessWidget {
                 color: FoxColors.textSecondary,
               ),
             ),
-            const SizedBox(height: Gap.md),
-            ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 320),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(Radii.card),
-                child: AspectRatio(
-                  aspectRatio: 1,
-                  child: Image.asset(
-                    'assets/history/hunt.webp',
-                    fit: BoxFit.cover,
-                    semanticLabel:
-                        'Fox driver waiting beside a car near a mountain lake',
-                  ),
+          ],
+          const SizedBox(height: Gap.md),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 320),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(Radii.card),
+              child: AspectRatio(
+                aspectRatio: 1,
+                child: Image.asset(
+                  'assets/history/hunt.webp',
+                  fit: BoxFit.cover,
+                  semanticLabel:
+                      'Fox driver waiting beside a car near a mountain lake',
                 ),
               ),
             ),
-          ],
+          ),
         ],
       ),
     );

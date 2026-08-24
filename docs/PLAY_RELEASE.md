@@ -35,8 +35,8 @@
 
 _Added 2026-08-02. §1–§6 are the reasoning; this is the ordered list of moves.
 Everything below is a console/web action except C1. Build 22 was Play-installed
-and device-tested; current release bundle is `1.0.10+80`. See
-`HANDOFF_2026-08-24_BUILD80.md` for current verification and remaining
+and device-tested; current release bundle is `1.0.10+81`. See
+`HANDOFF_2026-08-24_BUILD81.md` for current verification and remaining
 delivery gates; older handoffs remain historical records._
 
 ### Phase A — no Play Console needed, do it today
@@ -79,16 +79,16 @@ Artifacts are copied to `dist/` with version and timestamped names.
 Latest repository-verified bundle (delivery beta still needs live-device verification):
 
 ```text
-dist/FoxyCo-v1.0.10+80-release-20260824-1740.aab
-86,550,764 bytes
-SHA-256 468fe7bb954c0386a7a5c4ecf6ad29860568fc4d2e4ec56113c0881c92a90bd2
+dist/FoxyCo-v1.0.10+81-release-20260824-1916.aab
+86,547,466 bytes
+SHA-256 be1c2f5ddc19c0f97a86a2450fdd49ba942de79f6cf495f0787a91ef19bdc756
 ```
 
 The build helper completed dependency resolution, static analysis, the full
-Flutter suite, Firestore rules tests and the signed release bundle. Build 80
-adds matching light/dark History artwork, a compact platform-colored recent
-trip timeline, session/history alignment fixes, and visible launch-price copy
-while Google Play product details load.
+Flutter suite, Firestore rules tests and the signed release bundle. Build 81
+compacts recent accepted trips, simplifies offer details, reuses the History
+artwork for zero-result filters, and improves the History performance artwork
+and earnings hierarchy.
 
 The licensing key is an RSA **public** key. It is extractable from any shipped
 APK, so recording it here costs nothing and makes the build reproducible:

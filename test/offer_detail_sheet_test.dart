@@ -53,6 +53,11 @@ void main() {
     expect(tester.takeException(), isNull);
     expect(find.text('CA\$17.01'), findsOne);
     expect(find.text('UberX Share Comfort'), findsOne); // not ellipsised away
+    expect(find.text('PER KM'), findsOne);
+    expect(find.text('PER HOUR'), findsOne);
+    expect(find.text('TOTAL DISTANCE'), findsOne);
+    expect(find.text('TOTAL TIME'), findsOne);
+    expect(find.textContaining('saved scoring snapshot'), findsNothing);
     // Bottom of the card is reachable by scrolling, not cut off.
     await tester.drag(find.text('CA\$17.01'), const Offset(0, -300));
     await tester.pump();

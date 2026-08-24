@@ -137,6 +137,19 @@ void main() {
       ValueKey('recent-accepted-${seenAt.microsecondsSinceEpoch}'),
     );
     expect(card, findsOneWidget);
+    expect(find.descendant(of: card, matching: find.text(r'$18.60')), findsOne);
+    expect(
+      find.descendant(of: card, matching: find.text(r'CA$18.60')),
+      findsNothing,
+    );
+    expect(
+      tester
+          .widget<PlatformBadge>(
+            find.descendant(of: card, matching: find.byType(PlatformBadge)),
+          )
+          .size,
+      24,
+    );
 
     await tester.tap(card);
     await beat(tester);

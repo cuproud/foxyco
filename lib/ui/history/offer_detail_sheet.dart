@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/offer_summary.dart';
-import '../../domain/rate_mode.dart';
 import '../../services/offer_log.dart';
 import '../../services/session_log.dart';
 import '../settings/settings_controller.dart';
@@ -14,8 +13,7 @@ import '../theme/verdict_style.dart';
 
 /// Full breakdown of one scored offer as a modal bottom sheet — opened by
 /// tapping a History row or the Home "last offer" ticket. Shows every parsed
-/// number plus the verdict math ("BAD because $0.68 < your $1.00 bar"), which
-/// teaches the thresholds instead of leaving the verdict a black box.
+/// number in a compact, scannable layout.
 void showOfferDetail(BuildContext context, OfferSummary offer) {
   showModalBottomSheet<void>(
     context: context,
@@ -210,7 +208,7 @@ class _OfferDetailSheet extends ConsumerWidget {
                         ),
                       ),
                       if (canEditFinalPayout)
-                        TextButton.icon(
+                        OutlinedButton.icon(
                           onPressed: () => _editFinalPayout(
                             context,
                             ref,
@@ -262,76 +260,86 @@ class _OfferDetailSheet extends ConsumerWidget {
                           color: VerdictColors.good.withValues(alpha: 0.28),
                         ),
                       ),
-                      child: Text(
-                        'Includes ${currency.prefix}${current.bonus.toStringAsFixed(2)} bonus',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          color: VerdictColors.good,
-                          fontFeatures: [FontFeature.tabularFigures()],
-                        ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.card_giftcard_rounded,
+                            size: 15,
+                            color: VerdictColors.good,
+                          ),
+                          const SizedBox(width: Gap.xs),
+                          Text(
+                            'Includes ${currency.prefix}${current.bonus.toStringAsFixed(2)} bonus',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: VerdictColors.good,
+                              fontFeatures: [FontFeature.tabularFigures()],
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ],
                   const SizedBox(height: Gap.md),
-                  // Stat grid: everything parsed. Unknowns (0) show an em-dash.
                   Row(
                     children: [
-                      _cell(
-                        '${currency.prefix}${distanceUnit.rateFromPerKm(current.effectivePricePerKm).toStringAsFixed(2)}',
-                        'PER ${distanceUnit.shortLabel.toUpperCase()}',
-                        style.color,
+                      Expanded(
+                        child: _DetailMetric(
+                          icon: Icons.trending_up_rounded,
+                          value:
+                              '${currency.prefix}${distanceUnit.rateFromPerKm(current.effectivePricePerKm).toStringAsFixed(2)}',
+                          label: 'PER ${distanceUnit.shortLabel.toUpperCase()}',
+                          color: style.color,
+                        ),
                       ),
                       const SizedBox(width: Gap.sm),
-                      _cell(
-                        current.effectivePricePerHour > 0
-                            ? '${settings.currency.prefix}${current.effectivePricePerHour.toStringAsFixed(0)}'
-                            : '—',
-                        'PER HOUR',
-                        style.color,
-                      ),
-                      const SizedBox(width: Gap.sm),
-                      _cell(
-                        '${distanceUnit.distanceFromKm(current.totalKm).toStringAsFixed(1)} ${distanceUnit.shortLabel}',
-                        'TOTAL',
-                        style.color,
+                      Expanded(
+                        child: _DetailMetric(
+                          icon: Icons.star_outline_rounded,
+                          value: current.effectivePricePerHour > 0
+                              ? '${currency.prefix}${current.effectivePricePerHour.toStringAsFixed(2)}'
+                              : '—',
+                          label: 'PER HOUR',
+                          color: style.color,
+                        ),
                       ),
                     ],
                   ),
                   const SizedBox(height: Gap.sm),
-                  Row(
-                    children: [
-                      _cell(
-                        current.pickupKm > 0
-                            ? '${distanceUnit.distanceFromKm(current.pickupKm).toStringAsFixed(1)} ${distanceUnit.shortLabel}'
-                            : '—',
-                        'PICKUP',
-                        style.color,
-                      ),
-                      const SizedBox(width: Gap.sm),
-                      _cell(
-                        current.totalMinutes > 0
-                            ? '${current.totalMinutes.round()} min'
-                            : '—',
-                        'TOTAL TIME',
-                        style.color,
-                      ),
-                      const SizedBox(width: Gap.sm),
-                      _cell(
+                  _DetailBand(
+                    leftIcon: Icons.route_rounded,
+                    leftValue:
+                        '${distanceUnit.distanceFromKm(current.totalKm).toStringAsFixed(1)} ${distanceUnit.shortLabel}',
+                    leftLabel: 'TOTAL DISTANCE',
+                    rightIcon: Icons.schedule_rounded,
+                    rightValue: current.totalMinutes > 0
+                        ? '${current.totalMinutes.round()} min'
+                        : '—',
+                    rightLabel: 'TOTAL TIME',
+                  ),
+                  const SizedBox(height: Gap.sm),
+                  _DetailBand(
+                    leftIcon: Icons.location_on_outlined,
+                    leftValue: current.pickupKm > 0
+                        ? '${distanceUnit.distanceFromKm(current.pickupKm).toStringAsFixed(1)} ${distanceUnit.shortLabel}'
+                        : '—',
+                    leftLabel: 'PICKUP',
+                    rightIcon: Icons.flag_outlined,
+                    rightValue:
                         current.pickupKm > 0 &&
-                                current.totalKm > current.pickupKm
-                            ? '${distanceUnit.distanceFromKm(current.totalKm - current.pickupKm).toStringAsFixed(1)} ${distanceUnit.shortLabel}'
-                            : '—',
-                        'RIDE',
-                        style.color,
-                      ),
-                    ],
+                            current.totalKm > current.pickupKm
+                        ? '${distanceUnit.distanceFromKm(current.totalKm - current.pickupKm).toStringAsFixed(1)} ${distanceUnit.shortLabel}'
+                        : '—',
+                    rightLabel: 'RIDE',
                   ),
                   const SizedBox(height: Gap.md),
-                  _VerdictMath(offer: current),
-                  const SizedBox(height: Gap.sm),
                   Container(
-                    padding: const EdgeInsets.all(12),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: Gap.sm,
+                      vertical: 10,
+                    ),
                     decoration: BoxDecoration(
                       color: outcome.color.withValues(alpha: 0.10),
                       borderRadius: BorderRadius.circular(Radii.field),
@@ -369,6 +377,26 @@ class _OfferDetailSheet extends ConsumerWidget {
                         ),
                       ],
                     ),
+                  ),
+                  const SizedBox(height: Gap.md),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.info_outline_rounded,
+                        size: 15,
+                        color: FoxColors.textSecondary,
+                      ),
+                      const SizedBox(width: Gap.xs),
+                      Expanded(
+                        child: Text(
+                          'Rates and distances may change until the trip is completed.',
+                          style: TextStyle(
+                            fontSize: 10.5,
+                            color: FoxColors.textSecondary,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -456,138 +484,84 @@ class _OfferDetailSheet extends ConsumerWidget {
           .refreshForOffer(offer, ref.read(offerLogProvider));
     }
   }
-
-  Widget _cell(String value, String label, Color verdictColor) => Expanded(
-    child: Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: verdictColor.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(Radii.field),
-        border: Border.all(color: verdictColor.withValues(alpha: 0.22)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            alignment: Alignment.centerLeft,
-            child: Text(
-              value,
-              maxLines: 1,
-              style: TextStyle(
-                fontFamily: FoxFonts.display,
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: FoxColors.textPrimary,
-                fontFeatures: [FontFeature.tabularFigures()],
-              ),
-            ),
-          ),
-          const SizedBox(height: 3),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 9.5,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 0.7,
-              color: FoxColors.textDisabled,
-            ),
-          ),
-        ],
-      ),
-    ),
-  );
 }
 
-/// One plain-language line of why the verdict landed where it did, using the
-/// scoring snapshot captured with the offer. Legacy rows without a snapshot
-/// are identified as such instead of being explained with today's Rules.
-class _VerdictMath extends StatelessWidget {
-  const _VerdictMath({required this.offer});
-  final OfferSummary offer;
+class _DetailMetric extends StatelessWidget {
+  const _DetailMetric({
+    required this.icon,
+    required this.value,
+    required this.label,
+    required this.color,
+  });
+
+  final IconData icon;
+  final String value;
+  final String label;
+  final Color color;
 
   @override
-  Widget build(BuildContext context) {
-    final style = VerdictStyle.of(offer.verdict);
-    final snapshot = offer.scoringSnapshot;
-    if (snapshot == null) {
-      return _legacyBox(
-        'Older offer · no saved scoring snapshot. Current Rules do not '
-        'rewrite it.',
-      );
-    }
-    final perHour = snapshot.rateMode == RateMode.perHour;
-    final goodCanonical = perHour ? snapshot.goodPerHour : snapshot.goodPerKm;
-    final badCanonical = perHour ? snapshot.badPerHour : snapshot.badPerKm;
-    final rate = perHour
-        ? offer.pricePerHour
-        : snapshot.distanceUnit.rateFromPerKm(offer.pricePerKm);
-    final good = perHour
-        ? goodCanonical
-        : snapshot.distanceUnit.rateFromPerKm(goodCanonical);
-    final bad = perHour
-        ? badCanonical
-        : snapshot.distanceUnit.rateFromPerKm(badCanonical);
-    final unit = perHour ? '/hr' : '/${snapshot.distanceUnit.shortLabel}';
-    final prefix = snapshot.currency.prefix;
-
-    // No parsed time in per-hour mode → nothing to compare against.
-    String text;
-    if (rate <= 0) {
-      text = 'Not enough parsed data to score this one.';
-    } else if (rate >= good) {
-      text =
-          '$prefix${rate.toStringAsFixed(2)}$unit clears your GOOD bar of '
-          '$prefix${good.toStringAsFixed(2)}$unit.';
-    } else if (rate < bad) {
-      text =
-          '$prefix${rate.toStringAsFixed(2)}$unit is under your BAD line of '
-          '$prefix${bad.toStringAsFixed(2)}$unit.';
-    } else {
-      text =
-          '$prefix${rate.toStringAsFixed(2)}$unit sits between your BAD '
-          '$prefix${bad.toStringAsFixed(2)} and GOOD '
-          '$prefix${good.toStringAsFixed(2)}$unit.';
-    }
-
-    if (snapshot.minimumPayoutEnabled &&
-        offer.payout < snapshot.minimumPayout) {
-      text =
-          '$prefix${offer.payout.toStringAsFixed(2)} is below the saved '
-          'minimum offer of $prefix${snapshot.minimumPayout.toStringAsFixed(2)}.';
-    }
-    return _box(style, text);
-  }
-
-  Widget _box(VerdictStyle style, String text) => Container(
-    padding: const EdgeInsets.all(Gap.md),
+  Widget build(BuildContext context) => Container(
+    constraints: const BoxConstraints(minHeight: 108),
+    padding: const EdgeInsets.all(Gap.sm),
     decoration: BoxDecoration(
-      color: style.color.withValues(alpha: 0.08),
+      color: color.withValues(alpha: 0.08),
       borderRadius: BorderRadius.circular(Radii.cardSm),
-      border: Border.all(color: style.color.withValues(alpha: 0.28)),
+      border: Border.all(color: color.withValues(alpha: 0.22)),
     ),
-    child: Row(
+    child: Column(
+      mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Icon(style.icon, color: style.color, size: 18),
-        const SizedBox(width: Gap.sm + Gap.xs),
-        Expanded(
+        Icon(icon, size: 20, color: color),
+        const SizedBox(height: Gap.xs),
+        FittedBox(
+          fit: BoxFit.scaleDown,
           child: Text(
-            text,
+            value,
+            maxLines: 1,
             style: TextStyle(
-              fontSize: 12.5,
-              height: 1.4,
-              fontWeight: FontWeight.w600,
-              color: FoxColors.textPrimary,
-              fontFeatures: [FontFeature.tabularFigures()],
+              fontFamily: FoxFonts.display,
+              fontSize: 21,
+              fontWeight: FontWeight.w700,
+              color: color,
+              fontFeatures: const [FontFeature.tabularFigures()],
             ),
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 9.5,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.7,
+            color: FoxColors.textDisabled,
           ),
         ),
       ],
     ),
   );
+}
 
-  Widget _legacyBox(String text) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: Gap.sm, vertical: Gap.xs),
+class _DetailBand extends StatelessWidget {
+  const _DetailBand({
+    required this.leftIcon,
+    required this.leftValue,
+    required this.leftLabel,
+    required this.rightIcon,
+    required this.rightValue,
+    required this.rightLabel,
+  });
+
+  final IconData leftIcon;
+  final String leftValue;
+  final String leftLabel;
+  final IconData rightIcon;
+  final String rightValue;
+  final String rightLabel;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: Gap.md, vertical: Gap.sm),
     decoration: BoxDecoration(
       color: FoxColors.bgSurface2.withValues(alpha: 0.35),
       borderRadius: BorderRadius.circular(Radii.cardSm),
@@ -595,26 +569,74 @@ class _VerdictMath extends StatelessWidget {
     ),
     child: Row(
       children: [
-        Icon(
-          Icons.info_outline_rounded,
-          color: FoxColors.textSecondary,
-          size: 16,
-        ),
-        const SizedBox(width: Gap.xs),
         Expanded(
-          child: Text(
-            text,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              fontSize: 11.5,
-              height: 1.25,
-              fontWeight: FontWeight.w600,
-              color: FoxColors.textSecondary,
-            ),
+          child: _DetailBandItem(
+            icon: leftIcon,
+            value: leftValue,
+            label: leftLabel,
+          ),
+        ),
+        Container(width: 1, height: 44, color: FoxColors.border),
+        Expanded(
+          child: _DetailBandItem(
+            icon: rightIcon,
+            value: rightValue,
+            label: rightLabel,
           ),
         ),
       ],
     ),
+  );
+}
+
+class _DetailBandItem extends StatelessWidget {
+  const _DetailBandItem({
+    required this.icon,
+    required this.value,
+    required this.label,
+  });
+
+  final IconData icon;
+  final String value;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    mainAxisAlignment: MainAxisAlignment.center,
+    children: [
+      Icon(icon, size: 20, color: FoxColors.brandFox),
+      const SizedBox(width: Gap.sm),
+      Flexible(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Text(
+                value,
+                maxLines: 1,
+                style: TextStyle(
+                  fontFamily: FoxFonts.display,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: FoxColors.textPrimary,
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                ),
+              ),
+            ),
+            Text(
+              label,
+              maxLines: 1,
+              style: TextStyle(
+                fontSize: 9,
+                fontWeight: FontWeight.w700,
+                color: FoxColors.textDisabled,
+              ),
+            ),
+          ],
+        ),
+      ),
+    ],
   );
 }

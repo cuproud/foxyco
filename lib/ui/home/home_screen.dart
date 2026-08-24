@@ -305,25 +305,25 @@ class _AcceptedTripTimelineItem extends ConsumerWidget {
     final distance =
         '${unit.distanceFromKm(offer.totalKm).toStringAsFixed(1)} ${unit.shortLabel}';
     final payout =
-        '${currency.prefix}${offer.effectivePayout.toStringAsFixed(2)}';
+        '${currency.symbol}${offer.effectivePayout.toStringAsFixed(2)}';
     final dark = Theme.of(context).brightness == Brightness.dark;
 
     return Semantics(
       button: true,
       label: '${offer.platform.label}, accepted, $payout, $time, $distance',
       child: SizedBox(
-        height: 72,
+        height: 60,
         child: Stack(
           children: [
             Positioned(
               left: 15,
-              top: isFirst ? 36 : 0,
-              bottom: isLast ? 36 : 0,
+              top: isFirst ? 30 : 0,
+              bottom: isLast ? 30 : 0,
               child: Container(width: 2, color: FoxColors.brandFox),
             ),
             Positioned(
               left: 7,
-              top: 27,
+              top: 21,
               child: Container(
                 width: 18,
                 height: 18,
@@ -375,7 +375,7 @@ class _AcceptedTripTimelineItem extends ConsumerWidget {
                               MediaQuery.textScalerOf(context).scale(1) > 1.2;
                           return Row(
                             children: [
-                              PlatformBadge(platform: offer.platform, size: 34),
+                              PlatformBadge(platform: offer.platform, size: 24),
                               const SizedBox(width: Gap.sm),
                               Expanded(
                                 child: compact
@@ -398,12 +398,6 @@ class _AcceptedTripTimelineItem extends ConsumerWidget {
                                           Flexible(
                                             flex: 4,
                                             child: _AcceptedTripPayout(payout),
-                                          ),
-                                          const SizedBox(width: Gap.sm),
-                                          Container(
-                                            width: 1,
-                                            height: 28,
-                                            color: FoxColors.border,
                                           ),
                                           const SizedBox(width: Gap.sm),
                                           Expanded(
@@ -459,7 +453,7 @@ class _AcceptedTripPayout extends StatelessWidget {
       maxLines: 1,
       style: TextStyle(
         fontFamily: FoxFonts.display,
-        fontSize: 20,
+        fontSize: 17,
         fontWeight: FontWeight.w700,
         color: FoxColors.textPrimary,
         fontFeatures: const [FontFeature.tabularFigures()],

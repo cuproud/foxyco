@@ -27,7 +27,7 @@ FoxyCo is in closed testing on Google Play.
 
 Project/release references:
 
-- [Current engineering handoff](HANDOFF_2026-08-20_DELIVERY_BETA.md)
+- [Current engineering handoff](HANDOFF_2026-08-24_BUILD81.md)
 - [Tester recruitment and production checklist](TESTER_RECRUITMENT_AND_PRODUCTION.md)
 
 ## Legal
