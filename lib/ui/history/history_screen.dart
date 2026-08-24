@@ -18,6 +18,7 @@ import '../theme/step_button.dart';
 import '../theme/tokens.dart';
 import '../theme/verdict_style.dart';
 import 'offer_detail_sheet.dart';
+import 'history_intent.dart';
 
 /// History (references/foxyco_history.html).
 ///
@@ -51,6 +52,7 @@ enum HistoryOutcomeFilter {
   cancelled,
   completed,
   unknown,
+  needsReview,
 }
 
 String _outcomeLabel(HistoryOutcomeFilter value) => switch (value) {
@@ -60,6 +62,7 @@ String _outcomeLabel(HistoryOutcomeFilter value) => switch (value) {
   HistoryOutcomeFilter.cancelled => 'Cancelled',
   HistoryOutcomeFilter.completed => 'Completed',
   HistoryOutcomeFilter.unknown => 'Unknown',
+  HistoryOutcomeFilter.needsReview => 'Needs review',
 };
 
 class _HistoryScreenState extends ConsumerState<HistoryScreen> {
@@ -72,6 +75,26 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
   HistoryOutcomeFilter _outcome = HistoryOutcomeFilter.all;
   bool _topOnly = false;
   int _minFare = 20;
+
+  @override
+  void initState() {
+    super.initState();
+    ref.listenManual<HistoryIntent?>(pendingHistoryIntentProvider, (_, intent) {
+      if (intent != HistoryIntent.needsReview || !mounted) return;
+      setState(() {
+        _range = HistoryRange.all;
+        _outcome = HistoryOutcomeFilter.needsReview;
+        _apps
+          ..clear()
+          ..add(null);
+        _verdicts
+          ..clear()
+          ..add(null);
+        _topOnly = false;
+      });
+      ref.read(pendingHistoryIntentProvider.notifier).clear();
+    }, fireImmediately: true);
+  }
 
   @override
   void didChangeDependencies() {
@@ -125,11 +148,17 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     }
     final outcomeMatches = switch (_outcome) {
       HistoryOutcomeFilter.all => true,
-      HistoryOutcomeFilter.accepted => o.outcome == OfferOutcome.taken,
+      HistoryOutcomeFilter.accepted =>
+        o.outcome == OfferOutcome.taken || o.outcome == OfferOutcome.completed,
       HistoryOutcomeFilter.declined => o.outcome == OfferOutcome.missed,
       HistoryOutcomeFilter.cancelled => o.outcome == OfferOutcome.cancelled,
       HistoryOutcomeFilter.completed => o.outcome == OfferOutcome.completed,
       HistoryOutcomeFilter.unknown => o.outcome == OfferOutcome.unknown,
+      HistoryOutcomeFilter.needsReview =>
+        o.outcome == OfferOutcome.unknown ||
+            ((o.outcome == OfferOutcome.taken ||
+                    o.outcome == OfferOutcome.completed) &&
+                o.finalPayout == null),
     };
     if (!outcomeMatches) return false;
     // Top-only is a FARE floor, nothing more. It used to also require
@@ -788,6 +817,7 @@ class _OutcomeChips extends StatelessWidget {
       selected: active,
       button: true,
       child: GestureDetector(
+        key: ValueKey('history-outcome-${value.name}'),
         behavior: HitTestBehavior.opaque,
         onTap: () {
           HapticFeedback.selectionClick();
@@ -1978,105 +2008,197 @@ class _HistoryPerformanceState extends State<_HistoryPerformance> {
     final stats = widget.stats;
     final settings = widget.settings;
     final earnings = stats.acceptedEarnings > 0
-        ? '${settings.currency.prefix}${stats.acceptedEarnings.toStringAsFixed(2)}'
+        ? '${settings.currency.symbol}${stats.acceptedEarnings.toStringAsFixed(2)}'
         : '—';
     final hourly = stats.acceptedMinutes > 0
-        ? '${settings.currency.prefix}${(stats.acceptedEarnings / stats.acceptedMinutes * 60).toStringAsFixed(2)}/hr'
+        ? '${settings.currency.symbol}${(stats.acceptedEarnings / stats.acceptedMinutes * 60).toStringAsFixed(2)}'
         : '—';
-    final acceptedDistance = stats.acceptedKm > 0
-        ? '${settings.distanceUnit.distanceFromKm(stats.acceptedKm).toStringAsFixed(1)} ${settings.distanceUnit.shortLabel} accepted'
-        : 'Accepted offers only';
+    final acceptedKm = stats.acceptedKm > 0
+        ? settings.distanceUnit
+              .distanceFromKm(stats.acceptedKm)
+              .toStringAsFixed(1)
+        : '—';
+    final textScale = MediaQuery.textScalerOf(context).scale(1);
+    final expandedHeight = 260.0 + (textScale > 1 ? (textScale - 1) * 80 : 0);
 
-    return Container(
-      padding: const EdgeInsets.all(Gap.md),
-      decoration: BoxDecoration(
-        color: FoxColors.brandFox.withValues(alpha: 0.07),
-        borderRadius: BorderRadius.circular(Radii.cardSm),
-        border: Border.all(color: FoxColors.brandFox.withValues(alpha: 0.28)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: () => setState(() => _expanded = !_expanded),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: Gap.xs),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.insights_rounded,
-                    size: 16,
-                    color: VerdictColors.good,
-                  ),
-                  const SizedBox(width: Gap.sm),
-                  Expanded(
-                    child: Text(
-                      _expanded ? 'History performance' : '$earnings · $hourly',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontFamily: _expanded ? null : FoxFonts.display,
-                        fontSize: _expanded ? 11.5 : 15,
-                        fontWeight: FontWeight.w700,
-                        color: FoxColors.textPrimary,
-                        fontFeatures: const [FontFeature.tabularFigures()],
-                      ),
-                    ),
-                  ),
-                  Icon(
-                    _expanded
-                        ? Icons.expand_less_rounded
-                        : Icons.expand_more_rounded,
-                    color: FoxColors.textSecondary,
-                  ),
-                ],
+    return Semantics(
+      button: true,
+      expanded: _expanded,
+      label: 'History performance',
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(Radii.card),
+        child: GestureDetector(
+          key: const Key('history-performance-toggle'),
+          behavior: HitTestBehavior.opaque,
+          onTap: () => setState(() => _expanded = !_expanded),
+          child: Container(
+            height: _expanded ? expandedHeight : 72,
+            decoration: BoxDecoration(
+              color: const Color(0xFF090D1C),
+              image: const DecorationImage(
+                image: AssetImage('assets/history/sunset.webp'),
+                fit: BoxFit.cover,
+                alignment: Alignment.centerRight,
               ),
             ),
-          ),
-          if (_expanded) ...[
-            const SizedBox(height: Gap.sm),
-            Row(
+            child: Stack(
+              fit: StackFit.expand,
               children: [
-                Expanded(
-                  child: _PerformanceValue(
-                    label: 'Est. earnings',
-                    value: earnings,
-                    sub: acceptedDistance,
-                  ),
-                ),
-                Container(width: 1, height: 48, color: FoxColors.border),
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.only(left: Gap.md),
-                    child: _PerformanceValue(
-                      label: 'History rate',
-                      value: hourly == '—'
-                          ? hourly
-                          : hourly.replaceFirst('/hr', ''),
-                      sub: 'Per accepted hour',
+                const DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.centerLeft,
+                      end: Alignment.centerRight,
+                      colors: [
+                        Color(0xFA071020),
+                        Color(0xE6071022),
+                        Color(0x8A24133A),
+                      ],
+                      stops: [0, 0.55, 1],
                     ),
                   ),
+                ),
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final compact = constraints.maxWidth < 330;
+                    return Padding(
+                      padding: const EdgeInsets.all(Gap.md),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(
+                                Icons.insights_rounded,
+                                size: 18,
+                                color: Color(0xFF79DC91),
+                              ),
+                              const SizedBox(width: Gap.sm),
+                              Expanded(
+                                child: Text(
+                                  _expanded
+                                      ? 'History performance'
+                                      : '$earnings   |   $hourly/hr',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontFamily: _expanded
+                                        ? null
+                                        : FoxFonts.display,
+                                    fontSize: _expanded ? 13 : 16,
+                                    fontWeight: FontWeight.w700,
+                                    color: Colors.white,
+                                    fontFeatures: const [
+                                      FontFeature.tabularFigures(),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              Icon(
+                                _expanded
+                                    ? Icons.expand_less_rounded
+                                    : Icons.expand_more_rounded,
+                                color: Colors.white70,
+                              ),
+                            ],
+                          ),
+                          if (_expanded) ...[
+                            const Spacer(),
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Expanded(
+                                  flex: 11,
+                                  child: _HeroValue(
+                                    label: 'Estimated earnings',
+                                    value: earnings,
+                                    fontSize: compact ? 25 : 29,
+                                  ),
+                                ),
+                                Container(
+                                  width: 1,
+                                  height: 62,
+                                  color: Colors.white24,
+                                ),
+                                Expanded(
+                                  flex: 9,
+                                  child: Padding(
+                                    padding: const EdgeInsets.only(
+                                      left: Gap.md,
+                                    ),
+                                    child: _HeroValue(
+                                      label: 'History rate',
+                                      value: hourly,
+                                      sub: 'Per accepted hour',
+                                      fontSize: compact ? 22 : 26,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const Spacer(),
+                            Container(
+                              height: 62,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: Gap.sm,
+                              ),
+                              decoration: BoxDecoration(
+                                color: const Color(0xCC0B1122),
+                                borderRadius: BorderRadius.circular(
+                                  Radii.cardSm,
+                                ),
+                                border: Border.all(color: Colors.white24),
+                              ),
+                              child: Row(
+                                children: [
+                                  _HeroStat(
+                                    value: '${stats.total}',
+                                    label: 'Offers',
+                                    valueKey: const ValueKey(
+                                      'history-summary-total',
+                                    ),
+                                  ),
+                                  const _GlassDivider(),
+                                  _HeroStat(
+                                    value: '${stats.accepted}',
+                                    label: 'Accepted',
+                                  ),
+                                  const _GlassDivider(),
+                                  _HeroStat(
+                                    value: acceptedKm,
+                                    label:
+                                        'Accepted ${settings.distanceUnit.shortLabel}',
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    );
+                  },
                 ),
               ],
             ),
-          ],
-        ],
+          ),
+        ),
       ),
     );
   }
 }
 
-class _PerformanceValue extends StatelessWidget {
-  const _PerformanceValue({
+class _HeroValue extends StatelessWidget {
+  const _HeroValue({
     required this.label,
     required this.value,
-    required this.sub,
+    required this.fontSize,
+    this.sub,
   });
 
   final String label;
   final String value;
-  final String sub;
+  final String? sub;
+  final double fontSize;
 
   @override
   Widget build(BuildContext context) => Column(
@@ -2085,9 +2207,9 @@ class _PerformanceValue extends StatelessWidget {
       Text(
         label,
         style: TextStyle(
-          fontSize: 10.5,
+          fontSize: 11,
           fontWeight: FontWeight.w700,
-          color: FoxColors.textSecondary,
+          color: Colors.white70,
         ),
       ),
       const SizedBox(height: 2),
@@ -2095,19 +2217,64 @@ class _PerformanceValue extends StatelessWidget {
         value,
         style: TextStyle(
           fontFamily: FoxFonts.display,
-          fontSize: 21,
+          fontSize: fontSize,
           fontWeight: FontWeight.w700,
-          color: FoxColors.textPrimary,
+          color: Colors.white,
           fontFeatures: const [FontFeature.tabularFigures()],
         ),
       ),
-      const SizedBox(height: 2),
-      Text(
-        sub,
-        style: TextStyle(fontSize: 10.5, color: FoxColors.textSecondary),
-      ),
+      if (sub != null) ...[
+        const SizedBox(height: 2),
+        Text(
+          sub!,
+          style: const TextStyle(fontSize: 10.5, color: Colors.white70),
+        ),
+      ],
     ],
   );
+}
+
+class _HeroStat extends StatelessWidget {
+  const _HeroStat({required this.value, required this.label, this.valueKey});
+  final String value;
+  final String label;
+  final Key? valueKey;
+
+  @override
+  Widget build(BuildContext context) => Expanded(
+    child: Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(
+            value,
+            key: valueKey,
+            style: TextStyle(
+              fontFamily: FoxFonts.display,
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              color: Colors.white,
+              fontFeatures: [FontFeature.tabularFigures()],
+            ),
+          ),
+        ),
+        Text(
+          label,
+          maxLines: 1,
+          style: const TextStyle(fontSize: 9.5, color: Colors.white70),
+        ),
+      ],
+    ),
+  );
+}
+
+class _GlassDivider extends StatelessWidget {
+  const _GlassDivider();
+
+  @override
+  Widget build(BuildContext context) =>
+      Container(width: 1, height: 34, color: Colors.white24);
 }
 
 class _OutcomeSheet extends StatelessWidget {
@@ -2272,89 +2439,111 @@ class _StatsCard extends ConsumerWidget {
       Verdict.bad => VerdictColors.bad,
       _ => FoxColors.textSecondary,
     };
-    return Container(
+    return Column(
       key: const ValueKey('history-summary'),
-      padding: const EdgeInsets.all(Gap.md + Gap.xs),
-      decoration: BoxDecoration(
-        color: FoxColors.bgSurface,
-        borderRadius: BorderRadius.circular(Radii.card),
-        border: Border.all(color: FoxColors.borderSoft),
-        boxShadow: Shadows.card,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _VerdictSummaryRow(stats: s),
-          const SizedBox(height: Gap.sm),
-          _HistoryPerformance(stats: s, settings: settings),
-          const SizedBox(height: Gap.sm),
-          Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _VerdictSummaryRow(stats: s),
+        const SizedBox(height: Gap.sm),
+        _HistoryPerformance(stats: s, settings: settings),
+        const SizedBox(height: Gap.sm),
+        Container(
+          height: 78,
+          padding: const EdgeInsets.symmetric(horizontal: Gap.sm),
+          decoration: BoxDecoration(
+            color: FoxColors.bgSurface,
+            borderRadius: BorderRadius.circular(Radii.cardSm),
+            border: Border.all(color: FoxColors.borderSoft),
+            boxShadow: Shadows.soft,
+          ),
+          child: Row(
             children: [
-              Expanded(
-                child: _Stat(
-                  label: 'OFFERS',
-                  value: '${s.total}',
-                  valueKey: const ValueKey('history-summary-total'),
-                  color: FoxColors.textSecondary,
-                ),
+              _CompactStat(
+                icon: Icons.trending_up_rounded,
+                label: 'Good avg',
+                value: s.goodAvgPerKm > 0
+                    ? '${settings.currency.symbol}${settings.distanceUnit.rateFromPerKm(s.goodAvgPerKm).toStringAsFixed(2)}'
+                    : '—',
+                color: s.goodAvgPerKm > 0
+                    ? VerdictColors.good
+                    : FoxColors.textSecondary,
               ),
-              const SizedBox(width: Gap.sm),
-              Expanded(
-                child: _Stat(
-                  label: 'ACCEPTED',
-                  value: '${s.accepted}',
-                  color: VerdictColors.good,
-                ),
+              const _StatDivider(),
+              _CompactStat(
+                icon: Icons.star_outline_rounded,
+                label: 'Best rate',
+                value: best != null && best.effectivePricePerKm > 0
+                    ? '${settings.currency.symbol}${settings.distanceUnit.rateFromPerKm(best.effectivePricePerKm).toStringAsFixed(2)}'
+                    : '—',
+                color: bestColor,
               ),
-              const SizedBox(width: Gap.sm),
-              Expanded(
-                child: _Stat(
-                  label: settings.distanceUnit.shortLabel.toUpperCase(),
-                  value: s.acceptedKm > 0
-                      ? settings.distanceUnit
-                            .distanceFromKm(s.acceptedKm)
-                            .toStringAsFixed(1)
-                      : '—',
-                  color: VerdictColors.good,
-                ),
+              const _StatDivider(),
+              _CompactStat(
+                icon: Icons.schedule_rounded,
+                label: 'Busiest hour',
+                value: s.busiestHour != null ? _hourLabel(s.busiestHour!) : '—',
+                color: FoxColors.brandFox,
               ),
             ],
           ),
-          const SizedBox(height: Gap.sm),
-          Row(
-            children: [
-              Expanded(
-                child: _Stat(
-                  label: 'GOOD AVG',
-                  value: s.goodAvgPerKm > 0
-                      ? '\$${settings.distanceUnit.rateFromPerKm(s.goodAvgPerKm).toStringAsFixed(2)}'
-                      : '—',
-                  color: s.goodAvgPerKm > 0
-                      ? VerdictColors.good
-                      : FoxColors.textSecondary,
+        ),
+      ],
+    );
+  }
+}
+
+class _CompactStat extends StatelessWidget {
+  const _CompactStat({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.color,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, size: 20, color: color),
+          const SizedBox(width: Gap.xs),
+          Flexible(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    value,
+                    maxLines: 1,
+                    style: TextStyle(
+                      fontFamily: FoxFonts.display,
+                      fontSize: 17,
+                      fontWeight: FontWeight.w700,
+                      fontFeatures: [FontFeature.tabularFigures()],
+                    ),
+                  ),
                 ),
-              ),
-              const SizedBox(width: Gap.sm),
-              Expanded(
-                child: _Stat(
-                  label: 'BEST RATE',
-                  value: best != null && best.effectivePricePerKm > 0
-                      ? '\$${settings.distanceUnit.rateFromPerKm(best.effectivePricePerKm).toStringAsFixed(2)}'
-                      : '—',
-                  color: bestColor,
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 9.5,
+                    fontWeight: FontWeight.w600,
+                    color: color,
+                  ),
                 ),
-              ),
-              const SizedBox(width: Gap.sm),
-              Expanded(
-                child: _Stat(
-                  label: 'BUSIEST HOUR',
-                  value: s.busiestHour != null
-                      ? _hourLabel(s.busiestHour!)
-                      : '—',
-                  color: FoxColors.brandFox,
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
         ],
       ),
@@ -2362,77 +2551,10 @@ class _StatsCard extends ConsumerWidget {
   }
 }
 
-class _Stat extends StatelessWidget {
-  final String label;
-  final String value;
-  final Color color;
-  final Key? valueKey;
-
-  const _Stat({
-    required this.label,
-    required this.value,
-    required this.color,
-    this.valueKey,
-  });
-  static TextStyle get _valueStyle => TextStyle(
-    fontFamily: FoxFonts.display,
-    fontSize: 17,
-    fontWeight: FontWeight.w600,
-    color: FoxColors.textPrimary,
-    fontFeatures: [FontFeature.tabularFigures()],
-  );
+class _StatDivider extends StatelessWidget {
+  const _StatDivider();
 
   @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 76,
-      padding: const EdgeInsets.all(Gap.sm + Gap.xs),
-      decoration: BoxDecoration(
-        color: color.withValues(
-          alpha: FoxColors.palette.brightness == Brightness.light
-              ? 0.075
-              : 0.12,
-        ),
-        borderRadius: BorderRadius.circular(Radii.cardSm),
-        border: Border.all(color: color.withValues(alpha: 0.22)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            alignment: Alignment.centerLeft,
-            child: Text(
-              label,
-              maxLines: 1,
-              style: TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 0.8,
-                color: FoxColors.textDisabled,
-              ),
-            ),
-          ),
-          const SizedBox(height: Gap.xs),
-          SizedBox(
-            height: 24,
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: FittedBox(
-                fit: BoxFit.scaleDown,
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  value,
-                  key: valueKey,
-                  maxLines: 1,
-                  style: _valueStyle.copyWith(color: FoxColors.textPrimary),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  Widget build(BuildContext context) =>
+      Container(width: 1, height: 38, color: FoxColors.border);
 }

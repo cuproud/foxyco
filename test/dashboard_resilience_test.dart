@@ -13,6 +13,7 @@ import 'package:foxyco/services/session_log.dart';
 import 'package:foxyco/ui/home/dashboard_controller.dart';
 import 'package:foxyco/ui/home/dashboard_state.dart';
 import 'package:foxyco/ui/overlay/overlay_controller.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// Scriptable accessibility grant state + the OS on/off status stream.
 class _FakeWatcher extends AccessibilityWatcher {
@@ -53,6 +54,8 @@ class _FakeOcrCapture extends OcrCapture {
 }
 
 class _FakeOverlayService implements OverlayService {
+  _FakeOverlayService({this.active = false});
+  final bool active;
   @override
   Future<bool> isPermissionGranted() async => true;
   @override
@@ -65,7 +68,7 @@ class _FakeOverlayService implements OverlayService {
   @override
   Stream<OverlayAction> get actionStream => const Stream.empty();
   @override
-  Future<bool> isActive() async => false;
+  Future<bool> isActive() async => active;
   @override
   Future<void> startWatching({
     bool paused = false,
@@ -85,6 +88,38 @@ class _FakeOverlayService implements OverlayService {
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+
+  setUp(() => SharedPreferences.setMockInitialValues({}));
+
+  test(
+    'a surviving overlay restores the active session after restart',
+    () async {
+      final started = DateTime.now().subtract(const Duration(minutes: 12));
+      SharedPreferences.setMockInitialValues({
+        'foxyco.active_session_started_at.v1': started.millisecondsSinceEpoch,
+      });
+      final watcher = _FakeWatcher();
+      final container = ProviderContainer(
+        overrides: [
+          accessibilityWatcherProvider.overrideWithValue(watcher),
+          overlayServiceProvider.overrideWithValue(
+            _FakeOverlayService(active: true),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      addTearDown(watcher.status.close);
+
+      container.read(dashboardProvider);
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+
+      expect(container.read(dashboardProvider).status, WatchStatus.watching);
+      expect(
+        container.read(dashboardProvider.notifier).liveSince,
+        DateTime.fromMillisecondsSinceEpoch(started.millisecondsSinceEpoch),
+      );
+    },
+  );
 
   test('mid-shift accessibility revoke flips the dashboard to blocked '
       '(and re-grant lands on stopped, not auto-watching)', () async {

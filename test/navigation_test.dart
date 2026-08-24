@@ -141,7 +141,7 @@ void main() {
     await tester.tap(card);
     await beat(tester);
 
-    expect(container.read(tabIndexProvider), 2);
+    expect(container.read(tabIndexProvider), 0);
     expect(find.text('Add final'), findsOneWidget);
 
     await tester.tap(find.text('Add final'));
@@ -153,6 +153,10 @@ void main() {
 
     expect(find.text(r'CA$18.61'), findsAtLeastNWidgets(1));
     expect(container.read(offerLogProvider).single.finalPayout, 18.61);
+    await tester.binding.handlePopRoute();
+    await beat(tester);
+    expect(container.read(tabIndexProvider), 0);
+    expect(find.text('Recent accepted'), findsOneWidget);
     await tester.pump(const Duration(seconds: 3));
   });
 

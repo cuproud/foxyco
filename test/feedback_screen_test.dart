@@ -37,9 +37,14 @@ class FakeFeedbackPlatform extends FeedbackPlatform {
   }
 }
 
-Widget host(FakeFeedbackPlatform platform) => MaterialApp(
-  theme: AppTheme.dark,
-  home: FeedbackScreen(platform: platform),
+Widget host(
+  FakeFeedbackPlatform platform, {
+  FeedbackDraft draft = const FeedbackDraft(),
+}) => ProviderScope(
+  child: MaterialApp(
+    theme: AppTheme.dark,
+    home: FeedbackScreen(platform: platform, draft: draft),
+  ),
 );
 
 void main() {
@@ -118,6 +123,47 @@ void main() {
           .selected,
       isTrue,
     );
+  });
+
+  testWidgets('missed-offer shortcut prefills an actionable report', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      host(FakeFeedbackPlatform(), draft: const FeedbackDraft.missedOffer()),
+    );
+
+    expect(
+      tester
+          .widget<ChoiceChip>(
+            find.widgetWithText(ChoiceChip, 'Offer detection'),
+          )
+          .selected,
+      isTrue,
+    );
+    expect(find.textContaining('did not show a verdict'), findsOneWidget);
+    expect(
+      tester
+          .widget<FilledButton>(find.byKey(const Key('feedback-send')))
+          .onPressed,
+      isNotNull,
+    );
+  });
+
+  test('feedback message includes requested diagnostics', () {
+    final message = buildFeedbackMessage(
+      category: FeedbackCategory.offerDetection,
+      description: 'No verdict.',
+      context: const FeedbackContext(
+        version: '1',
+        build: '2',
+        android: '16',
+        device: 'Phone',
+      ),
+      diagnostics: 'offer watcher: timeout',
+    );
+
+    expect(message.body, contains('Recent FoxyCo diagnostics'));
+    expect(message.body, contains('offer watcher: timeout'));
   });
 
   testWidgets('requires a trimmed description but screenshots stay optional', (

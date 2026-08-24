@@ -83,6 +83,7 @@ void main() {
     expect(stats.acceptedEarnings, 38);
     expect(stats.acceptedKm, 15);
     expect(stats.acceptedMinutes, 60);
+    expect(stats.accepted, 2);
   });
 
   test('session summary carries accepted count with legacy default', () {
@@ -101,6 +102,21 @@ void main() {
       }).accepted,
       0,
     );
+  });
+
+  test('session summary tracks accepted trips missing a final payout', () {
+    final session = SessionSummary.from(
+      startedAt: DateTime(2026, 7, 16),
+      endedAt: DateTime(2026, 7, 16, 13),
+      offers: [
+        _o(Verdict.good, 15, 10, outcome: OfferOutcome.taken),
+        _o(Verdict.good, 20, 10, outcome: OfferOutcome.completed),
+      ],
+    );
+
+    expect(session.accepted, 2);
+    expect(session.missingFinalPayouts, 2);
+    expect(SessionSummary.fromJson(session.toJson()).missingFinalPayouts, 2);
   });
 
   test('goodAvgPerKm averages GOOD offers only', () {

@@ -12,6 +12,24 @@ enum FeedbackCategory {
   final String label;
 }
 
+class FeedbackDraft {
+  const FeedbackDraft({
+    this.category = FeedbackCategory.bug,
+    this.description = '',
+    this.includeDiagnostics = false,
+  });
+
+  const FeedbackDraft.missedOffer()
+    : category = FeedbackCategory.offerDetection,
+      description =
+          'A driver offer appeared, but FoxyCo did not show a verdict.\n\nPlatform: \nApproximate time: ',
+      includeDiagnostics = true;
+
+  final FeedbackCategory category;
+  final String description;
+  final bool includeDiagnostics;
+}
+
 class FeedbackContext {
   const FeedbackContext({
     required this.version,
@@ -52,6 +70,7 @@ FeedbackMessage buildFeedbackMessage({
   required String description,
   required FeedbackContext context,
   List<String> imagePaths = const [],
+  String diagnostics = '',
 }) => FeedbackMessage(
   recipient: feedbackRecipient,
   subject: 'FoxyCo v${context.version} (${context.build}) — ${category.label}',
@@ -63,7 +82,8 @@ FeedbackMessage buildFeedbackMessage({
       'Version: ${context.version} (${context.build})\n'
       'Category: ${category.label}\n'
       'Android: ${context.android}\n'
-      'Device: ${context.device}\n',
+      'Device: ${context.device}\n'
+      '${diagnostics.trim().isEmpty ? '' : '\nRecent FoxyCo diagnostics\n\n${diagnostics.trim()}\n'}',
   imagePaths: List.unmodifiable(imagePaths.take(3)),
 );
 

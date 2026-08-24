@@ -19,6 +19,7 @@ class SessionSummary {
   final int declined;
   final int unknown;
   final double estimatedEarnings;
+  final int missingFinalPayouts;
   final double? actualEarnings;
   final bool actualEarningsIsManual;
   final Set<GigPlatform> platforms;
@@ -44,6 +45,7 @@ class SessionSummary {
     this.declined = 0,
     this.unknown = 0,
     this.estimatedEarnings = 0,
+    this.missingFinalPayouts = 0,
     this.actualEarnings,
     this.actualEarningsIsManual = false,
     this.platforms = const {},
@@ -76,6 +78,7 @@ class SessionSummary {
     declined: declined,
     unknown: unknown,
     estimatedEarnings: estimatedEarnings,
+    missingFinalPayouts: missingFinalPayouts,
     actualEarnings: value,
     actualEarningsIsManual: value != null,
     platforms: platforms,
@@ -125,6 +128,9 @@ class SessionSummary {
         0.0,
         (sum, o) => sum + o.effectivePayout,
       ),
+      missingFinalPayouts: earningOffers
+          .where((o) => o.finalPayout == null)
+          .length,
       platforms: sessionOffers.map((o) => o.platform).toSet(),
       bestPerKm: stats.best?.effectivePricePerKm ?? 0,
       goodAvgPerKm: stats.goodAvgPerKm,
@@ -144,6 +150,7 @@ class SessionSummary {
     'declined': declined,
     'unknown': unknown,
     'estimatedEarnings': estimatedEarnings,
+    'missingFinalPayouts': missingFinalPayouts,
     if (actualEarnings != null) 'actualEarnings': actualEarnings,
     if (actualEarningsIsManual) 'actualEarningsIsManual': true,
     'platforms': platforms.map((p) => p.name).toList(),
@@ -167,6 +174,7 @@ class SessionSummary {
     declined: (j['declined'] as num?)?.toInt() ?? 0,
     unknown: (j['unknown'] as num?)?.toInt() ?? 0,
     estimatedEarnings: (j['estimatedEarnings'] as num?)?.toDouble() ?? 0,
+    missingFinalPayouts: (j['missingFinalPayouts'] as num?)?.toInt() ?? 0,
     actualEarnings: (j['actualEarnings'] as num?)?.toDouble(),
     actualEarningsIsManual: j['actualEarningsIsManual'] == true,
     platforms:

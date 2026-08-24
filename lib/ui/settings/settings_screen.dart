@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../domain/app_skin.dart';
@@ -17,6 +18,8 @@ import '../../domain/overlay_payload.dart' show OverlayPayload, PillSize;
 import '../../parser/parser_registry.dart';
 import '../../domain/verdict.dart';
 import '../../services/offer_log.dart';
+import '../../services/device_health.dart';
+import '../../services/feedback_service.dart';
 import '../../services/parse_health.dart';
 import '../overlay/verdict_pill.dart';
 import '../legal/ocr_disclosure.dart';
@@ -233,6 +236,43 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   ),
                 ),
                 Divider(color: FoxColors.border, height: Gap.xl),
+                Consumer(
+                  builder: (context, ref, _) {
+                    final battery = ref.watch(batteryUnrestrictedProvider);
+                    final unrestricted = battery.asData?.value;
+                    return ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: Icon(
+                        unrestricted == true
+                            ? Icons.battery_saver_rounded
+                            : Icons.battery_alert_outlined,
+                        color: unrestricted == true
+                            ? VerdictColors.good
+                            : VerdictColors.ok,
+                      ),
+                      title: Text(
+                        'Background reliability',
+                        style: text.titleMedium,
+                      ),
+                      subtitle: Text(
+                        battery.isLoading
+                            ? 'Checking battery settings…'
+                            : unrestricted == true
+                            ? 'Battery use is unrestricted'
+                            : unrestricted == false
+                            ? 'Battery optimisation may stop long shifts'
+                            : 'Check Android battery settings',
+                      ),
+                      trailing: TextButton(
+                        onPressed: () => ref
+                            .read(deviceHealthProvider)
+                            .openBatterySettings(),
+                        child: Text(unrestricted == true ? 'View' : 'Fix'),
+                      ),
+                    );
+                  },
+                ),
+                Divider(color: FoxColors.border, height: Gap.xl),
                 Material(
                   type: MaterialType.transparency,
                   child: SwitchListTile(
@@ -308,6 +348,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       ),
                     ],
                   ],
+                ),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton.icon(
+                    key: const Key('report_missed_offer'),
+                    onPressed: () => context.push(
+                      '/feedback',
+                      extra: const FeedbackDraft.missedOffer(),
+                    ),
+                    icon: const Icon(Icons.report_gmailerrorred_rounded),
+                    label: const Text('Report a missed offer'),
+                  ),
                 ),
               ],
             ),

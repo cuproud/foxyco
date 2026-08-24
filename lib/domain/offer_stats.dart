@@ -69,9 +69,9 @@ class OfferStats {
         case Verdict.unknown:
           break;
       }
-      if (o.outcome == OfferOutcome.taken) accepted++;
       if (o.outcome == OfferOutcome.taken ||
           o.outcome == OfferOutcome.completed) {
+        accepted++;
         acceptedEarnings += o.effectivePayout;
         acceptedKm += o.totalKm;
         acceptedMinutes += o.totalMinutes;

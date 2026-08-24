@@ -2,20 +2,27 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../services/feedback_service.dart';
+import '../../services/fox_log.dart';
 import '../theme/tokens.dart';
 
-class FeedbackScreen extends StatefulWidget {
-  const FeedbackScreen({super.key, this.platform = const FeedbackPlatform()});
+class FeedbackScreen extends ConsumerStatefulWidget {
+  const FeedbackScreen({
+    super.key,
+    this.platform = const FeedbackPlatform(),
+    this.draft = const FeedbackDraft(),
+  });
 
   final FeedbackPlatform platform;
+  final FeedbackDraft draft;
 
   @override
-  State<FeedbackScreen> createState() => _FeedbackScreenState();
+  ConsumerState<FeedbackScreen> createState() => _FeedbackScreenState();
 }
 
-class _FeedbackScreenState extends State<FeedbackScreen> {
+class _FeedbackScreenState extends ConsumerState<FeedbackScreen> {
   static const _maxImages = 3;
   final _description = TextEditingController();
   FeedbackCategory _category = FeedbackCategory.bug;
@@ -25,6 +32,8 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
   @override
   void initState() {
     super.initState();
+    _category = widget.draft.category;
+    _description.text = widget.draft.description;
     _description.addListener(_refresh);
   }
 
@@ -58,6 +67,9 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
         description: description,
         context: await widget.platform.context(),
         imagePaths: _images,
+        diagnostics: widget.draft.includeDiagnostics
+            ? await ref.read(foxLogProvider).tail(maxChars: 20 * 1024)
+            : '',
       );
       if (!await widget.platform.send(message) && mounted) {
         _showFailure("Couldn't open an email app.");

@@ -4,6 +4,7 @@ import 'domain/garage.dart';
 import 'ui/onboarding/onboarding_screen.dart';
 import 'ui/settings/about_screen.dart';
 import 'ui/settings/feedback_screen.dart';
+import 'services/feedback_service.dart';
 import 'ui/settings/logs_screen.dart';
 import 'ui/settings/vehicle_editor_screen.dart';
 import 'ui/shell/root_shell.dart';
@@ -38,7 +39,11 @@ GoRouter createRouter({
     GoRoute(path: '/about', builder: (context, state) => const AboutScreen()),
     GoRoute(
       path: '/feedback',
-      builder: (context, state) => const FeedbackScreen(),
+      builder: (context, state) => FeedbackScreen(
+        draft: state.extra is FeedbackDraft
+            ? state.extra! as FeedbackDraft
+            : const FeedbackDraft(),
+      ),
     ),
     GoRoute(path: '/logs', builder: (context, state) => const LogsScreen()),
   ],

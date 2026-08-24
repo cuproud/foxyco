@@ -9,6 +9,8 @@ import android.os.Build
 import android.os.PersistableBundle
 import android.os.Handler
 import android.os.Looper
+import android.os.PowerManager
+import android.provider.Settings
 import android.util.Log
 import android.speech.tts.TextToSpeech
 import androidx.activity.result.ActivityResult
@@ -151,6 +153,25 @@ class MainActivity : FlutterFragmentActivity() {
                             call.argument<List<String>>("imagePaths").orEmpty(),
                         )
                     )
+                    else -> result.notImplemented()
+                }
+            }
+
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "foxyco/device_health")
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "batteryUnrestricted" -> {
+                        val power = getSystemService(Context.POWER_SERVICE) as PowerManager
+                        result.success(power.isIgnoringBatteryOptimizations(packageName))
+                    }
+                    "openBatterySettings" -> {
+                        try {
+                            startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
+                            result.success(null)
+                        } catch (error: Exception) {
+                            result.error("battery_settings_unavailable", error.message, null)
+                        }
+                    }
                     else -> result.notImplemented()
                 }
             }

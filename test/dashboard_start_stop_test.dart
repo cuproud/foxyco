@@ -4,6 +4,7 @@ import 'package:foxyco/services/ocr/ocr_capture.dart';
 import 'package:foxyco/ui/home/dashboard_controller.dart';
 import 'package:foxyco/ui/home/dashboard_state.dart';
 import 'package:foxyco/ui/settings/settings_controller.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class _GrantedDashboardController extends DashboardController {
   @override
@@ -41,6 +42,7 @@ ProviderContainer _grantedContainer([_FakeOcrCapture? ocr]) =>
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  setUp(() => SharedPreferences.setMockInitialValues({}));
 
   test('boots blocked until real permissions resolve', () {
     final container = ProviderContainer();
@@ -58,6 +60,21 @@ void main() {
     expect(container.read(dashboardProvider).status, WatchStatus.watching);
     c.stopMonitoring();
     expect(container.read(dashboardProvider).status, WatchStatus.stopped);
+  });
+
+  test('active session anchor is saved and cleared with monitoring', () async {
+    final container = _grantedContainer();
+    addTearDown(container.dispose);
+    final dashboard = container.read(dashboardProvider.notifier);
+
+    await dashboard.startMonitoring();
+    var prefs = await SharedPreferences.getInstance();
+    expect(prefs.getInt('foxyco.active_session_started_at.v1'), isNotNull);
+
+    dashboard.stopMonitoring();
+    await Future<void>.delayed(Duration.zero);
+    prefs = await SharedPreferences.getInstance();
+    expect(prefs.getInt('foxyco.active_session_started_at.v1'), isNull);
   });
 
   test('pause layers on top of running; stop from paused works', () {

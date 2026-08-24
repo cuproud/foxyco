@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../domain/session_summary.dart';
 import '../../services/accessibility/accessibility_watcher.dart';
@@ -16,6 +17,7 @@ import 'dashboard_state.dart';
 /// Watch/permission state holder. Tally, last offer and watched platforms are
 /// derived live from the offer log and settings — no mock data here.
 class DashboardController extends Notifier<DashboardState> {
+  static const _sessionAnchorKey = 'foxyco.active_session_started_at.v1';
   StreamSubscription<bool>? _statusSub;
   Future<void>? _permissionRefresh;
   bool _permissionRefreshAgain = false;
@@ -59,6 +61,7 @@ class DashboardController extends Notifier<DashboardState> {
       _statusSub?.cancel();
       unawaited(ocr.stop());
     });
+    unawaited(_restoreSessionAnchor());
 
     return const DashboardState(
       status: WatchStatus.blocked,
@@ -86,6 +89,7 @@ class DashboardController extends Notifier<DashboardState> {
       }
       if (!ref.mounted || state.status == WatchStatus.blocked) return;
       liveSince = DateTime.now();
+      unawaited(_saveSessionAnchor(liveSince!));
       state = _with(status: WatchStatus.watching);
       ref.read(foxLogProvider).log('status', 'watch → watching (started)');
       if (kDebugMode) debugPrint('FoxyCo watch status → watching (started)');
@@ -105,6 +109,7 @@ class DashboardController extends Notifier<DashboardState> {
     final since = liveSince;
     unawaited(ref.read(ocrCaptureProvider).stop());
     liveSince = null;
+    unawaited(_clearSessionAnchor());
     _recordSession(since);
     state = _with(status: WatchStatus.stopped);
     ref.read(foxLogProvider).log('status', 'watch → stopped');
@@ -162,6 +167,7 @@ class DashboardController extends Notifier<DashboardState> {
     final since = liveSince;
     unawaited(ref.read(ocrCaptureProvider).stop());
     liveSince = null; // session over — no recap for a bubble-drop stop
+    unawaited(_clearSessionAnchor());
     _recordSession(since); // …but it still counts as a session
     state = _with(status: WatchStatus.stopped);
     ref.read(foxLogProvider).log('status', 'watch → stopped (bubble dropped)');
@@ -231,9 +237,14 @@ class DashboardController extends Notifier<DashboardState> {
         // reopen (device 2026-07-19). Paused is exempt: its overlay is torn
         // down BY DESIGN (see OverlayController._applyStatus).
         final overlayUp = await ref.read(overlayServiceProvider).isActive();
-        status = overlayUp ? state.status : WatchStatus.stopped;
+        status = overlayUp ? WatchStatus.watching : WatchStatus.stopped;
       } else if (state.status == WatchStatus.paused) {
         status = state.status; // explicit pause survives a refresh
+      } else if (liveSince != null) {
+        // Process restart: a surviving overlay means the same shift is still
+        // live. Otherwise close the recovered shift instead of losing it.
+        final overlayUp = await ref.read(overlayServiceProvider).isActive();
+        status = overlayUp ? WatchStatus.watching : WatchStatus.stopped;
       } else {
         status = WatchStatus.stopped; // granted but user hasn't started
       }
@@ -243,14 +254,18 @@ class DashboardController extends Notifier<DashboardState> {
           old.permissions.accessibilityGranted !=
               permissions.accessibilityGranted;
       final statusChanged = old.status != status;
-      if (!statusChanged && !permissionsChanged) return;
+      final endsRecoveredSession =
+          liveSince != null &&
+          (status == WatchStatus.blocked || status == WatchStatus.stopped);
+      if (!statusChanged && !permissionsChanged && !endsRecoveredSession) {
+        return;
+      }
 
-      if ((status == WatchStatus.blocked || status == WatchStatus.stopped) &&
-          (old.status == WatchStatus.watching ||
-              old.status == WatchStatus.paused)) {
+      if (endsRecoveredSession) {
         final since = liveSince;
         unawaited(ref.read(ocrCaptureProvider).stop());
         liveSince = null;
+        unawaited(_clearSessionAnchor());
         _recordSession(since);
       }
       state = _with(status: status, permissions: permissions);
@@ -268,6 +283,42 @@ class DashboardController extends Notifier<DashboardState> {
       }
     } catch (e) {
       if (kDebugMode) debugPrint('FoxyCo refreshPermissions skipped: $e');
+    }
+  }
+
+  Future<void> _restoreSessionAnchor() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final millis = prefs.getInt(_sessionAnchorKey);
+      if (millis == null || liveSince != null) return;
+      final saved = DateTime.fromMillisecondsSinceEpoch(millis);
+      final age = DateTime.now().difference(saved);
+      if (age.isNegative || age > const Duration(hours: 24)) {
+        await prefs.remove(_sessionAnchorKey);
+        return;
+      }
+      liveSince = saved;
+      if (ref.mounted) await refreshPermissions();
+    } catch (e) {
+      if (kDebugMode) debugPrint('FoxyCo session restore skipped: $e');
+    }
+  }
+
+  Future<void> _saveSessionAnchor(DateTime value) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setInt(_sessionAnchorKey, value.millisecondsSinceEpoch);
+    } catch (_) {
+      // Monitoring must remain usable when persistence is unavailable.
+    }
+  }
+
+  Future<void> _clearSessionAnchor() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_sessionAnchorKey);
+    } catch (_) {
+      // Best effort; stale anchors are age-limited during restore.
     }
   }
 

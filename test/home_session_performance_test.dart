@@ -40,9 +40,9 @@ void main() {
 
     await tester.pumpWidget(_app(_session()));
 
-    expect(find.text('— · —'), findsOneWidget);
+    expect(find.text('—   |   —'), findsOneWidget);
     expect(find.text('Est. earnings'), findsNothing);
-    await tester.tap(find.text('— · —'));
+    await tester.tap(find.text('—   |   —'));
     await tester.pumpAndSettle();
 
     expect(find.text('Est. earnings'), findsOneWidget);
@@ -61,13 +61,13 @@ void main() {
 
     await tester.pumpWidget(_app(_session(estimatedEarnings: 126.40)));
 
-    expect(find.text(r'CA$126.40 · CA$42/hr'), findsOneWidget);
-    await tester.tap(find.text(r'CA$126.40 · CA$42/hr'));
+    expect(find.text(r'$126.40   |   $42/hr'), findsOneWidget);
+    await tester.tap(find.text(r'$126.40   |   $42/hr'));
     await tester.pumpAndSettle();
 
-    expect(find.text(r'CA$126.40'), findsOneWidget);
-    expect(find.text('Estimated'), findsOneWidget);
-    expect(find.text(r'CA$42'), findsOneWidget);
+    expect(find.text(r'$126.40'), findsOneWidget);
+    expect(find.text('Trip payouts'), findsOneWidget);
+    expect(find.text(r'$42'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }

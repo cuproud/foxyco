@@ -132,9 +132,12 @@ void main() {
     expect(find.text('3 today'), findsOneWidget);
     await tester.tap(find.text('Filters'));
     await tester.pumpAndSettle();
-    await tester.ensureVisible(find.text('Accepted'));
+    final acceptedFilterAgain = find.byKey(
+      const ValueKey('history-outcome-accepted'),
+    );
+    await tester.ensureVisible(acceptedFilterAgain);
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Accepted'));
+    await tester.tap(acceptedFilterAgain);
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('history-filter-done')));
     await tester.pumpAndSettle();
@@ -147,9 +150,12 @@ void main() {
 
     await tester.tap(find.text('Filters · 1 active'));
     await tester.pumpAndSettle();
-    await tester.ensureVisible(find.text('Accepted'));
+    final acceptedFilter = find.byKey(
+      const ValueKey('history-outcome-accepted'),
+    );
+    await tester.ensureVisible(acceptedFilter);
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Accepted'));
+    await tester.tap(acceptedFilter);
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('history-filter-done')));
     await tester.pumpAndSettle();
@@ -412,12 +418,7 @@ void main() {
     await tester.pumpAndSettle();
 
     final summary = find.byKey(const ValueKey('history-summary'));
-    expect(
-      tester
-          .widget<Text>(find.byKey(const ValueKey('history-summary-total')))
-          .data,
-      '4',
-    );
+    expect(find.text('4 today'), findsOneWidget);
     expect(
       tester
           .widget<Text>(find.byKey(const ValueKey('history-summary-good')))
@@ -436,16 +437,18 @@ void main() {
           .data,
       '2',
     );
+    await tester.tap(find.byKey(const Key('history-performance-toggle')));
+    await tester.pumpAndSettle();
     expect(
-      find.descendant(of: summary, matching: find.text('OFFERS')),
+      find.descendant(of: summary, matching: find.text('Offers')),
       findsOneWidget,
     );
     expect(
-      find.descendant(of: summary, matching: find.text('ACCEPTED')),
+      find.descendant(of: summary, matching: find.text('Accepted')),
       findsOneWidget,
     );
     expect(
-      find.descendant(of: summary, matching: find.text('KM')),
+      find.descendant(of: summary, matching: find.text('Accepted km')),
       findsOneWidget,
     );
 
@@ -479,9 +482,12 @@ void main() {
       '2',
     );
 
-    await tester.ensureVisible(find.text('Accepted'));
+    final acceptedOutcome = find.byKey(
+      const ValueKey('history-outcome-accepted'),
+    );
+    await tester.ensureVisible(acceptedOutcome);
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Accepted'));
+    await tester.tap(acceptedOutcome);
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('history-filter-done')));
     await tester.pumpAndSettle();
@@ -563,6 +569,10 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(find.byKey(const ValueKey('history-summary')), findsOneWidget);
+      expect(tester.takeException(), isNull);
+
+      await tester.tap(find.byKey(const Key('history-performance-toggle')));
+      await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
 
       await tester.tap(find.text('Filters'));

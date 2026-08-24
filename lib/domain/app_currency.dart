@@ -26,6 +26,13 @@ enum AppCurrency {
     brl => r'R$',
   };
 
+  /// Compact money mark for dense summary cards where the selected currency
+  /// is already established in Settings. Full offer details keep [prefix].
+  String get symbol => switch (this) {
+    brl => r'R$',
+    _ => r'$',
+  };
+
   static AppCurrency fromCountryCode(String? code) =>
       switch (code?.toUpperCase()) {
         'US' => usd,

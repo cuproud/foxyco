@@ -13,6 +13,7 @@ import '../../domain/session_summary.dart';
 import '../../services/offer_log.dart';
 import '../../services/session_log.dart';
 import '../overlay/overlay_controller.dart';
+import '../history/history_intent.dart';
 import '../paywall/access_banner.dart';
 import '../legal/accessibility_disclosure.dart';
 import '../settings/reminder_controller.dart';
@@ -54,6 +55,13 @@ class HomeScreen extends ConsumerWidget {
         )
         .take(3)
         .toList();
+    final needsReview = ref.watch(offerLogProvider).where((offer) {
+      final accepted =
+          offer.outcome == OfferOutcome.taken ||
+          offer.outcome == OfferOutcome.completed;
+      return offer.outcome == OfferOutcome.unknown ||
+          (accepted && offer.finalPayout == null);
+    }).length;
     Future<void> requestMissingPermissions() =>
         controller.requestMissingPermissions(
           confirmAccessibility: () => showAccessibilityDisclosure(context),
@@ -148,6 +156,20 @@ class HomeScreen extends ConsumerWidget {
           ),
         ),
         const SizedBox(height: Gap.lg),
+        if (needsReview > 0) ...[
+          _Padded(
+            child: _NeedsReviewBanner(
+              count: needsReview,
+              onTap: () {
+                ref
+                    .read(pendingHistoryIntentProvider.notifier)
+                    .open(HistoryIntent.needsReview);
+                ref.read(tabIndexProvider.notifier).go(2);
+              },
+            ),
+          ),
+          const SizedBox(height: Gap.sm),
+        ],
         if (recentAccepted.isNotEmpty) ...[
           _Padded(child: _RecentAccepted(offers: recentAccepted)),
           const SizedBox(height: Gap.lg),
@@ -175,6 +197,55 @@ class HomeScreen extends ConsumerWidget {
       ],
     );
   }
+}
+
+class _NeedsReviewBanner extends StatelessWidget {
+  const _NeedsReviewBanner({required this.count, required this.onTap});
+
+  final int count;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Material(
+    color: Colors.transparent,
+    child: InkWell(
+      borderRadius: BorderRadius.circular(Radii.cardSm),
+      onTap: onTap,
+      child: Ink(
+        padding: const EdgeInsets.symmetric(horizontal: Gap.md, vertical: 12),
+        decoration: BoxDecoration(
+          color: VerdictColors.ok.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(Radii.cardSm),
+          border: Border.all(color: VerdictColors.ok.withValues(alpha: 0.28)),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.task_alt_rounded, color: VerdictColors.ok, size: 20),
+            const SizedBox(width: Gap.sm),
+            Expanded(
+              child: Text(
+                '$count ${count == 1 ? 'trip needs' : 'trips need'} review',
+                style: const TextStyle(fontWeight: FontWeight.w700),
+              ),
+            ),
+            Text(
+              'Review',
+              style: TextStyle(
+                color: FoxColors.brandFox,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(width: 2),
+            Icon(
+              Icons.chevron_right_rounded,
+              color: FoxColors.brandFox,
+              size: 20,
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
 }
 
 class _RecentAccepted extends ConsumerStatefulWidget {
@@ -262,7 +333,6 @@ class _RecentAcceptedState extends ConsumerState<_RecentAccepted> {
               offer: widget.offers[i],
               onTap: () {
                 HapticFeedback.selectionClick();
-                ref.read(tabIndexProvider.notifier).go(2);
                 ref.read(pendingOfferProvider.notifier).set(widget.offers[i]);
               },
             ),
@@ -319,58 +389,20 @@ class _AcceptedTripCard extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: FittedBox(
-                            fit: BoxFit.scaleDown,
-                            alignment: Alignment.centerLeft,
-                            child: Text(
-                              '${currency.prefix}${offer.effectivePayout.toStringAsFixed(2)}',
-                              maxLines: 1,
-                              style: TextStyle(
-                                fontFamily: FoxFonts.display,
-                                fontSize: 20,
-                                fontWeight: FontWeight.w700,
-                                color: FoxColors.textPrimary,
-                                fontFeatures: const [
-                                  FontFeature.tabularFigures(),
-                                ],
-                              ),
-                            ),
-                          ),
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        '${currency.prefix}${offer.effectivePayout.toStringAsFixed(2)}',
+                        maxLines: 1,
+                        style: TextStyle(
+                          fontFamily: FoxFonts.display,
+                          fontSize: 20,
+                          fontWeight: FontWeight.w700,
+                          color: FoxColors.textPrimary,
+                          fontFeatures: const [FontFeature.tabularFigures()],
                         ),
-                        const SizedBox(width: Gap.sm),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: VerdictColors.goodBg,
-                            borderRadius: BorderRadius.circular(Radii.pill),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                Icons.check_circle_rounded,
-                                size: 12,
-                                color: VerdictColors.good,
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                'Accepted',
-                                style: TextStyle(
-                                  fontSize: 10.5,
-                                  fontWeight: FontWeight.w700,
-                                  color: VerdictColors.good,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
+                      ),
                     ),
                     const SizedBox(height: Gap.xs),
                     Text(
@@ -1469,36 +1501,69 @@ class _SessionCard extends ConsumerWidget {
           ? session.earnings.toStringAsFixed(2)
           : '',
     );
+    String? error;
     final value = await showDialog<double?>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Session earnings'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: InputDecoration(
-            labelText: 'Actual total',
-            prefixText: prefix,
-            hintText: session.estimatedEarnings.toStringAsFixed(2),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () =>
-                Navigator.pop(context, double.tryParse(controller.text.trim())),
-            child: const Text('Save'),
-          ),
-        ],
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) {
+          void save() {
+            final parsed = double.tryParse(
+              controller.text.trim().replaceAll(',', '.'),
+            );
+            if (parsed == null || !parsed.isFinite || parsed <= 0) {
+              setState(() => error = 'Enter an amount above zero');
+              return;
+            }
+            Navigator.pop(context, (parsed * 100).round() / 100);
+          }
+
+          return AlertDialog(
+            title: const Text('Session earnings'),
+            content: TextField(
+              controller: controller,
+              autofocus: true,
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
+              textInputAction: TextInputAction.done,
+              inputFormatters: [
+                TextInputFormatter.withFunction(
+                  (oldValue, newValue) =>
+                      RegExp(r'^\d*(?:[.,]\d{0,2})?$').hasMatch(newValue.text)
+                      ? newValue
+                      : oldValue,
+                ),
+              ],
+              onSubmitted: (_) => save(),
+              decoration: InputDecoration(
+                labelText: 'Actual total',
+                prefixText: prefix,
+                helperText:
+                    'Trip payouts: $prefix${session.estimatedEarnings.toStringAsFixed(2)}',
+                errorText: error,
+              ),
+            ),
+            actions: [
+              if (session.hasActualEarnings)
+                TextButton(
+                  onPressed: () => Navigator.pop(context, double.nan),
+                  child: const Text('Use trip payouts'),
+                ),
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(onPressed: save, child: const Text('Save')),
+            ],
+          );
+        },
       ),
     );
     controller.dispose();
     if (value != null && context.mounted) {
-      ref.read(sessionLogProvider.notifier).setActualEarnings(session, value);
+      ref
+          .read(sessionLogProvider.notifier)
+          .setActualEarnings(session, value.isNaN ? null : value);
     }
   }
 }
@@ -1758,17 +1823,21 @@ class _SessionPerformanceState extends State<SessionPerformance> {
     final settings = widget.settings;
     final text = widget.text;
     final earnings = session.earnings > 0
-        ? '${settings.currency.prefix}${session.earnings.toStringAsFixed(2)}'
+        ? '${settings.currency.symbol}${session.earnings.toStringAsFixed(2)}'
         : '—';
     final hourly = session.hourlyEarnings > 0
-        ? '${settings.currency.prefix}${session.hourlyEarnings.toStringAsFixed(0)}/hr'
+        ? '${settings.currency.symbol}${session.hourlyEarnings.toStringAsFixed(0)}/hr'
         : '—';
     final metrics = [
       _SessionMetric(
         title: session.hasActualEarnings ? 'Actual earnings' : 'Est. earnings',
         value: earnings,
         support: session.earnings > 0
-            ? (session.hasActualEarnings ? 'Actual total' : 'Estimated')
+            ? session.hasActualEarnings
+                  ? 'Trip payouts ${settings.currency.symbol}${session.estimatedEarnings.toStringAsFixed(2)} · ${session.earnings >= session.estimatedEarnings ? '+' : '−'}${settings.currency.symbol}${(session.earnings - session.estimatedEarnings).abs().toStringAsFixed(2)} adjustment'
+                  : session.missingFinalPayouts > 0
+                  ? '${session.missingFinalPayouts} ${session.missingFinalPayouts == 1 ? 'payout needs' : 'payouts need'} review'
+                  : 'Trip payouts'
             : 'Accepted offers only',
         text: text,
       ),
@@ -1805,7 +1874,9 @@ class _SessionPerformanceState extends State<SessionPerformance> {
                   const SizedBox(width: Gap.sm),
                   Expanded(
                     child: Text(
-                      _expanded ? 'Session performance' : '$earnings · $hourly',
+                      _expanded
+                          ? 'Session performance'
+                          : '$earnings   |   $hourly',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
