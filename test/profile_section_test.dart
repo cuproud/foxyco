@@ -82,6 +82,13 @@ void main() {
 
     expect(find.widgetWithText(TextField, 'Name'), findsOneWidget);
     expect(find.text('driver@example.com'), findsOneWidget);
+    expect(
+      tester
+          .widget<Text>(find.byKey(const ValueKey('profile-access-subtitle')))
+          .style
+          ?.fontSize,
+      11.5,
+    );
     expect(find.text('ACCOUNT & ACCESS'), findsOneWidget);
     expect(
       find.textContaining('Trial active · 4 days remaining'),

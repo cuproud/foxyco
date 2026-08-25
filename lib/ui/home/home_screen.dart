@@ -322,33 +322,18 @@ class _AcceptedTripTimelineItem extends ConsumerWidget {
               child: Container(width: 2, color: FoxColors.brandFox),
             ),
             Positioned(
-              left: 7,
-              top: 21,
-              child: Container(
-                width: 18,
-                height: 18,
-                padding: const EdgeInsets.all(4),
-                decoration: BoxDecoration(
-                  color: FoxColors.bgSurface,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: FoxColors.brandFox, width: 2),
-                  boxShadow: [
-                    BoxShadow(
-                      color: FoxColors.brandFox.withValues(alpha: 0.24),
-                      blurRadius: 8,
-                    ),
-                  ],
+              left: 3,
+              top: 18,
+              child: PlatformBadge(
+                key: ValueKey(
+                  'recent-accepted-platform-${offer.seenAt.microsecondsSinceEpoch}',
                 ),
-                child: const DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: FoxColors.brandFox,
-                    shape: BoxShape.circle,
-                  ),
-                ),
+                platform: offer.platform,
+                size: 24,
               ),
             ),
             Positioned.fill(
-              left: 36,
+              left: 32,
               child: Material(
                 color: Colors.transparent,
                 child: Ink(
@@ -375,8 +360,6 @@ class _AcceptedTripTimelineItem extends ConsumerWidget {
                               MediaQuery.textScalerOf(context).scale(1) > 1.2;
                           return Row(
                             children: [
-                              PlatformBadge(platform: offer.platform, size: 24),
-                              const SizedBox(width: Gap.sm),
                               Expanded(
                                 child: compact
                                     ? Column(
@@ -427,7 +410,7 @@ class _AcceptedTripTimelineItem extends ConsumerWidget {
             ),
             if (!isLast)
               Positioned(
-                left: 48,
+                left: 32,
                 right: Gap.sm,
                 bottom: 0,
                 child: Container(height: 1, color: FoxColors.borderSoft),
@@ -1788,6 +1771,9 @@ class _SessionPerformanceState extends State<SessionPerformance> {
     final hourly = session.hourlyEarnings > 0
         ? '${settings.currency.symbol}${session.hourlyEarnings.toStringAsFixed(0)}/hr'
         : '—';
+    final earningsColor = Theme.of(context).brightness == Brightness.light
+        ? FoxColors.brandFoxDeep
+        : FoxColors.brandFox;
     final metrics = [
       _SessionMetric(
         title: session.hasActualEarnings ? 'Actual earnings' : 'Est. earnings',
@@ -1800,6 +1786,8 @@ class _SessionPerformanceState extends State<SessionPerformance> {
                   : 'Trip payouts'
             : 'Accepted offers only',
         text: text,
+        valueColor: earningsColor,
+        valueKey: const ValueKey('session-performance-earnings'),
       ),
       _SessionMetric(
         title: 'Session rate',
@@ -1833,20 +1821,42 @@ class _SessionPerformanceState extends State<SessionPerformance> {
                   ),
                   const SizedBox(width: Gap.sm),
                   Expanded(
-                    child: Text(
-                      _expanded
-                          ? 'Session performance'
-                          : '$earnings   |   $hourly',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontFamily: _expanded ? null : FoxFonts.display,
-                        fontSize: _expanded ? 11.5 : 15,
-                        fontWeight: FontWeight.w700,
-                        color: FoxColors.textPrimary,
-                        fontFeatures: const [FontFeature.tabularFigures()],
-                      ),
-                    ),
+                    child: _expanded
+                        ? Text(
+                            'Session performance',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w700,
+                              color: FoxColors.textPrimary,
+                            ),
+                          )
+                        : Text.rich(
+                            key: const ValueKey(
+                              'session-performance-collapsed',
+                            ),
+                            TextSpan(
+                              children: [
+                                TextSpan(
+                                  text: earnings,
+                                  style: TextStyle(color: earningsColor),
+                                ),
+                                TextSpan(text: '   |   $hourly'),
+                              ],
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontFamily: FoxFonts.display,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                              color: FoxColors.textPrimary,
+                              fontFeatures: const [
+                                FontFeature.tabularFigures(),
+                              ],
+                            ),
+                          ),
                   ),
                   Icon(
                     _expanded
@@ -1913,12 +1923,16 @@ class _SessionMetric extends StatelessWidget {
     required this.value,
     required this.support,
     required this.text,
+    this.valueColor,
+    this.valueKey,
   });
 
   final String title;
   final String value;
   final String support;
   final TextTheme text;
+  final Color? valueColor;
+  final Key? valueKey;
 
   @override
   Widget build(BuildContext context) => Column(
@@ -1940,9 +1954,10 @@ class _SessionMetric extends StatelessWidget {
         alignment: Alignment.centerLeft,
         child: Text(
           value,
+          key: valueKey,
           maxLines: 1,
           style: text.titleLarge?.copyWith(
-            color: FoxColors.cream,
+            color: valueColor ?? FoxColors.cream,
             fontWeight: FontWeight.w800,
             fontFeatures: const [FontFeature.tabularFigures()],
           ),

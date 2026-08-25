@@ -99,9 +99,11 @@ class ProfileSection extends ConsumerWidget {
                     const SizedBox(height: 2),
                     Text(
                       accessSubtitle,
+                      key: const ValueKey('profile-access-subtitle'),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: text.bodySmall?.copyWith(
+                        fontSize: 11.5,
                         color: FoxColors.textSecondary,
                       ),
                     ),

@@ -44,17 +44,23 @@ void main() {
   OfferSummary offer({
     required DateTime seenAt,
     double payout = 10.19,
+    double bonus = 0,
     double totalKm = 11.7,
     String? category = 'Share',
     GigPlatform platform = GigPlatform.uber,
+    OfferOutcome outcome = OfferOutcome.unknown,
+    double? finalPayout,
   }) => OfferSummary(
     platform: platform,
     verdict: Verdict.bad,
     payout: payout,
+    finalPayout: finalPayout,
+    bonus: bonus,
     totalKm: totalKm,
     totalMinutes: 24,
     seenAt: seenAt,
     category: category,
+    outcome: outcome,
   );
 
   final t = DateTime(2026, 7, 26, 14, 49);
@@ -111,6 +117,73 @@ void main() {
     l.record(offer(seenAt: t.add(const Duration(seconds: 2))));
     expect(l.state, hasLength(2));
   });
+
+  test('an accepted Lyft ride cannot be re-added with settled distance', () {
+    final l = log();
+    final now = DateTime.now();
+    final accepted = l.record(
+      offer(
+        seenAt: now,
+        platform: GigPlatform.lyft,
+        payout: 8.01,
+        bonus: 1.04,
+        totalKm: 10.1,
+      ),
+    );
+    expect(l.markOutcome(accepted, OfferOutcome.taken), isTrue);
+
+    l.record(
+      offer(
+        seenAt: now.add(const Duration(seconds: 10)),
+        platform: GigPlatform.lyft,
+        payout: 8.01,
+        bonus: 1.04,
+        totalKm: 11.5,
+      ),
+      confirmedNewCard: true,
+    );
+
+    expect(l.state, hasLength(1));
+  });
+
+  test(
+    'saved accepted Lyft duplicates collapse to the final-payout row',
+    () async {
+      final original = offer(
+        seenAt: t,
+        platform: GigPlatform.lyft,
+        payout: 8.01,
+        bonus: 1.04,
+        totalKm: 10.1,
+        outcome: OfferOutcome.taken,
+      );
+      final updated = offer(
+        seenAt: t.add(const Duration(seconds: 10)),
+        platform: GigPlatform.lyft,
+        payout: 8.01,
+        bonus: 1.04,
+        totalKm: 11.5,
+        outcome: OfferOutcome.taken,
+        finalPayout: 9.06,
+      );
+      SharedPreferences.setMockInitialValues({
+        'foxyco.offer_log.v1': jsonEncode([
+          original.toJson(),
+          updated.toJson(),
+        ]),
+      });
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      container.read(offerLogProvider);
+      while (container.read(offerLogProvider).isEmpty) {
+        await Future<void>.delayed(Duration.zero);
+      }
+
+      expect(container.read(offerLogProvider), hasLength(1));
+      expect(container.read(offerLogProvider).single.finalPayout, 9.06);
+      expect(container.read(offerLogProvider).single.totalKm, 11.5);
+    },
+  );
 
   test('late labels still identify the same card', () {
     final l = log();

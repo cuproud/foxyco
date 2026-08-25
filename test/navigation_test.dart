@@ -145,10 +145,18 @@ void main() {
     expect(
       tester
           .widget<PlatformBadge>(
-            find.descendant(of: card, matching: find.byType(PlatformBadge)),
+            find.byKey(
+              ValueKey(
+                'recent-accepted-platform-${seenAt.microsecondsSinceEpoch}',
+              ),
+            ),
           )
           .size,
       24,
+    );
+    expect(
+      find.descendant(of: card, matching: find.byType(PlatformBadge)),
+      findsOne,
     );
 
     await tester.tap(card);

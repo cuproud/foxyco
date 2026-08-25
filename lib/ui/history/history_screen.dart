@@ -1976,7 +1976,7 @@ class _VerdictSummaryChip extends StatelessWidget {
                 key: ValueKey('history-summary-${verdict.name}'),
                 style: TextStyle(
                   fontFamily: FoxFonts.display,
-                  fontSize: 18,
+                  fontSize: 17,
                   fontWeight: FontWeight.w700,
                   color: style.color,
                   fontFeatures: const [FontFeature.tabularFigures()],
@@ -2033,6 +2033,7 @@ class _HistoryPerformanceState extends State<_HistoryPerformance> {
           behavior: HitTestBehavior.opaque,
           onTap: () => setState(() => _expanded = !_expanded),
           child: Container(
+            key: const ValueKey('history-performance-card'),
             height: _expanded ? expandedHeight : 72,
             decoration: BoxDecoration(
               color: light ? const Color(0xFFFFF8EE) : const Color(0xFF090D1C),
@@ -2045,6 +2046,14 @@ class _HistoryPerformanceState extends State<_HistoryPerformance> {
                 fit: BoxFit.cover,
                 alignment: Alignment.centerRight,
                 opacity: light ? 0.72 : 1,
+              ),
+            ),
+            foregroundDecoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(Radii.card),
+              border: Border.all(
+                color: FoxColors.textPrimary.withValues(
+                  alpha: light ? 0.10 : 0.18,
+                ),
               ),
             ),
             child: Stack(

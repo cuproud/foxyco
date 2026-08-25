@@ -431,6 +431,13 @@ void main() {
     );
     expect(
       tester
+          .widget<Text>(find.byKey(const ValueKey('history-summary-good')))
+          .style
+          ?.fontSize,
+      17,
+    );
+    expect(
+      tester
           .widget<Text>(find.byKey(const ValueKey('history-summary-ok')))
           .data,
       '1',
@@ -573,6 +580,18 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(find.byKey(const ValueKey('history-summary')), findsOneWidget);
+      final performanceCard = tester.widget<Container>(
+        find.byKey(const ValueKey('history-performance-card')),
+      );
+      final performanceBorder =
+          (performanceCard.foregroundDecoration! as BoxDecoration).border!
+              as Border;
+      expect(
+        performanceBorder.top.color,
+        FoxColors.textPrimary.withValues(
+          alpha: palette == FoxPalette.light ? 0.10 : 0.18,
+        ),
+      );
       expect(tester.takeException(), isNull);
 
       await tester.tap(find.byKey(const Key('history-performance-toggle')));

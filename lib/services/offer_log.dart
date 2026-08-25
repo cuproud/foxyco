@@ -80,8 +80,16 @@ class OfferLog extends Notifier<List<OfferSummary>> {
       // A real accessibility event can arrive while preferences are loading.
       // Keep those live rows and fold the older disk history behind them.
       state = [...state, ...list]..sort((a, b) => b.seenAt.compareTo(a.seenAt));
+      final beforeDedupe = state.length;
+      state = _collapseAcceptedDuplicates(state);
       if (state.length > maxEntries) {
         state = state.take(maxEntries).toList();
+      }
+      if (state.length < beforeDedupe) {
+        await prefs.setString(
+          _prefsKey,
+          jsonEncode(state.map((o) => o.toJson()).toList()),
+        );
       }
     } catch (e) {
       if (kDebugMode) debugPrint('FoxyCo offer log load skipped: $e');
@@ -132,6 +140,37 @@ class OfferLog extends Notifier<List<OfferSummary>> {
   /// and the metre, inside two minutes.
   static const dedupeWindow = Duration(minutes: 2);
 
+  static bool _isAccepted(OfferSummary offer) =>
+      offer.outcome == OfferOutcome.taken ||
+      offer.outcome == OfferOutcome.completed;
+
+  static bool _sameAcceptedTrip(OfferSummary a, OfferSummary b) =>
+      _isAccepted(a) &&
+      _isAccepted(b) &&
+      a.platform == b.platform &&
+      a.payout == b.payout &&
+      a.bonus == b.bonus &&
+      a.isQueued == b.isQueued &&
+      a.seenAt.difference(b.seenAt).abs() < dedupeWindow;
+
+  static List<OfferSummary> _collapseAcceptedDuplicates(
+    List<OfferSummary> offers,
+  ) {
+    final result = <OfferSummary>[];
+    for (final offer in offers) {
+      final duplicate = result.indexWhere(
+        (seen) => _sameAcceptedTrip(seen, offer),
+      );
+      if (duplicate < 0) {
+        result.add(offer);
+      } else if (result[duplicate].finalPayout == null &&
+          offer.finalPayout != null) {
+        result[duplicate] = offer;
+      }
+    }
+    return result;
+  }
+
   /// Append a freshly scored offer (newest first) and persist. Retention is
   /// enforced here too — cheap, and it means old entries age out as new ones
   /// arrive without a startup purge racing the async settings load.
@@ -152,6 +191,19 @@ class OfferLog extends Notifier<List<OfferSummary>> {
             offer.seenAt.difference(seen.seenAt).abs() < dedupeWindow) {
           return seen;
         }
+      }
+    }
+    // After acceptance Lyft can expose a second snapshot of the same ride with
+    // settled distance details. It is not another offer; queued rides remain
+    // distinct through [isQueued].
+    for (final seen in state) {
+      if (_isAccepted(seen) &&
+          seen.platform == offer.platform &&
+          seen.payout == offer.payout &&
+          seen.bonus == offer.bonus &&
+          seen.isQueued == offer.isQueued &&
+          offer.seenAt.difference(seen.seenAt).abs() < dedupeWindow) {
+        return seen;
       }
     }
     var next = [offer, ...state.take(maxEntries - 1)];
