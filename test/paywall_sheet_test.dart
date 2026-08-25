@@ -24,6 +24,11 @@ class _UnavailableBillingStore extends BillingStore {
   UnlockStatus build() => UnlockStatus.unavailable;
 }
 
+class _CheckingBillingStore extends BillingStore {
+  @override
+  UnlockStatus build() => UnlockStatus.unknown;
+}
+
 class _PurchasableBillingStore extends BillingStore {
   @override
   UnlockStatus build() => UnlockStatus.notPurchased;
@@ -99,7 +104,7 @@ void main() {
 
     await tester.tap(find.text('Open paywall'));
     await tester.pumpAndSettle();
-    expect(find.text(r'Unlock now — US$9.99'), findsOneWidget);
+    expect(find.text('Price unavailable'), findsOneWidget);
     await tester.tap(find.text('Start 7-day free trial'));
     await tester.pumpAndSettle();
 
@@ -115,7 +120,7 @@ void main() {
       ProviderScope(
         overrides: [
           trialProvider.overrideWith(_StartedTrialStore.new),
-          billingProvider.overrideWith(_UnavailableBillingStore.new),
+          billingProvider.overrideWith(_CheckingBillingStore.new),
           accessProvider.overrideWith(_UnlockingAccessStore.new),
         ],
         child: MaterialApp(
@@ -150,7 +155,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Open paywall'));
     await tester.pumpAndSettle();
-    expect(find.text(r'Unlock now — US$19.99'), findsOneWidget);
+    expect(find.text('Checking Google Play price…'), findsOneWidget);
     await tester.tap(find.text('Start 7-day free trial'));
     await tester.pumpAndSettle();
 

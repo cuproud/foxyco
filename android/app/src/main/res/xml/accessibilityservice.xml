@@ -25,4 +25,4 @@
     android:accessibilityFlags="flagDefault|flagReportViewIds|flagRetrieveInteractiveWindows|flagIncludeNotImportantViews"
     android:canRetrieveWindowContent="true"
     android:canTakeScreenshot="true"
-    android:isAccessibilityTool="true" />
+    android:isAccessibilityTool="false" />

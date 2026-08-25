@@ -11,14 +11,6 @@ import 'package:foxyco/services/billing/trial_store.dart';
 /// tests run in debug, where the real constant is true and would mask every
 /// other rule.
 void main() {
-  test('lifetime launch pricing uses Canada and defaults to USD', () {
-    expect(lifetimePriceForCountry('CA'), r'CA$24.99');
-    expect(lifetimePriceForCountry('ca'), r'CA$24.99');
-    expect(lifetimePriceForCountry('US'), r'US$19.99');
-    expect(lifetimePriceForCountry('GB'), r'US$19.99');
-    expect(lifetimePriceForCountry(null), r'US$19.99');
-  });
-
   final now = DateTime.utc(2026, 7, 28, 12);
 
   TrialState trialStartedAgo(Duration ago, {Duration? verifiedAgo}) =>

@@ -1821,7 +1821,21 @@ class _SessionPerformanceState extends State<SessionPerformance> {
                   ),
                   const SizedBox(width: Gap.sm),
                   Expanded(
-                    child: _expanded
+                    child: !_expanded && session.earnings <= 0
+                        ? Text(
+                            'No accepted offers this session',
+                            key: const ValueKey(
+                              'session-performance-collapsed',
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: FoxColors.textSecondary,
+                            ),
+                          )
+                        : _expanded
                         ? Text(
                             'Session performance',
                             maxLines: 1,

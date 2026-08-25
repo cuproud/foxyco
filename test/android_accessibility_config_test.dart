@@ -24,8 +24,8 @@ void main() {
     expect(packages, ParserRegistry.watchedPackages.toSet());
     expect(config, isNot(contains('android:canPerformGestures')));
     expect(config, contains('android:canTakeScreenshot="true"'));
-    // Required for current Uber accessibilityDataSensitive offer cards. This
-    // remains an explicit Play-review decision, not an accidental flag.
-    expect(config, contains('android:isAccessibilityTool="true"'));
+    // FoxyCo is a gig-driver utility, not a disability accessibility tool.
+    // Uber's accessibilityDataSensitive cards use the opt-in OCR fallback.
+    expect(config, contains('android:isAccessibilityTool="false"'));
   });
 }

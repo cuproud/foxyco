@@ -121,6 +121,15 @@ void main() {
     );
   });
 
+  testWidgets('performance explains when no offers were accepted', (
+    tester,
+  ) async {
+    await tester.pumpWidget(_app([_offer(DateTime.now())]));
+    await tester.pumpAndSettle();
+
+    expect(find.text('No accepted offers in this view'), findsOneWidget);
+  });
+
   testWidgets('Accepted history filter excludes missed and unknown offers', (
     tester,
   ) async {

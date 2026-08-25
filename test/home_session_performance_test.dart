@@ -29,7 +29,7 @@ SessionSummary _session({double estimatedEarnings = 0}) => SessionSummary(
   good: 1,
   ok: 17,
   bad: 38,
-  accepted: 6,
+  accepted: estimatedEarnings > 0 ? 6 : 0,
   estimatedEarnings: estimatedEarnings,
   bestPerKm: 2.23,
   goodAvgPerKm: 1.51,
@@ -45,9 +45,9 @@ void main() {
 
     await tester.pumpWidget(_app(_session()));
 
-    expect(find.text('—   |   —'), findsOneWidget);
+    expect(find.text('No accepted offers this session'), findsOneWidget);
     expect(find.text('Est. earnings'), findsNothing);
-    await tester.tap(find.text('—   |   —'));
+    await tester.tap(find.text('No accepted offers this session'));
     await tester.pumpAndSettle();
 
     expect(find.text('Est. earnings'), findsOneWidget);

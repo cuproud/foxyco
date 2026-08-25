@@ -162,14 +162,14 @@ class _PaywallSheetState extends ConsumerState<_PaywallSheet> {
     });
 
     final playPrice = ref.watch(billingPriceProvider);
-    final price =
-        playPrice ??
-        ref.watch(fallbackBillingPriceProvider).asData?.value ??
-        lifetimePriceForCountry(null);
     final canTrial = trial.phase == TrialPhase.preTrial;
-    final unlockLabel = canTrial
-        ? 'Unlock now — $price'
-        : 'Unlock forever — $price';
+    final unlockLabel = switch ((unlock, playPrice)) {
+      (UnlockStatus.unavailable, _) => 'Price unavailable',
+      (_, final String price) =>
+        canTrial ? 'Unlock now — $price' : 'Unlock forever — $price',
+      (UnlockStatus.unknown, null) => 'Checking Google Play price…',
+      _ => 'Price unavailable',
+    };
 
     return Container(
       margin: const EdgeInsets.all(Gap.sm),
