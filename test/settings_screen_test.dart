@@ -434,7 +434,7 @@ void main() {
     expect(find.text('Space Grotesk'), findsWidgets);
   });
 
-  testWidgets('Pixel Capture is an opt-in parser fallback', (tester) async {
+  testWidgets('Uber OCR is an opt-in parser fallback', (tester) async {
     tester.view.physicalSize = const Size(1080, 3600);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
@@ -443,11 +443,11 @@ void main() {
     await tester.pumpAndSettle();
 
     await openGroup(tester, 'Offer detection');
-    expect(find.text('Screen-reading fallback'), findsOneWidget);
+    expect(find.text('Uber screen-reading fallback'), findsOneWidget);
     await tester.tap(find.text('How detection works'));
     await tester.pumpAndSettle();
     final toggle = tester.widget<SwitchListTile>(
-      find.widgetWithText(SwitchListTile, 'Screen-reading fallback'),
+      find.widgetWithText(SwitchListTile, 'Uber screen-reading fallback'),
     );
     expect(toggle.value, isFalse);
     expect(
@@ -456,18 +456,18 @@ void main() {
           .onChanged,
       isNull,
     );
-    await tester.tap(find.text('Screen-reading fallback'));
+    await tester.tap(find.text('Uber screen-reading fallback'));
     await tester.pumpAndSettle();
-    expect(find.text('Enable on-device Pixel Capture?'), findsOneWidget);
+    expect(find.text('Enable Uber screen-reading fallback?'), findsOneWidget);
     await tester.tap(find.text('Not now'));
     await tester.pumpAndSettle();
     expect(find.text('Current session'), findsOneWidget);
 
-    await tester.tap(find.text('Screen-reading fallback'));
+    await tester.tap(find.text('Uber screen-reading fallback'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Enable OCR'));
+    await tester.tap(find.text('Enable Uber OCR'));
     await tester.pumpAndSettle();
-    expect(find.text('Current session · OCR enabled'), findsOneWidget);
+    expect(find.text('Current session · Uber OCR enabled'), findsOneWidget);
 
     final testToggle = find.byKey(const Key('ocr_test_mode_toggle'));
     expect(tester.widget<SwitchListTile>(testToggle).onChanged, isNotNull);
@@ -780,6 +780,21 @@ void main() {
       isFalse,
       reason: 'debug test mode must not persist',
     );
+  });
+
+  test('Uber OCR turns off when Uber is no longer watched', () {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+    final controller = container.read(settingsProvider.notifier);
+
+    controller.setOcrEnabled(true);
+    expect(container.read(settingsProvider).ocrEnabled, isTrue);
+
+    controller.toggleApp(GigPlatform.uber);
+    expect(container.read(settingsProvider).ocrEnabled, isFalse);
+
+    controller.setOcrEnabled(true);
+    expect(container.read(settingsProvider).ocrEnabled, isFalse);
   });
 
   test('voice settings survive a JSON round-trip with GOOD default on', () {

@@ -41,7 +41,7 @@ FoxyCo is compatible with.
 You are responsible for complying with the terms of any platform you drive for.
 FoxyCo is designed to stay on the safe side of those terms — it only reads what
 is already on your screen, optionally recognizes an opt-in, memory-only
-Accessibility screenshot when screen text is incomplete, and never automates, scripts
+Accessibility screenshot when Uber screen text is incomplete, and never automates, scripts
 or simulates any action inside a driver app — but we cannot and do not guarantee
 how any platform will interpret its own rules. **You use FoxyCo with your
 platform accounts at your own risk.** We are not responsible for any suspension,

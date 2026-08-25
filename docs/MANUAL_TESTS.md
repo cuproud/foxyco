@@ -603,21 +603,22 @@ _Last updated: 2026-07-25 (M12: polish pass + light theme; white car card + abov
 | M15.16 | With voice ON, trigger several GOOD offers quickly | The newest announcement replaces the previous speech; no delayed spoken backlog remains | [ ] |
 | M15.17 | Fresh install from a Play testing track in each supported country, then open Settings → Appearance | Currency defaults from the Play storefront (USD/CAD/AUD/NZD/MXN/BRL); changing it only relabels fares and thresholds—no FX conversion | [ ] |
 
-## M15A — optional Pixel Capture OCR
+## M15A — optional Uber OCR
 
 | # | Step | Expect | Pass |
 |---|---|---|---|
-| OCR.1 | Leave Settings → App health → Offer detection → Pixel Capture OFF; capture readable Uber/Lyft/Hopp cards | Accessibility produces each verdict; no OCR log entry | [ ] |
-| OCR.2 | Tap Pixel Capture, then choose **Not now** on FoxyCo's disclosure | Toggle remains off; monitoring still works through Accessibility | [ ] |
-| OCR.3 | Tap Pixel Capture again and choose **Enable OCR**, then start monitoring | Toggle turns on; no Android screen-share prompt, indicator, or Pixel Capture notification appears | [ ] |
-| OCR.4 | Present an accessibility-readable offer while OCR is approved | One verdict/history row from Accessibility; logs contain no OCR request | [ ] |
-| OCR.5 | Present a card known to expose an empty/incomplete accessibility tree | One rate-limited OCR frame is recognized on-device and feeds the same strict parser; one verdict/history row | [ ] |
+| OCR.1 | Leave Settings → App health → Offer detection → Uber OCR OFF; capture readable Uber/Lyft/Hopp cards | Accessibility produces each verdict; no OCR log entry | [ ] |
+| OCR.2 | Tap Uber screen-reading fallback, then choose **Not now** on FoxyCo's disclosure | Toggle remains off; monitoring still works through Accessibility | [ ] |
+| OCR.3 | Tap the fallback again and choose **Enable Uber OCR**, then start monitoring | Toggle turns on; no Android screen-share prompt, indicator, or OCR notification appears | [ ] |
+| OCR.4 | Present accessibility-readable Uber, Lyft and Hopp offers while OCR is approved | Each verdict comes from Accessibility; logs contain no OCR request | [ ] |
+| OCR.5 | Present an Uber card known to expose an empty/incomplete Accessibility tree | One rate-limited OCR frame is recognized on-device and feeds the Uber parser; one verdict/history row | [ ] |
+| OCR.5a | Present unreadable Lyft, Hopp or delivery-app text while Uber OCR is approved | No OCR-derived verdict; those platforms remain Accessibility-only | [ ] |
 | OCR.6 | Keep the card active through repeated accessibility events | No overlapping OCR work, repeated audio/verdict, or duplicate History row | [ ] |
 | OCR.7 | Pause or stop FoxyCo, kill its overlay, swipe FoxyCo away, and revoke Accessibility in separate runs; also trigger OCR while the screen locks | Lifecycle cancellations discard pending OCR; a protected/unavailable screen produces no verdict; Accessibility works after re-enable | [ ] |
 | OCR.8 | Inspect app-private storage and exported diagnostics after OCR offers | No PNG/JPEG/screenshot/cache file and no raw recognized text; logs contain only consent/status and line counts | [ ] |
 | OCR.9 | Test Android 11, 14, 15 and 16, then Android 10 or an API-29 emulator | Android 11+ can OCR without a sharing prompt; Android 10 safely uses Accessibility text only | [ ] |
 | OCR.10 | Let an old verdict remain while a new unreadable card triggers OCR | The visible bubble/pill does not flicker; its rectangle is redacted only in memory, the new card is scored from its own text, and no duplicate verdict/history row is created | [ ] |
-| OCR.11 | Debug APK only: enable Pixel Capture and **Force OCR test mode**, restart monitoring, then show a readable watched-app offer | One OCR verdict/audio/history row appears without a sharing prompt; disabling test mode restores Accessibility-first parsing; restarting FoxyCo resets test mode off | [ ] |
+| OCR.11 | Debug APK only: enable Uber OCR and **Force OCR test mode**, restart monitoring, then show a readable Uber offer | One Uber OCR verdict/audio/history row appears without a sharing prompt; disabling test mode restores Accessibility-first parsing; restarting FoxyCo resets test mode off | [ ] |
 
 ## M16 — Foxy brand art
 

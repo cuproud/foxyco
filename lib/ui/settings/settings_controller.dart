@@ -168,7 +168,12 @@ class SettingsController extends Notifier<FoxSettings> {
         if (next.length >= FoxSettings.maxWatchedApps) return current;
         next.add(app);
       }
-      return current.copyWith(watchedApps: next);
+      final keepsUber = next.contains(GigPlatform.uber);
+      return current.copyWith(
+        watchedApps: next,
+        ocrEnabled: keepsUber && current.ocrEnabled,
+        ocrTestMode: keepsUber && current.ocrTestMode,
+      );
     });
   }
 
@@ -251,12 +256,13 @@ class SettingsController extends Notifier<FoxSettings> {
     (current) => current.copyWith(voiceCooldownSeconds: seconds.clamp(5, 120)),
   );
 
-  void setOcrEnabled(bool on) => _change(
-    (current) => current.copyWith(
-      ocrEnabled: on,
-      ocrTestMode: on ? current.ocrTestMode : false,
-    ),
-  );
+  void setOcrEnabled(bool on) => _change((current) {
+    final enabled = on && current.watches(GigPlatform.uber);
+    return current.copyWith(
+      ocrEnabled: enabled,
+      ocrTestMode: enabled ? current.ocrTestMode : false,
+    );
+  });
 
   void setOcrTestMode(bool on) => _change(
     (current) =>

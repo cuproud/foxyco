@@ -23,7 +23,7 @@ void main() {
     expect(find.textContaining('Accessibility remains the primary'), findsOne);
     expect(find.textContaining('never saved or uploaded'), findsOne);
 
-    await tester.tap(find.text('Enable OCR'));
+    await tester.tap(find.text('Enable Uber OCR'));
     await tester.pumpAndSettle();
     expect(allowed, isTrue);
   });

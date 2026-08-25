@@ -141,8 +141,17 @@ class OfferWatcher extends Notifier<Offer?> {
   static const _missLogInterval = Duration(seconds: 10);
 
   bool _ocrBusy = false;
+  bool _ocrMatched = false;
   DateTime? _lastOcrAt;
-  static const _ocrCooldown = Duration(milliseconds: 1500);
+  Timer? _ocrRetryTimer;
+  String? _pendingOcrPackage;
+
+  @visibleForTesting
+  static Duration ocrCooldown = const Duration(milliseconds: 1500);
+  static final _uberOcrEvidence = RegExp(
+    r'\buber\s*(?:x|xl|share|comfort|green|pet|premier|black|connect|eats)\b',
+    caseSensitive: false,
+  );
 
   @override
   Offer? build() {
@@ -159,6 +168,7 @@ class OfferWatcher extends Notifier<Offer?> {
       _expiryTimer?.cancel();
       _idleTimer?.cancel();
       _outcomeTimer?.cancel();
+      _ocrRetryTimer?.cancel();
       _voiceGeneration++;
     });
     return null;
@@ -263,11 +273,14 @@ class OfferWatcher extends Notifier<Offer?> {
     ScreenWindow? offerWindow;
     ScreenWindow? topCardWindow;
     if (read.source == CaptureSource.ocr) {
+      _ocrMatched = false;
       final settings = ref.read(settingsProvider);
-      if (!settings.ocrEnabled) return;
-      parser = registry.forPackage(read.packageName);
-      if (parser == null || !settings.watches(parser.platform)) return;
-      offer = parser.parse(read.texts);
+      if (!settings.ocrEnabled || !settings.watches(GigPlatform.uber)) return;
+      parser = registry.forPackage(ParserRegistry.uberPackage);
+      if (parser == null) return;
+      offer = _uberOcrEvidence.hasMatch(read.texts.join(' '))
+          ? parser.parse(read.texts)
+          : null;
       // OCR is fallback evidence for offers only. It must never drive card-exit
       // or outcome inference from an incomplete screenshot.
       if (offer == null) {
@@ -279,6 +292,7 @@ class OfferWatcher extends Notifier<Offer?> {
         }
         return;
       }
+      _ocrMatched = true;
     } else {
       parser = registry.forPackage(read.packageName);
       final settings = ref.read(settingsProvider);
@@ -554,35 +568,78 @@ class OfferWatcher extends Notifier<Offer?> {
     _confirmedCardLeft = false;
   }
 
-  Future<void> _requestOcr(String packageName) async {
+  void _scheduleOcrRetry(String packageName) {
+    _pendingOcrPackage = packageName;
+    if (_ocrRetryTimer != null) return;
+    final elapsed = _lastOcrAt == null
+        ? ocrCooldown
+        : DateTime.now().difference(_lastOcrAt!);
+    final delay = elapsed >= ocrCooldown
+        ? Duration.zero
+        : ocrCooldown - elapsed;
+    _ocrRetryTimer = Timer(delay, () {
+      _ocrRetryTimer = null;
+      final pending = _pendingOcrPackage;
+      _pendingOcrPackage = null;
+      if (pending != null) unawaited(_requestOcr(pending, retryOnMiss: false));
+    });
+  }
+
+  Future<void> _requestOcr(
+    String packageName, {
+    bool retryOnMiss = true,
+  }) async {
     final settings = ref.read(settingsProvider);
-    if (!settings.ocrEnabled || _ocrBusy) return;
-    final parser = ref.read(parserRegistryProvider).forPackage(packageName);
-    if (parser == null || !settings.watches(parser.platform)) return;
-    final now = DateTime.now();
-    if (_lastOcrAt != null && now.difference(_lastOcrAt!) < _ocrCooldown) {
+    if (!settings.ocrEnabled ||
+        !settings.watches(GigPlatform.uber) ||
+        ref.read(dashboardProvider).status != WatchStatus.watching) {
       return;
     }
+    final parser = ref.read(parserRegistryProvider).forPackage(packageName);
+    if (parser == null || !settings.watches(parser.platform)) return;
+    if (_ocrBusy) {
+      if (retryOnMiss) _scheduleOcrRetry(packageName);
+      return;
+    }
+    final now = DateTime.now();
+    if (_lastOcrAt != null && now.difference(_lastOcrAt!) < ocrCooldown) {
+      if (retryOnMiss) _scheduleOcrRetry(packageName);
+      return;
+    }
+    _ocrRetryTimer?.cancel();
+    _ocrRetryTimer = null;
+    _pendingOcrPackage = null;
     _ocrBusy = true;
     _lastOcrAt = now;
+    var retry = false;
     try {
-      final lines = await ref.read(ocrCaptureProvider).capture();
-      if (!ref.mounted || lines.isEmpty) return;
-      ref.read(foxLogProvider).log('ocr', 'recognized ${lines.length} lines');
+      final frame = await ref.read(ocrCaptureProvider).capture();
+      if (!ref.mounted || frame.lines.isEmpty) {
+        retry = retryOnMiss;
+        return;
+      }
+      ref
+          .read(foxLogProvider)
+          .log('ocr', 'recognized ${frame.lines.length} lines');
       _onRead(
         ScreenRead(
-          packageName: packageName,
-          texts: lines,
+          packageName: frame.packageName.isEmpty
+              ? packageName
+              : frame.packageName,
+          texts: frame.lines,
           isActive: true,
           source: CaptureSource.ocr,
         ),
       );
+      retry = retryOnMiss && !_ocrMatched;
     } catch (_) {
       if (ref.mounted) {
         ref.read(foxLogProvider).log('ocr', 'capture failed');
       }
+      retry = retryOnMiss;
     } finally {
       _ocrBusy = false;
+      if (retry && ref.mounted) _scheduleOcrRetry(packageName);
     }
   }
 

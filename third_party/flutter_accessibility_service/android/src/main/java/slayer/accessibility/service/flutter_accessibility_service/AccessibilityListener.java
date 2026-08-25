@@ -99,12 +99,13 @@ public class AccessibilityListener extends AccessibilityService {
     // one screenshot only when Dart requests a fallback. The bitmap never
     // leaves memory and is cleared immediately after ML Kit finishes.
     public interface OcrCallback {
-        void onResult(List<String> lines);
+        void onResult(String packageName, List<String> lines);
     }
     private static final long OCR_TIMEOUT_MS = 1500;
     private OcrCallback pendingOcr;
     private Runnable ocrTimeout;
     private long ocrToken = 0;
+    private String pendingOcrPackage = "";
     private TextRecognizer ocrRecognizer;
     private Bitmap activeOcrBitmap;
 
@@ -462,6 +463,9 @@ public class AccessibilityListener extends AccessibilityService {
         if (callback == null || !isOcrAvailable() || pendingOcr != null) return false;
         final long token = ++ocrToken;
         pendingOcr = callback;
+        AccessibilityNodeInfo activeRoot = getRootInActiveWindow();
+        CharSequence activePackage = activeRoot == null ? null : activeRoot.getPackageName();
+        pendingOcrPackage = activePackage == null ? "" : activePackage.toString();
         ocrTimeout = () -> finishOcr(token, Collections.emptyList());
         sMain.postDelayed(ocrTimeout, OCR_TIMEOUT_MS);
         try {
@@ -566,18 +570,22 @@ public class AccessibilityListener extends AccessibilityService {
         if (!isCurrentOcr(token)) return;
         OcrCallback callback = pendingOcr;
         pendingOcr = null;
+        String packageName = pendingOcrPackage;
+        pendingOcrPackage = "";
         if (ocrTimeout != null) sMain.removeCallbacks(ocrTimeout);
         ocrTimeout = null;
-        callback.onResult(lines);
+        callback.onResult(packageName, lines);
     }
 
     private void cancelOcrInternal() {
         OcrCallback callback = pendingOcr;
         pendingOcr = null;
+        String packageName = pendingOcrPackage;
+        pendingOcrPackage = "";
         ++ocrToken;
         if (ocrTimeout != null) sMain.removeCallbacks(ocrTimeout);
         ocrTimeout = null;
-        if (callback != null) callback.onResult(Collections.emptyList());
+        if (callback != null) callback.onResult(packageName, Collections.emptyList());
     }
 
     private static void redactFoxyOverlay(Bitmap bitmap) {

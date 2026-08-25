@@ -56,7 +56,8 @@ continuously. Done naively this drains battery and gets FoxyCo blamed.
 - No continuous polling or wakelocks. A rate-limited two-read burst (180/450 ms)
   after a signal catches late-attaching offer windows, then stops. Target <300 ms
   first detect→verdict.
-- Pixel Capture OCR is opt-in and fallback-only: Accessibility runs first, OCR
+- Uber OCR is opt-in and fallback-only: Accessibility runs first for every
+  platform, OCR output is accepted only by the Uber parser, OCR
   requests are rate-limited and non-overlapping, the bundled model works
   offline, and screenshots exist only as an in-memory Bitmap until recognition
   completes. FoxyCo's overlay rectangle is cleared from the mutable in-memory

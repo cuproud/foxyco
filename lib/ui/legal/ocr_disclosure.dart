@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 
-const ocrDisclosureTitle = 'Enable on-device Pixel Capture?';
+const ocrDisclosureTitle = 'Enable Uber screen-reading fallback?';
 const ocrDisclosureBody =
-    'When Accessibility text cannot read a visible offer, FoxyCo can take one '
-    'screenshot of your visible screen after an active watched-app event and '
-    'recognize its text on this device. '
+    'When Android Accessibility cannot read a visible Uber offer, FoxyCo can '
+    'take one screenshot of your visible screen after an active watched-app '
+    'event and recognize its text on this device. Other platforms continue '
+    'using Accessibility text only. '
     'Screenshots are held only in memory, never saved or uploaded, and are cleared '
     'immediately after recognition. Accessibility remains the primary reader. '
-    'Pixel Capture works only while FoxyCo monitoring and Accessibility are on.';
+    'Uber OCR works only while FoxyCo monitoring and Accessibility are on.';
 
 Future<bool> showOcrDisclosure(BuildContext context) async =>
     await showDialog<bool>(
@@ -22,7 +23,7 @@ Future<bool> showOcrDisclosure(BuildContext context) async =>
           ),
           FilledButton(
             onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Enable OCR'),
+            child: const Text('Enable Uber OCR'),
           ),
         ],
       ),

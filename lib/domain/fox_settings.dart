@@ -81,8 +81,8 @@ class FoxSettings {
   final double okVoiceMinimumPayout;
   final int voiceCooldownSeconds;
 
-  /// Opt-in, on-device screenshot OCR fallback. Accessibility remains primary;
-  /// this is requested only for empty or incomplete active card frames.
+  /// Opt-in, on-device screenshot OCR fallback for Uber. Accessibility remains
+  /// primary for every platform.
   final bool ocrEnabled;
 
   /// Debug-session override that bypasses Accessibility parsing so the OCR

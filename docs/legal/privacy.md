@@ -44,15 +44,17 @@ clear it at any time.
 ## What FoxyCo reads on screen, and what it does with it
 
 FoxyCo primarily uses Android's AccessibilityService API to read supported
-driver-app offer cards. You can separately enable **Pixel Capture (OCR)** as a
-fallback when a card exposes too little Accessibility text.
+driver-app offer cards. You can separately enable **Uber screen-reading
+fallback (OCR)** when an Uber card exposes too little Accessibility text.
 
 - The Accessibility event stream is **restricted to six apps**: Uber Driver,
   Lyft Driver, Hopp Driver, DoorDash Dasher, Instacart Shopper and Skip
   Courier. FoxyCo processes offer text only for the one to three apps you
   select. DoorDash, Instacart and Skip parsing is labelled beta and is disabled
-  until you select it. A Pixel Capture frame can contain whatever is visible at that instant; FoxyCo
-  requests one only after an active selected-app frame is unreadable.
+  until you select it. Other platforms use Accessibility text only. An Uber OCR
+  frame can contain whatever is visible at that instant; FoxyCo requests one
+  only after an active selected-app event when it is checking for an unreadable
+  visible Uber offer.
   FoxyCo's Accessibility service receives no events from any other app,
   including your browser, messages, banking apps or launcher. Supporting
   another driver app requires a FoxyCo update that explicitly adds and
@@ -63,10 +65,11 @@ fallback when a card exposes too little Accessibility text.
   is enabled, infer whether an offer was taken or passed. The numbers extracted
   (pay, distance, duration) are saved to your local offer history. Raw screen
   text is processed in memory and is never saved, uploaded or shared.
-- Pixel Capture is off by default. Enabling it shows a separate FoxyCo
+- Uber OCR is off by default. Enabling it shows a separate FoxyCo
   disclosure and requires an affirmative choice. On Android 11 and newer, OCR
   requests one Accessibility screenshot only after an active
-  supported-driver-app frame is empty or card-like but incomplete. There is no
+  watched-app event indicates that a visible Uber card may be unreadable. OCR
+  output is accepted only by the Uber parser. There is no
   continuous recording or MediaProjection screen-sharing session. The bundled
   recognition model runs on the device. Captured pixels are cleared immediately
   after recognition and are never written to a file, added to History, uploaded

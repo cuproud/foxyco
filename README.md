@@ -19,7 +19,7 @@ driver's rules, and shows a GOOD, OK or BAD verdict. The driver always decides.
 ```
 Offer appears on a selected rideshare or delivery app
         ↓
-Accessibility reads it first; optional on-device OCR handles unreadable cards
+Accessibility reads every platform; optional on-device OCR handles unreadable Uber cards
         ↓
 total km = pickup + dropoff
 rate = payout / total distance (km or mi), or payout / hour

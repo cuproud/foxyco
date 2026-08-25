@@ -63,7 +63,7 @@
 
         <!-- Accessibility service (flutter_accessibility_service, M3). Reads the
              on-screen offer text from Uber/Hopp/Lyft so FoxyCo can score it. Its
-             opt-in OCR fallback can take one memory-only screenshot on Android 11+
+             opt-in Uber OCR fallback can take one memory-only screenshot on Android 11+
              when node text is incomplete. Scoped to those three packages and
              READ-ONLY via @xml/accessibilityservice; the description there is the
              Play-required rationale (AUDIT #1). -->

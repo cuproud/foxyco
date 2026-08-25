@@ -2105,7 +2105,7 @@ class _HistoryPerformanceState extends State<_HistoryPerformance> {
                                   _expanded
                                       ? 'History performance'
                                       : stats.accepted == 0
-                                      ? 'No accepted offers in this view'
+                                      ? 'No accepted offers'
                                       : '$earnings   |   $hourly/hr',
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,

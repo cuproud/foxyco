@@ -193,11 +193,12 @@ const aboutSections = <AboutSection>[
             'app requires a FoxyCo update that explicitly adds it.',
       ),
       AboutEntry(
-        'What is Pixel Capture (OCR)?',
-        'An optional fallback for offer cards Accessibility cannot read. It is '
-            'off by default and Accessibility always runs first. If enabled, '
+        'What is Uber screen-reading fallback?',
+        'Optional OCR for Uber offer cards Accessibility cannot read. It is '
+            'off by default and Accessibility always runs first for every app. '
+            'Other platforms use Accessibility text only. If enabled, '
             'Android 11 and newer can take one Accessibility screenshot only '
-            'after an active card read is empty or incomplete. There is no '
+            'after a watched-app event indicates a visible Uber card may be unreadable. There is no '
             'continuous recording or screen-sharing session. The frame is '
             'recognized on-device, immediately cleared, and never saved, '
             'uploaded or written to FoxyCo logs.',

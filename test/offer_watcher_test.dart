@@ -32,11 +32,15 @@ class _FakeWatcher extends AccessibilityWatcher {
 class _FakeOcrCapture extends OcrCapture {
   var captures = 0;
   List<String> lines = const [];
+  String packageName = '';
+  final responses = <OcrFrame>[];
 
   @override
-  Future<List<String>> capture() async {
+  Future<OcrFrame> capture() async {
     captures++;
-    return lines;
+    return responses.isEmpty
+        ? OcrFrame(packageName: packageName, lines: lines)
+        : responses.removeAt(0);
   }
 
   @override
@@ -360,42 +364,39 @@ void main() {
     expect(ocr.captures, 0);
   });
 
-  test(
-    'debug test mode bypasses Accessibility text for active frames',
-    () async {
-      final c = container();
-      final settings = c.read(settingsProvider.notifier);
-      settings.setOcrEnabled(true);
-      settings.setOcrTestMode(true);
-      ocr.lines = _hoppNodes.texts;
-      c.read(offerWatcherProvider);
-      c.read(overlayControllerProvider);
+  test('debug test mode checks active frames for Uber OCR only', () async {
+    final c = container();
+    final settings = c.read(settingsProvider.notifier);
+    settings.setOcrEnabled(true);
+    settings.setOcrTestMode(true);
+    ocr.lines = _uberA.texts;
+    c.read(offerWatcherProvider);
+    c.read(overlayControllerProvider);
 
-      watcher.emit(_hoppNodes); // background frames cannot trigger capture
-      await Future<void>.delayed(Duration.zero);
-      expect(ocr.captures, 0);
-      expect(overlay.shown, isEmpty);
+    watcher.emit(_hoppNodes); // background frames cannot trigger capture
+    await Future<void>.delayed(Duration.zero);
+    expect(ocr.captures, 0);
+    expect(overlay.shown, isEmpty);
 
-      watcher.emit(
-        ScreenRead(
-          packageName: _hoppNodes.packageName,
-          texts: _hoppNodes.texts,
-          isActive: true,
-        ),
-      );
-      await Future<void>.delayed(Duration.zero);
-      await Future<void>.delayed(Duration.zero);
+    watcher.emit(
+      ScreenRead(
+        packageName: _hoppNodes.packageName,
+        texts: _hoppNodes.texts,
+        isActive: true,
+      ),
+    );
+    await Future<void>.delayed(Duration.zero);
+    await Future<void>.delayed(Duration.zero);
 
-      expect(ocr.captures, 1);
-      expect(overlay.shown, hasLength(1));
-      expect(c.read(offerLogProvider), hasLength(1));
-    },
-  );
+    expect(ocr.captures, 1);
+    expect(overlay.shown, hasLength(1));
+    expect(c.read(offerLogProvider).single.platform, GigPlatform.uber);
+  });
 
   test('active textless accessibility frame falls back to OCR once', () async {
     final c = container();
     c.read(settingsProvider.notifier).setOcrEnabled(true);
-    ocr.lines = _hoppNodes.texts;
+    ocr.lines = _uberA.texts;
     c.read(offerWatcherProvider);
     c.read(overlayControllerProvider);
 
@@ -426,10 +427,10 @@ void main() {
 
     expect(ocr.captures, 1);
     expect(overlay.shown, hasLength(1));
-    expect(c.read(offerLogProvider), hasLength(1));
+    expect(c.read(offerLogProvider).single.platform, GigPlatform.uber);
   });
 
-  test('OCR result stays bound to the active triggering platform', () async {
+  test('OCR never parses a non-Uber offer', () async {
     final c = container();
     c.read(settingsProvider.notifier).setOcrEnabled(true);
     ocr.lines = const [
@@ -456,43 +457,120 @@ void main() {
     await Future<void>.delayed(Duration.zero);
     await Future<void>.delayed(Duration.zero);
 
-    expect(c.read(offerLogProvider).single.platform, GigPlatform.hopp);
-    expect(c.read(offerLogProvider).single.payout, 4.40);
+    expect(ocr.captures, 1);
+    expect(c.read(offerLogProvider), isEmpty);
+    expect(overlay.shown, isEmpty);
+  });
+
+  test('OCR stays off when Uber is not watched', () async {
+    final c = container();
+    final settings = c.read(settingsProvider.notifier);
+    settings.setOcrEnabled(true);
+    settings.toggleApp(GigPlatform.uber);
+    ocr.lines = _uberA.texts;
+    c.read(offerWatcherProvider);
+    c.read(overlayControllerProvider);
+
+    watcher.emit(
+      const ScreenRead(
+        packageName: ParserRegistry.lyftPackage,
+        texts: [],
+        isActive: true,
+      ),
+    );
+    await Future<void>.delayed(Duration.zero);
+
+    expect(ocr.captures, 0);
+    expect(c.read(offerLogProvider), isEmpty);
+  });
+
+  test('OCR follows the visible Uber card after a Lyft event', () async {
+    final c = container();
+    c.read(settingsProvider.notifier).setOcrEnabled(true);
+    ocr.lines = _uberA.texts;
+    ocr.packageName = ParserRegistry.lyftPackage;
+    c.read(offerWatcherProvider);
+    c.read(overlayControllerProvider);
+
+    watcher.emit(
+      const ScreenRead(
+        packageName: ParserRegistry.lyftPackage,
+        texts: [],
+        isActive: true,
+      ),
+    );
+    await Future<void>.delayed(Duration.zero);
+    await Future<void>.delayed(Duration.zero);
+
+    expect(c.read(offerLogProvider).single.platform, GigPlatform.uber);
+    expect(overlay.shown.single.payout, 10);
   });
 
   test(
-    'active incomplete card falls back but background frames do not',
+    'OCR retries a card that was captured before it finished rendering',
     () async {
+      final previous = OfferWatcher.ocrCooldown;
+      OfferWatcher.ocrCooldown = const Duration(milliseconds: 10);
+      addTearDown(() => OfferWatcher.ocrCooldown = previous);
       final c = container();
       c.read(settingsProvider.notifier).setOcrEnabled(true);
-      ocr.lines = _hoppNodes.texts;
+      ocr.responses.addAll([
+        const OcrFrame(
+          packageName: ParserRegistry.uberPackage,
+          lines: ['UberX', r'$9.04', 'Accept'],
+        ),
+        OcrFrame(packageName: ParserRegistry.uberPackage, lines: _uberA.texts),
+      ]);
       c.read(offerWatcherProvider);
       c.read(overlayControllerProvider);
 
-      const incomplete = [r'$8.00', 'Accept'];
       watcher.emit(
         const ScreenRead(
-          packageName: ParserRegistry.hoppPackage,
-          texts: incomplete,
-        ),
-      );
-      await Future<void>.delayed(Duration.zero);
-      expect(ocr.captures, 0);
-
-      watcher.emit(
-        const ScreenRead(
-          packageName: ParserRegistry.hoppPackage,
-          texts: incomplete,
+          packageName: ParserRegistry.uberPackage,
+          texts: [],
           isActive: true,
         ),
       );
-      await Future<void>.delayed(Duration.zero);
-      await Future<void>.delayed(Duration.zero);
+      for (var i = 0; i < 20 && ocr.captures < 2; i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+      }
 
-      expect(ocr.captures, 1);
+      expect(ocr.captures, 2);
+      expect(c.read(offerLogProvider).single.platform, GigPlatform.uber);
       expect(overlay.shown, hasLength(1));
     },
   );
+
+  test('non-Uber incomplete cards remain Accessibility-only', () async {
+    final c = container();
+    c.read(settingsProvider.notifier).setOcrEnabled(true);
+    ocr.lines = _hoppNodes.texts;
+    c.read(offerWatcherProvider);
+    c.read(overlayControllerProvider);
+
+    const incomplete = [r'$8.00', 'Accept'];
+    watcher.emit(
+      const ScreenRead(
+        packageName: ParserRegistry.hoppPackage,
+        texts: incomplete,
+      ),
+    );
+    await Future<void>.delayed(Duration.zero);
+    expect(ocr.captures, 0);
+
+    watcher.emit(
+      const ScreenRead(
+        packageName: ParserRegistry.hoppPackage,
+        texts: incomplete,
+        isActive: true,
+      ),
+    );
+    await Future<void>.delayed(Duration.zero);
+    await Future<void>.delayed(Duration.zero);
+
+    expect(ocr.captures, 1);
+    expect(overlay.shown, isEmpty);
+  });
 
   test('OCR results are discarded after the driver disables OCR', () async {
     final c = container();

@@ -15,6 +15,7 @@ import '../../domain/distance_unit.dart';
 import '../../domain/fox_settings.dart';
 import '../../domain/money_font.dart';
 import '../../domain/overlay_payload.dart' show OverlayPayload, PillSize;
+import '../../domain/platform.dart';
 import '../../parser/parser_registry.dart';
 import '../../domain/verdict.dart';
 import '../../services/offer_log.dart';
@@ -204,7 +205,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             title: 'Offer detection',
             icon: Icons.monitor_heart_outlined,
             summary: settings.ocrEnabled
-                ? 'Current session · OCR enabled'
+                ? 'Current session · Uber OCR enabled'
                 : 'Current session',
             open: _open == 2,
             accent: _accents[2],
@@ -282,26 +283,32 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       color: FoxColors.brandFox,
                     ),
                     title: Text(
-                      'Screen-reading fallback',
+                      'Uber screen-reading fallback',
                       style: text.titleMedium,
                     ),
-                    subtitle: const Text(
-                      'Uses on-device OCR when Accessibility cannot read a card',
+                    subtitle: Text(
+                      settings.watches(GigPlatform.uber)
+                          ? 'Uses on-device OCR when Accessibility cannot read an Uber card'
+                          : 'Select Uber in Rules to enable this fallback',
                     ),
                     value: settings.ocrEnabled,
                     activeTrackColor: FoxColors.brandFox,
-                    onChanged: _setOcrEnabled,
+                    onChanged: settings.watches(GigPlatform.uber)
+                        ? _setOcrEnabled
+                        : null,
                   ),
                 ),
                 ExpansionTile(
                   tilePadding: EdgeInsets.zero,
                   childrenPadding: EdgeInsets.zero,
-                  title: const Text('How detection works'),
+                  title: Text('How detection works', style: text.titleSmall),
                   children: [
                     Text(
-                      'Accessibility stays primary. On Android 11 and newer, '
-                      'FoxyCo can take one screenshot only when a readable '
-                      'offer frame is missing. Recognition stays on-device; '
+                      'Accessibility stays primary for every platform. On '
+                      'Android 11 and newer, FoxyCo can take one screenshot '
+                      'only when a readable Uber offer frame is missing. '
+                      'Other platforms use Accessibility text only. '
+                      'Recognition stays on-device; '
                       'screenshots are never saved. "Needs update" usually '
                       'means the app layout changed.',
                       style: text.bodyMedium?.copyWith(

@@ -12,7 +12,7 @@
   `android:description` states the real, non-accessibility purpose shown on the
   system enable screen — required by Play's accessibility policy (AUDIT #1).
   We only READ content (canRetrieveWindowContent=true) and, after the driver's
-  explicit OCR opt-in, may take a memory-only screenshot on Android 11+
+  explicit Uber OCR opt-in, may take a memory-only screenshot on Android 11+
   (canTakeScreenshot=true). FoxyCo never clicks the gig apps' UI
   (canPerformGestures omitted — AUDIT #2 ToS).
 -->

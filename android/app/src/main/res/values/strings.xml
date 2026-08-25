@@ -5,5 +5,5 @@
       non-accessibility purpose with a user-facing rationale (Play policy,
       docs/AUDIT #1). Keep it honest and specific: read-only, on-device, advisory.
     -->
-    <string name="accessibility_service_description">FoxyCo reads offer details (pay, distance, time, and item count) shown in Uber Driver, Hopp Driver, Lyft Driver, DoorDash Dasher, Instacart Shopper, and Skip Courier. You choose up to three apps to monitor; delivery-app support is beta and off by default. Reading and scoring stay on this device. FoxyCo never uploads offer details or taps anything. You always accept or decline yourself.</string>
+    <string name="accessibility_service_description">FoxyCo reads offer details (pay, distance, time, and item count) shown in Uber Driver, Hopp Driver, Lyft Driver, DoorDash Dasher, Instacart Shopper, and Skip Courier. You choose up to three apps to monitor; delivery-app support is beta and off by default. If you separately enable Uber OCR, FoxyCo may take a temporary on-device screenshot when an Uber offer is unreadable. Reading and scoring stay on this device. FoxyCo never saves or uploads screenshots or offer details, and never taps anything. You always accept or decline yourself.</string>
 </resources>

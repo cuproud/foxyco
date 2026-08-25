@@ -50,10 +50,10 @@ hard rule. (A quick `grep -r "package:flutter" lib/domain` in CI keeps us honest
 ```
 AccessibilityWatcher (watched-app window event + two bounded native re-reads)
    │  receives screen nodes (text/content description + bounds)
-   │  if active frame is empty/incomplete and OCR is opted in
+│  if an active frame is empty/incomplete and Uber OCR is opted in
    ├──── AccessibilityService.takeScreenshot (Android 11+, bundled ML Kit)
    │       ├── redacts FoxyCo's overlay rectangle in memory before OCR
-   │       └── recognized lines only; pixels discarded, never persisted
+│       └── Uber parser only; pixels discarded, never persisted
    ▼
 ParserRegistry.candidates(sourcePackage).parse(nodes) : Offer? [parser]
    │  Offer(payout: 10.55, pickupKm: 0.8, dropoffKm: 4.3, platform: uber)

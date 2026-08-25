@@ -181,10 +181,14 @@ class MainActivity : FlutterFragmentActivity() {
                 when (call.method) {
                     "start" -> result.success(AccessibilityListener.isOcrAvailable())
                     "capture" -> {
-                        val accepted = AccessibilityListener.captureOcr { lines ->
-                            runOnUiThread { result.success(lines) }
+                        val accepted = AccessibilityListener.captureOcr { packageName, lines ->
+                            runOnUiThread {
+                                result.success(mapOf("packageName" to packageName, "lines" to lines))
+                            }
                         }
-                        if (!accepted) result.success(emptyList<String>())
+                        if (!accepted) {
+                            result.success(mapOf("packageName" to "", "lines" to emptyList<String>()))
+                        }
                     }
                     "stop" -> {
                         AccessibilityListener.cancelOcr()
