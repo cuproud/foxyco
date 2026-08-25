@@ -520,5 +520,6 @@ blockers: **MONETIZATION §7**.
 - Localized store listings (ES/PT = big driver demographics)
 
 ---
-_Last updated: 2026-08-22 — build 70 UI polish and Play bundle documented.
+_Last updated: 2026-08-25 — build 86 uploaded for final Uber OCR and
+Accessibility routing validation._
 Entitlement architecture lives in `MONETIZATION_v1.0.md`._

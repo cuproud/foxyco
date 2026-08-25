@@ -17,6 +17,9 @@ Legend: 🟢 GOOD  🟡 OK  🔴 BAD (pill shows icon + WORD + `km · $payout`).
 Run these before promoting the AAB. They cover the highest-risk build changes
 without requiring DoorDash, Instacart or Skip accounts.
 
+**Current candidate:** Play build 86. Real-device validation is pending for
+Uber OCR fallback, cross-app capture, and Accessibility-only non-Uber offers.
+
 | # | How | PASS bar | Status |
 |---|-----|----------|--------|
 | Q.1 | Install from the Play test track → Settings → About | About shows the new bumped build; startup and four-tab navigation work | [ ] |
