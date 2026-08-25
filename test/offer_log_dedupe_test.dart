@@ -63,7 +63,9 @@ void main() {
     outcome: outcome,
   );
 
-  final t = DateTime(2026, 7, 26, 14, 49);
+  final t = DateTime.fromMillisecondsSinceEpoch(
+    DateTime.now().millisecondsSinceEpoch,
+  );
 
   test('the same card logged twice a second apart records once', () {
     final l = log();
