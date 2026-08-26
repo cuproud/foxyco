@@ -8,7 +8,7 @@ class Thresholds {
 
   const Thresholds({required this.goodAtOrAbove, required this.badBelow});
 
-  /// Sensible starting point for a new driver (docs/UI_DESIGN onboarding).
+  /// Sensible starting point for a new driver.
   static const defaults = Thresholds(goodAtOrAbove: 1.5, badBelow: 1.0);
 
   /// One-tap $/km starting points, shared by onboarding and Settings.

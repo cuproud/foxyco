@@ -45,6 +45,7 @@ void main() {
     required DateTime seenAt,
     double payout = 10.19,
     double bonus = 0,
+    double pickupKm = 0,
     double totalKm = 11.7,
     String? category = 'Share',
     GigPlatform platform = GigPlatform.uber,
@@ -56,6 +57,7 @@ void main() {
     payout: payout,
     finalPayout: finalPayout,
     bonus: bonus,
+    pickupKm: pickupKm,
     totalKm: totalKm,
     totalMinutes: 24,
     seenAt: seenAt,
@@ -184,6 +186,51 @@ void main() {
       expect(container.read(offerLogProvider), hasLength(1));
       expect(container.read(offerLogProvider).single.finalPayout, 9.06);
       expect(container.read(offerLogProvider).single.totalKm, 11.5);
+    },
+  );
+
+  test(
+    'saved dropped-decimal Uber duplicate keeps the corrected row',
+    () async {
+      final wrong = offer(seenAt: t, payout: 754, totalKm: 7.4);
+      final corrected = offer(
+        seenAt: t.add(const Duration(seconds: 4)),
+        payout: 7.54,
+        totalKm: 7.4,
+      );
+      SharedPreferences.setMockInitialValues({
+        'foxyco.offer_log.v1': jsonEncode([wrong.toJson(), corrected.toJson()]),
+      });
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      container.read(offerLogProvider);
+      await container.read(offerLogProvider.notifier).ready;
+
+      expect(container.read(offerLogProvider), hasLength(1));
+      expect(container.read(offerLogProvider).single.payout, 7.54);
+    },
+  );
+
+  test(
+    'saved pickup-distance-as-payout duplicate keeps the real row',
+    () async {
+      final real = offer(seenAt: t, payout: 9.48, pickupKm: 2, totalKm: 11.5);
+      final wrong = offer(
+        seenAt: t.add(const Duration(seconds: 3)),
+        payout: 2,
+        pickupKm: 2,
+        totalKm: 11.5,
+      );
+      SharedPreferences.setMockInitialValues({
+        'foxyco.offer_log.v1': jsonEncode([real.toJson(), wrong.toJson()]),
+      });
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      container.read(offerLogProvider);
+      await container.read(offerLogProvider.notifier).ready;
+
+      expect(container.read(offerLogProvider), hasLength(1));
+      expect(container.read(offerLogProvider).single.payout, 9.48);
     },
   );
 

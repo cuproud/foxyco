@@ -42,8 +42,8 @@ class OverlayPayload {
   /// the main isolate's provider.
   final MoneyFont moneyFont;
 
-  /// Whether this driver may see the verdict and the numbers at all
-  /// (MONETIZATION_v1.0 §4). False renders the "🦊 Unlock" pill instead.
+  /// Whether this driver may see the verdict and the numbers at all. False
+  /// renders the "🦊 Unlock" pill instead.
   ///
   /// This is the overlay isolate's ONLY entitlement input — it has no Riverpod,
   /// no SharedPreferences and no clock it trusts, so the flag being absent or

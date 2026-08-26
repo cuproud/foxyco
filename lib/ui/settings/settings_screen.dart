@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:share_plus/share_plus.dart';
 
 import '../../domain/app_skin.dart';
 import '../../domain/app_text_size.dart';
@@ -15,10 +14,13 @@ import '../../domain/distance_unit.dart';
 import '../../domain/fox_settings.dart';
 import '../../domain/money_font.dart';
 import '../../domain/overlay_payload.dart' show OverlayPayload, PillSize;
+import '../../domain/offer_summary.dart';
 import '../../domain/platform.dart';
 import '../../parser/parser_registry.dart';
 import '../../domain/verdict.dart';
 import '../../services/offer_log.dart';
+import '../../services/history_backup.dart';
+import '../../services/history_backup_platform.dart';
 import '../../services/device_health.dart';
 import '../../services/feedback_service.dart';
 import '../../services/parse_health.dart';
@@ -288,7 +290,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     ),
                     subtitle: Text(
                       settings.watches(GigPlatform.uber)
-                          ? 'Uses on-device OCR when Accessibility cannot read an Uber card'
+                          ? 'Uses on-device OCR for Uber offer cards'
                           : 'Select Uber in Rules to enable this fallback',
                     ),
                     value: settings.ocrEnabled,
@@ -304,10 +306,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   title: Text('How detection works', style: text.titleSmall),
                   children: [
                     Text(
-                      'Accessibility stays primary for every platform. On '
-                      'Android 11 and newer, FoxyCo can take one screenshot '
-                      'only when a readable Uber offer frame is missing. '
-                      'Other platforms use Accessibility text only. '
+                      'On Android 11 and newer, enabled Uber detection uses '
+                      'one on-device OCR frame after a watched-app event, '
+                      'including an Uber request over another selected app. '
+                      'Only the Uber parser receives OCR text; other offers '
+                      'use Accessibility text. '
                       'Recognition stays on-device; '
                       'screenshots are never saved. "Needs update" usually '
                       'means the app layout changed.',
@@ -408,8 +411,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       'FoxyCo only reads the screen; it never '
                       'taps or accepts anything for you.',
                       style: text.bodyMedium?.copyWith(
-                        fontSize: 12,
-                        height: 1.45,
+                        fontSize: 11,
+                        height: 1.4,
                         color: FoxColors.textSecondary,
                       ),
                     ),
@@ -672,7 +675,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       ),
                       icon: const Icon(Icons.ios_share_rounded, size: 16),
                       label: const Text(
-                        'Export CSV',
+                        'Export history backup',
+                        style: TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                    TextButton.icon(
+                      onPressed: () => _importCsv(context),
+                      style: TextButton.styleFrom(
+                        foregroundColor: FoxColors.brandFox,
+                      ),
+                      icon: const Icon(Icons.file_open_outlined, size: 16),
+                      label: const Text(
+                        'Import history backup',
                         style: TextStyle(fontWeight: FontWeight.w700),
                       ),
                     ),
@@ -757,11 +771,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
-  /// Share the whole offer log as CSV — the log is capped at 2000 rows, so
-  /// building the string in memory is fine.
+  /// Save the whole offer log through Android's document picker.
   Future<void> _exportCsv(BuildContext context) async {
+    await ref.read(offerLogProvider.notifier).ready;
+    if (!context.mounted) return;
     final offers = ref.read(offerLogProvider);
-    final settings = ref.read(settingsProvider);
     if (offers.isEmpty) {
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
@@ -773,45 +787,81 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         );
       return;
     }
-    final buf = StringBuffer(
-      'seen_at,app,category,queued,orders,items,units,verdict,currency,fare,bonus,distance_unit,total_distance,pickup_distance,minutes,rate_per_distance,per_hour,outcome\n',
+    final filename =
+        'FoxyCo_History_${DateTime.now().toIso8601String().substring(0, 10)}.csv';
+    final saved = await const HistoryBackupPlatform().saveCsv(
+      Uint8List.fromList(utf8.encode(HistoryBackupCodec.encode(offers))),
+      filename,
     );
-    for (final o in offers) {
-      buf.writeln(
-        [
-          o.seenAt.toIso8601String(),
-          o.platform.label,
-          o.category ?? '',
-          o.isQueued,
-          o.deliveryCount,
-          o.itemCount,
-          o.unitCount,
-          o.verdict.name,
-          settings.currency.label,
-          o.payout.toStringAsFixed(2),
-          o.bonus.toStringAsFixed(2),
-          settings.distanceUnit.shortLabel,
-          settings.distanceUnit.distanceFromKm(o.totalKm).toStringAsFixed(1),
-          settings.distanceUnit.distanceFromKm(o.pickupKm).toStringAsFixed(1),
-          o.totalMinutes.toStringAsFixed(0),
-          settings.distanceUnit.rateFromPerKm(o.pricePerKm).toStringAsFixed(2),
-          o.pricePerHour.toStringAsFixed(2),
-          o.outcome.name,
-        ].map(csvCell).join(','),
-      );
+    if (context.mounted && saved) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('History backup saved.')));
     }
-    await SharePlus.instance.share(
-      ShareParams(
-        files: [
-          XFile.fromData(
-            Uint8List.fromList(utf8.encode(buf.toString())),
-            mimeType: 'text/csv',
-            name: 'foxyco_offers.csv',
+  }
+
+  Future<void> _importCsv(BuildContext context) async {
+    final bytes = await const HistoryBackupPlatform().pickCsv();
+    if (!context.mounted || bytes == null) return;
+    try {
+      final offers = HistoryBackupCodec.decode(utf8.decode(bytes));
+      if (!context.mounted) return;
+      final mode = await showDialog<HistoryImportMode>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Restore offer history'),
+          content: Text(
+            '${offers.length} records found · ${_backupDateRange(offers)} · Backup v${HistoryBackupCodec.version}\n\n'
+            'Merge: adds missing history and keeps your current manual edits.\n\n'
+            'Replace: deletes current history and restores only this backup.',
           ),
-        ],
-        fileNameOverrides: ['foxyco_offers.csv'],
-      ),
-    );
+          actions: [
+            TextButton(
+              onPressed: () =>
+                  Navigator.pop(context, HistoryImportMode.replace),
+              child: const Text('Replace'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, HistoryImportMode.merge),
+              child: const Text('Merge'),
+            ),
+          ],
+        ),
+      );
+      if (mode == null || !context.mounted) return;
+      final result = await ref
+          .read(offerLogProvider.notifier)
+          .importHistory(offers, mode: mode);
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Restored ${result.imported} offers')),
+      );
+    } on FormatException {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('That file is not a valid FoxyCo backup.'),
+          ),
+        );
+      }
+    } on PlatformException {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not open that file.')),
+        );
+      }
+    }
+  }
+
+  String _backupDateRange(List<OfferSummary> offers) {
+    if (offers.isEmpty) return 'empty backup';
+    final dates = offers.map((o) => o.seenAt).toList()..sort();
+    String date(DateTime value) => '${value.month}/${value.day}/${value.year}';
+    return dates.first.day == dates.last.day &&
+            dates.first.month == dates.last.month &&
+            dates.first.year == dates.last.year
+        ? date(dates.first)
+        : '${date(dates.first)}–${date(dates.last)}';
   }
 
   /// Reset wipes every tuned knob (thresholds, apps, pill, retention) — as

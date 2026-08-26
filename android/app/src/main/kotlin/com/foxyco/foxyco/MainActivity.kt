@@ -32,11 +32,13 @@ import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodChannel
 import slayer.accessibility.service.flutter_accessibility_service.AccessibilityListener
 import java.io.File
+import java.io.ByteArrayOutputStream
 import java.util.UUID
 
 class MainActivity : FlutterFragmentActivity() {
     private companion object {
         const val UPDATE_TAG = "FoxyCoPlayUpdate"
+        const val MAX_HISTORY_BYTES = 5 * 1024 * 1024
     }
     private val appUpdateManager: AppUpdateManager by lazy {
         AppUpdateManagerFactory.create(this)
@@ -62,6 +64,15 @@ class MainActivity : FlutterFragmentActivity() {
     private var pendingSpeech: String? = null
     private var pendingImageResult: MethodChannel.Result? = null
     private var pendingImageLimit = 3
+    private var pendingHistoryResult: MethodChannel.Result? = null
+    private var pendingHistorySaveResult: MethodChannel.Result? = null
+    private var pendingHistorySaveBytes: ByteArray? = null
+    private val historyPicker = registerForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri -> finishPickingHistory(uri) }
+    private val historySavePicker = registerForActivityResult(
+        ActivityResultContracts.CreateDocument("text/csv")
+    ) { uri -> finishSavingHistory(uri) }
     private val singleImagePicker = registerForActivityResult(
         ActivityResultContracts.PickVisualMedia()
     ) { uri -> finishPickingImages(uri?.let(::listOf).orEmpty()) }
@@ -81,6 +92,55 @@ class MainActivity : FlutterFragmentActivity() {
             )
         } catch (error: Exception) {
             result.error("photo_picker_failed", "Couldn't read selected images.", null)
+        }
+    }
+
+    private fun finishPickingHistory(uri: Uri?) {
+        val result = pendingHistoryResult ?: return
+        pendingHistoryResult = null
+        if (uri == null) {
+            result.success(null)
+            return
+        }
+        try {
+            val bytes = contentResolver.openInputStream(uri)?.use { input ->
+                val output = ByteArrayOutputStream()
+                val buffer = ByteArray(8192)
+                var total = 0
+                while (true) {
+                    val count = input.read(buffer)
+                    if (count < 0) break
+                    total += count
+                    if (total > MAX_HISTORY_BYTES) throw IllegalArgumentException("too_large")
+                    output.write(buffer, 0, count)
+                }
+                output.toByteArray()
+            } ?: throw IllegalArgumentException("unreadable")
+            result.success(bytes)
+        } catch (error: Exception) {
+            if (error.message == "too_large") {
+                result.error("history_file_too_large", "The backup file is too large.", null)
+            } else {
+                result.error("history_file_unreadable", "Couldn't read the backup file.", null)
+            }
+        }
+    }
+
+    private fun finishSavingHistory(uri: Uri?) {
+        val result = pendingHistorySaveResult ?: return
+        pendingHistorySaveResult = null
+        val bytes = pendingHistorySaveBytes
+        pendingHistorySaveBytes = null
+        if (uri == null || bytes == null) {
+            result.success(false)
+            return
+        }
+        try {
+            contentResolver.openOutputStream(uri)?.use { it.write(bytes) }
+                ?: throw IllegalArgumentException("unwritable")
+            result.success(true)
+        } catch (error: Exception) {
+            result.error("history_file_save_failed", "Couldn't save the backup file.", null)
         }
     }
 
@@ -154,6 +214,49 @@ class MainActivity : FlutterFragmentActivity() {
                         )
                     )
                     else -> result.notImplemented()
+                }
+            }
+
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "foxyco/history_backup")
+            .setMethodCallHandler { call, result ->
+                if (call.method == "saveCsv") {
+                    if (pendingHistorySaveResult != null || pendingHistoryResult != null) {
+                        result.error("history_picker_busy", "A file picker is already open.", null)
+                        return@setMethodCallHandler
+                    }
+                    pendingHistorySaveBytes = call.argument<ByteArray>("bytes")
+                    pendingHistorySaveResult = result
+                    try {
+                        historySavePicker.launch(call.argument<String>("filename") ?: "FoxyCo_History.csv")
+                    } catch (error: Exception) {
+                        pendingHistorySaveBytes = null
+                        pendingHistorySaveResult = null
+                        result.error("history_picker_failed", "Couldn't open the file picker.", null)
+                    }
+                    return@setMethodCallHandler
+                }
+                if (call.method != "pickCsv") {
+                    result.notImplemented()
+                    return@setMethodCallHandler
+                }
+                if (pendingHistoryResult != null) {
+                    result.error("history_picker_busy", "A file picker is already open.", null)
+                    return@setMethodCallHandler
+                }
+                pendingHistoryResult = result
+                try {
+                    historyPicker.launch(
+                        arrayOf(
+                            "text/csv",
+                            "text/comma-separated-values",
+                            "application/csv",
+                            "text/plain",
+                            "application/vnd.ms-excel",
+                        )
+                    )
+                } catch (error: Exception) {
+                    pendingHistoryResult = null
+                    result.error("history_picker_failed", "Couldn't open the file picker.", null)
                 }
             }
 

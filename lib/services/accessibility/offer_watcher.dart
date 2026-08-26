@@ -142,6 +142,12 @@ class OfferWatcher extends Notifier<Offer?> {
 
   bool _ocrBusy = false;
   bool _ocrMatched = false;
+  int _accessibilityOfferGeneration = 0;
+  bool _uberOcrCardActive = false;
+  String? _pendingOcrCorrectionKey;
+  String? _pendingSuspiciousOcrKey;
+  Offer? _lastUberOffer;
+  DateTime? _lastUberOfferAt;
   DateTime? _lastOcrAt;
   Timer? _ocrRetryTimer;
   String? _pendingOcrPackage;
@@ -197,6 +203,13 @@ class OfferWatcher extends Notifier<Offer?> {
       '${o.platform.name}|${o.payout}|${o.pickupKm.toStringAsFixed(1)}|'
       '${o.totalKm.toStringAsFixed(1)}|${o.totalMinutes.toStringAsFixed(1)}|'
       '${o.deliveryCount}';
+
+  static bool _sameRoute(Offer a, Offer b) =>
+      a.platform == b.platform &&
+      a.pickupKm == b.pickupKm &&
+      a.totalKm == b.totalKm &&
+      a.totalMinutes == b.totalMinutes &&
+      a.deliveryCount == b.deliveryCount;
 
   void _cancelPendingVoice(String reason) {
     _voiceGeneration++;
@@ -278,13 +291,15 @@ class OfferWatcher extends Notifier<Offer?> {
       if (!settings.ocrEnabled || !settings.watches(GigPlatform.uber)) return;
       parser = registry.forPackage(ParserRegistry.uberPackage);
       if (parser == null) return;
-      offer = _uberOcrEvidence.hasMatch(read.texts.join(' '))
+      final joined = read.texts.join(' ');
+      offer = _uberOcrEvidence.hasMatch(joined)
           ? parser.parse(read.texts)
           : null;
       // OCR is fallback evidence for offers only. It must never drive card-exit
       // or outcome inference from an incomplete screenshot.
       if (offer == null) {
-        if (ParserPatterns.hasOfferAction(read.texts)) {
+        if (ParserPatterns.hasOfferAction(read.texts) &&
+            !ParserPatterns.looksLikeBrowse(joined)) {
           ref
               .read(parseHealthProvider.notifier)
               .recordCardMiss(parser.platform);
@@ -300,13 +315,45 @@ class OfferWatcher extends Notifier<Offer?> {
       // selection is narrower. Never let another parser reinterpret a card
       // from a package the driver switched off.
       if (parser != null && !settings.watches(parser.platform)) return;
-      if (kDebugMode && settings.ocrEnabled && settings.ocrTestMode) {
+      final useUberOcr =
+          settings.ocrEnabled && parser?.platform == GigPlatform.uber;
+      final forceCrossAppOcr =
+          kDebugMode && settings.ocrEnabled && settings.ocrTestMode;
+      if (useUberOcr) {
+        final joined = read.texts.join(' ');
+        final accepted = ParserPatterns.looksLikeAcceptedTrip(
+          GigPlatform.uber,
+          read.texts,
+        );
+        final browse = ParserPatterns.looksLikeBrowse(joined);
+        final terminal = accepted || (_uberOcrCardActive && browse);
+        if (read.isActive &&
+            _shownPlatform != null &&
+            _shownPlatform != GigPlatform.uber) {
+          _clearNow();
+        }
+        if (read.isActive && terminal) {
+          // OCR owns Uber offer economics, but Accessibility still owns card
+          // lifecycle and outcomes. Invalidate a screenshot of the card that
+          // just left so it cannot resurrect a dismissed offer.
+          _accessibilityOfferGeneration++;
+          _uberOcrCardActive = false;
+          _pendingOcrCorrectionKey = null;
+          _pendingSuspiciousOcrKey = null;
+        } else if (read.isActive && browse && _ocrBusy) {
+          // A browse frame racing an unfinished first capture is ambiguous:
+          // discard that old screenshot and let the bounded retry confirm.
+          _accessibilityOfferGeneration++;
+        }
+      } else if (forceCrossAppOcr) {
         if (read.isActive &&
             parser != null &&
             settings.watches(parser.platform)) {
           unawaited(_requestOcr(read.packageName));
         }
-        return;
+        // With OCR enabled, Uber offer data comes only from OCR. Test mode may
+        // also trigger from another watched app to exercise Uber-over-Lyft,
+        // but that app keeps its normal low-latency Accessibility parse.
       }
       if (read.texts.isEmpty) {
         if (parser != null) {
@@ -415,7 +462,8 @@ class OfferWatcher extends Notifier<Offer?> {
         // takeable-offer affordance was very likely a REAL offer card we failed
         // to read. Count it: misses with zero successes = stale selectors
         // (surfaced as "Parser health" in Settings).
-        if (ParserPatterns.hasOfferAction(read.texts)) {
+        if (ParserPatterns.hasOfferAction(read.texts) &&
+            !ParserPatterns.looksLikeBrowse(read.texts.join(' '))) {
           ref
               .read(parseHealthProvider.notifier)
               .recordCardMiss(activeParser.platform);
@@ -461,6 +509,64 @@ class OfferWatcher extends Notifier<Offer?> {
       return; // fail safe — show nothing rather than a wrong verdict
     }
 
+    final key = _keyFor(offer);
+    if (read.source == CaptureSource.accessibility && read.isActive) {
+      // A lower Lyft/Hopp card can keep emitting while an Uber card is visibly
+      // stacked above it. Only Uber evidence can invalidate an Uber screenshot.
+      if (offer.platform == GigPlatform.uber) _accessibilityOfferGeneration++;
+      _pendingOcrCorrectionKey = null;
+      _pendingSuspiciousOcrKey = null;
+    } else if (read.source == CaptureSource.ocr &&
+        offer.payout >= 100 &&
+        offer.pricePerKm > 20 &&
+        offer.payout / 100 / offer.totalKm <= 5) {
+      // ML Kit occasionally drops a decimal ('$7.54' -> '$754'). Never score
+      // or persist that first implausible frame; accept it only if it repeats.
+      if (_pendingSuspiciousOcrKey != key) {
+        _pendingSuspiciousOcrKey = key;
+        _ocrMatched = false;
+        ref
+            .read(foxLogProvider)
+            .log(
+              'ocr',
+              'suspicious Uber \$${offer.payout} held — awaiting confirmation',
+            );
+        return;
+      }
+      _pendingSuspiciousOcrKey = null;
+    } else if (read.source == CaptureSource.ocr &&
+        key != _shownKey &&
+        ((_shownPlatform == GigPlatform.uber && state != null) ||
+            (_lastUberOffer != null &&
+                _lastUberOffer!.payout != offer.payout &&
+                _sameRoute(_lastUberOffer!, offer) &&
+                DateTime.now().difference(_lastUberOfferAt!) <
+                    const Duration(seconds: 5)))) {
+      // A card animating away can briefly corrupt distance or payout in ML Kit.
+      // Keep the live verdict until any changed economics repeat once.
+      if (_pendingOcrCorrectionKey != key) {
+        _pendingOcrCorrectionKey = key;
+        _ocrMatched = false; // request one rate-limited confirmation frame
+        ref
+            .read(foxLogProvider)
+            .log(
+              'ocr',
+              'conflict held Uber \$${offer.payout} '
+                  '${offer.totalKm.toStringAsFixed(1)}km — awaiting confirmation',
+            );
+        return;
+      }
+      _pendingOcrCorrectionKey = null;
+    } else if (read.source == CaptureSource.ocr) {
+      _pendingOcrCorrectionKey = null;
+      _pendingSuspiciousOcrKey = null;
+    }
+    if (read.source == CaptureSource.ocr) _uberOcrCardActive = true;
+    if (offer.platform == GigPlatform.uber) {
+      _lastUberOffer = offer;
+      _lastUberOfferAt = DateTime.now();
+    }
+
     // A real offer parsed: whatever transient null we may have seen, the card is
     // on screen, so cancel any pending "offer left" clear — and any pending
     // outcome, which would otherwise land on THIS offer instead of the previous
@@ -472,7 +578,6 @@ class OfferWatcher extends Notifier<Offer?> {
 
     // Flicker guard: the same offer card re-fires events constantly. Only push a
     // pill when the offer actually changes; identical re-parses are no-ops.
-    final key = _keyFor(offer);
     if (key == _shownKey) return;
     // Historical suppression only applies after the pill is gone. While a
     // different offer is active, this is a replacement and must win even if
@@ -512,12 +617,13 @@ class OfferWatcher extends Notifier<Offer?> {
         .read(foxLogProvider)
         .log(
           'parse',
-          '${offer.platform.label} \$${offer.payout} ${offer.totalKm}km → $verdict',
+          '${offer.platform.label} \$${offer.payout} '
+              '${offer.totalKm.toStringAsFixed(1)}km → $verdict',
         );
     if (kDebugMode) {
       debugPrint(
         'FoxyCo[watch] ${offer.platform.label} \$${offer.payout} '
-        '${offer.totalKm}km → $verdict',
+        '${offer.totalKm.toStringAsFixed(1)}km → $verdict',
       );
     }
 
@@ -611,16 +717,44 @@ class OfferWatcher extends Notifier<Offer?> {
     _pendingOcrPackage = null;
     _ocrBusy = true;
     _lastOcrAt = now;
+    final accessibilityGeneration = _accessibilityOfferGeneration;
     var retry = false;
     try {
       final frame = await ref.read(ocrCaptureProvider).capture();
       if (!ref.mounted || frame.lines.isEmpty) {
+        if (ref.mounted) {
+          ref
+              .read(foxLogProvider)
+              .log(
+                'ocr',
+                'capture empty trigger=$packageName '
+                    'active=${frame.packageName.isEmpty ? 'unknown' : frame.packageName} '
+                    'ms=${DateTime.now().difference(now).inMilliseconds}',
+              );
+        }
+        retry = retryOnMiss;
+        return;
+      }
+      if (accessibilityGeneration != _accessibilityOfferGeneration) {
+        ref
+            .read(foxLogProvider)
+            .log(
+              'ocr',
+              'discarded stale result trigger=$packageName '
+                  'active=${frame.packageName.isEmpty ? 'unknown' : frame.packageName}',
+            );
         retry = retryOnMiss;
         return;
       }
       ref
           .read(foxLogProvider)
-          .log('ocr', 'recognized ${frame.lines.length} lines');
+          .log(
+            'ocr',
+            'recognized ${frame.lines.length} lines '
+                'trigger=$packageName '
+                'active=${frame.packageName.isEmpty ? 'unknown' : frame.packageName} '
+                'ms=${DateTime.now().difference(now).inMilliseconds}',
+          );
       _onRead(
         ScreenRead(
           packageName: frame.packageName.isEmpty

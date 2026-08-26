@@ -2,13 +2,11 @@ import 'package:flutter/material.dart';
 
 const accessibilityDisclosureTitle = 'Offer access';
 const accessibilityDisclosureBody =
-    'Uses Android Accessibility to read offer details from Uber Driver, Lyft '
-    'Driver, Hopp Driver, DoorDash Dasher, Instacart Shopper and Skip Courier. '
-    'You choose up to three apps to monitor; delivery-app support is beta and '
-    'off by default. FoxyCo reads selected-app offers only to calculate your '
-    'verdict. Numbers stay on this device; '
-    'raw screen text is not saved or uploaded. FoxyCo cannot tap, accept, '
-    'decline or control any driver app.';
+    'Uses Android Accessibility to read offers from the driver apps you select '
+    'and show a private GOOD, OK or BAD verdict. Choose up to three supported '
+    'apps. Offer numbers stay on this device; raw screen text is not saved or '
+    'uploaded. FoxyCo only reads—it cannot tap, accept, decline or control '
+    'another app.';
 
 Future<bool> showAccessibilityDisclosure(BuildContext context) async =>
     await showDialog<bool>(

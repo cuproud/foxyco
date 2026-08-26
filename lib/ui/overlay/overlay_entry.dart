@@ -255,7 +255,7 @@ class _OverlayRootState extends State<_OverlayRoot> {
               )
             // Not entitled: no verdict, no numbers, just the way to buy them.
             // `entitled` absent or non-true lands here — the overlay's whole
-            // entitlement rule, fail-closed (MONETIZATION §4).
+            // entitlement rule, fail-closed.
             : LockedPill(
                 key: const ValueKey('locked-pill'),
                 onTap: _onLockedTap,

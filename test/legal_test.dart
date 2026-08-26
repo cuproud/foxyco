@@ -37,9 +37,7 @@ void main() {
     final d = FoxLegal.disclaimer.toLowerCase();
     expect(d, contains('not affiliated'));
     expect(d, contains('endorsed'));
-    for (final platform in ['uber', 'lyft', 'hopp']) {
-      expect(d, contains(platform), reason: '$platform must be named');
-    }
+    expect(d, contains('any driver platform'));
   });
 
   test('every legal URL is a real https address', () {

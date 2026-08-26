@@ -101,7 +101,7 @@ void main() {
   });
 
   // The overlay isolate has no Riverpod, no prefs and no clock it trusts, so
-  // this flag is its ENTIRE entitlement rule (MONETIZATION_v1.0 §4). Every case
+  // this flag is its ENTIRE entitlement rule. Every case
   // that isn't a literal `true` must render the locked pill — a patch that
   // strips the flag out of the main isolate has to fail closed.
   group('OverlayPayload.entitled — fails closed', () {

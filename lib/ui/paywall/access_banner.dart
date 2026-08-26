@@ -7,7 +7,7 @@ import '../../services/billing/trial_store.dart';
 import '../theme/tokens.dart';
 import 'paywall_sheet.dart';
 
-/// The trial/unlock strip at the top of Home (MONETIZATION_v1.0 §4, §3.5).
+/// The trial/unlock strip at the top of Home.
 ///
 /// A paid driver sees no banner. During a trial it stays visible as a calm
 /// status indicator, so Home and Settings never appear to disagree about

@@ -105,6 +105,7 @@ void main() {
 
     expect(ocr.starts, 1);
     expect(container.read(dashboardProvider).status, WatchStatus.watching);
+    expect(container.read(settingsProvider).ocrEnabled, isFalse);
   });
 
   test(

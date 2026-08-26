@@ -3,8 +3,7 @@ import 'package:foxyco/services/billing/billing_store.dart';
 import 'package:foxyco/services/billing/entitlement.dart';
 import 'package:foxyco/services/billing/trial_store.dart';
 
-/// The money path: who gets to see a verdict, and who gets asked to pay
-/// (docs/MONETIZATION_v1.0 §3.1–§3.5, §10 acceptance criteria).
+/// The money path: who gets to see a verdict, and who gets asked to pay.
 ///
 /// Both decisions were pulled out as pure functions precisely so this file needs
 /// no Play, no Firebase and no prefs. `debugUnlocked: false` everywhere — these

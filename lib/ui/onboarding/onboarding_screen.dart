@@ -13,8 +13,8 @@ import '../settings/settings_controller.dart';
 import '../theme/tokens.dart';
 import 'onboarding_gate.dart';
 
-/// First-run walkthrough (UI_DESIGN §5.1) — earns the two scary permissions
-/// honestly, per Play accessibility policy (AUDIT #1/#2).
+/// First-run walkthrough that explains the two sensitive permissions before
+/// requesting them.
 ///
 /// Five swipeable pages: meet FoxyCo → pick a threshold preset → understand
 /// the trial/lifetime unlock → overlay grant → accessibility grant. The preset
@@ -277,13 +277,14 @@ class _BillingPromise extends StatelessWidget {
       border: Border.all(color: FoxColors.brandFox.withValues(alpha: 0.28)),
     ),
     child: const Row(
-      mainAxisSize: MainAxisSize.min,
       children: [
         Icon(Icons.all_inclusive_rounded, size: 17, color: FoxColors.brandFox),
         SizedBox(width: Gap.sm),
-        Text(
-          'Lifetime unlock · no recurring fees',
-          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
+        Flexible(
+          child: Text(
+            'Lifetime unlock · no recurring fees',
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
+          ),
         ),
       ],
     ),

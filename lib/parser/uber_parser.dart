@@ -3,7 +3,7 @@ import '../domain/distance_unit.dart';
 import '../domain/platform.dart';
 import 'offer_parser.dart';
 
-/// Reads an Uber Driver offer card (docs/REFERENCE_ANALYSIS "Uber offer card").
+/// Reads an Uber Driver offer card.
 ///
 /// Anchors, on the joined node text:
 ///   • payout — first `$N` (the huge top-left number). Uber pay is **gross**.
@@ -16,7 +16,7 @@ import 'offer_parser.dart';
 /// browse markers, so the home/online map (which has neither an `away` nor a
 /// `trip` row) can't be mistaken for an offer. If the trip row is missing we
 /// bail to `null` (fail safe) — the acceptance-rate gate hides the upfront
-/// numbers entirely (AUDIT #3, ROADMAP M3).
+/// numbers entirely.
 class UberParser implements OfferParser {
   const UberParser();
 
@@ -107,8 +107,10 @@ class UberParser implements OfferParser {
   Offer? parse(List<String> nodeTexts) {
     final joined = nodeTexts.join(' ');
 
-    // Contract gate: a real offer is takeable (Accept) and isn't a browse map.
-    if (!ParserPatterns.hasAcceptAction(nodeTexts)) return null;
+    // OCR can miss the dark Accept/Match button. Uber tier + payout + its
+    // labelled away/trip rows are still a complete, platform-specific card.
+    final hasUberTier = _tiers.values.any((tier) => tier.hasMatch(joined));
+    if (!ParserPatterns.hasAcceptAction(nodeTexts) && !hasUberTier) return null;
     if (ParserPatterns.looksLikeBrowse(joined)) return null;
 
     final payout = ParserPatterns.findPayout(nodeTexts);

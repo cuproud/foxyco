@@ -3,13 +3,13 @@ import '../domain/distance_unit.dart';
 import '../domain/platform.dart';
 
 /// One platform's rule for turning a screen's text into an [Offer]. Pure Dart —
-/// fed the accessibility node texts, tuned against the layouts in
-/// docs/REFERENCE_ANALYSIS.md, and unit-tested with captured fixtures.
+/// fed the accessibility node texts, tuned against observed offer layouts,
+/// and unit-tested with captured fixtures.
 ///
 /// **Fail safe is the contract:** return `null` whenever confidence is low
 /// (a field is missing, the layout changed, the offer half-rendered). A `null`
 /// shows nothing; a wrong `Offer` shows a confident wrong verdict, which is
-/// worse than silence (AUDIT #3). Every parser is tagged with the app version
+/// worse than silence. Every parser is tagged with the app version
 /// it was tuned against so a break is easy to date and re-tune.
 abstract interface class OfferParser {
   /// Which app this parser reads. The registry dispatches by foreground package.
@@ -57,7 +57,7 @@ class ParserPatterns {
     caseSensitive: false,
   );
   static final _excludedAmountAfter = RegExp(
-    r'^\s*(?:/\s*hr|per\s*hr|toll|fee|tip|bonus|surge|extra|quest|'
+    r'^\s*(?:km\b|mi\b|miles?\b|/\s*hr|per\s*hr|toll|fee|tip|bonus|surge|extra|quest|'
     r'promotions?)\b',
     caseSensitive: false,
   );

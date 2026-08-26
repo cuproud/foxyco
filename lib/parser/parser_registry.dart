@@ -10,7 +10,7 @@ import '../domain/platform.dart';
 /// Maps a foreground Android package name to the parser that reads it.
 ///
 /// The accessibility service is already scoped to these packages in
-/// `res/xml/accessibility_service_config.xml`, so this is the second, in-Dart
+/// `res/xml/accessibilityservice.xml`, so this is the second, in-Dart
 /// gate: an event from anything not listed here resolves to `null` and is
 /// dropped. Adding a platform (M6) = one line here + one `OfferParser` impl,
 /// with zero changes to the engine or overlay.

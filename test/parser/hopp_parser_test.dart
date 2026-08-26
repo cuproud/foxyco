@@ -2,8 +2,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:foxyco/domain/platform.dart';
 import 'package:foxyco/parser/hopp_parser.dart';
 
-/// Fixtures from the real Hopp layouts (references/Hopp.jpg, references/new (2).jpg
-/// — docs/REFERENCE_ANALYSIS). Hopp doesn't label the two legs away/trip, so the
+/// Fixtures from observed Hopp layouts. Hopp doesn't label the two legs
+/// away/trip, so the
 /// parser relies on view ORDER: first leg = pickup, last = dropoff.
 void main() {
   const parser = HoppParser();

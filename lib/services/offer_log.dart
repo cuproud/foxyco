@@ -7,8 +7,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../domain/fox_settings.dart';
 import '../domain/offer_summary.dart';
+import '../domain/platform.dart';
 import '../domain/verdict.dart';
 import 'fox_log.dart';
+import 'history_backup.dart';
 import '../ui/home/dashboard_state.dart' show Tally;
 import '../ui/settings/settings_controller.dart';
 
@@ -30,6 +32,8 @@ class OfferLog extends Notifier<List<OfferSummary>> {
   /// "forever" retention. Oldest entries fall off first.
   static const maxEntries = 2000;
   final Completer<void> _loaded = Completer<void>();
+
+  Future<void> get ready => _loaded.future;
 
   @protected
   Future<SharedPreferences> preferences() => SharedPreferences.getInstance();
@@ -81,7 +85,7 @@ class OfferLog extends Notifier<List<OfferSummary>> {
       // Keep those live rows and fold the older disk history behind them.
       state = [...state, ...list]..sort((a, b) => b.seenAt.compareTo(a.seenAt));
       final beforeDedupe = state.length;
-      state = _collapseAcceptedDuplicates(state);
+      state = _collapseOcrCorrections(_collapseAcceptedDuplicates(state));
       if (state.length > maxEntries) {
         state = state.take(maxEntries).toList();
       }
@@ -133,6 +137,94 @@ class OfferLog extends Notifier<List<OfferSummary>> {
     }
   }
 
+  Future<void> _writeSnapshot(List<OfferSummary> entries) async {
+    await _loaded.future;
+    if (!ref.mounted) throw StateError('Offer history is no longer active.');
+    final prefs = await preferences();
+    if (!await prefs.setString(
+      _prefsKey,
+      jsonEncode(entries.map((o) => o.toJson()).toList()),
+    )) {
+      throw StateError('Offer history could not be saved.');
+    }
+  }
+
+  /// Restores a validated backup as one atomic state transition.
+  Future<HistoryImportResult> importHistory(
+    List<OfferSummary> imported, {
+    HistoryImportMode mode = HistoryImportMode.merge,
+  }) async {
+    await _loaded.future;
+    _saveTimer?.cancel();
+    _saveTimer = null;
+    final previous = state;
+    final next = mode == HistoryImportMode.replace
+        ? imported.take(maxEntries).toList()
+        : _mergeHistory(previous, imported);
+    next.sort((a, b) => b.seenAt.compareTo(a.seenAt));
+    final added = next.length - previous.length;
+    state = next;
+    try {
+      await _writeSnapshot(next);
+    } catch (_) {
+      state = previous;
+      rethrow;
+    }
+    return HistoryImportResult(
+      imported: imported.length,
+      added: mode == HistoryImportMode.replace ? next.length : added,
+      total: next.length,
+    );
+  }
+
+  static List<OfferSummary> _mergeHistory(
+    List<OfferSummary> local,
+    List<OfferSummary> imported,
+  ) {
+    final result = [...local];
+    for (final incoming in imported) {
+      final index = result.indexWhere(
+        (existing) =>
+            existing.seenAt == incoming.seenAt && existing.sameCardAs(incoming),
+      );
+      if (index < 0) {
+        result.add(incoming);
+        continue;
+      }
+      final existing = result[index];
+      result[index] = OfferSummary(
+        platform: existing.platform,
+        verdict: existing.verdict == Verdict.unknown
+            ? incoming.verdict
+            : existing.verdict,
+        payout: existing.payout,
+        finalPayout: existing.finalPayout ?? incoming.finalPayout,
+        bonus: existing.bonus == 0 ? incoming.bonus : existing.bonus,
+        pickupKm: existing.pickupKm,
+        totalKm: existing.totalKm,
+        totalMinutes: existing.totalMinutes,
+        seenAt: existing.seenAt,
+        outcome: existing.outcomeIsManual
+            ? existing.outcome
+            : incoming.outcomeIsManual
+            ? incoming.outcome
+            : existing.outcome == OfferOutcome.unknown
+            ? incoming.outcome
+            : existing.outcome,
+        outcomeIsManual: existing.outcomeIsManual || incoming.outcomeIsManual,
+        detectedOutcome: existing.detectedOutcome ?? incoming.detectedOutcome,
+        scoringSnapshot: existing.scoringSnapshot ?? incoming.scoringSnapshot,
+        category: existing.category ?? incoming.category,
+        isQueued: existing.isQueued || incoming.isQueued,
+        deliveryCount: existing.deliveryCount,
+        itemCount: existing.itemCount,
+        unitCount: existing.unitCount,
+      );
+    }
+    if (result.length > maxEntries) return result.take(maxEntries).toList();
+    return result;
+  }
+
   /// How long the same card stays "the offer we already logged". Covers a full
   /// flicker cycle (clear grace + a re-parse) with room to spare, while staying
   /// short enough that a genuinely new offer can't be swallowed — it would have
@@ -166,6 +258,41 @@ class OfferLog extends Notifier<List<OfferSummary>> {
       } else if (result[duplicate].finalPayout == null &&
           offer.finalPayout != null) {
         result[duplicate] = offer;
+      }
+    }
+    return result;
+  }
+
+  static bool _sameLikelyOcrCorrection(OfferSummary a, OfferSummary b) {
+    final smaller = a.payout < b.payout ? a.payout : b.payout;
+    final larger = a.payout < b.payout ? b.payout : a.payout;
+    return a.platform == GigPlatform.uber &&
+        b.platform == GigPlatform.uber &&
+        ((larger - smaller * 100).abs() < 0.001 ||
+            (a.payout - a.pickupKm).abs() < 0.001 ||
+            (b.payout - b.pickupKm).abs() < 0.001) &&
+        a.pickupKm == b.pickupKm &&
+        a.totalKm == b.totalKm &&
+        a.totalMinutes == b.totalMinutes &&
+        a.deliveryCount == b.deliveryCount &&
+        a.seenAt.difference(b.seenAt).abs() < const Duration(seconds: 30);
+  }
+
+  static List<OfferSummary> _collapseOcrCorrections(List<OfferSummary> offers) {
+    final result = <OfferSummary>[];
+    for (final offer in offers) {
+      final duplicate = result.indexWhere(
+        (seen) => _sameLikelyOcrCorrection(seen, offer),
+      );
+      if (duplicate < 0) {
+        result.add(offer);
+      } else {
+        final seen = result[duplicate];
+        final seenIsDistance = (seen.payout - seen.pickupKm).abs() < 0.001;
+        final offerIsDistance = (offer.payout - offer.pickupKm).abs() < 0.001;
+        if (seenIsDistance || !offerIsDistance && offer.payout < seen.payout) {
+          result[duplicate] = offer;
+        }
       }
     }
     return result;

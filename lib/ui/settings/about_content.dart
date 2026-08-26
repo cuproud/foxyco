@@ -36,7 +36,7 @@ const aboutIntro =
 
 /// Version string. Kept as a plain const rather than adding a native plugin for
 /// one label; `about_content_test.dart` guards it against `pubspec.yaml` drift.
-const aboutVersion = '1.0.10 (build 86)';
+const aboutVersion = '1.0.10 (build 90)';
 
 const aboutSections = <AboutSection>[
   AboutSection(
@@ -79,9 +79,8 @@ const aboutSections = <AboutSection>[
       AboutEntry(
         'Does the bubble show on my lock screen?',
         'No. FoxyCo hides the bubble and the pill whenever the screen goes off '
-            'or the phone is locked, and brings them back when you unlock. The '
-            'watcher keeps running underneath, so an offer that arrives while '
-            'the phone is locked is still scored and logged.',
+            'or the phone is locked, and brings them back when you unlock. An '
+            'offer shown only while the phone is locked may not be read.',
       ),
       AboutEntry(
         'How does FoxyCo detect accepted offers?',
@@ -194,14 +193,19 @@ const aboutSections = <AboutSection>[
       ),
       AboutEntry(
         'What is Uber screen-reading fallback?',
-        'Optional OCR for Uber offer cards Accessibility cannot read. It is '
-            'off by default and Accessibility always runs first for every app. '
-            'Other platforms use Accessibility text only. If enabled, '
+        'Optional OCR for Uber offer cards Android may hide from Accessibility. '
+            'It is off by default. When enabled, Uber verdicts use OCR while '
+            'other supported offers use Accessibility text only. '
+            'Because Uber can draw a request over another selected driver app, '
+            'that app\'s screen-change event may trigger one frame, but recognized '
+            'text is accepted only by the Uber parser. If enabled, '
             'Android 11 and newer can take one Accessibility screenshot only '
-            'after a watched-app event indicates a visible Uber card may be unreadable. There is no '
+            'after an active selected-app event that may correspond to a visible '
+            'Uber offer. There is no '
             'continuous recording or screen-sharing session. The frame is '
             'recognized on-device, immediately cleared, and never saved, '
-            'uploaded or written to FoxyCo logs.',
+            'uploaded or written to FoxyCo logs. Accessibility remains enabled '
+            'to receive watched-app events and provide screenshot access.',
       ),
       AboutEntry(
         'Does offer data leave my phone?',
@@ -209,6 +213,13 @@ const aboutSections = <AboutSection>[
             'uploaded or shared. Extracted pay, distance, duration, platform '
             'and verdict may be saved only in FoxyCo\'s private local history. '
             'Firebase never receives offer text, offer history or earnings.',
+      ),
+      AboutEntry(
+        'How do I back up or restore offer history?',
+        'In Settings → History, choose Export history backup to create a local '
+            'file. Import history backup validates it first, then lets you Merge '
+            'or Replace. Manual outcomes, final payouts, and scoring details '
+            'are preserved; settings and session summaries are not included.',
       ),
     ],
   ),

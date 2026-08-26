@@ -30,7 +30,7 @@ void main() async {
       systemNavigationBarIconBrightness: Brightness.light,
     ),
   );
-  // Firebase backs the unresettable trial and nothing else (MONETIZATION §3.3):
+  // Firebase backs the unresettable trial and nothing else:
   // one anonymous auth session and one trial timestamp. Fails SOFT — a missing
   // google-services.json or a dead network must never stop the app booting, so
   // entitlement falls back to the cached verdict and, once the offline grace

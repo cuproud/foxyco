@@ -193,7 +193,16 @@ public class AccessibilityListener extends AccessibilityService {
                 return;
             }
             String nodeId = generateNodeId(parentNodeInfo);
-            String packageName = parentNodeInfo.getPackageName().toString();
+            String rootPackageName = String.valueOf(parentNodeInfo.getPackageName());
+            CharSequence eventPackage = accessibilityEvent.getPackageName();
+            // An Uber overlay event can outlive its source node while Lyft is
+            // still the active root. Keep the event's package and emit an empty
+            // Uber frame instead of mislabelling Lyft text; Dart then requests
+            // the opt-in Uber-only OCR fallback without waiting for an app switch.
+            String packageName = eventPackage == null || eventPackage.length() == 0
+                    ? rootPackageName
+                    : eventPackage.toString();
+            boolean rootMatchesEvent = packageName.equals(rootPackageName);
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
                 windowInfo = parentNodeInfo.getWindow();
             }
@@ -221,7 +230,7 @@ public class AccessibilityListener extends AccessibilityService {
             if (parentText == null || parentText.length() == 0) {
                 parentText = parentNodeInfo.getContentDescription();
             }
-            if (parentText != null) {
+            if (rootMatchesEvent && parentText != null) {
                 data.put("capturedText", parentText.toString());
             }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR2) {
@@ -235,7 +244,7 @@ public class AccessibilityListener extends AccessibilityService {
                     collectSamePackageWindows(subNodeActions, packageName);
             // Some OEMs do not expose interactive windows for every event. Keep
             // the source/root walk as a compatibility fallback only.
-            if (windowSnapshots.isEmpty()) {
+            if (windowSnapshots.isEmpty() && rootMatchesEvent) {
                 getSubNodes(parentNodeInfo, subNodeActions, traversedNodes, 0);
                 AccessibilityNodeInfo activeRoot = getRootInActiveWindow();
                 if (activeRoot != null

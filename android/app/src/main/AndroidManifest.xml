@@ -5,11 +5,10 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
-    <!-- INTERNET: added 2026-07-28 for the unresettable trial + Play Billing
-         (MONETIZATION_v1.0 §5). Reverses the earlier no-network stance. Only
+    <!-- INTERNET is used for the unresettable trial + Play Billing. Only
          Firebase Auth (sign-in) and one Firestore timestamp cross the wire —
          no offer, location or analytics data ever leaves the device, which is
-         what the store listing and privacy policy now claim (AUDIT #5). -->
+         what the store listing and privacy policy claim. -->
     <uses-permission android:name="android.permission.INTERNET" />
 
     <application
@@ -58,15 +57,12 @@
             android:foregroundServiceType="specialUse">
             <property
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
-                android:value="Shows a driver's gig-offer verdict over Uber, Hopp, or Lyft." />
+                android:value="Shows a driver's offer verdict over a selected supported gig app." />
         </service>
 
-        <!-- Accessibility service (flutter_accessibility_service, M3). Reads the
-             on-screen offer text from Uber/Hopp/Lyft so FoxyCo can score it. Its
-             opt-in Uber OCR fallback can take one memory-only screenshot on Android 11+
-             when node text is incomplete. Scoped to those three packages and
-             READ-ONLY via @xml/accessibilityservice; the description there is the
-             Play-required rationale (AUDIT #1). -->
+        <!-- Reads offer text from selected supported apps. Optional Uber OCR can
+             take one memory-only screenshot on Android 11+. Package-scoped and
+             read-only via @xml/accessibilityservice. -->
         <service
             android:name="slayer.accessibility.service.flutter_accessibility_service.AccessibilityListener"
             android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"

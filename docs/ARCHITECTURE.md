@@ -1,269 +1,108 @@
-# FoxyCo — Architecture
+# Architecture
 
-Clean Architecture, layered, feature-first. The rule that pays off later: **business logic never
-depends on Flutter, Android, or any plugin.** The `DecisionEngine` must be a plain Dart function you
-can unit-test with `dart test` — no device, no emulator. Everything else plugs into it.
+Updated 2026-08-26 for `1.0.10+90`.
 
----
+## Boundaries
 
-## Layer layout
-
-Flutter doesn't force compiler-level module boundaries the way Gradle modules do, so we enforce
-them by **directory + dependency discipline** (optionally split into local packages under
-`packages/` later if we want the compiler to police it). Layers, innermost → outermost:
-
-```
-lib/
-├── domain/        → Offer, Verdict, Thresholds, DecisionEngine, platform metadata, snapshots. PURE DART. no Flutter, no plugins.
-├── data/          → Drift DB, SharedPreferences/settings, repositories (implement domain interfaces)
-├── parser/        → OfferParser interface + one parser per supported platform. Pure Dart.
-├── services/
-│   ├── overlay/       → OverlayController — wraps flutter_overlay_window (pill + bubble)
-│   └── accessibility/ → AccessibilityWatcher — wraps flutter_accessibility_service, feeds :parser
-├── ui/
-│   ├── theme/         → design tokens, colors, typography (one source of truth)
-│   ├── home/          → home screen + controller
-│   ├── settings/      → settings screen + controller
-│   ├── onboarding/    → permission walkthrough
-│   └── overlay/       → the pill + bubble widgets (rendered in the overlay isolate)
-└── main.dart      → app entry, Riverpod ProviderScope, go_router, wiring only
+```text
+Android Accessibility event
+  ├─ complete selected-app nodes → matching parser
+  └─ incomplete Uber nodes + OCR approved
+       → one rate-limited in-memory screenshot → Uber parser
+                                      ↓
+                              DecisionEngine (pure Dart)
+                                      ↓
+                  overlay + local history + optional voice verdict
 ```
 
-Dependency direction (arrows = "depends on"):
+- `lib/domain/` contains models and scoring logic with no Flutter or plugin
+  imports.
+- `lib/parser/` contains conservative, platform-specific parsers and registry
+  routing.
+- `lib/services/accessibility/` owns capture, deduplication, stale-result
+  rejection, outcome inference, logging, and the parse-to-verdict handoff.
+- `lib/services/overlay_service.dart` and `lib/ui/overlay/` own the separate
+  overlay isolate and its small serialized payload.
+- `lib/ui/` contains screens and Riverpod controllers.
+- `third_party/` contains the two intentionally vendored Android plugin forks.
 
-```
-main → ui → domain
-main → services/overlay → domain
-main → services/accessibility → parser → domain
-data → domain
-ui, services, parser → data (repositories only, via domain interfaces)
-domain → nothing
-```
+## Offer routing
 
-If `domain/` ever imports `package:flutter/*` or any plugin, the design is broken. That's the one
-hard rule. (A quick `grep -r "package:flutter" lib/domain` in CI keeps us honest.)
+Accessibility is the primary source for every platform, including Uber. Uber
+OCR is an opt-in fallback only when a card's protected or custom-rendered window
+exposes incomplete nodes. Accessibility still supplies event origin, screenshot
+access, card lifecycle, and outcome evidence. An Uber request drawn over another
+selected app keeps its Uber origin, and lower Lyft/Hopp events do not invalidate
+the visibly stacked Uber screenshot. Uber lifecycle evidence still rejects a
+stale result after its card leaves.
 
----
+OCR payout changes are confirmed before replacing a live or just-cleared Uber
+offer. A first implausible dropped-decimal value is never scored or persisted;
+complete Uber economics remain sufficient when OCR misses the dark Match/Accept
+button.
 
-## Data flow (MVP)
+Other supported offers use Accessibility text. Events are statically limited
+to known package names in `android/app/src/main/res/xml/accessibilityservice.xml`
+and filtered again by the driver's selected apps before parsing. Adding a
+platform requires metadata, explicit package scope, parser fixtures, and device
+validation; user-facing copy therefore refers generically to supported apps.
 
-```
-AccessibilityWatcher (watched-app window event + two bounded native re-reads)
-   │  receives screen nodes (text/content description + bounds)
-│  if an active frame is empty/incomplete and Uber OCR is opted in
-   ├──── AccessibilityService.takeScreenshot (Android 11+, bundled ML Kit)
-   │       ├── redacts FoxyCo's overlay rectangle in memory before OCR
-│       └── Uber parser only; pixels discarded, never persisted
-   ▼
-ParserRegistry.candidates(sourcePackage).parse(nodes) : Offer? [parser]
-   │  Offer(payout: 10.55, pickupKm: 0.8, dropoffKm: 4.3, platform: uber)
-   ▼
-DecisionEngine.scoreOffer(offer, settings) : Verdict   [domain, pure]
-   │  totalKm = 5.1, $/km = 2.07 → GOOD
-   ▼
-OfferWatcher finalizes identity, snapshot, and verdict [services/accessibility]
-   ▼
-OverlayController.show(offer, verdict)           [services/overlay]
-   │  draws pill + updates bubble color (flutter_overlay_window)
-   ▼
-OfferRepository.log(offer, verdict, DateTime.now())   [data, Drift] → home tally
-```
+## Persistence
 
-> **Isolate note (Flutter-specific):** `flutter_overlay_window` renders the pill/bubble in a
-> **separate overlay entrypoint** (`@pragma('vm:entry-point')`), which runs in its own isolate — it
-> does **not** share memory with the main UI isolate. Cross-isolate messages
-> (`shareData` / `overlayListener`) carry the verdict payload across. Keep that payload a tiny
-> plain map (`{verdict, totalKm, payout}`), not a live object graph. This is the single biggest
-> structural difference from a native Kotlin build — plan the boundary, don't fight it.
+SharedPreferences stores settings, garage/reminders, offer history, and session
+summaries as version-tolerant JSON. An offer record preserves:
 
----
+- captured payout, bonus, pickup/drop-off distance, duration, workload, app,
+  category, queue state, verdict, timestamp, and scoring snapshot;
+- detected outcome separately from a manual outcome correction; and
+- original payout separately from a manually entered final payout.
 
-## Core models (`domain/`)
+Manual corrections win over later inference. History is capped and retention
+can be configured. Android backup and data extraction are disabled.
 
-```dart
-enum GigPlatform { uber, uberEats, lyft, hopp, doorDash, instacart }
+History hydration collapses the two known OCR correction signatures: a dropped
+payout decimal (`$7.54`/`$754`) and pickup distance misread as payout. The
+corrected row drives tallies and analytics.
 
-enum Verdict { good, ok, bad }
+CSV history backup is versioned and locale-independent. Human-readable columns
+are accompanied by authoritative per-row JSON, preserving every `OfferSummary`
+field (including manual outcomes, final payouts, detected outcomes, and scoring
+snapshots). Import validates the whole file, then atomically merges or replaces
+history; merge never overwrites local manual corrections. Settings and session
+summaries are intentionally outside this offer-history backup.
 
-class Offer {
-  final double payout;      // dollars
-  final double pickupKm;
-  final double dropoffKm;
-  final GigPlatform platform;
-  final int deliveryCount; // delivery orders; zero for rides
-  final int itemCount;     // optional delivery workload
-  final int unitCount;     // optional Instacart workload
-  final bool payIsNet;      // Hopp = true (net), Uber = false (gross)
-  final String? rawText;    // for debugging the parser
+## Privacy and security
 
-  const Offer({
-    required this.payout,
-    required this.pickupKm,
-    required this.dropoffKm,
-    required this.platform,
-    this.payIsNet = false,
-    this.rawText,
-  });
+- Raw Accessibility text, OCR text, and screenshots are memory-only.
+- The overlay rectangle is redacted before OCR; bitmap buffers are cleared.
+- Diagnostic logs contain parser shapes, timings, package identity, and parsed
+  economics, never raw text or screenshots.
+- Feedback attachments are selected and sent only by the user through an email
+  app; temporary files are constrained to the app cache.
+- Firebase stores authentication/trial state only. Firestore rules are
+  owner-scoped, server-stamped, write-once, and default-deny.
+- Google Play handles card data. Purchase verification fails closed without
+  the Play public key.
+- No analytics or location collection exists.
 
-  double get totalKm => pickupKm + dropoffKm;
-  double get pricePerKm => totalKm > 0 ? payout / totalKm : 0;
-}
+The Accessibility service is read-only, package-scoped, and declares
+`android:isAccessibilityTool="false"`. The permission still requires Google
+Play's declaration, prominent disclosure, consent flow, and review video.
 
-class Thresholds {
-  final double goodAtOrAbove; // $/km
-  final double badBelow;      // $/km
-  const Thresholds({required this.goodAtOrAbove, required this.badBelow});
-}
+## Platform and UI
 
-class DecisionEngine {
-  const DecisionEngine();
+- Android 8.0+ (`minSdk 26`); Android-only because the overlay and cross-app
+  reading model is not available on iOS.
+- Flutter Material 3, Riverpod, and go_router.
+- System text scale plus the in-app text multiplier is capped at 2×; focused
+  widget tests cover narrow screens, large text, scrollability, and overlay
+  geometry.
+- The overlay runs in its own isolate; only small serialized verdict payloads
+  cross the boundary.
 
-  Verdict evaluate(Offer offer, Thresholds t) {
-    final ppk = offer.pricePerKm;
-    if (ppk >= t.goodAtOrAbove) return Verdict.good;
-    if (ppk < t.badBelow) return Verdict.bad;
-    return Verdict.ok;
-  }
-}
-```
+## Verification rule
 
-That's the whole brain for MVP. Everything else is plumbing and pixels.
-
-> Extension point: later, swap the naive `pricePerKm` verdict for a `ProfitEngine` that subtracts
-> fuel/wear/tax and returns net $/hr. `DecisionEngine.evaluate` keeps the same signature — only the
-> inputs get richer. No caller changes. `payIsNet` already lets us treat Hopp (net) vs Uber (gross)
-> correctly when that lands.
-
----
-
-## State management & navigation
-
-| Concern | Choice | Why |
-|---|---|---|
-| State management | **Riverpod** (`flutter_riverpod`) | Compile-safe DI + reactive state, testable without widgets. Replaces Hilt+ViewModel from the native plan. |
-| Navigation | **go_router** | Declarative routes, deep-link ready, simple for our ~4 screens. |
-| Async | Dart `Future` / `Stream` / `async*` | Native to the language; no extra lib. Streams replace Kotlin Flow. |
-| Immutability/models | plain classes now; **freezed** if boilerplate grows | Don't add codegen until it hurts. |
-
-Riverpod providers are the seams: `decisionEngineProvider`, `thresholdsProvider` (from settings),
-`offerRepositoryProvider`, `overlayControllerProvider`. Swap any for a fake in tests.
-
----
-
-## Persistence (`data/`)
-
-- **SharedPreferences** (via a `SettingsRepository`) — settings: thresholds, unit (km/mi), pill
-  size, pill/bubble position, overlay timeout, active platforms. Simple key/values.
-- **Offer history/session storage** — persisted offer-time scoring snapshots, detected and final
-  outcomes plus manual-correction metadata, captured offer economics, and conservative session
-  summaries. Legacy records load with safe Unknown/legacy behavior when fields are absent.
-- Offer history preserves the upfront payout and an optional editable final payout. Derived payout,
-  $/km, and $/hr values use the final payout when present without discarding the original offer.
-- Session earnings total accepted or completed offers, using each offer's effective payout. Editable
-  actual session totals remain separate, and session $/hr uses elapsed session duration.
-
-## Current platform and verdict boundaries
-
-`GigPlatform` metadata is separate from parser capability. A platform may have a display name,
-icon, color, package identifiers, and settings presence without being production parser-supported.
-`ParserRegistry` exposes Uber, Lyft and Hopp production parsers plus conservative DoorDash,
-Instacart and Skip beta parsers. The delivery parsers live in separate files and reuse the same capture,
-OCR, scoring, overlay and History pipeline. Adding metadata alone still does not imply parser
-support. UI platform lists and History filters are data-driven.
-
-Users select one to three watched apps. Uber, Lyft and Hopp are the fresh-install defaults;
-DoorDash, Instacart and Skip are labelled Beta and off by default. The selection persists. Android's
-Accessibility service is statically scoped to all six packages, then `OfferWatcher` immediately
-drops events from deselected packages before parsing.
-
-Ride and delivery economics are separate settings profiles. `DecisionEngine` chooses the profile
-from `Offer.rulesPlatform`; an Uber Eats card remains under the single Uber app selection but uses
-delivery rules, while Uber rides use ride rules. The Delivery rules card stays visible and is enabled
-when Uber or a dedicated delivery app is watched. Delivery cards without a trustworthy duration
-fall back to the delivery distance thresholds. Historical rows store the scoring snapshot that
-produced their verdict.
-
-`OfferWatcher` owns the capture-to-verdict handoff: it considers candidates from watched platform
-parsers, builds a stable identity, rejects incomplete/duplicate/suppressed identities, scores once,
-stores the scoring snapshot, and passes that finalized verdict to the overlay. Voice announcements
-are scheduled from the same identity/verdict and invalidated when the offer is replaced or cleared.
-GOOD voice announcements require both configured GOOD thresholds when both distance and duration
-are available; changing either rule changes the announcement decision.
-
-The overlay remains one shared system. Bubble appearance is a persisted `BubbleStyle` choice
-(Cool Fox, FoxyCo, or Fox Paw) resolved by the same bubble container; it does not affect pill
-geometry, verdict semantics, platform handling, or position persistence.
-
-Main-app typography is a persisted Small/Medium/Large multiplier applied above the system text
-scale and capped at 2×. The overlay isolate does not consume it; pill geometry remains controlled
-only by Pill size.
-
----
-
-## Tech stack (locked)
-
-| Concern | Choice |
-|---|---|
-| Framework | Flutter (stable channel) |
-| Language | Dart |
-| UI | Flutter widgets + Material 3 (`useMaterial3: true`) |
-| Arch | Clean Architecture + feature-first layers |
-| State / DI | Riverpod |
-| Navigation | go_router |
-| DB | Drift (SQLite) |
-| Settings | SharedPreferences |
-| Async | Future / Stream |
-| Overlay (native) | `flutter_overlay_window` |
-| Accessibility read (native) | `flutter_accessibility_service` |
-| Permissions | `permission_handler` |
-| Min SDK | 26 (Android 8 — needed for `TYPE_APPLICATION_OVERLAY`, which the overlay plugin uses) |
-| Target SDK | 35 |
-
-Deferred deps (don't add until their milestone): `google_maps_flutter`, `camera`, and
-`fl_chart` (analytics). OCR uses the native bundled ML Kit dependency above; no Dart OCR
-package or camera permission is needed.
-
-> **iOS:** out of scope. Even though Flutter *can* target iOS, Apple blocks system overlays and
-> accessibility automation of other apps — the two things FoxyCo is built on. Android-only, like
-> Maxymo. The Flutter codebase keeps a *theoretical* future door open (screens would port), but the
-> core features never will on iOS. Don't spend a minute on it.
-
----
-
-## Design tokens (full visual language in UI_DESIGN.md)
-
-The **semantic** verdict tokens are fixed now so overlay + screens share one source of truth,
-living in `ui/theme/`:
-
-```dart
-// ui/theme/tokens.dart
-class VerdictColors {
-  static const good = Color(0xFF2ED573); // green — "the good one"
-  static const ok   = Color(0xFFFFB020); // amber
-  static const bad  = Color(0xFFFF4757); // red
-}
-```
-
-- **Dark-first** — drivers work at night; default to a true-dark/OLED theme.
-- **Glanceability** — verdict readable in <0.5 s at arm's length in sunlight. Color + word + icon,
-  never color alone (colorblind-safe).
-- **Motion** — subtle only: fade in/out, number count-up, elevation. Never block the verdict behind
-  an animation. Performance > flourish.
-- **Large touch targets** — 48 dp min; the driver is moving.
-
-Full screen designs, component specs, spacing scale, and typography are in
-[`UI_DESIGN.md`](UI_DESIGN.md). Keep every token in `ui/theme/` so the M5 visual lock is a token
-swap, not a rewrite.
-
----
-
-## Testing strategy
-
-- `domain/` — `dart test`, 100% of DecisionEngine branches. Fast, no Flutter binding.
-- `parser/` — feed captured node fixtures (text + bounds), assert `Offer`. Add a fixture every time
-  a real offer format changes.
-- `ui/` — `flutter_test` widget tests for home/settings; golden tests for the pill (its whole job is
-  to look right at a glance).
-- `services/overlay` + `services/accessibility` — manual + integration smoke tests on a real device
-  (plugin behavior can't be unit-tested off-device).
-- Rule: any non-trivial logic ships with one runnable check. No framework sprawl.
+Every release candidate must pass Flutter analysis/tests, Firestore rules
+tests, Android release lint, a signed release build, and the real-device matrix
+in `MANUAL_TESTS.md`. Parser correctness and overlay behavior cannot be proven
+by host tests alone.

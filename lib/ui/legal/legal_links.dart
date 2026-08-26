@@ -25,11 +25,10 @@ class FoxLegal {
   static const privacy = '$_base/privacy.html';
   static const deleteAccount = '$_base/delete-account.html';
 
-  /// Platform names are other companies' trademarks; never imply endorsement.
   static const disclaimer =
       'FoxyCo is an independent app. It is not affiliated with, authorised by '
-      'or endorsed by Uber, Lyft, Hopp, DoorDash, Instacart or Skip, and those '
-      'names are their owners\' trademarks.';
+      'or endorsed by any driver platform. Platform names and marks belong to '
+      'their respective owners.';
 
   static Future<void> open(String url) async {
     await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);

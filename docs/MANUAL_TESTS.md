@@ -10,6 +10,15 @@ No need to check in order or all at once.
 
 Legend: 🟢 GOOD  🟡 OK  🔴 BAD (pill shows icon + WORD + `km · $payout`).
 
+## History backup smoke
+
+| # | How | PASS bar | Status |
+|---|---|---|---|
+| B.1 | Create offers, manually change an outcome and final payout, then Settings → History → Export CSV backup | File contains the versioned FoxyCo header and opens safely in a spreadsheet | [ ] |
+| B.2 | Import that file and choose Merge | Rows return with manual outcome, final payout, detected outcome and original scoring details intact; no duplicate cards | [ ] |
+| B.3 | Import the same file and choose Replace | History contains exactly the backup rows; canceling the picker/dialog changes nothing | [ ] |
+| B.4 | Try an old report CSV, malformed CSV, and oversized file | Import rejects each before changing history and shows a generic error | [ ] |
+
 ---
 
 ## Current upload quick smoke (10–15 minutes)
@@ -17,8 +26,9 @@ Legend: 🟢 GOOD  🟡 OK  🔴 BAD (pill shows icon + WORD + `km · $payout`).
 Run these before promoting the AAB. They cover the highest-risk build changes
 without requiring DoorDash, Instacart or Skip accounts.
 
-**Current candidate:** Play build 86. Real-device validation is pending for
-Uber OCR fallback, cross-app capture, and Accessibility-only non-Uber offers.
+**Current candidate:** direct-install build 90. Real-device validation is
+pending for accessibility-first Uber parsing, OCR fallback, cross-app capture,
+and Accessibility-only non-Uber offers.
 
 | # | How | PASS bar | Status |
 |---|-----|----------|--------|
@@ -205,7 +215,7 @@ now" always exits to Home.
 | # | How | PASS bar | Status |
 |---|-----|----------|--------|
 | O.1 | Fresh install (or clear app data), open app | Boots into onboarding "Meet FoxyCo", NOT Home — no Home flash first | [ ] |
-| O.2 | Accessibility page text | States plainly: temporarily reads on-screen text in Uber/Lyft/Hopp to identify pay, distance and duration; stores only extracted offer numbers locally; raw text is not saved or sent; **never taps buttons / accepts rides** | [ ] |
+| O.2 | Accessibility page text | States plainly: temporarily reads offers from selected supported apps; stores only extracted offer numbers locally; raw text is not saved or sent; **never taps, accepts or declines** | [ ] |
 | O.3 | Page 4 "Display over other apps" | System overlay settings opens; grant; return → button becomes **✅ Granted** | [ ] |
 | O.4 | Page 5 "Offer access" | Accessibility settings opens; enable FoxyCo; return → **✅ Granted** | [ ] |
 | O.5 | Both granted → "Finish setup" | Lands on Home, ready to go live | [ ] |
@@ -351,9 +361,9 @@ opaque TextureView made translucent (dark gradient box), node LruCache bounded.
 
 ## M7 — Uber parsing fixed (2026-07-19, verified live on device)
 
-> Three stacked root causes fixed: fork NPE on transient card windows,
-> `isAccessibilityTool` for Uber's accessibilityDataSensitive card views, and
-> TYPE_ACCESSIBILITY_OVERLAY pill (Uber's Accept card hides normal overlays).
+> Historical live-device fixes: fork NPE on transient card windows and the
+> accessibility overlay needed over Uber's Accept card. Current releases set
+> `isAccessibilityTool=false`; optional Uber OCR handles hidden card text.
 > Rows M7.1–M7.4 were all PASSED live on 2026-07-19 (logs in completion doc).
 
 | # | How | PASS bar | Status |
@@ -610,18 +620,25 @@ _Last updated: 2026-07-25 (M12: polish pass + light theme; white car card + abov
 
 | # | Step | Expect | Pass |
 |---|---|---|---|
-| OCR.1 | Leave Settings → App health → Offer detection → Uber OCR OFF; capture readable Uber/Lyft/Hopp cards | Accessibility produces each verdict; no OCR log entry | [ ] |
+| OCR.1 | Leave Settings → App health → Offer detection → Uber OCR OFF; capture Uber/Lyft/Hopp cards | Lyft/Hopp use Accessibility; Uber works only if Android exposes readable nodes; no OCR log entry | [ ] |
 | OCR.2 | Tap Uber screen-reading fallback, then choose **Not now** on FoxyCo's disclosure | Toggle remains off; monitoring still works through Accessibility | [ ] |
 | OCR.3 | Tap the fallback again and choose **Enable Uber OCR**, then start monitoring | Toggle turns on; no Android screen-share prompt, indicator, or OCR notification appears | [ ] |
-| OCR.4 | Present accessibility-readable Uber, Lyft and Hopp offers while OCR is approved | Each verdict comes from Accessibility; logs contain no OCR request | [ ] |
+| OCR.4 | Present accessibility-readable Uber, Lyft and Hopp offers while OCR is approved | All three parse immediately through Accessibility; no screenshot is requested for the readable Uber card | [ ] |
 | OCR.5 | Present an Uber card known to expose an empty/incomplete Accessibility tree | One rate-limited OCR frame is recognized on-device and feeds the Uber parser; one verdict/history row | [ ] |
 | OCR.5a | Present unreadable Lyft, Hopp or delivery-app text while Uber OCR is approved | No OCR-derived verdict; those platforms remain Accessibility-only | [ ] |
-| OCR.6 | Keep the card active through repeated accessibility events | No overlapping OCR work, repeated audio/verdict, or duplicate History row | [ ] |
+| OCR.5b | Stay in Lyft or Hopp and let an Uber request draw over it | The originating Uber event triggers OCR without switching apps; a later Lyft/Hopp offer still parses immediately through Accessibility | [ ] |
+| OCR.6 | Keep the card active through repeated events, then animate/dismiss it so one OCR read changes a distance | No overlapping work, repeated audio/verdict, duplicate History row, or one-frame verdict flip; diagnostics show `conflict held` | [ ] |
 | OCR.7 | Pause or stop FoxyCo, kill its overlay, swipe FoxyCo away, and revoke Accessibility in separate runs; also trigger OCR while the screen locks | Lifecycle cancellations discard pending OCR; a protected/unavailable screen produces no verdict; Accessibility works after re-enable | [ ] |
-| OCR.8 | Inspect app-private storage and exported diagnostics after OCR offers | No PNG/JPEG/screenshot/cache file and no raw recognized text; logs contain only consent/status and line counts | [ ] |
-| OCR.9 | Test Android 11, 14, 15 and 16, then Android 10 or an API-29 emulator | Android 11+ can OCR without a sharing prompt; Android 10 safely uses Accessibility text only | [ ] |
+| OCR.8 | Inspect app-private storage and exported diagnostics after OCR offers | No PNG/JPEG/screenshot/cache file and no raw recognized text; logs contain only line counts, trigger/active package, elapsed milliseconds and sanitized conflict/stale-result events | [ ] |
+| OCR.9 | Test Android 11, 14, 15 and 16, then Android 10 or an API-29 emulator | Android 11+ can OCR without a sharing prompt; when screenshot capture is unavailable, OCR turns off and Uber safely uses Accessibility text | [ ] |
 | OCR.10 | Let an old verdict remain while a new unreadable card triggers OCR | The visible bubble/pill does not flicker; its rectangle is redacted only in memory, the new card is scored from its own text, and no duplicate verdict/history row is created | [ ] |
-| OCR.11 | Debug APK only: enable Uber OCR and **Force OCR test mode**, restart monitoring, then show a readable Uber offer | One Uber OCR verdict/audio/history row appears without a sharing prompt; disabling test mode restores Accessibility-first parsing; restarting FoxyCo resets test mode off | [ ] |
+| OCR.11 | Debug APK only: enable Uber OCR and **Force OCR test mode**, restart monitoring, then show Uber over Lyft/Hopp | One Uber OCR verdict/audio/history row appears without a sharing prompt while Lyft/Hopp stay Accessibility-driven; disabling test mode restores event-triggered OCR; restarting FoxyCo resets test mode off | [ ] |
+| OCR.12 | With Uber OCR enabled, accept one Uber offer and pass another | Accessibility lifecycle screens still mark the matching History rows Taken and Missed | [ ] |
+| OCR.13 | Leave another app's verdict visible, then show an Uber request over it; also dismiss Uber while OCR is running | The old pill clears as Uber takes ownership, and a late screenshot cannot resurrect the dismissed offer | [ ] |
+| OCR.14 | Show an Uber card whose dark Match/Accept text is missed but whose Uber tier, payout, away leg and trip leg are readable | One correct verdict/history row; the missing action line alone does not lose the card | [ ] |
+| OCR.15 | Capture a `$7.54` / 7.4 km Uber offer through OCR, then inspect the pill, Home tally and History after restart | Exactly one `$7.54` OK row at about `$1.02/km`; never `$754`, GOOD, `$101.89/km`, or a duplicate | [ ] |
+| OCR.16 | Let a real Uber card clear, then make the next OCR frame resemble its pickup distance as a payout (today's `$2.00` / 2.0 km regression) | The changed payout is held for confirmation and creates no false verdict/history row | [ ] |
+| OCR.17 | Fresh install build 90, clear logs/history, then record 3–5 regular Uber offers plus Uber-over-Lyft/Hopp | Every physical card maps to exactly one correct row; readable Uber uses Accessibility and only incomplete Uber cards log OCR captures | [ ] |
 
 ## M16 — Foxy brand art
 
@@ -658,8 +675,8 @@ layer behind it), the gold `logo 3d` wordmark, and the sleeping fox.
 §1–5) — without `google-services.json` the Android build fails outright. Rows
 marked 💳 additionally need the Play Console product live (§6).
 
-⚠️ **Debug builds are unconditionally unlocked** (`kDebugUnlocked`, MONETIZATION
-§6.2). Testing anything below in a `flutter run` build will show a false pass.
+⚠️ **Debug builds are unconditionally unlocked** (`kDebugUnlocked`). Testing
+anything below in a `flutter run` build will show a false pass.
 Use a **release** build: `flutter build apk --release --dart-define=PLAY_PUBLIC_KEY=<key>`.
 
 | # | Step | Expect | Pass |
@@ -673,14 +690,14 @@ Use a **release** build: `flutter build apk --release --dart-define=PLAY_PUBLIC_
 | M18.7 | Home top, right after that | Banner calmly reads **"7 days left in your free trial"**; it does not say ended or ask you to unlock | [ ] |
 | M18.8 | Go live again, real offer | Full verdict pill: verdict color, `$/km`, km, `$/hr` | [ ] |
 | M18.9 | Settings → Profile → Access | Header summary reads **"Trial active · 7 days remaining"**; the signed-in Gmail is shown | [ ] |
-| M18.10 | **The reinstall test.** Clear app data (or uninstall + reinstall), start trial again with the SAME Google account | Snackbar: **"This Google account already used its free trial."** Pill stays locked. *If this hands out a fresh 7 days, the whole Firestore design has failed — see MONETIZATION §3.4.1* | [ ] |
+| M18.10 | **The reinstall test.** Clear app data (or uninstall + reinstall), start trial again with the SAME Google account | Snackbar: **"This Google account already used its free trial."** Pill stays locked. A fresh trial is a release blocker. | [ ] |
 | M18.11 | Airplane mode, cold start, mid-trial | App works, pill shows numbers. No error toast | [ ] |
 | M18.12 | Settings → date & time → wind the clock back 3 days, reopen FoxyCo | Trial days-left does NOT go up. (`FoxClock` high-water mark) | [ ] |
 | M18.13 | Wind the clock FORWARD past the trial end, reopen | Pill locks, banner reads "Trial ended — unlock FoxyCo" | [ ] |
 | M18.14 | Wind the clock back to real time, go online, reopen | Correct days-left returns — the ID-token sync heals the poisoned clock, it does not stay expired | [ ] |
 | M18.15 | 💳 Open paywall in Canadian and US Play storefront tests | Paywall and Google Play show **CA$24.99** in Canada or **US$19.99** in the US; wording says one-time / no subscription | [ ] |
 | M18.16 | 💳 Complete a test purchase | Paywall closes by itself. Settings → Profile → Access reads **"Lifetime unlocked"** | [ ] |
-| M18.17 | 💳 Kill the app immediately after paying, before it settles, then reopen | Still unlocked (queryPurchases re-acknowledges on launch). **Check 4 days later that Google did NOT auto-refund** — that is the 72h acknowledgment rule, MONETIZATION §3.8 | [ ] |
+| M18.17 | 💳 Kill the app immediately after paying, before it settles, then reopen | Still unlocked (queryPurchases re-acknowledges on launch). **Check 4 days later that Google did NOT auto-refund**; Play reverses unacknowledged purchases after 72 hours. | [ ] |
 | M18.18 | 💳 Clear app data after purchasing, reopen, paywall → "Restore purchase" | "Purchase restored." Unlocked, and the trial state is irrelevant | [ ] |
 | M18.19 | 💳 Release build WITHOUT `--dart-define=PLAY_PUBLIC_KEY` | Paywall shows "Purchases are unavailable in this build". Nothing unlocks. Fails CLOSED (§3.9) | [ ] |
 | M18.20 | Deliberate expiry-only build with `--dart-define=BUILD_EXPIRY=<yesterday>` | Trial access locks, but a verified lifetime purchase stays unlocked. The define does not grant temporary tester access | [ ] |

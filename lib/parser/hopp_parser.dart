@@ -2,7 +2,7 @@ import '../domain/offer.dart';
 import '../domain/platform.dart';
 import 'offer_parser.dart';
 
-/// Reads a Hopp Driver offer card (docs/REFERENCE_ANALYSIS "Hopp offer card").
+/// Reads a Hopp Driver offer card.
 ///
 /// The card (references/bug1 (5).jpg) always carries: a `Hopp` chip, an
 /// Accept/Match affordance, one clean `$N` payout, and EXACTLY two `N min · X km`

@@ -10,8 +10,8 @@ import 'paywall_sheet.dart';
 /// Settings → Profile → Access. The entitlement surface in one accordion: what the
 /// driver currently has, how to get more, and how to leave.
 ///
-/// Play requires an in-app account-deletion path once accounts are collected
-/// (MONETIZATION_v1.0 §5.1), and this is it — deliberately at the bottom, below
+/// Play requires an in-app account-deletion path once accounts are collected;
+/// this is deliberately at the bottom, below
 /// a divider, rather than a button anyone hits by accident.
 class UnlockSection extends ConsumerWidget {
   const UnlockSection({super.key});

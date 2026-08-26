@@ -34,10 +34,14 @@ class _FakeOcrCapture extends OcrCapture {
   List<String> lines = const [];
   String packageName = '';
   final responses = <OcrFrame>[];
+  Completer<OcrFrame>? nextCapture;
 
   @override
   Future<OcrFrame> capture() async {
     captures++;
+    final delayed = nextCapture;
+    nextCapture = null;
+    if (delayed != null) return delayed.future;
     return responses.isEmpty
         ? OcrFrame(packageName: packageName, lines: lines)
         : responses.removeAt(0);
@@ -364,34 +368,172 @@ void main() {
     expect(ocr.captures, 0);
   });
 
-  test('debug test mode checks active frames for Uber OCR only', () async {
+  test('readable Uber Accessibility text avoids slower OCR', () async {
     final c = container();
-    final settings = c.read(settingsProvider.notifier);
-    settings.setOcrEnabled(true);
-    settings.setOcrTestMode(true);
-    ocr.lines = _uberA.texts;
+    c.read(settingsProvider.notifier).setOcrEnabled(true);
+    ocr.lines = _uberB.texts;
     c.read(offerWatcherProvider);
     c.read(overlayControllerProvider);
 
-    watcher.emit(_hoppNodes); // background frames cannot trigger capture
+    watcher.emit(_uberA);
     await Future<void>.delayed(Duration.zero);
-    expect(ocr.captures, 0);
-    expect(overlay.shown, isEmpty);
+    await Future<void>.delayed(Duration.zero);
 
+    expect(ocr.captures, 0);
+    expect(overlay.shown.single.payout, 10);
+    expect(c.read(offerLogProvider).single.platform, GigPlatform.uber);
+  });
+
+  test('active Uber trigger clears a stale non-Uber pill before OCR', () async {
+    final c = container();
+    c.read(settingsProvider.notifier).setOcrEnabled(true);
+    ocr.nextCapture = Completer<OcrFrame>();
+    c.read(offerWatcherProvider);
+    c.read(overlayControllerProvider);
+
+    watcher.emit(_lyftA);
+    await Future<void>.delayed(Duration.zero);
     watcher.emit(
-      ScreenRead(
-        packageName: _hoppNodes.packageName,
-        texts: _hoppNodes.texts,
+      const ScreenRead(
+        packageName: ParserRegistry.uberPackage,
+        texts: [],
         isActive: true,
       ),
     );
     await Future<void>.delayed(Duration.zero);
-    await Future<void>.delayed(Duration.zero);
 
-    expect(ocr.captures, 1);
-    expect(overlay.shown, hasLength(1));
-    expect(c.read(offerLogProvider).single.platform, GigPlatform.uber);
+    expect(overlay.clears, 1);
+    expect(c.read(offerWatcherProvider), isNull);
   });
+
+  test(
+    'Uber accepted screen still updates outcome while OCR is enabled',
+    () async {
+      final c = container();
+      c.read(settingsProvider.notifier).setOcrEnabled(true);
+      ocr.lines = _uberA.texts;
+      c.read(offerWatcherProvider);
+      c.read(overlayControllerProvider);
+
+      watcher.emit(_uberA);
+      await Future<void>.delayed(Duration.zero);
+      await Future<void>.delayed(Duration.zero);
+      watcher.emit(
+        const ScreenRead(
+          packageName: ParserRegistry.uberPackage,
+          texts: ['Picking up Alex'],
+          isActive: true,
+        ),
+      );
+      await Future<void>.delayed(Duration.zero);
+
+      expect(c.read(offerLogProvider).single.outcome, OfferOutcome.taken);
+    },
+  );
+
+  test(
+    'Uber browse screen still updates outcome while OCR is enabled',
+    () async {
+      final previous = OfferWatcher.clearGrace;
+      OfferWatcher.clearGrace = const Duration(milliseconds: 10);
+      addTearDown(() => OfferWatcher.clearGrace = previous);
+      final c = container();
+      c.read(settingsProvider.notifier).setOcrEnabled(true);
+      ocr.lines = _uberA.texts;
+      c.read(offerWatcherProvider);
+      c.read(overlayControllerProvider);
+
+      watcher.emit(_uberA);
+      await Future<void>.delayed(Duration.zero);
+      await Future<void>.delayed(Duration.zero);
+      watcher.emit(
+        const ScreenRead(
+          packageName: ParserRegistry.uberPackage,
+          texts: ['Home', 'Finding trips'],
+          isActive: true,
+        ),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+
+      expect(c.read(offerLogProvider).single.outcome, OfferOutcome.missed);
+    },
+  );
+
+  test(
+    'Uber browse racing first OCR cannot resurrect a dismissed card',
+    () async {
+      final previous = OfferWatcher.ocrCooldown;
+      OfferWatcher.ocrCooldown = const Duration(milliseconds: 10);
+      addTearDown(() => OfferWatcher.ocrCooldown = previous);
+      final pending = Completer<OcrFrame>();
+      final c = container();
+      c.read(settingsProvider.notifier).setOcrEnabled(true);
+      ocr.nextCapture = pending;
+      c.read(offerWatcherProvider);
+      c.read(overlayControllerProvider);
+
+      watcher.emit(
+        const ScreenRead(
+          packageName: ParserRegistry.uberPackage,
+          texts: [],
+          isActive: true,
+        ),
+      );
+      await Future<void>.delayed(Duration.zero);
+      watcher.emit(
+        const ScreenRead(
+          packageName: ParserRegistry.uberPackage,
+          texts: ['Home', 'Finding trips'],
+          isActive: true,
+        ),
+      );
+      await Future<void>.delayed(Duration.zero);
+      pending.complete(
+        OcrFrame(packageName: ParserRegistry.uberPackage, lines: _uberA.texts),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 25));
+
+      expect(overlay.shown, isEmpty);
+      expect(c.read(offerLogProvider), isEmpty);
+    },
+  );
+
+  test(
+    'debug test mode keeps non-Uber parsing while also checking OCR',
+    () async {
+      final c = container();
+      final settings = c.read(settingsProvider.notifier);
+      settings.setOcrEnabled(true);
+      settings.setOcrTestMode(true);
+      ocr.lines = _uberA.texts;
+      c.read(offerWatcherProvider);
+      c.read(overlayControllerProvider);
+
+      watcher.emit(_hoppNodes); // background frames cannot trigger capture
+      await Future<void>.delayed(Duration.zero);
+      expect(ocr.captures, 0);
+      expect(overlay.shown, hasLength(1));
+      expect(c.read(offerLogProvider).single.platform, GigPlatform.hopp);
+
+      watcher.emit(
+        ScreenRead(
+          packageName: _hoppNodes.packageName,
+          texts: _hoppNodes.texts,
+          isActive: true,
+        ),
+      );
+      for (var i = 0; i < 20 && overlay.shown.length < 2; i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+      }
+
+      expect(ocr.captures, 1);
+      expect(overlay.shown, hasLength(2));
+      expect(c.read(offerLogProvider).map((offer) => offer.platform), [
+        GigPlatform.uber,
+        GigPlatform.hopp,
+      ]);
+    },
+  );
 
   test('active textless accessibility frame falls back to OCR once', () async {
     final c = container();
@@ -531,7 +673,9 @@ void main() {
           isActive: true,
         ),
       );
-      for (var i = 0; i < 20 && ocr.captures < 2; i++) {
+      // Full-suite workers can delay a 10 ms timer well beyond 200 ms under
+      // CPU load; wait for the behavior, not a scheduler-speed assumption.
+      for (var i = 0; i < 100 && ocr.captures < 2; i++) {
         await Future<void>.delayed(const Duration(milliseconds: 10));
       }
 
@@ -540,6 +684,184 @@ void main() {
       expect(overlay.shown, hasLength(1));
     },
   );
+
+  test(
+    'one conflicting OCR frame cannot replace live Uber economics',
+    () async {
+      final previous = OfferWatcher.ocrCooldown;
+      OfferWatcher.ocrCooldown = const Duration(milliseconds: 10);
+      addTearDown(() => OfferWatcher.ocrCooldown = previous);
+      final c = container();
+      c.read(settingsProvider.notifier).setOcrEnabled(true);
+      ocr.responses.addAll([
+        OcrFrame(packageName: ParserRegistry.uberPackage, lines: _uberA.texts),
+        const OcrFrame(
+          packageName: ParserRegistry.uberPackage,
+          lines: [
+            'UberX',
+            r'$100.00',
+            '4 mins (1.0 km) away',
+            '15 mins (15.3 km) trip',
+            'Accept',
+          ],
+        ),
+      ]);
+      c.read(offerWatcherProvider);
+      c.read(overlayControllerProvider);
+
+      watcher.emit(
+        const ScreenRead(
+          packageName: ParserRegistry.uberPackage,
+          texts: [],
+          isActive: true,
+        ),
+      );
+      for (var i = 0; i < 20 && ocr.captures < 1; i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 15));
+      watcher.emit(
+        const ScreenRead(
+          packageName: ParserRegistry.uberPackage,
+          texts: [],
+          isActive: true,
+        ),
+      );
+      for (var i = 0; i < 20 && ocr.captures < 2; i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+      }
+
+      expect(ocr.captures, 2);
+      expect(overlay.shown, hasLength(1));
+      expect(overlay.shown.single.totalKm, 5);
+      expect(c.read(offerLogProvider), hasLength(1));
+    },
+  );
+
+  test(
+    'dropped Uber payout decimal is corrected before display or history',
+    () async {
+      final previous = OfferWatcher.ocrCooldown;
+      OfferWatcher.ocrCooldown = const Duration(milliseconds: 10);
+      addTearDown(() => OfferWatcher.ocrCooldown = previous);
+      final c = container();
+      c.read(settingsProvider.notifier).setOcrEnabled(true);
+      ocr.responses.addAll([
+        const OcrFrame(
+          packageName: ParserRegistry.uberPackage,
+          lines: [
+            'UberX',
+            r'$754',
+            '4 mins (0.8 km) away',
+            '16 mins (6.6 km) trip',
+            'Accept',
+          ],
+        ),
+        const OcrFrame(
+          packageName: ParserRegistry.uberPackage,
+          lines: [
+            'UberX',
+            r'$7.54',
+            '4 mins (0.8 km) away',
+            '16 mins (6.6 km) trip',
+            'Accept',
+          ],
+        ),
+      ]);
+      c.read(offerWatcherProvider);
+      c.read(overlayControllerProvider);
+
+      watcher.emit(
+        const ScreenRead(
+          packageName: ParserRegistry.uberPackage,
+          texts: [],
+          isActive: true,
+        ),
+      );
+      for (var i = 0; i < 100 && ocr.captures < 2; i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+      }
+
+      expect(overlay.shown.single.payout, 7.54);
+      expect(c.read(offerLogProvider).single.payout, 7.54);
+    },
+  );
+
+  test(
+    'a stale payout change just after card clear needs confirmation',
+    () async {
+      final previousCooldown = OfferWatcher.ocrCooldown;
+      final previousVisible = OfferWatcher.maxVisible;
+      OfferWatcher.ocrCooldown = const Duration(milliseconds: 10);
+      OfferWatcher.maxVisible = const Duration(milliseconds: 10);
+      addTearDown(() {
+        OfferWatcher.ocrCooldown = previousCooldown;
+        OfferWatcher.maxVisible = previousVisible;
+      });
+      final c = container();
+      c.read(settingsProvider.notifier).setOcrEnabled(true);
+      ocr.responses.addAll([
+        const OcrFrame(
+          packageName: ParserRegistry.uberPackage,
+          lines: [
+            'UberX',
+            r'$9.48',
+            '5 mins (2.0 km) away',
+            '19 mins (9.5 km) trip',
+            'Match',
+          ],
+        ),
+        const OcrFrame(
+          packageName: ParserRegistry.uberPackage,
+          lines: [
+            'UberX',
+            r'$2.00',
+            '5 mins (2.0 km) away',
+            '19 mins (9.5 km) trip',
+            'Match',
+          ],
+        ),
+      ]);
+      c.read(offerWatcherProvider);
+      c.read(overlayControllerProvider);
+
+      const trigger = ScreenRead(
+        packageName: ParserRegistry.uberPackage,
+        texts: [],
+        isActive: true,
+      );
+      watcher.emit(trigger);
+      for (var i = 0; i < 20 && c.read(offerLogProvider).isEmpty; i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      watcher.emit(trigger);
+      for (var i = 0; i < 20 && ocr.captures < 2; i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+      }
+
+      expect(c.read(offerLogProvider), hasLength(1));
+      expect(c.read(offerLogProvider).single.payout, 9.48);
+    },
+  );
+
+  test('lower app events do not discard a visible Uber OCR card', () async {
+    final c = container();
+    final settings = c.read(settingsProvider.notifier);
+    settings.setOcrEnabled(true);
+    settings.setOcrTestMode(true);
+    ocr.lines = _uberA.texts;
+    c.read(offerWatcherProvider);
+    c.read(overlayControllerProvider);
+
+    watcher.emit(_lyftA);
+    await Future<void>.delayed(Duration.zero);
+    await Future<void>.delayed(Duration.zero);
+
+    expect(overlay.shown, hasLength(2));
+    expect(overlay.shown.last.payout, 10);
+    expect(c.read(offerLogProvider), hasLength(2));
+  });
 
   test('non-Uber incomplete cards remain Accessibility-only', () async {
     final c = container();

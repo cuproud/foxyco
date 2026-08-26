@@ -3,8 +3,7 @@ import 'package:foxyco/domain/platform.dart';
 import 'package:foxyco/parser/uber_parser.dart';
 
 /// Fixtures = node-text dumps in view order, as the accessibility service would
-/// hand them to us. Numbers taken from the real reference layouts
-/// (references/Uber.jpg, references/new (1).jpg — docs/REFERENCE_ANALYSIS).
+/// hand them to us. Numbers are taken from observed offer layouts.
 /// One fixture per real format; add a new one whenever Uber's card changes.
 void main() {
   const parser = UberParser();
@@ -69,6 +68,30 @@ void main() {
         '\$10.55',
         '4 mins (0.8 km) away',
         '15 mins (4.3 km) trip',
+      ]),
+      isNull,
+    );
+  });
+
+  test('explicit Uber card survives an OCR-missed action button', () {
+    final offer = parser.parse([
+      'UberX',
+      r'$11.55',
+      '4 mins (1.2 km) away',
+      '27 mins (14.3 km) trip',
+    ]);
+    expect(offer?.payout, 11.55);
+    expect(offer?.totalKm, 15.5);
+  });
+
+  test('OCR distance mistaken for money cannot become the payout', () {
+    expect(
+      parser.parse([
+        'UberX',
+        r'$2.0 km away',
+        '5 mins (2.0 km) away',
+        '19 mins (9.5 km) trip',
+        'Match',
       ]),
       isNull,
     );

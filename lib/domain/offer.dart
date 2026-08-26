@@ -6,7 +6,7 @@ import 'platform.dart';
 /// This is the parse-time model; the leaner [OfferSummary] is the display/log
 /// view the dashboard shows. Distances and times are kept SPLIT (pickup vs
 /// dropoff) exactly as Uber/Hopp present them — FoxyCo's added value is summing
-/// them (REFERENCE_ANALYSIS: "neither app shows the sum or the $/km").
+/// them because source apps may show separate legs rather than the sum.
 ///
 /// `payIsNet` distinguishes Hopp (net, tax included) from Uber (gross) so the
 /// profit engine can treat them correctly later; the MVP verdict just uses

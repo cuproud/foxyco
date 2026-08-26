@@ -51,6 +51,27 @@ void main() {
     expect(find.text('FoxyCo'), findsOneWidget); // Home brand bar
   });
 
+  testWidgets('wizard remains usable on a narrow screen with large text', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(320, 640);
+    tester.view.devicePixelRatio = 1;
+    tester.platformDispatcher.textScaleFactorTestValue = 2;
+    addTearDown(tester.view.reset);
+    addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+
+    await tester.pumpWidget(app(showOnboarding: true));
+    expect(tester.takeException(), isNull);
+
+    for (var page = 1; page < OnboardingScreen.pageCount; page++) {
+      await tester.tap(find.text('Next'));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull, reason: 'wizard page ${page + 1}');
+    }
+
+    expect(find.text('Finish setup'), findsOneWidget);
+  });
+
   testWidgets('Next walks the 5 pages; preset applies; grant state shows; '
       'last page CTA exits to Home', (tester) async {
     final container = ProviderContainer(

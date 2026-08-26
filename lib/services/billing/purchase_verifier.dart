@@ -8,7 +8,7 @@ import 'package:basic_utils/basic_utils.dart';
 /// those exact bytes. Only Google holds the private key, so a valid signature
 /// proves the receipt is genuine. Fake-purchase tooling ("Lucky Patcher")
 /// injects receipts it cannot sign — they fail here. Verification is pure
-/// local crypto, so it works offline forever (MONETIZATION §3.7 layer 1).
+/// local crypto, so it works offline forever.
 class PurchaseVerifier {
   /// Base64 RSA public key from Play Console → Monetization setup → Licensing.
   ///

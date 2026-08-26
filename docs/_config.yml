@@ -9,10 +9,3 @@ description: The gig driver's offer analyzer.
 # so the DNS-TXT route is impossible — this is the HTML-tag route). Emitted
 # into <head> by jekyll-seo-tag.
 google_site_verification: "-DYgRJY2SGihE1kqKR7ixMDIQ00EYRKKoULdSSYuRY8"
-
-# superpowers/ holds internal plan transcripts. One of them contains Liquid
-# braces ({{ }}) which abort the Jekyll build and 404 the entire site — and
-# none of it belongs on a public page anyway. Add future non-published dirs
-# here rather than deleting them.
-exclude:
-  - superpowers

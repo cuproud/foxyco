@@ -4,31 +4,18 @@ title: FoxyCo — the gig driver's offer analyzer
 
 # FoxyCo
 
-**Know the offer before you accept it.**
+FoxyCo reads offers from supported driver apps you select and shows a private,
+read-only verdict using your own rules. It never accepts or declines for you.
 
-FoxyCo reads offer cards from Uber Driver, Lyft Driver, Hopp Driver, DoorDash
-Dasher, Instacart Shopper and Skip Courier as they appear on your screen, and shows a floating
-pill with the numbers that actually decide it: **$/km or $/mi**, **$/hr**,
-pickup distance, and a take-it-or-leave-it verdict against thresholds you set.
-
-It is **read-only**. FoxyCo never taps accept or decline. That stays yours.
-
-- Offer data never leaves your phone.
-- No location, no ads, no analytics.
+- Offer reading and scoring happen on your phone.
+- No offer text, screenshots, location, ads, or analytics are sent to FoxyCo.
 - Android 8.0+.
 
-## Testing
+## Closed testing
 
-FoxyCo is in closed testing on Google Play.
-
-1. Join the tester group — <https://groups.google.com/g/foxyco-testers>
-2. Opt in — <https://play.google.com/apps/testing/com.foxyco.app>
-3. Install, and keep it on your phone for the two-week test.
-
-Project/release references:
-
-- [Current engineering handoff](HANDOFF_2026-08-24_BUILD81.md)
-- [Tester recruitment and production checklist](TESTER_RECRUITMENT_AND_PRODUCTION.md)
+1. [Join the tester group](https://groups.google.com/g/foxyco-testers)
+2. [Opt in on Google Play](https://play.google.com/apps/testing/com.foxyco.app)
+3. Install FoxyCo and keep it installed for the test period.
 
 ## Legal
 
@@ -36,12 +23,7 @@ Project/release references:
 - [Terms of Use](legal/terms.html)
 - [Delete your account](legal/delete-account.html)
 
-## Contact
+Contact: **foxyco.dev@gmail.com**
 
-**foxyco.dev@gmail.com**
-
----
-
-FoxyCo is an independent app. It is not affiliated with, endorsed by, or
-sponsored by Uber, Lyft, Hopp, DoorDash, Instacart, or Skip. Delivery-app
-support is beta and off by default.
+FoxyCo is independent and is not affiliated with or endorsed by any driver
+platform.

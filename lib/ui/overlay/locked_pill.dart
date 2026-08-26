@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../theme/tokens.dart';
 
-/// What the pill becomes when the driver isn't entitled (MONETIZATION_v1.0 §4).
+/// What the pill becomes when the driver isn't entitled.
 ///
 /// Watching still runs and the pill still lands on the offer — it just refuses
 /// to say what the offer is worth. A driver staring at a real offer they can't

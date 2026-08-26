@@ -4,8 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// The clock the trial and the offline grace window are measured against.
 ///
 /// `DateTime.now()` alone is not good enough: winding the device clock back
-/// would stretch a 7-day trial forever (MONETIZATION_v1.0 §10, "rolling the
-/// device clock back does not extend the trial"). So we keep a high-water mark
+/// would stretch a 7-day trial forever. So we keep a high-water mark
 /// of the latest time ever observed and never read earlier than it.
 ///
 /// Two rules, in this order:

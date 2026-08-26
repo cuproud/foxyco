@@ -51,7 +51,7 @@ UnlockStatus ownedPurchaseQueryStatus({
   return UnlockStatus.notPurchased;
 }
 
-/// Lifetime unlock state, owned by Google Play (MONETIZATION §3.2).
+/// Lifetime unlock state, owned by Google Play.
 ///
 /// Play is the only source of truth for the purchase: it survives reinstall,
 /// device swap and account transfer, so nothing is recorded on our side. That

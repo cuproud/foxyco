@@ -15,10 +15,9 @@ package name `com.foxyco.app`.
 
 ## The short version
 
-FoxyCo reads offer-related text only in Uber Driver, Lyft Driver, Hopp Driver,
-DoorDash Dasher, Instacart Shopper and Skip Courier to score offers, and that
-reading never leaves your phone. You choose up to three apps to monitor;
-delivery-app support is beta and off by default. On first launch,
+FoxyCo reads offer-related text only from the supported driver apps you select,
+and that reading never leaves your phone. You choose up to three apps to
+monitor. On first launch,
 Firebase creates a random anonymous identity for trial-abuse prevention. If you
 start a trial, Google account identity and the server-recorded trial date also
 reach Firebase.
@@ -43,18 +42,19 @@ clear it at any time.
 
 ## What FoxyCo reads on screen, and what it does with it
 
-FoxyCo primarily uses Android's AccessibilityService API to read supported
-driver-app offer cards. You can separately enable **Uber screen-reading
-fallback (OCR)** when an Uber card exposes too little Accessibility text.
+FoxyCo uses Android's AccessibilityService API to receive selected driver-app
+events, read non-Uber offer cards, and detect when an Uber offer ends. You can
+separately enable **Uber screen-reading fallback (OCR)** for Uber cards Android
+may hide from Accessibility.
 
-- The Accessibility event stream is **restricted to six apps**: Uber Driver,
-  Lyft Driver, Hopp Driver, DoorDash Dasher, Instacart Shopper and Skip
-  Courier. FoxyCo processes offer text only for the one to three apps you
-  select. DoorDash, Instacart and Skip parsing is labelled beta and is disabled
-  until you select it. Other platforms use Accessibility text only. An Uber OCR
+- The Accessibility event stream is restricted to the supported driver-app
+  packages shown in FoxyCo's app picker. FoxyCo processes offer text only for
+  the one to three apps you select. Apps marked beta are disabled until you
+  select them. Non-Uber platforms use Accessibility text only. An Uber OCR
   frame can contain whatever is visible at that instant; FoxyCo requests one
-  only after an active selected-app event when it is checking for an unreadable
-  visible Uber offer.
+  only after a selected-app event when it is checking for an unreadable visible
+  Uber offer, including an Uber request drawn over another selected app. Recognized
+  screenshot text is accepted only by the Uber parser.
   FoxyCo's Accessibility service receives no events from any other app,
   including your browser, messages, banking apps or launcher. Supporting
   another driver app requires a FoxyCo update that explicitly adds and

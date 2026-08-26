@@ -19,8 +19,8 @@ enum OverlayAction {
   /// "active"). Distinct from [togglePause]: this is a full stop, not a pause.
   stopWatching,
 
-  /// Tap the LOCKED pill → foreground FoxyCo and open the paywall
-  /// (MONETIZATION_v1.0 §4). Distinct from [openApp], which lands on the offer
+  /// Tap the LOCKED pill → foreground FoxyCo and open the paywall. Distinct
+  /// from [openApp], which lands on the offer
   /// or Home; here the driver just tried to read a verdict they haven't paid
   /// for, which is the moment to ask.
   openPaywall;

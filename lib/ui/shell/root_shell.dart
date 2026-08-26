@@ -114,8 +114,7 @@ class _RootShellState extends ConsumerState<RootShell> {
     });
 
     // Same one-shot pattern for the paywall: the locked pill lives in the
-    // overlay isolate and can't push a route, so it raises a flag here
-    // (MONETIZATION §4).
+    // overlay isolate and can't push a route, so it raises a flag here.
     ref.listen<bool>(paywallRequestProvider, (_, requested) {
       if (!requested) return;
       ref.read(paywallRequestProvider.notifier).clear();

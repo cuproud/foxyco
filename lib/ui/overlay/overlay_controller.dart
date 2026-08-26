@@ -164,7 +164,7 @@ class OverlayController extends Notifier<void> {
       return false;
     }
     final settings = ref.read(settingsProvider);
-    // Patch site 1 of 2 (MONETIZATION §4): the payload carries entitlement, the
+    // The payload carries entitlement; the
     // overlay isolate independently refuses to draw numbers without it. Read
     // fresh per offer — a trial that lapsed mid-shift locks the next pill.
     final entitled = ref.read(entitledProvider);
@@ -240,7 +240,7 @@ class OverlayController extends Notifier<void> {
       pickupKm: 1.2,
       hourGoodAt: 30,
       hourBadBelow: 20,
-      // The demo pill is free forever (MONETIZATION §4) — it is the thing that
+      // The demo pill is free forever — it is the thing that
       // shows a locked driver what they'd be buying.
       entitled: true,
     ),
@@ -252,7 +252,7 @@ class OverlayController extends Notifier<void> {
       pickupKm: 3.4,
       hourGoodAt: 30,
       hourBadBelow: 20,
-      // The demo pill is free forever (MONETIZATION §4) — it is the thing that
+      // The demo pill is free forever — it is the thing that
       // shows a locked driver what they'd be buying.
       entitled: true,
     ),
@@ -264,7 +264,7 @@ class OverlayController extends Notifier<void> {
       pickupKm: 4.6,
       hourGoodAt: 30,
       hourBadBelow: 20,
-      // The demo pill is free forever (MONETIZATION §4) — it is the thing that
+      // The demo pill is free forever — it is the thing that
       // shows a locked driver what they'd be buying.
       entitled: true,
     ),

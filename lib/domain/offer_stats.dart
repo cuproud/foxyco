@@ -1,7 +1,7 @@
 import 'offer_summary.dart';
 import 'verdict.dart';
 
-/// Rollup over a set of logged offers (docs/ROADMAP "shift summary") — the
+/// Rollup over a set of logged offers — the
 /// numbers a driver actually asks after a shift: how many offers, how they
 /// split, what the worthwhile ones paid per km, and which hour was hottest.
 ///

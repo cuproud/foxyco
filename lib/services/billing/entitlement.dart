@@ -10,7 +10,7 @@ import 'purchase_verifier.dart';
 import 'trial_store.dart';
 
 /// Forces entitlement on in debug builds so the pill can be worked on without a
-/// Play purchase or a live trial (MONETIZATION_v1.0 §6.2).
+/// Play purchase or a live trial.
 ///
 /// Gated on [kDebugMode], which is a compile-time constant, so the whole branch
 /// is tree-shaken out of release builds. It must never become a runtime setting,
@@ -86,7 +86,7 @@ class Access {
   );
 
   /// The whole entitlement decision, as a pure function of what Play said, what
-  /// the trial says, and the clock (MONETIZATION_v1.0 §11).
+  /// the trial says, and the clock.
   ///
   /// Pulled out of [AccessStore] so the money path is testable without Play,
   /// Firebase or prefs — and so the precedence is readable in one place.
@@ -183,8 +183,7 @@ class Access {
 }
 
 /// Combines the two independent sources of truth — Play for the purchase,
-/// Firestore for the trial — into a single `entitled` bool
-/// (MONETIZATION_v1.0 §11).
+/// Firestore for the trial — into a single `entitled` bool.
 ///
 /// `entitled = purchased OR trial active`, cached with an offline grace window.
 /// Everything fails CLOSED: while Play is unreachable and the trial unknown, a

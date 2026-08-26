@@ -15,11 +15,11 @@ import 'fox_clock.dart';
 const trialDuration = Duration(days: 7);
 
 /// How long a cached verdict is honoured with no successful server check
-/// (MONETIZATION_v1.0 §3.5). Simultaneously the UX floor — a driver in a dead
+/// Simultaneously the UX floor — a driver in a dead
 /// zone keeps working for a week — and the piracy ceiling.
 const offlineGrace = Duration(days: 7);
 
-/// Where the driver sits on the trial timeline (MONETIZATION_v1.0 §3.1).
+/// Where the driver sits on the trial timeline.
 enum TrialPhase {
   /// Still resolving. The boot state — never lock or unlock the UI on it.
   unknown,
@@ -145,7 +145,7 @@ String trialPlatformFailureTag(String stage, PlatformException error) {
 
 /// Owns the trial half of entitlement: identity (anonymous, then Google) and the
 /// write-once Firestore trial record, cached locally with an offline grace
-/// window (MONETIZATION_v1.0 §3.2–§3.5).
+/// window.
 ///
 /// Firestore is the source of truth for the START DATE and nothing else. The
 /// purchase half lives in `BillingStore`; `entitlementProvider` combines them.

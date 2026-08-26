@@ -114,9 +114,11 @@ class AccessibilityWatcher {
       // can currently see; OfferWatcher may inspect lower windows only to find
       // a complete offer, without using them as lifecycle/outcome evidence.
       final texts = windows.isNotEmpty ? windows.first.texts : _flatten(event);
-      final isActive = windows.isNotEmpty
-          ? windows.any((window) => window.isActive)
-          : event.isActive ?? false;
+      // Cross-app Uber cards can own the event while Lyft remains Android's
+      // active root. Preserve either signal: the visible Uber window may report
+      // inactive even though the root that caused this snapshot is active.
+      final isActive =
+          (event.isActive ?? false) || windows.any((window) => window.isActive);
       if (texts.isEmpty) {
         // Do NOT stay silent here. A window frame with ZERO readable text from
         // a watched app is the signature of a canvas/Compose-rendered screen

@@ -556,7 +556,7 @@ void main() {
     expect(find.text('Enable Uber or a delivery app'), findsOneWidget);
     await tester.tap(find.text('Delivery rules'));
     await tester.pumpAndSettle();
-    expect(find.textContaining('Used for Uber Eats'), findsNothing);
+    expect(find.textContaining('Used for delivery offers'), findsNothing);
 
     await openGroup(tester, 'Watched apps');
     await tester.tap(find.widgetWithText(SwitchListTile, 'Uber'));
@@ -564,7 +564,7 @@ void main() {
     expect(find.text('Includes Uber Eats'), findsOneWidget);
     await tester.tap(find.text('Delivery rules'));
     await tester.pumpAndSettle();
-    expect(find.textContaining('Used for Uber Eats'), findsOneWidget);
+    expect(find.textContaining('Used for delivery offers'), findsOneWidget);
   });
 
   testWidgets('groups are filed under named bands, in band order', (
@@ -639,7 +639,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Export CSV'), findsOneWidget);
+    expect(find.text('Export history backup'), findsOneWidget);
     expect(find.text('Clear offer history'), findsOneWidget);
     expectNoLayoutError(tester, 'Visible History actions');
 
