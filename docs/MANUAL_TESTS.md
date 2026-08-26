@@ -15,9 +15,10 @@ Legend: 🟢 GOOD  🟡 OK  🔴 BAD (pill shows icon + WORD + `km · $payout`).
 | # | How | PASS bar | Status |
 |---|---|---|---|
 | B.1 | Create offers, manually change an outcome and final payout, then Settings → History → Export CSV backup | File contains the versioned FoxyCo header and opens safely in a spreadsheet | [ ] |
-| B.2 | Import that file and choose Merge | Rows return with manual outcome, final payout, detected outcome and original scoring details intact; no duplicate cards | [ ] |
+| B.2 | Import that file and choose Merge, including ordinary ride rows with no delivery counts | Rows return with manual outcome, final payout, detected outcome and original scoring details intact; no duplicate cards | [ ] |
 | B.3 | Import the same file and choose Replace | History contains exactly the backup rows; canceling the picker/dialog changes nothing | [ ] |
 | B.4 | Try an old report CSV, malformed CSV, and oversized file | Import rejects each before changing history and shows a generic error | [ ] |
+| B.5 | Stop a session, then Settings → History → Clear all history | History is empty and Home no longer shows the saved Last session card, including after restart | [ ] |
 
 ---
 
@@ -26,21 +27,21 @@ Legend: 🟢 GOOD  🟡 OK  🔴 BAD (pill shows icon + WORD + `km · $payout`).
 Run these before promoting the AAB. They cover the highest-risk build changes
 without requiring DoorDash, Instacart or Skip accounts.
 
-**Current candidate:** direct-install build 90. Real-device validation is
+**Current candidate:** Play bundle build 92. Real-device validation is
 pending for accessibility-first Uber parsing, OCR fallback, cross-app capture,
 and Accessibility-only non-Uber offers.
 
 | # | How | PASS bar | Status |
 |---|-----|----------|--------|
 | Q.1 | Install from the Play test track → Settings → About | About shows the new bumped build; startup and four-tab navigation work | [ ] |
-| Q.2 | Rules → Watched apps | Existing selection survived upgrade; fresh install defaults to Uber/Lyft/Hopp; Uber says **Includes Uber Eats**; all three delivery betas are off | [ ] |
+| Q.2 | Rules → Watched apps | Existing selection survived upgrade; fresh install has no apps selected; Uber says **Includes Uber Eats** | [ ] |
 | Q.3 | Try enabling a fourth app; then turn one off and enable Skip | Fourth is blocked; after freeing a slot Skip enables and Home shows exactly the selected apps | [ ] |
 | Q.4 | Leave only Lyft selected, force-stop and reopen | Lyft remains the only watched app; disabled-app events cannot produce a pill | [ ] |
 | Q.5 | Leave only Lyft/Hopp on, then enable Uber and open Delivery rules | Card is always visible but disabled for Lyft/Hopp-only; Uber enables it because it includes Eats; settings persist independently from ride thresholds | [ ] |
 | Q.6 | History → App filters after enabling each delivery app | DoorDash, Instacart and Skip filters appear when selected or represented in History | [ ] |
 | Q.7 | Settings → Text size → Small/Medium/Large; open every tab | No overflow, clipped headers or overlapping bottom navigation; Pill size/preview does not change | [ ] |
 | Q.8 | Settings support rows at Large text | Send feedback, About and Diagnostic logs align and wrap without truncating their titles | [ ] |
-| Q.9 | Trigger one real Uber/Lyft/Hopp offer with OCR off | Existing parser still shows one correct pill/History row and clears when the card leaves | [ ] |
+| Q.9 | Select Uber, then trigger one real Uber/Lyft/Hopp offer | Uber OCR turns on automatically; all three show one correct pill/History row | [ ] |
 | Q.10 | With an older Play build installed and the new test release available, foreground FoxyCo | Update prompt appears once per foreground session and opens the Play update flow | [ ] |
 | Q.11 | Drag the bubble through the visible ✕ toward the bottom edge until the ✕ turns red, then release | Light haptic fires; overlay closes and Home leaves Watching. Releasing before red or canceling the drag does not stop the service | [ ] build 66 retest |
 | Q.12 | Trigger update success, Google sign-in cancel/failure, and Name saved | Every message is a floating FoxyCo surface with 16dp corners and orange outline; no default solid-black bar | [ ] build 66 |
@@ -616,13 +617,13 @@ _Last updated: 2026-07-25 (M12: polish pass + light theme; white car card + abov
 | M15.16 | With voice ON, trigger several GOOD offers quickly | The newest announcement replaces the previous speech; no delayed spoken backlog remains | [ ] |
 | M15.17 | Fresh install from a Play testing track in each supported country, then open Settings → Appearance | Currency defaults from the Play storefront (USD/CAD/AUD/NZD/MXN/BRL); changing it only relabels fares and thresholds—no FX conversion | [ ] |
 
-## M15A — optional Uber OCR
+## M15A — automatic Uber OCR
 
 | # | Step | Expect | Pass |
 |---|---|---|---|
-| OCR.1 | Leave Settings → App health → Offer detection → Uber OCR OFF; capture Uber/Lyft/Hopp cards | Lyft/Hopp use Accessibility; Uber works only if Android exposes readable nodes; no OCR log entry | [ ] |
-| OCR.2 | Tap Uber screen-reading fallback, then choose **Not now** on FoxyCo's disclosure | Toggle remains off; monitoring still works through Accessibility | [ ] |
-| OCR.3 | Tap the fallback again and choose **Enable Uber OCR**, then start monitoring | Toggle turns on; no Android screen-share prompt, indicator, or OCR notification appears | [ ] |
+| OCR.1 | Fresh install → Rules → Watched apps | No apps are selected and Uber OCR is off | [ ] |
+| OCR.2 | Select Uber, force-stop and reopen FoxyCo | Uber remains selected and OCR remains enabled | [ ] |
+| OCR.3 | Unselect Uber | OCR turns off immediately; selecting Uber again restores it | [ ] |
 | OCR.4 | Present accessibility-readable Uber, Lyft and Hopp offers while OCR is approved | All three parse immediately through Accessibility; no screenshot is requested for the readable Uber card | [ ] |
 | OCR.5 | Present an Uber card known to expose an empty/incomplete Accessibility tree | One rate-limited OCR frame is recognized on-device and feeds the Uber parser; one verdict/history row | [ ] |
 | OCR.5a | Present unreadable Lyft, Hopp or delivery-app text while Uber OCR is approved | No OCR-derived verdict; those platforms remain Accessibility-only | [ ] |
@@ -638,7 +639,7 @@ _Last updated: 2026-07-25 (M12: polish pass + light theme; white car card + abov
 | OCR.14 | Show an Uber card whose dark Match/Accept text is missed but whose Uber tier, payout, away leg and trip leg are readable | One correct verdict/history row; the missing action line alone does not lose the card | [ ] |
 | OCR.15 | Capture a `$7.54` / 7.4 km Uber offer through OCR, then inspect the pill, Home tally and History after restart | Exactly one `$7.54` OK row at about `$1.02/km`; never `$754`, GOOD, `$101.89/km`, or a duplicate | [ ] |
 | OCR.16 | Let a real Uber card clear, then make the next OCR frame resemble its pickup distance as a payout (today's `$2.00` / 2.0 km regression) | The changed payout is held for confirmation and creates no false verdict/history row | [ ] |
-| OCR.17 | Fresh install build 90, clear logs/history, then record 3–5 regular Uber offers plus Uber-over-Lyft/Hopp | Every physical card maps to exactly one correct row; readable Uber uses Accessibility and only incomplete Uber cards log OCR captures | [ ] |
+| OCR.17 | Fresh install build 92, clear all history, then record 3–5 regular Uber offers plus Uber-over-Lyft/Hopp | Every physical card maps to exactly one correct row; readable Uber uses Accessibility and only incomplete Uber cards log OCR captures | [ ] |
 
 ## M16 — Foxy brand art
 

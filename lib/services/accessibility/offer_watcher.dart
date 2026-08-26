@@ -606,7 +606,7 @@ class OfferWatcher extends Notifier<Offer?> {
     _expiryTimer = Timer(maxVisible, () {
       if (_shownKey != key) return;
       _suppressedKeys.add(key);
-      _clearNow();
+      _clearNow(reason: '5 s display timeout');
     });
     _touchIdle(offer.platform); // pill is up now — start the silence clock
     state = offer; // expose the latest parsed offer (debug / future tally)
@@ -618,7 +618,8 @@ class OfferWatcher extends Notifier<Offer?> {
         .log(
           'parse',
           '${offer.platform.label} \$${offer.payout} '
-              '${offer.totalKm.toStringAsFixed(1)}km → $verdict',
+              '${offer.totalKm.toStringAsFixed(1)}km → $verdict '
+              'source=${read.source.name}',
         );
     if (kDebugMode) {
       debugPrint(
@@ -918,7 +919,7 @@ class OfferWatcher extends Notifier<Offer?> {
   /// the pill back to the bubble. Outcome is NOT stamped here: it now runs on
   /// its own clock in [_inferOutcome], because the screen that proves the
   /// accept usually arrives well after the pill is gone.
-  void _clearNow() {
+  void _clearNow({String reason = 'offer left screen'}) {
     _clearTimer = null;
     _expiryTimer?.cancel();
     _expiryTimer = null;
@@ -932,8 +933,8 @@ class OfferWatcher extends Notifier<Offer?> {
     _shownWindowId = null;
     state = null;
     ref.read(overlayControllerProvider.notifier).clearOffer();
-    ref.read(foxLogProvider).log('overlay', 'pill cleared — offer left screen');
-    if (kDebugMode) debugPrint('FoxyCo[watch] clear: offer left screen');
+    ref.read(foxLogProvider).log('overlay', 'pill cleared — $reason');
+    if (kDebugMode) debugPrint('FoxyCo[watch] clear: $reason');
   }
 }
 

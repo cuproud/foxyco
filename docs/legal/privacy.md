@@ -44,8 +44,8 @@ clear it at any time.
 
 FoxyCo uses Android's AccessibilityService API to receive selected driver-app
 events, read non-Uber offer cards, and detect when an Uber offer ends. You can
-separately enable **Uber screen-reading fallback (OCR)** for Uber cards Android
-may hide from Accessibility.
+select Uber to enable its **screen-reading fallback (OCR)** for cards Android
+may hide from Accessibility. Unselecting Uber turns that fallback off.
 
 - The Accessibility event stream is restricted to the supported driver-app
   packages shown in FoxyCo's app picker. FoxyCo processes offer text only for
@@ -65,8 +65,8 @@ may hide from Accessibility.
   is enabled, infer whether an offer was taken or passed. The numbers extracted
   (pay, distance, duration) are saved to your local offer history. Raw screen
   text is processed in memory and is never saved, uploaded or shared.
-- Uber OCR is off by default. Enabling it shows a separate FoxyCo
-  disclosure and requires an affirmative choice. On Android 11 and newer, OCR
+- Uber OCR is off on a fresh install because no driver apps are selected.
+  Selecting Uber enables it. On Android 11 and newer, OCR
   requests one Accessibility screenshot only after an active
   watched-app event indicates that a visible Uber card may be unreadable. OCR
   output is accepted only by the Uber parser. There is no

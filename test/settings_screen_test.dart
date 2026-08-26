@@ -8,7 +8,9 @@ import 'package:foxyco/domain/app_currency.dart';
 import 'package:foxyco/domain/app_text_size.dart';
 import 'package:foxyco/domain/fox_settings.dart';
 import 'package:foxyco/domain/distance_unit.dart';
+import 'package:foxyco/domain/offer_summary.dart';
 import 'package:foxyco/domain/rate_mode.dart';
+import 'package:foxyco/domain/session_summary.dart';
 import 'package:foxyco/domain/platform.dart';
 import 'package:foxyco/domain/thresholds.dart';
 import 'package:foxyco/domain/verdict.dart';
@@ -19,6 +21,8 @@ import 'package:foxyco/ui/rules/rules_screen.dart';
 import 'package:foxyco/ui/settings/settings_screen.dart';
 import 'package:foxyco/ui/theme/app_theme.dart';
 import 'package:foxyco/ui/theme/tokens.dart';
+import 'package:foxyco/services/offer_log.dart';
+import 'package:foxyco/services/session_log.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 // SettingsScreen lives inside RootShell's Scaffold (which supplies the Material
@@ -326,6 +330,64 @@ void main() {
     expect(container.read(settingsProvider).thresholds.goodAtOrAbove, 2.5);
   });
 
+  testWidgets('Clear all history removes offers and session summaries', (
+    tester,
+  ) async {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+    final now = DateTime.now();
+    container
+        .read(offerLogProvider.notifier)
+        .record(
+          OfferSummary(
+            platform: GigPlatform.uber,
+            verdict: Verdict.good,
+            payout: 12,
+            totalKm: 8,
+            seenAt: now,
+          ),
+        );
+    container
+        .read(sessionLogProvider.notifier)
+        .record(
+          SessionSummary(
+            startedAt: now.subtract(const Duration(minutes: 5)),
+            endedAt: now,
+            good: 1,
+          ),
+        );
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(
+          theme: AppTheme.dark,
+          home: const Scaffold(body: SettingsScreen()),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.text('History'),
+      500,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(find.text('History'));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.text('Clear all history'),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(find.text('Clear all history'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Clear'));
+    await tester.pumpAndSettle();
+
+    expect(container.read(offerLogProvider), isEmpty);
+    expect(container.read(sessionLogProvider), isEmpty);
+  });
+
   testWidgets('pill size selector shows live VerdictPill preview', (
     tester,
   ) async {
@@ -434,52 +496,6 @@ void main() {
     expect(find.text('Space Grotesk'), findsWidgets);
   });
 
-  testWidgets('Uber OCR is an opt-in parser fallback', (tester) async {
-    tester.view.physicalSize = const Size(1080, 3600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.resetPhysicalSize);
-    addTearDown(tester.view.resetDevicePixelRatio);
-    await tester.pumpWidget(_host());
-    await tester.pumpAndSettle();
-
-    await openGroup(tester, 'Offer detection');
-    expect(find.text('Uber screen-reading fallback'), findsOneWidget);
-    await tester.tap(find.text('How detection works'));
-    await tester.pumpAndSettle();
-    final toggle = tester.widget<SwitchListTile>(
-      find.widgetWithText(SwitchListTile, 'Uber screen-reading fallback'),
-    );
-    expect(toggle.value, isFalse);
-    expect(
-      tester
-          .widget<SwitchListTile>(find.byKey(const Key('ocr_test_mode_toggle')))
-          .onChanged,
-      isNull,
-    );
-    await tester.tap(find.text('Uber screen-reading fallback'));
-    await tester.pumpAndSettle();
-    expect(find.text('Enable Uber screen-reading fallback?'), findsOneWidget);
-    await tester.tap(find.text('Not now'));
-    await tester.pumpAndSettle();
-    expect(find.text('Current session'), findsOneWidget);
-
-    await tester.tap(find.text('Uber screen-reading fallback'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Enable Uber OCR'));
-    await tester.pumpAndSettle();
-    expect(find.text('Current session · Uber OCR enabled'), findsOneWidget);
-
-    final testToggle = find.byKey(const Key('ocr_test_mode_toggle'));
-    expect(tester.widget<SwitchListTile>(testToggle).onChanged, isNotNull);
-    await tester.tap(testToggle);
-    await tester.pumpAndSettle();
-    final context = tester.element(find.byType(SettingsScreen));
-    expect(
-      ProviderScope.containerOf(context).read(settingsProvider).ocrTestMode,
-      isTrue,
-    );
-  });
-
   testWidgets('accordion opens one group at a time', (tester) async {
     tester.view.physicalSize = const Size(1080, 3600);
     tester.view.devicePixelRatio = 1.0;
@@ -512,11 +528,17 @@ void main() {
     await openGroup(tester, 'Watched apps');
 
     final doorDash = find.widgetWithText(SwitchListTile, 'DoorDash');
+    final uber = find.widgetWithText(SwitchListTile, 'Uber');
     final hopp = find.widgetWithText(SwitchListTile, 'Hopp');
+    final lyft = find.widgetWithText(SwitchListTile, 'Lyft');
     expect(find.text('Includes Uber Eats'), findsOneWidget);
     expect(find.text('BETA'), findsNWidgets(3));
     expect(tester.widget<SwitchListTile>(doorDash).onChanged, isNotNull);
 
+    await tester.tap(uber);
+    await tester.tap(hopp);
+    await tester.tap(lyft);
+    await tester.pumpAndSettle();
     await tester.tap(doorDash);
     await tester.pump();
     expect(
@@ -640,7 +662,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Export history backup'), findsOneWidget);
-    expect(find.text('Clear offer history'), findsOneWidget);
+    expect(find.text('Clear all history'), findsOneWidget);
     expectNoLayoutError(tester, 'Visible History actions');
 
     await tester.scrollUntilVisible(
@@ -735,16 +757,15 @@ void main() {
     expect(back.deliveryMinimumPayout, 9);
   });
 
-  test('watched apps default to rides and enforce a maximum of three', () {
+  test('watched apps default off and enforce a maximum of three', () {
     final container = ProviderContainer();
     addTearDown(container.dispose);
     final controller = container.read(settingsProvider.notifier);
 
-    expect(container.read(settingsProvider).watchedApps, {
-      GigPlatform.uber,
-      GigPlatform.hopp,
-      GigPlatform.lyft,
-    });
+    expect(container.read(settingsProvider).watchedApps, isEmpty);
+    controller.toggleApp(GigPlatform.uber);
+    controller.toggleApp(GigPlatform.hopp);
+    controller.toggleApp(GigPlatform.lyft);
     controller.toggleApp(GigPlatform.doorDash);
     expect(
       container.read(settingsProvider).watches(GigPlatform.doorDash),
@@ -767,12 +788,20 @@ void main() {
     expect(settings.watchedApps, {GigPlatform.lyft});
   });
 
-  test('OCR opt-in survives a JSON round-trip and defaults off', () {
+  test('OCR follows persisted Uber selection', () {
     expect(FoxSettings.fromJson(const {}).ocrEnabled, isFalse);
     final back = FoxSettings.fromJson(
-      FoxSettings.defaults.copyWith(ocrEnabled: true).toJson(),
+      FoxSettings.defaults
+          .copyWith(watchedApps: {GigPlatform.uber}, ocrEnabled: false)
+          .toJson(),
     );
     expect(back.ocrEnabled, isTrue);
+    expect(
+      FoxSettings.fromJson(
+        FoxSettings.defaults.copyWith(ocrEnabled: true).toJson(),
+      ).ocrEnabled,
+      isFalse,
+    );
     expect(
       FoxSettings.fromJson(
         FoxSettings.defaults.copyWith(ocrTestMode: true).toJson(),
@@ -787,14 +816,27 @@ void main() {
     addTearDown(container.dispose);
     final controller = container.read(settingsProvider.notifier);
 
-    controller.setOcrEnabled(true);
+    controller.toggleApp(GigPlatform.uber);
     expect(container.read(settingsProvider).ocrEnabled, isTrue);
 
     controller.toggleApp(GigPlatform.uber);
     expect(container.read(settingsProvider).ocrEnabled, isFalse);
+  });
 
-    controller.setOcrEnabled(true);
-    expect(container.read(settingsProvider).ocrEnabled, isFalse);
+  test('reset preserves selected apps and Uber OCR coupling', () {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+    final controller = container.read(settingsProvider.notifier);
+
+    controller.toggleApp(GigPlatform.uber);
+    controller.toggleApp(GigPlatform.lyft);
+    controller.setGood(2.5);
+    controller.reset();
+
+    final settings = container.read(settingsProvider);
+    expect(settings.watchedApps, {GigPlatform.uber, GigPlatform.lyft});
+    expect(settings.ocrEnabled, isTrue);
+    expect(settings.thresholds, FoxSettings.defaults.thresholds);
   });
 
   test('voice settings survive a JSON round-trip with GOOD default on', () {
@@ -838,7 +880,7 @@ void main() {
     addTearDown(container.dispose);
     final controller = container.read(settingsProvider.notifier);
 
-    controller.setOcrEnabled(true);
+    controller.toggleApp(GigPlatform.uber);
     controller.setOcrTestMode(true);
     expect(container.read(settingsProvider).ocrTestMode, isTrue);
 

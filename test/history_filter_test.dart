@@ -443,7 +443,7 @@ void main() {
           .widget<Text>(find.byKey(const ValueKey('history-summary-good')))
           .style
           ?.fontSize,
-      17,
+      15,
     );
     expect(
       tester

@@ -156,7 +156,7 @@ class FoxSettings {
     deliveryRateMode: RateMode.perKm,
     deliveryMinimumPayoutEnabled: false,
     deliveryMinimumPayout: 7,
-    watchedApps: {GigPlatform.uber, GigPlatform.hopp, GigPlatform.lyft},
+    watchedApps: {},
     retentionDays: 30,
     pillSize: PillSize.small,
     appTextSize: AppTextSize.medium,
@@ -337,6 +337,7 @@ class FoxSettings {
         ?.map((n) => GigPlatform.values.where((p) => p.name == n))
         .expand((e) => e)
         .toSet();
+    final watchedApps = (apps ?? d.watchedApps).take(maxWatchedApps).toSet();
     return FoxSettings(
       thresholds: good >= bad
           ? Thresholds(goodAtOrAbove: good, badBelow: bad)
@@ -380,9 +381,7 @@ class FoxSettings {
         0,
         500,
       ),
-      watchedApps: (apps == null || apps.isEmpty)
-          ? d.watchedApps
-          : apps.take(maxWatchedApps).toSet(),
+      watchedApps: watchedApps,
       retentionDays: const [7, 30, 90, keepForever].contains(retention)
           ? retention!
           : d.retentionDays,
@@ -417,7 +416,7 @@ class FoxSettings {
           ((j['voiceCooldownSeconds'] as num?)?.toInt() ??
                   d.voiceCooldownSeconds)
               .clamp(5, 120),
-      ocrEnabled: (j['ocrEnabled'] as bool?) ?? d.ocrEnabled,
+      ocrEnabled: watchedApps.contains(GigPlatform.uber),
       moneyFont: MoneyFont.fromName(j['moneyFont'] as String?),
       skin: AppSkin.fromName(j['skin'] as String?),
       distanceUnit: DistanceUnit.fromName(j['distanceUnit'] as String?),

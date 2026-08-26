@@ -413,9 +413,10 @@ class OfferLog extends Notifier<List<OfferSummary>> {
   }
 
   /// Wipe the whole log (Settings "clear history").
-  void clearAll() {
+  Future<void> clearAll() async {
+    await _loaded.future;
     state = const [];
-    _save();
+    await _save();
   }
 }
 

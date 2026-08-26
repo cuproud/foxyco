@@ -171,8 +171,9 @@ void _validateRecord(Map<String, dynamic> record, int row) {
     return value.toDouble();
   }
 
-  int integer(String key, {int min = 0, int max = 100000}) {
+  int optionalInteger(String key, {int min = 0, int max = 100000}) {
     final value = record[key];
+    if (value == null) return 0;
     if (value is! num ||
         value.toDouble() != value ||
         value < min ||
@@ -252,9 +253,9 @@ void _validateRecord(Map<String, dynamic> record, int row) {
   }
   optionalBool('outcomeIsManual');
   optionalBool('isQueued');
-  integer('deliveryCount');
-  integer('itemCount');
-  integer('unitCount');
+  optionalInteger('deliveryCount');
+  optionalInteger('itemCount');
+  optionalInteger('unitCount');
 
   final snapshot = record['scoringSnapshot'];
   if (snapshot != null) {

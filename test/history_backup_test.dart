@@ -32,6 +32,23 @@ void main() {
     expect(restored.toJson(), offer.toJson());
   });
 
+  test('round trips regular rides with omitted zero delivery counts', () {
+    final ride = OfferSummary(
+      platform: GigPlatform.uber,
+      verdict: Verdict.ok,
+      payout: 9.48,
+      pickupKm: 2,
+      totalKm: 11.5,
+      seenAt: DateTime.utc(2026, 8, 26, 9, 4),
+    );
+
+    final restored = HistoryBackupCodec.decode(
+      HistoryBackupCodec.encode([ride]),
+    ).single;
+
+    expect(restored.toJson(), ride.toJson());
+  });
+
   test('rejects report CSV instead of guessing fields', () {
     expect(
       () => HistoryBackupCodec.decode('seen_at,app,outcome\n'),

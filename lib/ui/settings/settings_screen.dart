@@ -15,7 +15,6 @@ import '../../domain/fox_settings.dart';
 import '../../domain/money_font.dart';
 import '../../domain/overlay_payload.dart' show OverlayPayload, PillSize;
 import '../../domain/offer_summary.dart';
-import '../../domain/platform.dart';
 import '../../parser/parser_registry.dart';
 import '../../domain/verdict.dart';
 import '../../services/offer_log.dart';
@@ -24,8 +23,8 @@ import '../../services/history_backup_platform.dart';
 import '../../services/device_health.dart';
 import '../../services/feedback_service.dart';
 import '../../services/parse_health.dart';
+import '../../services/session_log.dart';
 import '../overlay/verdict_pill.dart';
-import '../legal/ocr_disclosure.dart';
 import '../shell/root_shell.dart';
 import '../theme/section_label.dart';
 import '../theme/tokens.dart';
@@ -75,15 +74,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   int _open = -1;
   bool _bubbleStylesOpen = false;
   void _toggle(int i) => setState(() => _open = _open == i ? -1 : i);
-
-  Future<void> _setOcrEnabled(bool enabled) async {
-    if (!enabled) {
-      ref.read(settingsProvider.notifier).setOcrEnabled(false);
-      return;
-    }
-    if (!await showOcrDisclosure(context) || !mounted) return;
-    ref.read(settingsProvider.notifier).setOcrEnabled(true);
-  }
 
   /// One key per row so a deep link can scroll its target into view. The rows
   /// all live in a plain `ListView(children:)`, so anything past the cache
@@ -206,9 +196,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           SettingsGroup(
             title: 'Offer detection',
             icon: Icons.monitor_heart_outlined,
-            summary: settings.ocrEnabled
-                ? 'Current session · Uber OCR enabled'
-                : 'Current session',
+            summary: 'Current session',
             open: _open == 2,
             accent: _accents[2],
             onTap: () => _toggle(2),
@@ -233,7 +221,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 const SizedBox(height: Gap.sm),
                 Text(
                   'Current session. If offer cards arrive but FoxyCo cannot '
-                  'read them, update the app or enable the screen-reading fallback.',
+                  'read them, update FoxyCo. Uber detection automatically uses '
+                  'its on-device screen-reading fallback.',
                   style: text.bodyMedium?.copyWith(
                     color: FoxColors.textSecondary,
                   ),
@@ -276,30 +265,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   },
                 ),
                 Divider(color: FoxColors.border, height: Gap.xl),
-                Material(
-                  type: MaterialType.transparency,
-                  child: SwitchListTile(
-                    contentPadding: EdgeInsets.zero,
-                    secondary: Icon(
-                      Icons.document_scanner_outlined,
-                      color: FoxColors.brandFox,
-                    ),
-                    title: Text(
-                      'Uber screen-reading fallback',
-                      style: text.titleMedium,
-                    ),
-                    subtitle: Text(
-                      settings.watches(GigPlatform.uber)
-                          ? 'Uses on-device OCR for Uber offer cards'
-                          : 'Select Uber in Rules to enable this fallback',
-                    ),
-                    value: settings.ocrEnabled,
-                    activeTrackColor: FoxColors.brandFox,
-                    onChanged: settings.watches(GigPlatform.uber)
-                        ? _setOcrEnabled
-                        : null,
-                  ),
-                ),
                 ExpansionTile(
                   tilePadding: EdgeInsets.zero,
                   childrenPadding: EdgeInsets.zero,
@@ -697,7 +662,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         foregroundColor: VerdictColors.bad,
                       ),
                       child: const Text(
-                        'Clear offer history',
+                        'Clear all history',
                         style: TextStyle(fontWeight: FontWeight.w700),
                       ),
                     ),
@@ -898,9 +863,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final yes = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Clear offer history?'),
+        title: const Text('Clear all history?'),
         content: const Text(
-          'Every logged offer is deleted. This cannot be undone.',
+          'Every logged offer and saved session summary is deleted. This cannot be undone.',
         ),
         actions: [
           TextButton(
@@ -915,7 +880,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         ],
       ),
     );
-    if (yes == true) ref.read(offerLogProvider.notifier).clearAll();
+    if (yes == true) {
+      await Future.wait([
+        ref.read(offerLogProvider.notifier).clearAll(),
+        ref.read(sessionLogProvider.notifier).clearAll(),
+      ]);
+    }
   }
 }
 

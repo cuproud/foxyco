@@ -44,6 +44,7 @@ class HomeScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(dashboardProvider);
     final controller = ref.read(dashboardProvider.notifier);
+    final settings = ref.watch(settingsProvider);
     final blocked = state.status == WatchStatus.blocked;
     final recentAccepted = ref
         .watch(offerLogProvider)
@@ -106,11 +107,13 @@ class HomeScreen extends ConsumerWidget {
               return y.good + y.ok + y.bad;
             }(),
             platforms: ParserRegistry.supportedPlatforms
-                .where(ref.watch(settingsProvider).watches)
+                .where(settings.watches)
                 .toList(),
             // Slide-to-go-live is the Start/Stop outer gate (spec M6 §3.2);
             // pause stays on the bubble long-press.
-            onStart: () => unawaited(controller.startMonitoring()),
+            onStart: () => settings.watchedApps.isEmpty
+                ? ref.read(tabIndexProvider.notifier).go(1, section: 3)
+                : unawaited(controller.startMonitoring()),
             onStop: controller.stopMonitoring,
             onFix: requestMissingPermissions,
             // Rules section 3 is "Watched apps" — the badges' own controls.

@@ -90,6 +90,12 @@ class SessionLog extends Notifier<List<SessionSummary>> {
     return true;
   }
 
+  Future<void> clearAll() async {
+    await _loaded.future;
+    state = const [];
+    await _save();
+  }
+
   /// Rebuild the one saved session containing a corrected offer.
   Future<void> refreshForOffer(
     OfferSummary changed,

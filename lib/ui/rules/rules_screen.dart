@@ -804,7 +804,9 @@ class _RulesScreenState extends ConsumerState<RulesScreen> {
           SettingsGroup(
             title: 'Watched apps',
             icon: Icons.apps_rounded,
-            summary: settings.watchedApps.map((app) => app.label).join(' · '),
+            summary: settings.watchedApps.isEmpty
+                ? 'None selected'
+                : settings.watchedApps.map((app) => app.label).join(' · '),
             open: _open == 3,
             accent: _accents[3],
             onTap: () => _toggle(3),

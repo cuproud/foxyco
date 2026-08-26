@@ -1976,7 +1976,7 @@ class _VerdictSummaryChip extends StatelessWidget {
                 key: ValueKey('history-summary-${verdict.name}'),
                 style: TextStyle(
                   fontFamily: FoxFonts.display,
-                  fontSize: 17,
+                  fontSize: 15,
                   fontWeight: FontWeight.w700,
                   color: style.color,
                   fontFeatures: const [FontFeature.tabularFigures()],
@@ -2567,7 +2567,7 @@ class _CompactStat extends StatelessWidget {
                     maxLines: 1,
                     style: TextStyle(
                       fontFamily: FoxFonts.display,
-                      fontSize: 17,
+                      fontSize: 15,
                       fontWeight: FontWeight.w700,
                       fontFeatures: [FontFeature.tabularFigures()],
                     ),

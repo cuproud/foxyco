@@ -604,7 +604,10 @@ class _DetailBandItem extends StatelessWidget {
   Widget build(BuildContext context) => Row(
     mainAxisAlignment: MainAxisAlignment.center,
     children: [
-      Icon(icon, size: 20, color: FoxColors.brandFox),
+      SizedBox(
+        width: 28,
+        child: Center(child: Icon(icon, size: 20, color: FoxColors.brandFox)),
+      ),
       const SizedBox(width: Gap.sm),
       Flexible(
         child: Column(

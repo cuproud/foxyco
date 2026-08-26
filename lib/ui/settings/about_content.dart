@@ -36,7 +36,7 @@ const aboutIntro =
 
 /// Version string. Kept as a plain const rather than adding a native plugin for
 /// one label; `about_content_test.dart` guards it against `pubspec.yaml` drift.
-const aboutVersion = '1.0.10 (build 90)';
+const aboutVersion = '1.0.10 (build 93)';
 
 const aboutSections = <AboutSection>[
   AboutSection(
@@ -194,7 +194,8 @@ const aboutSections = <AboutSection>[
       AboutEntry(
         'What is Uber screen-reading fallback?',
         'Optional OCR for Uber offer cards Android may hide from Accessibility. '
-            'It is off by default. When enabled, Uber verdicts use OCR while '
+            'It turns on with Uber and off when Uber is unselected. Uber verdicts '
+            'use OCR when the card text is otherwise unavailable, while '
             'other supported offers use Accessibility text only. '
             'Because Uber can draw a request over another selected driver app, '
             'that app\'s screen-change event may trigger one frame, but recognized '

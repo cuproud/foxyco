@@ -1,6 +1,6 @@
 # Google Play release runbook
 
-Updated 2026-08-26 for `1.0.10+90`.
+Updated 2026-08-26 for `1.0.10+92`.
 
 ## Before building
 
@@ -44,14 +44,14 @@ Use this implementation-accurate purpose statement:
 > FoxyCo receives screen-change events from selected supported driver apps and
 > temporarily reads offer text to identify pay, distance, duration, and
 > delivery workload so it can display a read-only earnings verdict. If the
-> driver separately enables Uber screen-reading fallback on Android 11 or
-> newer, a selected-app event can trigger one rate-limited Accessibility
+> the driver selects Uber on Android 11 or newer, a selected-app event can
+> trigger one rate-limited Accessibility
 > screenshot for on-device Uber OCR. Screenshots and raw text are immediately
 > discarded and are never saved or sent. FoxyCo never taps, accepts, declines,
 > or controls another app.
 
 The review video should show the in-app prominent disclosure, affirmative
-consent, Android permission screen, optional separate Uber OCR disclosure, one
+consent, Android permission screen, Uber selection, one
 verdict, and that FoxyCo performs no automated action. Do not promise approval;
 Google makes the final policy decision.
 

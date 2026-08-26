@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:foxyco/domain/offer_summary.dart';
+import 'package:foxyco/domain/fox_settings.dart';
 import 'package:foxyco/domain/platform.dart';
 import 'package:foxyco/domain/session_summary.dart';
 import 'package:foxyco/domain/verdict.dart';
@@ -13,6 +14,7 @@ import 'package:foxyco/ui/home/home_screen.dart';
 import 'package:foxyco/ui/home/dashboard_controller.dart';
 import 'package:foxyco/ui/home/dashboard_state.dart';
 import 'package:foxyco/ui/home/slide_to_live.dart';
+import 'package:foxyco/ui/settings/settings_controller.dart';
 
 class _GrantedDashboardController extends DashboardController {
   @override
@@ -44,6 +46,13 @@ class _WatchingDashboardController extends DashboardController {
       overlayGranted: true,
       accessibilityGranted: true,
     ),
+  );
+}
+
+class _SelectedAppsSettingsController extends SettingsController {
+  @override
+  FoxSettings build() => FoxSettings.defaults.copyWith(
+    watchedApps: {GigPlatform.uber},
   );
 }
 
@@ -241,6 +250,7 @@ void main() {
       ProviderScope(
         overrides: [
           dashboardProvider.overrideWith(_GrantedDashboardController.new),
+          settingsProvider.overrideWith(_SelectedAppsSettingsController.new),
         ],
         child: const MaterialApp(home: HomeScreen()),
       ),

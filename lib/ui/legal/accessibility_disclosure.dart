@@ -4,9 +4,10 @@ const accessibilityDisclosureTitle = 'Offer access';
 const accessibilityDisclosureBody =
     'Uses Android Accessibility to read offers from the driver apps you select '
     'and show a private GOOD, OK or BAD verdict. Choose up to three supported '
-    'apps. Offer numbers stay on this device; raw screen text is not saved or '
-    'uploaded. FoxyCo only reads—it cannot tap, accept, decline or control '
-    'another app.';
+    'apps. When Uber is selected, FoxyCo may take a temporary screenshot of a '
+    'visible Uber offer and recognize it on this device. Screenshots and raw '
+    'screen text are never saved or uploaded. FoxyCo only reads—it cannot tap, '
+    'accept, decline or control another app.';
 
 Future<bool> showAccessibilityDisclosure(BuildContext context) async =>
     await showDialog<bool>(

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:foxyco/domain/fox_settings.dart';
 import 'package:foxyco/domain/offer_summary.dart';
 import 'package:foxyco/domain/overlay_action.dart';
 import 'package:foxyco/domain/bubble_style.dart';
@@ -27,6 +28,13 @@ class _FakeWatcher extends AccessibilityWatcher {
   void emit(ScreenRead r) => _controller.add(r);
   @override
   Stream<ScreenRead> reads() => _controller.stream;
+}
+
+class _OfferTestSettingsController extends SettingsController {
+  @override
+  FoxSettings build() => FoxSettings.defaults.copyWith(
+    watchedApps: {GigPlatform.uber, GigPlatform.hopp, GigPlatform.lyft},
+  );
 }
 
 class _FakeOcrCapture extends OcrCapture {
@@ -207,6 +215,7 @@ void main() {
         ocrCaptureProvider.overrideWithValue(ocr),
         verdictVoiceProvider.overrideWithValue(voice),
         dashboardProvider.overrideWith(_GrantedDashboardController.new),
+        settingsProvider.overrideWith(_OfferTestSettingsController.new),
       ],
     );
     addTearDown(c.dispose);

@@ -83,11 +83,6 @@ class DashboardController extends Notifier<DashboardState> {
       if (settings.ocrEnabled) {
         final started = await ref.read(ocrCaptureProvider).start();
         if (!ref.mounted) return;
-        if (!started) {
-          // Android 10 and temporarily unavailable Accessibility screenshot
-          // services must keep Uber usable through its readable node text.
-          ref.read(settingsProvider.notifier).setOcrEnabled(false);
-        }
         ref
             .read(foxLogProvider)
             .log(

@@ -156,13 +156,12 @@ class SettingsController extends Notifier<FoxSettings> {
   void setPickupNearKm(double km) =>
       _change((current) => current.copyWith(pickupNearKm: km.clamp(0.5, 10.0)));
 
-  /// Toggle a gig app on/off. The last remaining app can't be turned off —
-  /// FoxyCo watching nothing is just confusing.
+  /// Toggle a gig app on/off. Uber owns its OCR fallback: one switch controls
+  /// both, so Uber can never look enabled while silently missing hidden cards.
   void toggleApp(GigPlatform app) {
     _change((current) {
       final next = Set<GigPlatform>.from(current.watchedApps);
       if (next.contains(app)) {
-        if (next.length == 1) return current;
         next.remove(app);
       } else {
         if (next.length >= FoxSettings.maxWatchedApps) return current;
@@ -171,7 +170,7 @@ class SettingsController extends Notifier<FoxSettings> {
       final keepsUber = next.contains(GigPlatform.uber);
       return current.copyWith(
         watchedApps: next,
-        ocrEnabled: keepsUber && current.ocrEnabled,
+        ocrEnabled: keepsUber,
         ocrTestMode: keepsUber && current.ocrTestMode,
       );
     });
@@ -230,7 +229,12 @@ class SettingsController extends Notifier<FoxSettings> {
   void setBubbleStyle(BubbleStyle style) =>
       _change((current) => current.copyWith(bubbleStyle: style));
 
-  void reset() => _change((_) => FoxSettings.defaults);
+  void reset() => _change(
+    (current) => FoxSettings.defaults.copyWith(
+      watchedApps: current.watchedApps,
+      ocrEnabled: current.watches(GigPlatform.uber),
+    ),
+  );
 
   void setTrackOutcomes(bool on) =>
       _change((current) => current.copyWith(trackOutcomes: on));
@@ -256,6 +260,7 @@ class SettingsController extends Notifier<FoxSettings> {
     (current) => current.copyWith(voiceCooldownSeconds: seconds.clamp(5, 120)),
   );
 
+  @visibleForTesting
   void setOcrEnabled(bool on) => _change((current) {
     final enabled = on && current.watches(GigPlatform.uber);
     return current.copyWith(

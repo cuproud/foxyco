@@ -2,7 +2,7 @@
 
 Audit date: 2026-08-26
 
-Candidate: `1.0.10+90` (direct-install device test)
+Candidate: `1.0.10+92` (Play bundle device test)
 
 Result: automated release checks pass after the fixes below. Production remains
 conditional on the real-device and Play Console gates listed here.
@@ -32,6 +32,12 @@ conditional on the real-device and Play Console gates listed here.
 9. OCR payout guards reject distance-as-money reads, hold dropped decimals
    before display/persistence, retain conflict protection briefly after clear,
    and repair the two observed corrupt duplicate signatures during history load.
+10. History backup import now accepts omitted zero delivery counts, matching its
+    own exported JSON. The reported 27-record device backup decodes successfully.
+11. History verdict counts and compact performance values use smaller base type
+    so larger counts and rates fit before scale-down is needed.
+12. Clear all history now atomically removes both offer rows and persisted
+    session summaries, preventing a stale Last session card after a wipe.
 
 ## Audit coverage and result
 
@@ -50,24 +56,23 @@ conditional on the real-device and Play Console gates listed here.
 
 - `dart fix --dry-run`: nothing to fix
 - `flutter analyze --fatal-infos`: passed
-- Flutter suite: 537 tests passed
+- Flutter suite: 539 tests passed
 - `npm run test:rules`: 5 passed
 - `npm audit --omit=dev`: 0 vulnerabilities
 - full `npm audit`: 5 moderate transitive dev-tool advisories under
   `firebase-tools`; none are packaged in the Android app
 - `./gradlew :app:lintRelease`: passed
-- `./scripts/build.sh release --bump`: passed analysis, 537 Flutter tests, 5
-  Firestore rules tests, version bump, signing, and release APK build
+- `./scripts/build.sh aab --bump`: passed analysis, 539 Flutter tests, 5
+  Firestore rules tests, version bump, signing, and release AAB build
 - Previous `./scripts/build.sh aab`: passed analysis, 527 Flutter tests, 5 Firestore
   rules tests, signing/key checks, and the production bundle build
 - secret/config/manifest/backup/logging review: passed
 
-Current device-test artifact:
+Current Play device-test artifact:
 
-- `dist/FoxyCo-v1.0.10+90-release-20260826-1355.apk`
-- SHA-256: `a88de5d6e9d1dc5537cf1d985355bce3ef52f42807c435eec9fbcdcc847dee4b`
-- Direct-install build; Play purchase verification is intentionally unavailable
-  because no Play public key was supplied
+- `dist/FoxyCo-v1.0.10+92-release-20260826-1523.aab`
+- SHA-256: `5ba955a746de6b13c2c3f3b8b4533737930010eb3d5b8310523193dd8e280ae0`
+- Play verification key present; upload through a Play test track for device use
 
 Last Play-key-verified artifact:
 

@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:foxyco/domain/platform.dart';
 import 'package:foxyco/services/ocr/ocr_capture.dart';
 import 'package:foxyco/ui/home/dashboard_controller.dart';
 import 'package:foxyco/ui/home/dashboard_state.dart';
@@ -99,13 +100,13 @@ void main() {
     final ocr = _FakeOcrCapture()..startResult = false;
     final container = _grantedContainer(ocr);
     addTearDown(container.dispose);
-    container.read(settingsProvider.notifier).setOcrEnabled(true);
+    container.read(settingsProvider.notifier).toggleApp(GigPlatform.uber);
 
     await container.read(dashboardProvider.notifier).startMonitoring();
 
     expect(ocr.starts, 1);
     expect(container.read(dashboardProvider).status, WatchStatus.watching);
-    expect(container.read(settingsProvider).ocrEnabled, isFalse);
+    expect(container.read(settingsProvider).ocrEnabled, isTrue);
   });
 
   test(
@@ -114,7 +115,7 @@ void main() {
       final ocr = _FakeOcrCapture();
       final container = _grantedContainer(ocr);
       addTearDown(container.dispose);
-      container.read(settingsProvider.notifier).setOcrEnabled(true);
+      container.read(settingsProvider.notifier).toggleApp(GigPlatform.uber);
 
       final dashboard = container.read(dashboardProvider.notifier);
       await dashboard.startMonitoring();
@@ -130,7 +131,7 @@ void main() {
     final ocr = _FakeOcrCapture();
     final container = _grantedContainer(ocr);
     addTearDown(container.dispose);
-    container.read(settingsProvider.notifier).setOcrEnabled(true);
+    container.read(settingsProvider.notifier).toggleApp(GigPlatform.uber);
 
     await container.read(dashboardProvider.notifier).startMonitoring();
     container.read(dashboardProvider.notifier).togglePause();
@@ -146,8 +147,8 @@ void main() {
     addTearDown(container.dispose);
 
     final settings = container.read(settingsProvider.notifier);
-    settings.setOcrEnabled(true);
-    settings.setOcrEnabled(false);
+    settings.toggleApp(GigPlatform.uber);
+    settings.toggleApp(GigPlatform.uber);
     await Future<void>.delayed(Duration.zero);
 
     expect(ocr.stops, 1);
