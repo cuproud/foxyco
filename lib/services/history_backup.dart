@@ -19,6 +19,12 @@ class HistoryBackupCodec {
   static const version = 1;
   static const maxCharacters = 5 * 1024 * 1024;
 
+  static String filename(DateTime now) {
+    String two(int value) => value.toString().padLeft(2, '0');
+    return 'FoxyCo_History_${now.year}${two(now.month)}${two(now.day)}-'
+        '${two(now.hour)}${two(now.minute)}.csv';
+  }
+
   static const columns = <String>[
     'schema_version',
     'seen_at_utc',

@@ -1,8 +1,8 @@
 # Current release audit
 
-Audit date: 2026-08-26
+Audit date: 2026-08-27
 
-Candidate: `1.0.10+92` (Play bundle device test)
+Candidate: `1.0.10+96` (Play bundle device test)
 
 Result: automated release checks pass after the fixes below. Production remains
 conditional on the real-device and Play Console gates listed here.
@@ -33,11 +33,16 @@ conditional on the real-device and Play Console gates listed here.
    before display/persistence, retain conflict protection briefly after clear,
    and repair the two observed corrupt duplicate signatures during history load.
 10. History backup import now accepts omitted zero delivery counts, matching its
-    own exported JSON. The reported 27-record device backup decodes successfully.
-11. History verdict counts and compact performance values use smaller base type
-    so larger counts and rates fit before scale-down is needed.
+    own exported JSON. Exports use minute-stamped filenames so repeated backups
+    do not overwrite one another. The reported 27-record device backup decodes
+    successfully.
+11. History offer rows retain the compact verdict/outcome layout, highlight the
+    fare with the theme accent, and show the short currency symbol in the aligned
+    three-column footer. A widget test covers the content and metric baseline.
 12. Clear all history now atomically removes both offer rows and persisted
     session summaries, preventing a stale Last session card after a wipe.
+13. Card-miss diagnostics identify Accessibility versus OCR input without
+    logging raw offer text.
 
 ## Audit coverage and result
 
@@ -56,13 +61,13 @@ conditional on the real-device and Play Console gates listed here.
 
 - `dart fix --dry-run`: nothing to fix
 - `flutter analyze --fatal-infos`: passed
-- Flutter suite: 539 tests passed
+- Flutter suite: 540 tests passed
 - `npm run test:rules`: 5 passed
 - `npm audit --omit=dev`: 0 vulnerabilities
 - full `npm audit`: 5 moderate transitive dev-tool advisories under
   `firebase-tools`; none are packaged in the Android app
 - `./gradlew :app:lintRelease`: passed
-- `./scripts/build.sh aab --bump`: passed analysis, 539 Flutter tests, 5
+- `./scripts/build.sh aab --bump`: passed analysis, 540 Flutter tests, 5
   Firestore rules tests, version bump, signing, and release AAB build
 - Previous `./scripts/build.sh aab`: passed analysis, 527 Flutter tests, 5 Firestore
   rules tests, signing/key checks, and the production bundle build
@@ -70,15 +75,9 @@ conditional on the real-device and Play Console gates listed here.
 
 Current Play device-test artifact:
 
-- `dist/FoxyCo-v1.0.10+92-release-20260826-1523.aab`
-- SHA-256: `5ba955a746de6b13c2c3f3b8b4533737930010eb3d5b8310523193dd8e280ae0`
+- `dist/FoxyCo-v1.0.10+96-release-20260826-2335.aab`
+- SHA-256: `914d61f316a4b21f555d5775ca9ef4b335a12b73d105b21d149f2f23bf22b89d`
 - Play verification key present; upload through a Play test track for device use
-
-Last Play-key-verified artifact:
-
-- `dist/FoxyCo-v1.0.10+87-release-20260825-2257.aab`
-- SHA-256: `5e2dea74aa834bb80e16bb52bb4094e47a5ee675f01b23caff28bf23a5aa5fd3`
-- Play verification key present in the arm64 AOT snapshot
 
 ## Comparison with the previous audits
 

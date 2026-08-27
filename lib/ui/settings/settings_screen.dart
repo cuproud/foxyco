@@ -752,8 +752,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         );
       return;
     }
-    final filename =
-        'FoxyCo_History_${DateTime.now().toIso8601String().substring(0, 10)}.csv';
+    final filename = HistoryBackupCodec.filename(DateTime.now());
     final saved = await const HistoryBackupPlatform().saveCsv(
       Uint8List.fromList(utf8.encode(HistoryBackupCodec.encode(offers))),
       filename,

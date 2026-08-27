@@ -32,6 +32,13 @@ void main() {
     expect(restored.toJson(), offer.toJson());
   });
 
+  test('export filename includes local date and minute', () {
+    expect(
+      HistoryBackupCodec.filename(DateTime(2026, 8, 26, 17, 42)),
+      'FoxyCo_History_20260826-1742.csv',
+    );
+  });
+
   test('round trips regular rides with omitted zero delivery counts', () {
     final ride = OfferSummary(
       platform: GigPlatform.uber,

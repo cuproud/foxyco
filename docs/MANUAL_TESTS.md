@@ -14,8 +14,8 @@ Legend: 🟢 GOOD  🟡 OK  🔴 BAD (pill shows icon + WORD + `km · $payout`).
 
 | # | How | PASS bar | Status |
 |---|---|---|---|
-| B.1 | Create offers, manually change an outcome and final payout, then Settings → History → Export CSV backup | File contains the versioned FoxyCo header and opens safely in a spreadsheet | [ ] |
-| B.2 | Import that file and choose Merge, including ordinary ride rows with no delivery counts | Rows return with manual outcome, final payout, detected outcome and original scoring details intact; no duplicate cards | [ ] |
+| B.1 | Create offers, manually change an outcome and final payout, then export twice from Settings → History | Each CSV has a minute-stamped name such as `FoxyCo_History_20260826-1742.csv`, contains the versioned FoxyCo header and opens safely in a spreadsheet | [ ] |
+| B.2 | Record one new offer, then import that file and choose Merge, including ordinary ride rows with no delivery counts | The new local offer and old backup rows remain; manual outcome, final payout, detected outcome and original scoring details return without duplicate cards | [ ] |
 | B.3 | Import the same file and choose Replace | History contains exactly the backup rows; canceling the picker/dialog changes nothing | [ ] |
 | B.4 | Try an old report CSV, malformed CSV, and oversized file | Import rejects each before changing history and shows a generic error | [ ] |
 | B.5 | Stop a session, then Settings → History → Clear all history | History is empty and Home no longer shows the saved Last session card, including after restart | [ ] |
@@ -27,7 +27,7 @@ Legend: 🟢 GOOD  🟡 OK  🔴 BAD (pill shows icon + WORD + `km · $payout`).
 Run these before promoting the AAB. They cover the highest-risk build changes
 without requiring DoorDash, Instacart or Skip accounts.
 
-**Current candidate:** Play bundle build 92. Real-device validation is
+**Current candidate:** Play bundle build 96. Real-device validation is
 pending for accessibility-first Uber parsing, OCR fallback, cross-app capture,
 and Accessibility-only non-Uber offers.
 
@@ -639,7 +639,7 @@ _Last updated: 2026-07-25 (M12: polish pass + light theme; white car card + abov
 | OCR.14 | Show an Uber card whose dark Match/Accept text is missed but whose Uber tier, payout, away leg and trip leg are readable | One correct verdict/history row; the missing action line alone does not lose the card | [ ] |
 | OCR.15 | Capture a `$7.54` / 7.4 km Uber offer through OCR, then inspect the pill, Home tally and History after restart | Exactly one `$7.54` OK row at about `$1.02/km`; never `$754`, GOOD, `$101.89/km`, or a duplicate | [ ] |
 | OCR.16 | Let a real Uber card clear, then make the next OCR frame resemble its pickup distance as a payout (today's `$2.00` / 2.0 km regression) | The changed payout is held for confirmation and creates no false verdict/history row | [ ] |
-| OCR.17 | Fresh install build 92, clear all history, then record 3–5 regular Uber offers plus Uber-over-Lyft/Hopp | Every physical card maps to exactly one correct row; readable Uber uses Accessibility and only incomplete Uber cards log OCR captures | [ ] |
+| OCR.17 | Fresh install build 96, clear all history, then record 3–5 regular Uber offers plus Uber-over-Lyft/Hopp | Every physical card maps to exactly one correct row; readable Uber uses Accessibility and only incomplete Uber cards log OCR captures | [ ] |
 
 ## M16 — Foxy brand art
 

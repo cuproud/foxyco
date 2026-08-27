@@ -1607,7 +1607,7 @@ class _OfferRow extends ConsumerWidget {
               fontFamily: FoxFonts.display,
               fontSize: 19,
               fontWeight: FontWeight.w700,
-              color: FoxColors.textPrimary,
+              color: FoxColors.brandText,
               fontFeatures: [FontFeature.tabularFigures()],
             ),
           ),
@@ -1626,6 +1626,7 @@ class _OfferRow extends ConsumerWidget {
       ],
     );
     return InkWell(
+      key: ValueKey('history-offer-${offer.seenAt.microsecondsSinceEpoch}'),
       borderRadius: BorderRadius.circular(Radii.cardSm),
       onTap: () => showOfferDetail(context, offer),
       child: Container(
@@ -1749,7 +1750,7 @@ class _OfferRow extends ConsumerWidget {
                         child: _OfferMetric(
                           icon: Icons.speed_rounded,
                           value:
-                              '${settings.currency.prefix}${settings.distanceUnit.rateFromPerKm(offer.effectivePricePerKm).toStringAsFixed(2)}/${settings.distanceUnit.shortLabel}',
+                              '${settings.currency.symbol}${settings.distanceUnit.rateFromPerKm(offer.effectivePricePerKm).toStringAsFixed(2)}/${settings.distanceUnit.shortLabel}',
                           emphasized: true,
                         ),
                       ),

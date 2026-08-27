@@ -1,6 +1,6 @@
 # Google Play release runbook
 
-Updated 2026-08-26 for `1.0.10+92`.
+Updated 2026-08-27 for `1.0.10+96`.
 
 ## Before building
 
@@ -39,21 +39,28 @@ lifetime purchase.
 `android:isAccessibilityTool` is `false`. This avoids the false claim that
 FoxyCo is an accessibility aid; it does not remove the declaration requirement.
 
+For the Play Console Accessibility Services declaration, select **App
+functionality** only and answer **No** to collecting or sharing personal or
+sensitive data through Accessibility. Offer text, temporary screenshots, and
+derived history stay on the device; Firebase account and purchase traffic does
+not contain Accessibility-derived data.
+
 Use this implementation-accurate purpose statement:
 
 > FoxyCo receives screen-change events from selected supported driver apps and
 > temporarily reads offer text to identify pay, distance, duration, and
 > delivery workload so it can display a read-only earnings verdict. If the
-> the driver selects Uber on Android 11 or newer, a selected-app event can
-> trigger one rate-limited Accessibility
-> screenshot for on-device Uber OCR. Screenshots and raw text are immediately
-> discarded and are never saved or sent. FoxyCo never taps, accepts, declines,
-> or controls another app.
+> driver selects Uber on Android 11 or newer, a selected-app event can trigger
+> one rate-limited Accessibility screenshot for on-device Uber OCR. Screenshots
+> and raw text are immediately discarded and are never saved or sent. FoxyCo
+> never taps, accepts, declines, or controls another app.
 
-The review video should show the in-app prominent disclosure, affirmative
-consent, Android permission screen, Uber selection, one
-verdict, and that FoxyCo performs no automated action. Do not promise approval;
-Google makes the final policy decision.
+The review video must show the app opening, the full in-app disclosure, **Not
+now**, the user trying again and seeing the disclosure again, **Agree & open
+settings**, the Android permission grant, Rules → Watched apps → Uber, and one
+real verdict. Blur rider names and pickup/drop-off addresses before uploading.
+The video should also make clear that FoxyCo performs no automated action. Do
+not promise approval; Google makes the final policy decision.
 
 ### Data safety and account deletion
 

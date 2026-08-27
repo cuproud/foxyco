@@ -303,7 +303,7 @@ class OfferWatcher extends Notifier<Offer?> {
           ref
               .read(parseHealthProvider.notifier)
               .recordCardMiss(parser.platform);
-          _logCardMiss(parser, read.texts);
+          _logCardMiss(parser, read.texts, source: read.source);
         }
         return;
       }
@@ -467,7 +467,7 @@ class OfferWatcher extends Notifier<Offer?> {
           ref
               .read(parseHealthProvider.notifier)
               .recordCardMiss(activeParser.platform);
-          _logCardMiss(activeParser, read.texts);
+          _logCardMiss(activeParser, read.texts, source: read.source);
         }
         if (kDebugMode) debugPrint('FoxyCo[watch] drop: parse null (low conf)');
         return; // nothing showing — browse/home noise, not a lost card
@@ -882,7 +882,11 @@ class OfferWatcher extends Notifier<Offer?> {
     }
   }
 
-  void _logCardMiss(OfferParser parser, List<String> texts) {
+  void _logCardMiss(
+    OfferParser parser,
+    List<String> texts, {
+    required CaptureSource source,
+  }) {
     final joined = texts.join(' ');
     final signature =
         '${parser.platform.name}|'
@@ -910,7 +914,7 @@ class OfferWatcher extends Notifier<Offer?> {
           'parse',
           'MISS card-like frame ${parser.platform.label} '
               '${signature.substring(signature.indexOf('|') + 1)} '
-              'nodes=${texts.length}$repeated',
+              'nodes=${texts.length} source=${source.name}$repeated',
         );
   }
 

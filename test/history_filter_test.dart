@@ -130,6 +130,41 @@ void main() {
     expect(find.text('No accepted offers'), findsOneWidget);
   });
 
+  testWidgets('offer card keeps compact content and footer aligned', (
+    tester,
+  ) async {
+    final offer = _offer(DateTime.now());
+    await tester.pumpWidget(_app([offer]));
+    await tester.pumpAndSettle();
+
+    final card = find.byKey(
+      ValueKey('history-offer-${offer.seenAt.microsecondsSinceEpoch}'),
+    );
+    await tester.scrollUntilVisible(
+      card,
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    Finder inCard(Finder matching) =>
+        find.descendant(of: card, matching: matching);
+
+    expect(inCard(find.text('GOOD')), findsOneWidget);
+    expect(inCard(find.text('Unknown')), findsOneWidget);
+    expect(inCard(find.text('10.0 km')), findsOneWidget);
+    expect(inCard(find.text(r'$2.00/km')), findsOneWidget);
+    expect(inCard(find.textContaining(r'CA$2.00/km')), findsNothing);
+
+    final metricIcons = [
+      inCard(find.byIcon(Icons.location_on_rounded)),
+      inCard(find.byIcon(Icons.speed_rounded)),
+      inCard(find.byIcon(Icons.schedule_rounded)),
+    ];
+    final baseline = tester.getCenter(metricIcons.first).dy;
+    for (final icon in metricIcons.skip(1)) {
+      expect(tester.getCenter(icon).dy, closeTo(baseline, 1));
+    }
+  });
+
   testWidgets('Accepted history filter excludes missed and unknown offers', (
     tester,
   ) async {

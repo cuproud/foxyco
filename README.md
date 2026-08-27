@@ -4,7 +4,7 @@ FoxyCo is an Android offer analyzer for gig drivers. It reads offers from the
 supported apps a driver selects, applies their distance or hourly rules, and
 shows a read-only GOOD, OK, or BAD overlay. The driver always decides.
 
-Current version: `1.0.10+92`.
+Current version: `1.0.10+96`.
 
 ## Detection
 
