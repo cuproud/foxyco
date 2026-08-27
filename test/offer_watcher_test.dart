@@ -71,12 +71,17 @@ class _FakeVerdictVoice extends VerdictVoice {
 /// Records what the overlay was asked to show; no platform channels.
 class _FakeOverlayService implements OverlayService {
   final List<OverlayPayload> shown = [];
+  final firstShow = Completer<void>();
   int clears = 0;
   @override
   Future<void> showOffer(
     OverlayPayload p, {
     BubbleStyle bubbleStyle = BubbleStyle.coolFox,
-  }) async => shown.add(p);
+  }) async {
+    shown.add(p);
+    if (!firstShow.isCompleted) firstShow.complete();
+  }
+
   @override
   Stream<OverlayAction> get actionStream => const Stream.empty();
   @override
@@ -91,7 +96,11 @@ class _FakeOverlayService implements OverlayService {
     BubbleStyle bubbleStyle = BubbleStyle.coolFox,
   }) async {}
   @override
-  Future<void> update(OverlayPayload p) async => shown.add(p);
+  Future<void> update(OverlayPayload p) async {
+    shown.add(p);
+    if (!firstShow.isCompleted) firstShow.complete();
+  }
+
   @override
   Future<void> setPaused(bool paused) async {}
   @override
@@ -682,8 +691,6 @@ void main() {
           isActive: true,
         ),
       );
-      // Full-suite workers can delay a 10 ms timer well beyond 200 ms under
-      // CPU load; wait for the behavior, not a scheduler-speed assumption.
       for (var i = 0; i < 100 && ocr.captures < 2; i++) {
         await Future<void>.delayed(const Duration(milliseconds: 10));
       }
@@ -748,7 +755,7 @@ void main() {
   );
 
   test(
-    'dropped Uber payout decimal is corrected before display or history',
+    'video regression: dropped Uber decimals never show impossible math',
     () async {
       final previous = OfferWatcher.ocrCooldown;
       OfferWatcher.ocrCooldown = const Duration(milliseconds: 10);
@@ -760,20 +767,20 @@ void main() {
           packageName: ParserRegistry.uberPackage,
           lines: [
             'UberX',
-            r'$754',
-            '4 mins (0.8 km) away',
-            '16 mins (6.6 km) trip',
-            'Accept',
+            r'$748',
+            '6 mins (2.3 km) away',
+            '16 mins (74 km) trip',
+            'Match',
           ],
         ),
         const OcrFrame(
           packageName: ParserRegistry.uberPackage,
           lines: [
             'UberX',
-            r'$7.54',
-            '4 mins (0.8 km) away',
-            '16 mins (6.6 km) trip',
-            'Accept',
+            r'$7.48',
+            '6 mins (2.3 km) away',
+            '16 mins (7.4 km) trip',
+            'Match',
           ],
         ),
       ]);
@@ -787,14 +794,46 @@ void main() {
           isActive: true,
         ),
       );
-      for (var i = 0; i < 100 && ocr.captures < 2; i++) {
-        await Future<void>.delayed(const Duration(milliseconds: 10));
-      }
+      await overlay.firstShow.future.timeout(const Duration(seconds: 10));
 
-      expect(overlay.shown.single.payout, 7.54);
-      expect(c.read(offerLogProvider).single.payout, 7.54);
+      expect(overlay.shown.single.payout, 7.48);
+      expect(overlay.shown.single.totalKm, closeTo(9.7, 1e-9));
+      expect(overlay.shown.single.pricePerHour, closeTo(20.4, 1e-9));
+      expect(c.read(offerLogProvider).single.payout, 7.48);
     },
   );
+
+  test('a legitimate three-digit Uber payout is not delayed', () async {
+    final c = container();
+    c.read(settingsProvider.notifier).setOcrEnabled(true);
+    ocr.responses.add(
+      const OcrFrame(
+        packageName: ParserRegistry.uberPackage,
+        lines: [
+          'UberX',
+          r'$125.50',
+          '10 mins (5.0 km) away',
+          '80 mins (45.0 km) trip',
+          'Match',
+        ],
+      ),
+    );
+    c.read(offerWatcherProvider);
+    c.read(overlayControllerProvider);
+
+    watcher.emit(
+      const ScreenRead(
+        packageName: ParserRegistry.uberPackage,
+        texts: [],
+        isActive: true,
+      ),
+    );
+    for (var i = 0; i < 20 && overlay.shown.isEmpty; i++) {
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+    }
+
+    expect(overlay.shown.single.payout, 125.50);
+  });
 
   test(
     'a stale payout change just after card clear needs confirmation',
@@ -869,6 +908,44 @@ void main() {
 
     expect(overlay.shown, hasLength(2));
     expect(overlay.shown.last.payout, 10);
+    expect(c.read(offerLogProvider), hasLength(2));
+  });
+
+  test('covered Lyft returns for five seconds after Uber OCR closes', () async {
+    final previousCooldown = OfferWatcher.ocrCooldown;
+    OfferWatcher.ocrCooldown = const Duration(milliseconds: 10);
+    addTearDown(() => OfferWatcher.ocrCooldown = previousCooldown);
+    final c = container();
+    c.read(settingsProvider.notifier).setOcrEnabled(true);
+    ocr.responses.addAll([
+      OcrFrame(packageName: ParserRegistry.lyftPackage, lines: _uberB.texts),
+      const OcrFrame(
+        packageName: ParserRegistry.lyftPackage,
+        lines: ['__FOXYCO_NO_UBER_CARD__'],
+      ),
+    ]);
+    c.read(offerWatcherProvider);
+    c.read(overlayControllerProvider);
+
+    watcher.emit(_lyftA);
+    await Future<void>.delayed(Duration.zero);
+    watcher.emit(
+      const ScreenRead(
+        packageName: ParserRegistry.uberPackage,
+        texts: [],
+        isActive: true,
+      ),
+    );
+    for (var i = 0; i < 20 && overlay.shown.length < 2; i++) {
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+    }
+    watcher.emit(_lyftA);
+    for (var i = 0; i < 20 && overlay.shown.length < 3; i++) {
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+    }
+
+    expect(overlay.shown.map((pill) => pill.payout), [10, 4.85, 10]);
+    expect(c.read(offerWatcherProvider)?.platform, GigPlatform.lyft);
     expect(c.read(offerLogProvider), hasLength(2));
   });
 

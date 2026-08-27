@@ -1,48 +1,39 @@
 # FoxyCo
 
-FoxyCo is an Android offer analyzer for gig drivers. It reads offers from the
-supported apps a driver selects, applies their distance or hourly rules, and
-shows a read-only GOOD, OK, or BAD overlay. The driver always decides.
-
-Current version: `1.0.10+96`.
+FoxyCo is an Android offer analyzer for gig drivers. It calculates distance and
+hourly value from selected apps, then shows a read-only **GOOD**, **OK**, or
+**BAD** overlay. The driver always decides. Current release: `1.0.11+97`.
 
 ## Detection
 
-- Every supported app uses package-scoped Android Accessibility text first.
-- When enabled, on-device OCR is a fallback for Uber cards whose protected or
-  custom-rendered window exposes incomplete Accessibility text.
-- Accessibility still supplies watched-app events and outcome evidence for
-  Uber; FoxyCo never taps, accepts, declines, or controls another app.
-- Screenshots and raw screen text are processed in memory, never persisted,
-  and never uploaded.
-- `android:isAccessibilityTool` is explicitly `false`.
+- Accessibility text is primary. Uber can use rate-limited, on-device OCR when
+  its offer text is unavailable through Accessibility.
+- OCR is bounded to the visible Uber card, so text from a Lyft, Hopp, or other
+  card behind it cannot be combined into the calculation.
+- Uber temporarily replaces a covered verdict, then restores it for a fresh
+  five seconds when Uber closes.
+- Suspicious OCR values such as a dropped decimal are retried and never scored
+  or saved.
+
+Screenshots and raw screen text stay in memory and are never uploaded or saved.
+FoxyCo never taps, accepts, declines, or controls another app.
 
 ## Development
 
-```bash
-flutter pub get
-flutter analyze --fatal-infos
-flutter test
-npm run test:rules
-cd android && ./gradlew :app:lintRelease
-```
-
-Build signed Play artifacts through `scripts/build.sh`; release bundles fail
-closed when signing or the Play licensing public key is missing.
+Install dependencies and run the local checks with `flutter pub get`,
+`flutter analyze --fatal-infos`, and `flutter test`. Create a signed Play bundle
+with the guarded release helper:
 
 ```bash
 ./scripts/build.sh aab
 ```
 
-## Documentation
+The helper also runs Firestore rules tests and fails closed if signing or Play
+licensing configuration is missing.
 
-- [Architecture](docs/ARCHITECTURE.md)
-- [Current audit](docs/AUDIT.md)
-- [Manual device tests](docs/MANUAL_TESTS.md)
-- [Play release runbook](docs/PLAY_RELEASE.md)
-- [Firebase setup](docs/FIREBASE_SETUP.md)
-- [Privacy policy](docs/legal/privacy.md)
-- [Terms](docs/legal/terms.md)
+See [architecture](docs/ARCHITECTURE.md), the [release audit](docs/AUDIT.md),
+[device tests](docs/MANUAL_TESTS.md), and the [Play release guide](docs/PLAY_RELEASE.md).
+Legal pages are under [docs/legal](docs/legal/).
 
-FoxyCo is independent and is not affiliated with, endorsed by, or sponsored
-by any driver platform. Platform names and marks belong to their owners.
+FoxyCo is independent and is not affiliated with, endorsed by, or sponsored by
+any driver platform. Platform names and marks belong to their owners.

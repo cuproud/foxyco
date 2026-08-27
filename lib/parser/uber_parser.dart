@@ -55,6 +55,29 @@ class UberParser implements OfferParser {
     caseSensitive: false,
   );
 
+  /// Defense in depth for older/native OCR frames that still contain the
+  /// exposed app behind Uber. OCR lines are top-to-bottom: keep the Uber tier
+  /// through its own Match/Accept button (or trip row when the button is dark).
+  static List<String> isolateOcrCard(List<String> lines) {
+    for (var start = 0; start < lines.length; start++) {
+      if (!_tiers.values.any((tier) => tier.hasMatch(lines[start]))) continue;
+      var end = -1;
+      for (var i = start + 1; i < lines.length; i++) {
+        if (_tiers.values.any((tier) => tier.hasMatch(lines[i]))) break;
+        if (RegExp(
+          r'^\s*(accept|match)\s*$',
+          caseSensitive: false,
+        ).hasMatch(lines[i])) {
+          end = i;
+          break;
+        }
+        if (_trip.hasMatch(lines[i])) end = i;
+      }
+      if (end >= start) return lines.sublist(start, end + 1);
+    }
+    return const [];
+  }
+
   static double _minutes(RegExpMatch m) {
     final hr = m.group(1) != null ? (double.tryParse(m.group(1)!) ?? 0) : 0;
     final min = double.tryParse(m.group(2)!) ?? 0;

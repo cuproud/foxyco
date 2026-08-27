@@ -1,6 +1,6 @@
 # Architecture
 
-Updated 2026-08-27 for `1.0.10+96`.
+Updated 2026-08-27 for `1.0.11+97`.
 
 ## Boundaries
 
@@ -31,13 +31,15 @@ Android Accessibility event
 Accessibility is the primary source for every platform, including Uber. Uber
 OCR is an opt-in fallback only when a card's protected or custom-rendered window
 exposes incomplete nodes. Accessibility still supplies event origin, screenshot
-access, card lifecycle, and outcome evidence. An Uber request drawn over another
-selected app keeps its Uber origin, and lower Lyft/Hopp events do not invalidate
-the visibly stacked Uber screenshot. Uber lifecycle evidence still rejects a
-stale result after its card leaves.
+access, card lifecycle, and outcome evidence. Native OCR keeps only the spatial
+region from the visible Uber tier through its trip/action row. A second
+parser-side boundary ensures a Lyft/Hopp card behind Uber cannot contribute
+money, distance, or time. Lower-app events are cached while Uber is visible;
+when it leaves, a fresh covered offer returns for a new five-second display.
 
 OCR payout changes are confirmed before replacing a live or just-cleared Uber
-offer. A first implausible dropped-decimal value is never scored or persisted;
+offer. A payout with the observed dropped-decimal signature is never scored or
+persisted;
 complete Uber economics remain sufficient when OCR misses the dark Match/Accept
 button.
 

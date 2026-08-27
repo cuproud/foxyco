@@ -84,6 +84,28 @@ void main() {
     expect(offer?.totalKm, 15.5);
   });
 
+  test('OCR isolates Uber from a visible Lyft card behind it', () {
+    final card = UberParser.isolateOcrCard(const [
+      'Lyft',
+      r'$4.34 Incl. CA$1 bonus',
+      '3 mins · 1.6 km',
+      'UberX',
+      r'$7.48',
+      '6 mins (2.3 km) away',
+      '16 mins (7.4 km) trip',
+      'Match',
+      '3 mins · 1.2 km',
+      'Accept',
+    ]);
+
+    final offer = parser.parse(card)!;
+    expect(card.first, 'UberX');
+    expect(card.last, 'Match');
+    expect(offer.payout, 7.48);
+    expect(offer.totalKm, closeTo(9.7, 1e-9));
+    expect(offer.pricePerHour, closeTo(20.4, 1e-9));
+  });
+
   test('OCR distance mistaken for money cannot become the payout', () {
     expect(
       parser.parse([

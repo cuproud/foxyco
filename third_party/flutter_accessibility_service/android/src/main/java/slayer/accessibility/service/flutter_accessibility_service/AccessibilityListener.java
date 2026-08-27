@@ -42,6 +42,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.HashSet;
 import java.util.Objects;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import io.flutter.embedding.android.FlutterTextureView;
@@ -108,6 +109,19 @@ public class AccessibilityListener extends AccessibilityService {
     private String pendingOcrPackage = "";
     private TextRecognizer ocrRecognizer;
     private Bitmap activeOcrBitmap;
+    private static final Pattern UBER_TIER = Pattern.compile(
+            "\\buber\\s*(?:x|xl|share|comfort|green|pet|premier|black|connect|eats)\\b",
+            Pattern.CASE_INSENSITIVE
+    );
+    private static final Pattern UBER_TRIP = Pattern.compile(
+            "\\b\\d+\\s*mins?.*\\([\\d.]+\\s*(?:km|mi|miles?)\\)\\s*trip\\b",
+            Pattern.CASE_INSENSITIVE
+    );
+    private static final Pattern OFFER_ACTION = Pattern.compile(
+            "^\\s*(?:accept|match)\\s*$",
+            Pattern.CASE_INSENSITIVE
+    );
+    private static final Pattern MONEY = Pattern.compile("\\$\\s*\\d+");
 
     @RequiresApi(api = Build.VERSION_CODES.N)
     @Override
@@ -551,10 +565,17 @@ public class AccessibilityListener extends AccessibilityService {
                                     b == null ? Integer.MAX_VALUE : b.left
                             );
                         });
+                        List<Text.Line> uberCard = isolateUberCard(lines);
                         List<String> text = new ArrayList<>();
-                        for (Text.Line line : lines) {
+                        for (Text.Line line : uberCard) {
                             String value = line.getText().trim();
                             if (!value.isEmpty()) text.add(value);
+                        }
+                        // Distinguish "OCR worked and Uber is gone" from a
+                        // failed/blank capture so Dart can reveal a covered
+                        // Lyft/Hopp offer without guessing from app events.
+                        if (text.isEmpty() && !lines.isEmpty()) {
+                            text.add("__FOXYCO_NO_UBER_CARD__");
                         }
                         finishOcr(token, text);
                     })
@@ -573,6 +594,59 @@ public class AccessibilityListener extends AccessibilityService {
 
     private boolean isCurrentOcr(long token) {
         return instance == this && pendingOcr != null && ocrToken == token;
+    }
+
+    /**
+     * Keep one spatially coherent Uber card. A screenshot can contain an Uber
+     * request over a still-visible Lyft/Hopp card; flattening every OCR block
+     * lets the parser combine economics from both apps. Uber's tier is the top
+     * card anchor and its Match/Accept (or trip row when that dark button is
+     * missed) is the bottom anchor.
+     */
+    private static List<Text.Line> isolateUberCard(List<Text.Line> lines) {
+        List<Text.Line> best = Collections.emptyList();
+        for (int anchor = 0; anchor < lines.size(); anchor++) {
+            Text.Line first = lines.get(anchor);
+            if (!UBER_TIER.matcher(first.getText()).find()) continue;
+
+            int end = -1;
+            for (int i = anchor + 1; i < lines.size(); i++) {
+                String value = lines.get(i).getText();
+                if (OFFER_ACTION.matcher(value).matches()) {
+                    end = i;
+                    break;
+                }
+                if (UBER_TIER.matcher(value).find()) break;
+            }
+            if (end < 0) {
+                for (int i = anchor + 1; i < lines.size(); i++) {
+                    String value = lines.get(i).getText();
+                    if (UBER_TIER.matcher(value).find()) break;
+                    if (UBER_TRIP.matcher(value).find()) end = i;
+                }
+            }
+            if (end < anchor) continue;
+
+            Rect top = first.getBoundingBox();
+            Rect bottom = lines.get(end).getBoundingBox();
+            if (top == null || bottom == null) continue;
+            List<Text.Line> card = new ArrayList<>();
+            boolean hasMoney = false;
+            boolean hasTrip = false;
+            for (Text.Line line : lines) {
+                Rect box = line.getBoundingBox();
+                if (box == null) continue;
+                int centerY = box.centerY();
+                if (centerY < top.top || centerY > bottom.bottom) continue;
+                card.add(line);
+                hasMoney |= MONEY.matcher(line.getText()).find();
+                hasTrip |= UBER_TRIP.matcher(line.getText()).find();
+            }
+            if (hasMoney && hasTrip && (best.isEmpty() || card.size() < best.size())) {
+                best = card;
+            }
+        }
+        return best;
     }
 
     private void finishOcr(long token, List<String> lines) {

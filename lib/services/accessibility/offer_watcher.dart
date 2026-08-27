@@ -11,6 +11,7 @@ import '../../domain/platform.dart';
 import '../../domain/verdict.dart';
 import '../../parser/offer_parser.dart';
 import '../../parser/parser_registry.dart';
+import '../../parser/uber_parser.dart';
 import '../../ui/home/dashboard_controller.dart';
 import '../../ui/home/dashboard_state.dart';
 import '../../ui/overlay/overlay_controller.dart';
@@ -151,9 +152,15 @@ class OfferWatcher extends Notifier<Offer?> {
   DateTime? _lastOcrAt;
   Timer? _ocrRetryTimer;
   String? _pendingOcrPackage;
+  ScreenRead? _coveredRead;
+  DateTime? _coveredReadAt;
 
   @visibleForTesting
   static Duration ocrCooldown = const Duration(milliseconds: 1500);
+  @visibleForTesting
+  static Duration coveredOfferFreshness = const Duration(seconds: 15);
+  static const _noUberCard = '__FOXYCO_NO_UBER_CARD__';
+  static final _droppedDecimalPayout = RegExp(r'\$\s*\d{3,}(?![\d.])');
   static final _uberOcrEvidence = RegExp(
     r'\buber\s*(?:x|xl|share|comfort|green|pet|premier|black|connect|eats)\b',
     caseSensitive: false,
@@ -289,21 +296,30 @@ class OfferWatcher extends Notifier<Offer?> {
       _ocrMatched = false;
       final settings = ref.read(settingsProvider);
       if (!settings.ocrEnabled || !settings.watches(GigPlatform.uber)) return;
+      if (read.texts.contains(_noUberCard)) {
+        if (_uberOcrCardActive) {
+          _uberOcrCardActive = false;
+          _clearNow(reason: 'Uber card left screen');
+          _restoreCoveredRead();
+        }
+        return;
+      }
       parser = registry.forPackage(ParserRegistry.uberPackage);
       if (parser == null) return;
-      final joined = read.texts.join(' ');
+      final cardTexts = UberParser.isolateOcrCard(read.texts);
+      final joined = cardTexts.join(' ');
       offer = _uberOcrEvidence.hasMatch(joined)
-          ? parser.parse(read.texts)
+          ? parser.parse(cardTexts)
           : null;
       // OCR is fallback evidence for offers only. It must never drive card-exit
       // or outcome inference from an incomplete screenshot.
       if (offer == null) {
-        if (ParserPatterns.hasOfferAction(read.texts) &&
+        if (ParserPatterns.hasOfferAction(cardTexts) &&
             !ParserPatterns.looksLikeBrowse(joined)) {
           ref
               .read(parseHealthProvider.notifier)
               .recordCardMiss(parser.platform);
-          _logCardMiss(parser, read.texts, source: read.source);
+          _logCardMiss(parser, cardTexts, source: read.source);
         }
         return;
       }
@@ -408,6 +424,19 @@ class OfferWatcher extends Notifier<Offer?> {
     final activeParser = parser;
     if (activeParser == null) return;
 
+    if (read.source == CaptureSource.accessibility &&
+        offer?.platform != GigPlatform.uber &&
+        offer != null) {
+      _coveredRead = read;
+      _coveredReadAt = DateTime.now();
+      if (_uberOcrCardActive) {
+        // The lower card is still alive, but Uber owns the visible pixels.
+        // Keep it for restoration and verify Uber's top-card lifecycle by OCR.
+        unawaited(_requestOcr(read.packageName));
+        return;
+      }
+    }
+
     // A confirmed foreground switch must not leave the previous app's offer
     // over the newly active app while its next card frame is still rendering.
     // Ignore background events: watched apps can emit those while another gig
@@ -423,6 +452,12 @@ class OfferWatcher extends Notifier<Offer?> {
 
     if (offer == null) {
       if (read.source == CaptureSource.ocr) return;
+      if (read.isActive &&
+          _coveredRead?.packageName == read.packageName &&
+          ParserPatterns.looksLikeBrowse(read.texts.join(' '))) {
+        _coveredRead = null;
+        _coveredReadAt = null;
+      }
       if (switchedPlatform) _clearNow();
       if (_shownKey != null &&
           topCardWindow != null &&
@@ -517,11 +552,10 @@ class OfferWatcher extends Notifier<Offer?> {
       _pendingOcrCorrectionKey = null;
       _pendingSuspiciousOcrKey = null;
     } else if (read.source == CaptureSource.ocr &&
-        offer.payout >= 100 &&
-        offer.pricePerKm > 20 &&
-        offer.payout / 100 / offer.totalKm <= 5) {
+        read.texts.any(_droppedDecimalPayout.hasMatch)) {
       // ML Kit occasionally drops a decimal ('$7.54' -> '$754'). Never score
-      // or persist that first implausible frame; accept it only if it repeats.
+      // or persist it. Legitimate $100+ cards are rare and may wait for the
+      // next OCR frame; accepting a repeated dropped decimal is never safe.
       if (_pendingSuspiciousOcrKey != key) {
         _pendingSuspiciousOcrKey = key;
         _ocrMatched = false;
@@ -531,9 +565,11 @@ class OfferWatcher extends Notifier<Offer?> {
               'ocr',
               'suspicious Uber \$${offer.payout} held — awaiting confirmation',
             );
+        _scheduleOcrRetry(read.packageName);
         return;
       }
-      _pendingSuspiciousOcrKey = null;
+      _ocrMatched = false;
+      return;
     } else if (read.source == CaptureSource.ocr &&
         key != _shownKey &&
         ((_shownPlatform == GigPlatform.uber && state != null) ||
@@ -690,6 +726,25 @@ class OfferWatcher extends Notifier<Offer?> {
       _pendingOcrPackage = null;
       if (pending != null) unawaited(_requestOcr(pending, retryOnMiss: false));
     });
+  }
+
+  void _restoreCoveredRead() {
+    final covered = _coveredRead;
+    final seenAt = _coveredReadAt;
+    _coveredRead = null;
+    _coveredReadAt = null;
+    if (covered == null ||
+        seenAt == null ||
+        DateTime.now().difference(seenAt) > coveredOfferFreshness) {
+      return;
+    }
+    final parser = ref
+        .read(parserRegistryProvider)
+        .forPackage(covered.packageName);
+    final offer = parser?.parse(covered.texts);
+    if (offer == null || offer.platform == GigPlatform.uber) return;
+    _suppressedKeys.remove(_keyFor(offer));
+    _onRead(covered);
   }
 
   Future<void> _requestOcr(
