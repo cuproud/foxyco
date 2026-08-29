@@ -603,6 +603,7 @@ class _DetailBandItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Row(
     mainAxisAlignment: MainAxisAlignment.center,
+    crossAxisAlignment: CrossAxisAlignment.start,
     children: [
       SizedBox(
         width: 28,

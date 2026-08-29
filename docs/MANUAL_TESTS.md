@@ -27,8 +27,8 @@ Legend: 🟢 GOOD  🟡 OK  🔴 BAD (pill shows icon + WORD + `km · $payout`).
 Run these before promoting the AAB. They cover the highest-risk build changes
 without requiring DoorDash, Instacart or Skip accounts.
 
-**Current candidate:** Play bundle build 97. Real-device validation is pending
-for spatial Uber OCR, cross-app verdict restoration, and dropped-decimal retry.
+**Current candidate:** Play bundle build 99. Real-device validation is pending
+for cross-app OCR, overlay transparency, and active-trip outcome isolation.
 
 | # | How | PASS bar | Status |
 |---|-----|----------|--------|
@@ -40,12 +40,15 @@ for spatial Uber OCR, cross-app verdict restoration, and dropped-decimal retry.
 | Q.6 | History → App filters after enabling each delivery app | DoorDash, Instacart and Skip filters appear when selected or represented in History | [ ] |
 | Q.7 | Settings → Text size → Small/Medium/Large; open every tab | No overflow, clipped headers or overlapping bottom navigation; Pill size/preview does not change | [ ] |
 | Q.8 | Settings support rows at Large text | Send feedback, About and Diagnostic logs align and wrap without truncating their titles | [ ] |
-| Q.9 | Select Uber, then trigger one real Uber/Lyft/Hopp offer | Uber OCR turns on automatically; all three show one correct pill/History row | [ ] build 97 |
+| Q.9 | Select Uber, then trigger one real Uber/Lyft/Hopp offer | Uber OCR turns on automatically; all three show one correct pill/History row | [ ] build 99 |
 | Q.10 | With an older Play build installed and the new test release available, foreground FoxyCo | Update prompt appears once per foreground session and opens the Play update flow | [ ] |
 | Q.11 | Drag the bubble through the visible ✕ toward the bottom edge until the ✕ turns red, then release | Light haptic fires; overlay closes and Home leaves Watching. Releasing before red or canceling the drag does not stop the service | [ ] build 66 retest |
 | Q.12 | Trigger update success, Google sign-in cancel/failure, and Name saved | Every message is a floating FoxyCo surface with 16dp corners and orange outline; no default solid-black bar | [ ] build 66 |
-| Q.13 | Keep a Lyft or Hopp offer visible, then let Uber cover it; close Uber while the lower offer remains | Uber math uses only its own card. The lower verdict returns immediately and remains for a fresh five seconds | [ ] build 97 |
-| Q.14 | Capture an Uber card where OCR first drops `$7.48`/`7.4 km` decimals | No impossible verdict or History row appears; a corrected retry shows `$7.48`, `9.7 km`, and `$20.40/hr` | [ ] build 97 |
+| Q.13 | Keep a Lyft or Hopp offer visible, then let Uber cover it; close Uber while the lower offer remains | Uber math uses only its own card. The lower verdict returns immediately and remains for a fresh five seconds | [ ] build 99 |
+| Q.14 | Capture an Uber card where OCR first drops `$7.48`/`7.4 km` decimals | No impossible verdict or History row appears; a corrected retry shows `$7.48`, `9.7 km`, and `$20.40/hr` | [ ] build 99 |
+| Q.15 | Accept a ride, send navigation to Google Maps, then return to each selected driver app | The fox bubble remains transparent with no grey square through every app/window transition | [ ] build 99 |
+| Q.16 | While an Uber/Lyft trip screen is active, let another offer appear and decline it | The new History row remains Unknown/Not taken; the existing trip text never marks it Accepted | [ ] build 99 |
+| Q.17 | Add two car reminders, then tap Home's car-reminder icon | Badge shows 2; the sheet lists both reminders and allows add/edit without visiting Settings | [ ] build 99 |
 
 ---
 
@@ -640,7 +643,7 @@ _Last updated: 2026-07-25 (M12: polish pass + light theme; white car card + abov
 | OCR.14 | Show an Uber card whose dark Match/Accept text is missed but whose Uber tier, payout, away leg and trip leg are readable | One correct verdict/history row; the missing action line alone does not lose the card | [ ] |
 | OCR.15 | Capture a `$7.54` / 7.4 km Uber offer through OCR, then inspect the pill, Home tally and History after restart | Exactly one `$7.54` OK row at about `$1.02/km`; never `$754`, GOOD, `$101.89/km`, or a duplicate | [ ] |
 | OCR.16 | Let a real Uber card clear, then make the next OCR frame resemble its pickup distance as a payout (today's `$2.00` / 2.0 km regression) | The changed payout is held for confirmation and creates no false verdict/history row | [ ] |
-| OCR.17 | Fresh install build 97, clear all history, then record 3–5 regular Uber offers plus Uber-over-Lyft/Hopp | Every physical card maps to exactly one correct row; readable Uber uses Accessibility and only incomplete Uber cards log OCR captures | [ ] |
+| OCR.17 | Fresh install build 99, clear all history, then record 3–5 regular Uber offers plus Uber-over-Lyft/Hopp | Every physical card maps to exactly one correct row; readable Uber uses Accessibility and only incomplete Uber cards log OCR captures | [ ] |
 
 ## M16 — Foxy brand art
 

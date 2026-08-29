@@ -16,6 +16,7 @@ import '../overlay/overlay_controller.dart';
 import '../paywall/access_banner.dart';
 import '../legal/accessibility_disclosure.dart';
 import '../settings/reminder_controller.dart';
+import '../settings/reminder_section.dart';
 import '../settings/settings_controller.dart';
 import '../shell/root_shell.dart';
 import '../theme/car_hero.dart';
@@ -564,6 +565,8 @@ class _BrandBar extends StatelessWidget {
         Image.asset('assets/branding/foxyco_head.png', width: 32, height: 32),
         const SizedBox(width: Gap.sm + Gap.xs),
         Text('FoxyCo', style: Theme.of(context).textTheme.titleLarge),
+        const Spacer(),
+        const ReminderInboxButton(),
       ],
     );
   }

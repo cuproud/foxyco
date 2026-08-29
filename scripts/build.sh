@@ -80,7 +80,7 @@ if [[ "$BUMP" == "1" || "$BUNDLE" == "1" ]]; then
     rm -f "$test_log"
     exit 1
   fi
-  if flutter test --no-pub >"$test_log" 2>&1; then
+  if flutter test --no-pub --concurrency=1 >"$test_log" 2>&1; then
     echo "✓ Flutter tests passed"
   else
     echo "✗ Flutter tests failed"

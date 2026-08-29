@@ -89,6 +89,11 @@ class OfferWatcher extends Notifier<Offer?> {
   /// trip screens; binding the evidence to a row makes those repeats idempotent.
   final Map<GigPlatform, OfferSummary> _outcomeCandidates = {};
 
+  /// A trip screen already visible behind a new offer cannot prove that the
+  /// new offer was accepted. Only an explicit queued confirmation can.
+  final Set<GigPlatform> _activeTripScreens = {};
+  final Map<GigPlatform, OfferSummary> _offersShownDuringTrip = {};
+
   /// How long to wait before dropping the pill once the card looks gone. Kept
   /// short: on a browse/home screen the card has DEFINITELY left (offers never
   /// carry browse markers), so we only need to coalesce a frame or two, not
@@ -288,6 +293,16 @@ class OfferWatcher extends Notifier<Offer?> {
     }
 
     final registry = ref.read(parserRegistryProvider);
+    if (read.source == CaptureSource.accessibility && read.isActive) {
+      final source = registry.forPackage(read.packageName);
+      if (source != null) {
+        if (ParserPatterns.looksLikeAcceptedTrip(source.platform, read.texts)) {
+          _activeTripScreens.add(source.platform);
+        } else {
+          _activeTripScreens.remove(source.platform);
+        }
+      }
+    }
     OfferParser? parser;
     Offer? offer;
     ScreenWindow? offerWindow;
@@ -335,6 +350,8 @@ class OfferWatcher extends Notifier<Offer?> {
           settings.ocrEnabled && parser?.platform == GigPlatform.uber;
       final forceCrossAppOcr =
           kDebugMode && settings.ocrEnabled && settings.ocrTestMode;
+      final checkForCoveredUber =
+          settings.ocrEnabled && ParserPatterns.looksLikeOfferCard(read.texts);
       if (useUberOcr) {
         final joined = read.texts.join(' ');
         final accepted = ParserPatterns.looksLikeAcceptedTrip(
@@ -361,11 +378,14 @@ class OfferWatcher extends Notifier<Offer?> {
           // discard that old screenshot and let the bounded retry confirm.
           _accessibilityOfferGeneration++;
         }
-      } else if (forceCrossAppOcr) {
+      } else if (forceCrossAppOcr || checkForCoveredUber) {
         if (read.isActive &&
             parser != null &&
             settings.watches(parser.platform)) {
-          unawaited(_requestOcr(read.packageName));
+          // Uber can draw its card over Hopp/Lyft without emitting an Uber
+          // Accessibility event. Probe once from the active lower-app frame;
+          // only a confirmed Uber card starts the existing lifecycle polling.
+          unawaited(_requestOcr(read.packageName, retryOnMiss: false));
         }
         // With OCR enabled, Uber offer data comes only from OCR. Test mode may
         // also trigger from another watched app to exercise Uber-over-Lyft,
@@ -565,7 +585,6 @@ class OfferWatcher extends Notifier<Offer?> {
               'ocr',
               'suspicious Uber \$${offer.payout} held — awaiting confirmation',
             );
-        _scheduleOcrRetry(read.packageName);
         return;
       }
       _ocrMatched = false;
@@ -708,6 +727,11 @@ class OfferWatcher extends Notifier<Offer?> {
       );
     }
     _outcomeCandidates[offer.platform] = summary;
+    if (!offer.isQueued && _activeTripScreens.contains(offer.platform)) {
+      _offersShownDuringTrip[offer.platform] = summary;
+    } else {
+      _offersShownDuringTrip.remove(offer.platform);
+    }
     _confirmedCardLeft = false;
   }
 
@@ -791,6 +815,21 @@ class OfferWatcher extends Notifier<Offer?> {
         retry = retryOnMiss;
         return;
       }
+      final activeParser = ref
+          .read(parserRegistryProvider)
+          .forPackage(frame.packageName);
+      if (frame.packageName.isNotEmpty &&
+          (activeParser == null ||
+              !ref.read(settingsProvider).watches(activeParser.platform))) {
+        ref
+            .read(foxLogProvider)
+            .log(
+              'ocr',
+              'discarded result outside selected driver app '
+                  'active=${frame.packageName}',
+            );
+        return;
+      }
       if (accessibilityGeneration != _accessibilityOfferGeneration) {
         ref
             .read(foxLogProvider)
@@ -859,6 +898,10 @@ class OfferWatcher extends Notifier<Offer?> {
       platform,
       texts,
     );
+    if (identical(_offersShownDuringTrip[platform], candidate) &&
+        !queuedAccepted) {
+      return;
+    }
     final accepted =
         queuedAccepted || ParserPatterns.looksLikeAcceptedTrip(platform, texts);
     if (accepted) {

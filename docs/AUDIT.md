@@ -1,40 +1,46 @@
 # Release audit
 
-Audit date: 2026-08-27
+Audit date: 2026-08-28
 
-Candidate: `1.0.11+97`
+Candidate: `1.0.11+99`
 
 Automated checks pass. Play upload remains conditional on the device and
 Console checks in `MANUAL_TESTS.md` and `PLAY_RELEASE.md`.
 
-## Build 97 changes
+## Build 99 changes
 
-- Native OCR now returns one spatially bounded Uber card instead of flattening
-  every visible app into one text list.
-- Dart applies the same Uber-card boundary before parsing as defense in depth.
-- Dropped payout decimals are rejected and retried before scoring or History.
-- A Lyft/Hopp offer covered by Uber is retained and restored for a fresh five
-  seconds when Uber closes.
-- Version and release documentation are synchronized to build 97.
+- An active Lyft/Hopp offer now makes one bounded OCR probe so an Uber card
+  drawn above it is detected even when Uber emits no Accessibility event.
+- A confirmed Uber card keeps the existing lifecycle polling; an ordinary
+  Lyft/Hopp card does not start a screenshot retry loop.
+- Late OCR results are discarded after the driver switches to Gallery or any
+  other unselected app.
+- Offers drawn over an existing trip can no longer inherit its accepted state.
+- The overlay reapplies transparency when Android recreates its child surface.
+- Home has a reminder inbox; diagnostic mail uses the tester address; offer
+  detail icons align with their values.
+- Version and release documentation are synchronized to build 99.
 
 ## Verification
 
 - Flutter analysis: passed
-- Full Flutter suite: passed
-- Focused parser/watcher suite: 100 tests passed
+- Full Flutter suite: 546 tests passed
+- Focused watcher suite: 85 tests passed
 - Native Android OCR compilation: passed
 - Signed release bundle and checksum verification: passed
 - Firestore rules and guarded Play bundle preflight: passed
 
-Verified Play artifact: `FoxyCo-v1.0.11+97-release-20260827-1126.aab`
+Verified Play artifact: `FoxyCo-v1.0.11+99-release-20260828-2056.aab`
 
-SHA-256: `c8460b9ecf2a6c378cc72b615dbc3ad406c397c08d10387a06876a380ada3df4`
+SHA-256: `3a841c5a9bfa31c07fb611d84779a61a1523aca20f7199ccadd15981e8ae5b83`
 
 ## Device gates
 
 - Reproduce Lyft/Hopp → Uber → lower-offer restoration with real cards.
 - Confirm the video example resolves to `$7.48`, `9.7 km`, and `$20.40/hr`.
 - Verify stale Uber cards clear promptly and never create duplicate History.
+- Switch from Uber/Lyft to Google Maps and confirm the bubble stays transparent.
+- Show a new request over an active trip and confirm its outcome stays unknown.
 - Install from the Play test track and verify sign-in, purchase, restore,
   refund/revoke, update flow, crash/ANR, and battery behavior.
 

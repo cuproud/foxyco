@@ -1,6 +1,6 @@
 # Architecture
 
-Updated 2026-08-27 for `1.0.11+97`.
+Updated 2026-08-28 for `1.0.11+99`.
 
 ## Boundaries
 
@@ -28,26 +28,15 @@ Android Accessibility event
 
 ## Offer routing
 
-Accessibility is the primary source for every platform, including Uber. Uber
-OCR is an opt-in fallback only when a card's protected or custom-rendered window
-exposes incomplete nodes. Accessibility still supplies event origin, screenshot
-access, card lifecycle, and outcome evidence. Native OCR keeps only the spatial
-region from the visible Uber tier through its trip/action row. A second
-parser-side boundary ensures a Lyft/Hopp card behind Uber cannot contribute
-money, distance, or time. Lower-app events are cached while Uber is visible;
-when it leaves, a fresh covered offer returns for a new five-second display.
+`docs/OFFER_DETECTION.md` is the canonical, code-mapped specification for
+capture sources, every platform parser, Uber OCR, stacked cross-app offers,
+verdict scoring, entitlement display, lifecycle, deduplication, and outcome
+inference. It must be read before changing those areas and updated in the same
+change whenever their behavior changes.
 
-OCR payout changes are confirmed before replacing a live or just-cleared Uber
-offer. A payout with the observed dropped-decimal signature is never scored or
-persisted;
-complete Uber economics remain sufficient when OCR misses the dark Match/Accept
-button.
-
-Other supported offers use Accessibility text. Events are statically limited
-to known package names in `android/app/src/main/res/xml/accessibilityservice.xml`
-and filtered again by the driver's selected apps before parsing. Adding a
-platform requires metadata, explicit package scope, parser fixtures, and device
-validation; user-facing copy therefore refers generically to supported apps.
+At the architecture level, Accessibility is primary, parsers fail closed, Uber
+OCR is an on-device fallback for inaccessible/stacked cards, and only a complete
+normalized `Offer` reaches the pure-Dart decision engine.
 
 ## Persistence
 

@@ -72,14 +72,23 @@ class _FakeVerdictVoice extends VerdictVoice {
 class _FakeOverlayService implements OverlayService {
   final List<OverlayPayload> shown = [];
   final firstShow = Completer<void>();
+  final secondShow = Completer<void>();
+  final thirdShow = Completer<void>();
   int clears = 0;
+
+  void _record(OverlayPayload payload) {
+    shown.add(payload);
+    if (!firstShow.isCompleted) firstShow.complete();
+    if (shown.length >= 2 && !secondShow.isCompleted) secondShow.complete();
+    if (shown.length >= 3 && !thirdShow.isCompleted) thirdShow.complete();
+  }
+
   @override
   Future<void> showOffer(
     OverlayPayload p, {
     BubbleStyle bubbleStyle = BubbleStyle.coolFox,
   }) async {
-    shown.add(p);
-    if (!firstShow.isCompleted) firstShow.complete();
+    _record(p);
   }
 
   @override
@@ -97,8 +106,7 @@ class _FakeOverlayService implements OverlayService {
   }) async {}
   @override
   Future<void> update(OverlayPayload p) async {
-    shown.add(p);
-    if (!firstShow.isCompleted) firstShow.complete();
+    _record(p);
   }
 
   @override
@@ -517,13 +525,14 @@ void main() {
   );
 
   test(
-    'debug test mode keeps non-Uber parsing while also checking OCR',
+    'active Hopp offer probes once and detects Uber drawn above it',
     () async {
       final c = container();
       final settings = c.read(settingsProvider.notifier);
       settings.setOcrEnabled(true);
-      settings.setOcrTestMode(true);
-      ocr.lines = _uberA.texts;
+      ocr.responses.add(
+        OcrFrame(packageName: ParserRegistry.hoppPackage, lines: _uberA.texts),
+      );
       c.read(offerWatcherProvider);
       c.read(overlayControllerProvider);
 
@@ -552,6 +561,34 @@ void main() {
       ]);
     },
   );
+
+  test('OCR result is discarded after switching to a non-driver app', () async {
+    final pending = Completer<OcrFrame>();
+    final c = container();
+    c.read(settingsProvider.notifier).setOcrEnabled(true);
+    ocr.nextCapture = pending;
+    c.read(offerWatcherProvider);
+    c.read(overlayControllerProvider);
+
+    watcher.emit(
+      ScreenRead(
+        packageName: ParserRegistry.hoppPackage,
+        texts: _hoppNodes.texts,
+        isActive: true,
+      ),
+    );
+    await Future<void>.delayed(Duration.zero);
+    pending.complete(
+      OcrFrame(packageName: 'com.sec.android.gallery3d', lines: _uberA.texts),
+    );
+    await Future<void>.delayed(Duration.zero);
+    await Future<void>.delayed(Duration.zero);
+
+    expect(ocr.captures, 1);
+    expect(c.read(offerLogProvider).map((offer) => offer.platform), [
+      GigPlatform.hopp,
+    ]);
+  });
 
   test('active textless accessibility frame falls back to OCR once', () async {
     final c = container();
@@ -670,7 +707,7 @@ void main() {
     'OCR retries a card that was captured before it finished rendering',
     () async {
       final previous = OfferWatcher.ocrCooldown;
-      OfferWatcher.ocrCooldown = const Duration(milliseconds: 10);
+      OfferWatcher.ocrCooldown = Duration.zero;
       addTearDown(() => OfferWatcher.ocrCooldown = previous);
       final c = container();
       c.read(settingsProvider.notifier).setOcrEnabled(true);
@@ -758,7 +795,7 @@ void main() {
     'video regression: dropped Uber decimals never show impossible math',
     () async {
       final previous = OfferWatcher.ocrCooldown;
-      OfferWatcher.ocrCooldown = const Duration(milliseconds: 10);
+      OfferWatcher.ocrCooldown = Duration.zero;
       addTearDown(() => OfferWatcher.ocrCooldown = previous);
       final c = container();
       c.read(settingsProvider.notifier).setOcrEnabled(true);
@@ -913,7 +950,7 @@ void main() {
 
   test('covered Lyft returns for five seconds after Uber OCR closes', () async {
     final previousCooldown = OfferWatcher.ocrCooldown;
-    OfferWatcher.ocrCooldown = const Duration(milliseconds: 10);
+    OfferWatcher.ocrCooldown = Duration.zero;
     addTearDown(() => OfferWatcher.ocrCooldown = previousCooldown);
     final c = container();
     c.read(settingsProvider.notifier).setOcrEnabled(true);
@@ -928,21 +965,9 @@ void main() {
     c.read(overlayControllerProvider);
 
     watcher.emit(_lyftA);
-    await Future<void>.delayed(Duration.zero);
-    watcher.emit(
-      const ScreenRead(
-        packageName: ParserRegistry.uberPackage,
-        texts: [],
-        isActive: true,
-      ),
-    );
-    for (var i = 0; i < 20 && overlay.shown.length < 2; i++) {
-      await Future<void>.delayed(const Duration(milliseconds: 10));
-    }
+    await overlay.secondShow.future.timeout(const Duration(seconds: 10));
     watcher.emit(_lyftA);
-    for (var i = 0; i < 20 && overlay.shown.length < 3; i++) {
-      await Future<void>.delayed(const Duration(milliseconds: 10));
-    }
+    await overlay.thirdShow.future.timeout(const Duration(seconds: 10));
 
     expect(overlay.shown.map((pill) => pill.payout), [10, 4.85, 10]);
     expect(c.read(offerWatcherProvider)?.platform, GigPlatform.lyft);
@@ -2000,6 +2025,40 @@ void main() {
         expect(c.read(offerLogProvider).first.outcome, OfferOutcome.taken);
       });
     }
+
+    test(
+      'an existing Uber trip cannot accept an offer drawn over it',
+      () async {
+        final c = container();
+        c.read(offerWatcherProvider);
+        c.read(overlayControllerProvider);
+
+        watcher.emit(
+          const ScreenRead(
+            packageName: ParserRegistry.uberPackage,
+            texts: [
+              'Dropping off Alex',
+              'UberX',
+              '\$5.75',
+              '8 mins (5.1 km) trip',
+              'Accept',
+            ],
+            isActive: true,
+          ),
+        );
+        await Future<void>.delayed(Duration.zero);
+        watcher.emit(
+          const ScreenRead(
+            packageName: ParserRegistry.uberPackage,
+            texts: ['Dropping off Alex'],
+            isActive: true,
+          ),
+        );
+        await pastGrace();
+
+        expect(c.read(offerLogProvider).single.outcome, OfferOutcome.unknown);
+      },
+    );
 
     test('repeated Uber trip frames cannot accept two recent offers', () async {
       final c = container();

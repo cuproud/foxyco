@@ -2,7 +2,7 @@
 
 FoxyCo is an Android offer analyzer for gig drivers. It calculates distance and
 hourly value from selected apps, then shows a read-only **GOOD**, **OK**, or
-**BAD** overlay. The driver always decides. Current release: `1.0.11+97`.
+**BAD** overlay. The driver always decides. Current release: `1.0.11+99`.
 
 ## Detection
 
@@ -31,7 +31,8 @@ with the guarded release helper:
 The helper also runs Firestore rules tests and fails closed if signing or Play
 licensing configuration is missing.
 
-See [architecture](docs/ARCHITECTURE.md), the [release audit](docs/AUDIT.md),
+See the canonical [offer detection and verdict logic](docs/OFFER_DETECTION.md),
+[architecture](docs/ARCHITECTURE.md), the [release audit](docs/AUDIT.md),
 [device tests](docs/MANUAL_TESTS.md), and the [Play release guide](docs/PLAY_RELEASE.md).
 Legal pages are under [docs/legal](docs/legal/).
 

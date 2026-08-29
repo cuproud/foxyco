@@ -6,6 +6,60 @@ import '../../domain/car_reminder.dart';
 import '../theme/tokens.dart';
 import 'reminder_controller.dart';
 
+/// Home's reminder inbox. The badge counts every saved reminder; the list
+/// reuses the same editor as Settings so there is only one reminder workflow.
+class ReminderInboxButton extends ConsumerWidget {
+  const ReminderInboxButton({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final reminders = ref.watch(reminderProvider);
+    final due = ref.watch(dueRemindersProvider).isNotEmpty;
+    return Semantics(
+      button: true,
+      label: reminders.isEmpty
+          ? 'Car reminders'
+          : '${reminders.length} car reminders',
+      child: IconButton(
+        key: const ValueKey('home-reminders'),
+        tooltip: 'Car reminders',
+        onPressed: () => showModalBottomSheet<void>(
+          context: context,
+          isScrollControlled: true,
+          showDragHandle: true,
+          builder: (_) => SafeArea(
+            child: SingleChildScrollView(
+              padding: EdgeInsets.fromLTRB(
+                Gap.md,
+                0,
+                Gap.md,
+                Gap.lg + MediaQuery.viewInsetsOf(context).bottom,
+              ),
+              child: const Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    'Car reminders',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+                  ),
+                  SizedBox(height: Gap.md),
+                  ReminderSection(),
+                ],
+              ),
+            ),
+          ),
+        ),
+        icon: Badge(
+          isLabelVisible: reminders.isNotEmpty,
+          label: Text('${reminders.length}'),
+          backgroundColor: due ? VerdictColors.bad : FoxColors.brandFox,
+          child: const Icon(Icons.car_repair_rounded),
+        ),
+      ),
+    );
+  }
+}
+
 /// "Car reminders" Settings section: soonest-first list of dated car chores
 /// (inspection, insurance, oil change…) with a days-left countdown, plus an
 /// add button. Tap a row to edit, trash to delete. All in-app — no

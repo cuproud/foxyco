@@ -33,6 +33,7 @@ import android.view.Display;
 import android.view.Gravity;
 import android.view.HapticFeedbackConstants;
 import android.view.MotionEvent;
+import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 import android.view.View;
 import android.view.ViewGroup;
@@ -42,10 +43,13 @@ import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
 import androidx.core.app.NotificationCompat;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
+import java.util.WeakHashMap;
 
 import io.flutter.embedding.android.FlutterView;
 import io.flutter.embedding.android.TransparencyMode;
@@ -65,6 +69,8 @@ public class OverlayService extends Service implements View.OnTouchListener {
     private Integer mStatusBarHeight = -1;
     private Integer mNavigationBarHeight = -1;
     private Resources mResources;
+    private final Set<SurfaceView> transparentSurfaces =
+            Collections.newSetFromMap(new WeakHashMap<>());
 
     public static final String INTENT_EXTRA_IS_CLOSE_WINDOW = "IsCloseWindow";
 
@@ -493,6 +499,24 @@ public class OverlayService extends Service implements View.OnTouchListener {
             SurfaceView surface = (SurfaceView) view;
             surface.setZOrderOnTop(true);
             surface.getHolder().setFormat(PixelFormat.TRANSLUCENT);
+            if (transparentSurfaces.add(surface)) {
+                surface.getHolder().addCallback(new SurfaceHolder.Callback() {
+                    @Override
+                    public void surfaceCreated(SurfaceHolder holder) {
+                        // App/window transitions can recreate this Surface
+                        // without reattaching or resizing the FlutterView.
+                        holder.setFormat(PixelFormat.TRANSLUCENT);
+                        surface.setZOrderOnTop(true);
+                    }
+
+                    @Override
+                    public void surfaceChanged(
+                            SurfaceHolder holder, int format, int width, int height) {}
+
+                    @Override
+                    public void surfaceDestroyed(SurfaceHolder holder) {}
+                });
+            }
         }
         if (!(view instanceof ViewGroup)) return;
         ViewGroup root = (ViewGroup) view;

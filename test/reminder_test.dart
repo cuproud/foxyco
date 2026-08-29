@@ -227,4 +227,22 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('R4'), findsNothing);
   });
+
+  testWidgets('home reminder inbox shows saved reminders', (tester) async {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+    container.read(reminderProvider.notifier).add(r(title: 'Oil change'));
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const MaterialApp(home: Scaffold(body: ReminderInboxButton())),
+      ),
+    );
+
+    expect(find.text('1'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('home-reminders')));
+    await tester.pumpAndSettle();
+    expect(find.text('Car reminders'), findsOneWidget);
+    expect(find.text('Oil change'), findsOneWidget);
+  });
 }

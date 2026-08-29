@@ -102,6 +102,12 @@ For overlay/bubble features:
 
 Parsing and analysis features are critical.
 
+`docs/OFFER_DETECTION.md` is the canonical implementation map. Read it before
+changing offer capture, parser routing or rules, OCR, cross-app behavior,
+scoring, overlay verdict delivery, deduplication, or outcome inference. If a
+change alters documented behavior, update that document in the same change.
+Do not prepare a release with code and this document out of sync.
+
 Before modifying:
 
 Understand:

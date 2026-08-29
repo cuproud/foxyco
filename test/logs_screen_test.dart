@@ -66,7 +66,7 @@ void main() {
   test('email URI targets support and includes the logs', () {
     final uri = logEmailUri('line one\nline two');
     expect(uri.scheme, 'mailto');
-    expect(uri.path, 'foxyco.dev@gmail.com');
+    expect(uri.path, 'foxyco.tester@gmail.com');
     expect(uri.queryParameters['subject'], 'FoxyCo diagnostic logs');
     expect(uri.queryParameters['body'], 'line one\nline two');
   });

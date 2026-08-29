@@ -13,7 +13,7 @@ Timer? _fallbackClipboardTimer;
 
 Uri logEmailUri(String logs) => Uri(
   scheme: 'mailto',
-  path: 'foxyco.dev@gmail.com',
+  path: 'foxyco.tester@gmail.com',
   queryParameters: {'subject': 'FoxyCo diagnostic logs', 'body': logs},
 );
 

@@ -1,6 +1,6 @@
 # Google Play release runbook
 
-Updated 2026-08-27 for `1.0.11+97`.
+Updated 2026-08-28 for `1.0.11+99`.
 
 ## Before building
 
@@ -12,6 +12,8 @@ Updated 2026-08-27 for `1.0.11+97`.
   repository Firestore rules are deployed.
 - `foxyco.lifetime` exists as a non-consumable Play product.
 - Legal URLs are public and match `lib/ui/legal/legal_links.dart`.
+- Any offer-logic changes are reconciled with `docs/OFFER_DETECTION.md` and its
+  required parser/watcher and real-device checks.
 
 ## Build
 
@@ -87,6 +89,87 @@ behavior changes.
 4. Promote the same artifact to Closed testing and satisfy the tester duration
    and participation requirement displayed for this developer account.
 5. Complete `MANUAL_TESTS.md`, review Play Vitals, then request production.
+
+## Closed-tester access through 2026
+
+Use Play-managed entitlements; do not add a tester allowlist or ship with
+`BUILD_EXPIRY`. Closed-test enrollment and License testing are separate Play
+Console settings, and every tester must use the same Google account to opt in,
+install FoxyCo, and make or redeem a purchase.
+
+### Tester groups
+
+Keep exactly one private ledger outside this repository. Never commit tester
+emails, promo codes, or Play order IDs.
+
+| Group | Size | Access | Play setup | End of access |
+| --- | ---: | --- | --- | --- |
+| Lifetime contributors | 3–5 | Permanent | One unique `foxyco.lifetime` promo code each | Never revoke |
+| Temporary closed testers | Everyone else | Complimentary through 2026 | License tester + approved test purchase | Manually refund and revoke after 2026-12-31 |
+
+Ledger columns:
+
+`Google account | group | closed opt-in date | trial start date | promo/test order ID | access verified | revoke due | revoked`
+
+Do not place a lifetime contributor in the temporary License testing list when
+they redeem their promo code. Confirm that the redemption appears as ownership
+of `foxyco.lifetime`, then record the order ID and mark it **never revoke**.
+
+### Start the closed test
+
+1. Add all testers to the Closed testing list or Google Group and share the
+   closed-test opt-in link.
+2. Confirm at least 12 testers are opted in; keep about 20 enrolled as a buffer.
+   A tester who switches to Internal testing no longer counts toward Closed.
+3. Ask testers to install from Google Play with the same account used to opt in.
+4. Have temporary testers start and exercise the normal 7-day trial first. The
+   trial starts only when they tap **Start trial**, not when they opt in.
+5. Add the temporary group under Play Console **Settings → License testing**.
+6. Before or after the trial expires, have each temporary tester tap **Unlock
+   forever** and choose **Test card, always approves**. The purchase dialog must
+   identify it as a test purchase; no real payment method should be used.
+7. Verify the app reports lifetime access, restart it, tap **Restore purchase**,
+   and record the Play test order ID. This is temporary test ownership even
+   though the app correctly labels Play's non-consumable product as lifetime.
+
+License testing does not enroll anyone in the Closed track, and removing an
+account from License testing does not revoke an acknowledged test purchase.
+
+Send temporary testers this wording:
+
+> FoxyCo provides complimentary full access to closed testers through December
+> 31, 2026. This is a revocable Google Play test entitlement. Continued access
+> afterward requires the one-time lifetime purchase. Please use only Google's
+> “Test card, always approves” when instructed; you will not be charged.
+
+### Revoke temporary access after 2026-12-31
+
+For every temporary tester, starting 2027-01-01:
+
+1. Open Play Console **Order management** and find the recorded test order.
+2. Confirm the account and product ID are correct and the ledger does not mark
+   the order **never revoke**.
+3. Select **Refund and revoke**. Removing the License testing account alone is
+   insufficient.
+4. Remove the account from **Settings → License testing**.
+5. Ask the tester to open FoxyCo online or tap **Restore purchase**, then verify
+   that the app returns to locked/paywall state.
+6. Record the revocation date and result. FoxyCo may honor its cached purchase
+   for up to seven days while a device remains offline; it drops access as soon
+   as Play returns a successful no-ownership result.
+
+Do not revoke lifetime promo-code orders. If an order cannot be matched
+unambiguously to the ledger, stop and verify the Google account before acting.
+
+### Console-only checks
+
+- `foxyco.lifetime` remains active and non-consumable.
+- Canada is explicitly CAD 24.99 and the United States explicitly USD 19.99.
+- Temporary purchases show Google's test-purchase notice and no charge.
+- Promo codes are unique one-time codes; their redemption deadline does not
+  make redeemed lifetime ownership expire.
+- Tester/list changes and test-order revocations require no app build. Any
+  billing implementation change must be verified on Internal before Closed.
 
 ## Release evidence to retain
 
