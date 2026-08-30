@@ -602,14 +602,17 @@ class _DetailBandItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Row(
-    mainAxisAlignment: MainAxisAlignment.center,
+    mainAxisAlignment: MainAxisAlignment.start,
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
       SizedBox(
-        width: 28,
-        child: Center(child: Icon(icon, size: 20, color: FoxColors.brandFox)),
+        width: 24,
+        child: Align(
+          alignment: Alignment.topLeft,
+          child: Icon(icon, size: 20, color: FoxColors.brandFox),
+        ),
       ),
-      const SizedBox(width: Gap.sm),
+      const SizedBox(width: Gap.xs),
       Flexible(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,

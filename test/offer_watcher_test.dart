@@ -703,6 +703,27 @@ void main() {
     expect(overlay.shown.single.payout, 10);
   });
 
+  test('a plain Lyft map frame probes for an Uber card above it', () async {
+    final c = container();
+    c.read(settingsProvider.notifier).setOcrEnabled(true);
+    ocr.lines = _uberA.texts;
+    ocr.packageName = ParserRegistry.lyftPackage;
+    c.read(offerWatcherProvider);
+    c.read(overlayControllerProvider);
+
+    watcher.emit(
+      const ScreenRead(
+        packageName: ParserRegistry.lyftPackage,
+        texts: ["You're online"],
+        isActive: true,
+      ),
+    );
+    await overlay.firstShow.future.timeout(const Duration(seconds: 10));
+
+    expect(ocr.captures, 1);
+    expect(overlay.shown.single.payout, 10);
+  });
+
   test(
     'OCR retries a card that was captured before it finished rendering',
     () async {
@@ -840,6 +861,39 @@ void main() {
     },
   );
 
+  test('dropped Uber distance decimal is corrected before display', () async {
+    final previous = OfferWatcher.ocrCooldown;
+    OfferWatcher.ocrCooldown = Duration.zero;
+    addTearDown(() => OfferWatcher.ocrCooldown = previous);
+    final c = container();
+    c.read(settingsProvider.notifier).setOcrEnabled(true);
+    ocr.responses.addAll([
+      const OcrFrame(
+        packageName: ParserRegistry.uberPackage,
+        lines: ['UberX', r'$28.41', '41 mins (304 km) trip', 'Match'],
+      ),
+      const OcrFrame(
+        packageName: ParserRegistry.uberPackage,
+        lines: ['UberX', r'$28.41', '41 mins (30.4 km) trip', 'Match'],
+      ),
+    ]);
+    c.read(offerWatcherProvider);
+    c.read(overlayControllerProvider);
+
+    watcher.emit(
+      const ScreenRead(
+        packageName: ParserRegistry.uberPackage,
+        texts: [],
+        isActive: true,
+      ),
+    );
+    await overlay.firstShow.future.timeout(const Duration(seconds: 10));
+
+    expect(ocr.captures, 2);
+    expect(overlay.shown.single.totalKm, 30.4);
+    expect(c.read(offerLogProvider).single.totalKm, 30.4);
+  });
+
   test('a legitimate three-digit Uber payout is not delayed', () async {
     final c = container();
     c.read(settingsProvider.notifier).setOcrEnabled(true);
@@ -946,6 +1000,28 @@ void main() {
     expect(overlay.shown, hasLength(2));
     expect(overlay.shown.last.payout, 10);
     expect(c.read(offerLogProvider), hasLength(2));
+  });
+
+  test('lower app map frames cannot clear a visible Uber OCR card', () async {
+    final c = container();
+    c.read(settingsProvider.notifier).setOcrEnabled(true);
+    ocr.lines = _uberA.texts;
+    ocr.packageName = ParserRegistry.lyftPackage;
+    c.read(offerWatcherProvider);
+    c.read(overlayControllerProvider);
+
+    const map = ScreenRead(
+      packageName: ParserRegistry.lyftPackage,
+      texts: ["You're online", 'Turbo available'],
+      isActive: true,
+    );
+    watcher.emit(map);
+    await overlay.firstShow.future.timeout(const Duration(seconds: 10));
+    watcher.emit(map);
+    await Future<void>.delayed(Duration.zero);
+
+    expect(overlay.clears, 0);
+    expect(c.read(offerWatcherProvider)?.platform, GigPlatform.uber);
   });
 
   test('covered Lyft returns for five seconds after Uber OCR closes', () async {

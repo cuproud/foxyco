@@ -1,13 +1,13 @@
 # Architecture
 
-Updated 2026-08-28 for `1.0.11+99`.
+Updated 2026-08-29 for `1.0.12+100`.
 
 ## Boundaries
 
 ```text
 Android Accessibility event
   ├─ complete selected-app nodes → matching parser
-  └─ incomplete Uber nodes + OCR approved
+  └─ incomplete Uber nodes or active selected lower app + OCR approved
        → one rate-limited in-memory screenshot → Uber parser
                                       ↓
                               DecisionEngine (pure Dart)
@@ -51,9 +51,10 @@ summaries as version-tolerant JSON. An offer record preserves:
 Manual corrections win over later inference. History is capped and retention
 can be configured. Android backup and data extraction are disabled.
 
-History hydration collapses the two known OCR correction signatures: a dropped
-payout decimal (`$7.54`/`$754`) and pickup distance misread as payout. The
-corrected row drives tallies and analytics.
+History hydration collapses the two known payout correction signatures: a
+dropped payout decimal (`$7.54`/`$754`) and pickup distance misread as payout.
+Live OCR also rejects dropped distance decimals such as `30.4`/`304 km` before
+they can reach history. The corrected row drives tallies and analytics.
 
 CSV history backup is versioned and locale-independent. Human-readable columns
 are accompanied by authoritative per-row JSON, preserving every `OfferSummary`
@@ -90,6 +91,8 @@ Play's declaration, prominent disclosure, consent flow, and review video.
   geometry.
 - The overlay runs in its own isolate; only small serialized verdict payloads
   cross the boundary.
+- Overlay health loss during app resume recreates the native window without
+  ending the active shift; native surface lifecycle is logged without content.
 
 ## Verification rule
 

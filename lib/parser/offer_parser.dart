@@ -57,7 +57,8 @@ class ParserPatterns {
     caseSensitive: false,
   );
   static final _excludedAmountAfter = RegExp(
-    r'^\s*(?:km\b|mi\b|miles?\b|/\s*hr|per\s*hr|toll|fee|tip|bonus|surge|extra|quest|'
+    r'^\s*(?:km\b|mi\b|miles?\b|/\s*hr|per\s*hr|toll|fee|tip|'
+    r'(?:in(?:cluded)?\s+)?bonus(?:es)?|surge|extra|quest|'
     r'promotions?)\b',
     caseSensitive: false,
   );
@@ -174,7 +175,7 @@ class ParserPatterns {
   /// the whole screen. Unlike the previous version this does NOT fall back to a
   /// filtered-out amount: if every candidate was a fee/rate line we'd rather
   /// return null (and show nothing) than take a number we already flagged wrong.
-  static double? findPayout(List<String> nodeTexts) {
+  static double? findPayout(Iterable<String> nodeTexts) {
     for (final node in nodeTexts) {
       for (final match in payout.allMatches(node)) {
         final before = node.substring(0, match.start);

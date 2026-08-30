@@ -40,7 +40,7 @@ void main() {
     expect(offer.pricePerHour, closeTo(28.45, 0.05));
   });
 
-  test('payout is the first \$ — skips the bonus and rate lines', () {
+  test('payout skips the bonus and rate lines', () {
     final nodes = [
       '\$21.11',
       'Incl. CA\$4.87 in bonuses',
@@ -52,6 +52,23 @@ void main() {
     final offer = parser.parse(nodes)!;
     expect(offer.payout, 21.11);
     expect(offer.bonus, 4.87);
+  });
+
+  test('persistent earnings header cannot replace the offer payout', () {
+    final offer = parser.parse([
+      r'$44.83',
+      '2',
+      r'$10.14 Incl. CA$1 bonus',
+      r'$21.72/hr est. rate for this ride',
+      '2 mins · 0.9 km',
+      '26 mins · 19.5 km',
+      'Accept',
+    ])!;
+
+    expect(offer.payout, 10.14);
+    expect(offer.bonus, 1);
+    expect(offer.totalKm, 20.4);
+    expect(offer.totalMinutes, 28);
   });
 
   test('parses OCR lines when the tiny separator is omitted', () {

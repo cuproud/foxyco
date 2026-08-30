@@ -166,6 +166,10 @@ class OfferWatcher extends Notifier<Offer?> {
   static Duration coveredOfferFreshness = const Duration(seconds: 15);
   static const _noUberCard = '__FOXYCO_NO_UBER_CARD__';
   static final _droppedDecimalPayout = RegExp(r'\$\s*\d{3,}(?![\d.])');
+  static final _droppedDecimalDistance = RegExp(
+    r'\(\s*\d{3,}\s*(?:km|mi|miles?)\s*\)',
+    caseSensitive: false,
+  );
   static final _uberOcrEvidence = RegExp(
     r'\buber\s*(?:x|xl|share|comfort|green|pet|premier|black|connect|eats)\b',
     caseSensitive: false,
@@ -351,7 +355,7 @@ class OfferWatcher extends Notifier<Offer?> {
       final forceCrossAppOcr =
           kDebugMode && settings.ocrEnabled && settings.ocrTestMode;
       final checkForCoveredUber =
-          settings.ocrEnabled && ParserPatterns.looksLikeOfferCard(read.texts);
+          settings.ocrEnabled && parser?.platform != GigPlatform.uber;
       if (useUberOcr) {
         final joined = read.texts.join(' ');
         final accepted = ParserPatterns.looksLikeAcceptedTrip(
@@ -385,7 +389,7 @@ class OfferWatcher extends Notifier<Offer?> {
           // Uber can draw its card over Hopp/Lyft without emitting an Uber
           // Accessibility event. Probe once from the active lower-app frame;
           // only a confirmed Uber card starts the existing lifecycle polling.
-          unawaited(_requestOcr(read.packageName, retryOnMiss: false));
+          unawaited(_requestOcr(read.packageName));
         }
         // With OCR enabled, Uber offer data comes only from OCR. Test mode may
         // also trigger from another watched app to exercise Uber-over-Lyft,
@@ -443,6 +447,18 @@ class OfferWatcher extends Notifier<Offer?> {
     }
     final activeParser = parser;
     if (activeParser == null) return;
+
+    // A selected lower app keeps emitting active map/partial frames while an
+    // Uber card is visibly stacked above it. Only OCR can prove that top card
+    // left; treating the lower frame as a foreground switch cleared the Uber
+    // verdict within milliseconds on device.
+    if (read.source == CaptureSource.accessibility &&
+        _uberOcrCardActive &&
+        _shownPlatform == GigPlatform.uber &&
+        activeParser.platform != GigPlatform.uber) {
+      if (read.isActive) unawaited(_requestOcr(read.packageName));
+      return;
+    }
 
     if (read.source == CaptureSource.accessibility &&
         offer?.platform != GigPlatform.uber &&
@@ -572,10 +588,13 @@ class OfferWatcher extends Notifier<Offer?> {
       _pendingOcrCorrectionKey = null;
       _pendingSuspiciousOcrKey = null;
     } else if (read.source == CaptureSource.ocr &&
-        read.texts.any(_droppedDecimalPayout.hasMatch)) {
-      // ML Kit occasionally drops a decimal ('$7.54' -> '$754'). Never score
-      // or persist it. Legitimate $100+ cards are rare and may wait for the
-      // next OCR frame; accepting a repeated dropped decimal is never safe.
+        read.texts.any(
+          (text) =>
+              _droppedDecimalPayout.hasMatch(text) ||
+              _droppedDecimalDistance.hasMatch(text),
+        )) {
+      // ML Kit occasionally drops a decimal ('$7.54' -> '$754', or '30.4 km'
+      // -> '304 km'). Never score or persist impossible raw OCR economics.
       if (_pendingSuspiciousOcrKey != key) {
         _pendingSuspiciousOcrKey = key;
         _ocrMatched = false;
@@ -583,7 +602,7 @@ class OfferWatcher extends Notifier<Offer?> {
             .read(foxLogProvider)
             .log(
               'ocr',
-              'suspicious Uber \$${offer.payout} held — awaiting confirmation',
+              'suspicious Uber OCR economics held — awaiting confirmation',
             );
         return;
       }

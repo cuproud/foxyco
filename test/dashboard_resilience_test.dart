@@ -56,6 +56,7 @@ class _FakeOcrCapture extends OcrCapture {
 class _FakeOverlayService implements OverlayService {
   _FakeOverlayService({this.active = false});
   final bool active;
+  var starts = 0;
   @override
   Future<bool> isPermissionGranted() async => true;
   @override
@@ -73,7 +74,7 @@ class _FakeOverlayService implements OverlayService {
   Future<void> startWatching({
     bool paused = false,
     BubbleStyle bubbleStyle = BubbleStyle.coolFox,
-  }) async {}
+  }) async => starts++;
   @override
   Future<void> update(OverlayPayload p) async {}
   @override
@@ -186,28 +187,33 @@ void main() {
     expect(container.read(dashboardProvider).status, WatchStatus.paused);
   });
 
-  test('unexpected overlay shutdown also stops OCR capture', () async {
-    final watcher = _FakeWatcher();
-    final ocr = _FakeOcrCapture();
-    final container = ProviderContainer(
-      overrides: [
-        accessibilityWatcherProvider.overrideWithValue(watcher),
-        overlayServiceProvider.overrideWithValue(_FakeOverlayService()),
-        ocrCaptureProvider.overrideWithValue(ocr),
-      ],
-    );
-    addTearDown(container.dispose);
-    addTearDown(watcher.status.close);
+  test(
+    'unexpected overlay shutdown recovers without ending the shift',
+    () async {
+      final watcher = _FakeWatcher();
+      final ocr = _FakeOcrCapture();
+      final overlay = _FakeOverlayService();
+      final container = ProviderContainer(
+        overrides: [
+          accessibilityWatcherProvider.overrideWithValue(watcher),
+          overlayServiceProvider.overrideWithValue(overlay),
+          ocrCaptureProvider.overrideWithValue(ocr),
+        ],
+      );
+      addTearDown(container.dispose);
+      addTearDown(watcher.status.close);
 
-    final dashboard = container.read(dashboardProvider.notifier);
-    await dashboard.refreshPermissions();
-    dashboard.startMonitoring();
-    await dashboard.refreshPermissions();
-    await Future<void>.delayed(Duration.zero);
+      final dashboard = container.read(dashboardProvider.notifier);
+      await dashboard.refreshPermissions();
+      dashboard.startMonitoring();
+      await dashboard.refreshPermissions();
+      await Future<void>.delayed(Duration.zero);
 
-    expect(container.read(dashboardProvider).status, WatchStatus.stopped);
-    expect(ocr.stops, 1);
-  });
+      expect(container.read(dashboardProvider).status, WatchStatus.watching);
+      expect(overlay.starts, 1);
+      expect(ocr.stops, 0);
+    },
+  );
 
   test(
     'permission change during a check queues one final-state check',

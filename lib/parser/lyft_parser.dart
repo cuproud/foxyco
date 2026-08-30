@@ -43,7 +43,7 @@ class LyftParser implements OfferParser {
     if (ParserPatterns.hasReserveAction(nodeTexts) &&
         ParserPatterns.hasScheduledTime(nodeTexts) &&
         legs.length == 1) {
-      final payout = ParserPatterns.findPayout(nodeTexts);
+      final payout = ParserPatterns.findPayout(nodeTexts.reversed);
       final trip = ParserPatterns.foldScheduledLeg(legs.single);
       if (payout == null || trip == null) return null;
       return Offer(
@@ -72,7 +72,10 @@ class LyftParser implements OfferParser {
     if (!ParserPatterns.hasAcceptAction(nodeTexts)) return null;
     if (ParserPatterns.looksLikeScheduledRideList(joined)) return null;
 
-    final payout = ParserPatterns.findPayout(nodeTexts);
+    // Lyft's persistent earnings balance sits above the incoming card in the
+    // merged accessibility window. The card fare is therefore the last clean
+    // amount in visual order, not the first.
+    final payout = ParserPatterns.findPayout(nodeTexts.reversed);
     // Contract gate 2: money + a pickup and at least one trip leg. A plain ride
     // is two legs; a MULTI-STOP ride adds a row per stop, all summed into the
     // trip total by [foldLegs]. Too few (half-rendered) or too many (a ride

@@ -1,7 +1,7 @@
 # Offer Detection and Verdict Logic
 
-Canonical implementation map for `1.0.11+99`, verified against the code on
-2026-08-28.
+Canonical implementation map for `1.0.12+100`, verified against the code on
+2026-08-29.
 
 ## Maintenance contract
 
@@ -161,6 +161,10 @@ as the trip. Bonus-labelled amounts are stored separately but are already part
 of the displayed payout and are never added again. `Add to queue` marks the
 offer queued and changes only history/category context.
 
+Lyft's merged window can place the persistent earnings balance above the live
+card. The parser therefore uses the last clean amount in visual order, while
+still excluding bonus and estimated-hourly-rate amounts.
+
 Lyft frames may legitimately contain background Ride Finder/Turbo/map text
 because Android merges same-package windows. A live isolated card is therefore
 not rejected for general browse chrome. A `scheduled ride` list is always
@@ -210,7 +214,8 @@ The current path is:
 
 1. A selected active app emits an empty, incomplete, or offer-shaped frame.
 2. FoxyCo requests at most one screenshot per 1.5 seconds. Busy/cooldown misses
-   can schedule one bounded retry; the initial cross-app probe does not retry.
+   can schedule one bounded retry, including a cross-app probe while another
+   selected driver app is active.
 3. The FoxyCo overlay rectangle is redacted from the bitmap.
 4. Bundled ML Kit recognizes text in memory and sorts lines top-to-bottom,
    left-to-right.
@@ -229,6 +234,8 @@ Known OCR corruption guards:
 
 - a three-or-more-digit amount without a decimal, such as OCR turning `$7.54`
   into `$754`, is never scored or stored;
+- a three-or-more-digit parenthesized distance without a decimal, such as OCR
+  turning `30.4 km` into `304 km`, is never scored or stored;
 - changed Uber economics on a live/recent identical route must repeat once
   before replacing the current value; and
 - history hydration collapses known dropped-decimal and distance-as-payout OCR
@@ -243,11 +250,13 @@ covered non-Uber offer that was captured no more than 15 seconds earlier.
 When a Hopp, Lyft, or other selected card is active and Uber draws a card above
 it without emitting an Uber Accessibility event:
 
-1. the active lower-app offer-shaped event triggers a one-shot Uber OCR probe;
+1. every active lower-app event triggers a rate-limited Uber OCR probe, even
+   when the lower app exposes only map text;
 2. the lower offer may parse normally while that screenshot is in flight;
 3. a confirmed Uber OCR offer replaces the lower pill and owns the visible
    lifecycle;
-4. repeated lower-app frames are cached but cannot overwrite the Uber pill;
+4. repeated lower-app frames are cached when complete and can neither overwrite
+   nor clear the Uber pill;
 5. OCR polling checks whether the Uber card is still visible; and
 6. after the no-card marker, a still-fresh covered offer is parsed and shown
    again.
@@ -362,6 +371,11 @@ Production diagnostic logs contain package, source, node count, parser shape,
 timing, parsed economics, and verdict; they do not contain raw screen/OCR text,
 addresses, rider names, or screenshots. Repeated identical miss signatures are
 log-throttled to once per 10 seconds.
+
+If app resume finds permissions intact but native overlay health inactive, the
+shift remains Watching, the window is recreated, and the recovery reason is
+written to diagnostics. Native logcat also records overlay generation, window
+format/size, and surface create/change/destroy events without screen content.
 
 For every capture/parser/scoring change:
 

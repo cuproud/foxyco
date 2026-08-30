@@ -233,6 +233,7 @@ class DashboardController extends Notifier<DashboardState> {
         accessibilityGranted: access,
       );
       final WatchStatus status;
+      var recoverOverlay = false;
       if (!permissions.allGranted) {
         status = WatchStatus.blocked;
       } else if (state.status == WatchStatus.watching) {
@@ -242,7 +243,8 @@ class DashboardController extends Notifier<DashboardState> {
         // reopen (device 2026-07-19). Paused is exempt: its overlay is torn
         // down BY DESIGN (see OverlayController._applyStatus).
         final overlayUp = await ref.read(overlayServiceProvider).isActive();
-        status = overlayUp ? WatchStatus.watching : WatchStatus.stopped;
+        status = WatchStatus.watching;
+        recoverOverlay = !overlayUp;
       } else if (state.status == WatchStatus.paused) {
         status = state.status; // explicit pause survives a refresh
       } else if (liveSince != null) {
@@ -262,7 +264,10 @@ class DashboardController extends Notifier<DashboardState> {
       final endsRecoveredSession =
           liveSince != null &&
           (status == WatchStatus.blocked || status == WatchStatus.stopped);
-      if (!statusChanged && !permissionsChanged && !endsRecoveredSession) {
+      if (!statusChanged &&
+          !permissionsChanged &&
+          !endsRecoveredSession &&
+          !recoverOverlay) {
         return;
       }
 
@@ -274,6 +279,26 @@ class DashboardController extends Notifier<DashboardState> {
         _recordSession(since);
       }
       state = _with(status: status, permissions: permissions);
+      if (recoverOverlay) {
+        ref
+            .read(foxLogProvider)
+            .log(
+              'error',
+              'overlay reported inactive while watching — recovering window',
+            );
+        unawaited(
+          ref
+              .read(overlayServiceProvider)
+              .startWatching(
+                bubbleStyle: ref.read(settingsProvider).bubbleStyle,
+              )
+              .catchError(
+                (Object error) => ref
+                    .read(foxLogProvider)
+                    .log('error', 'overlay recovery failed: $error'),
+              ),
+        );
+      }
       if (statusChanged) {
         ref.read(foxLogProvider).log('status', 'watch → ${status.name}');
       }

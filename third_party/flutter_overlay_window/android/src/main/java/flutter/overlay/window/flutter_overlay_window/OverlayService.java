@@ -152,10 +152,15 @@ public class OverlayService extends Service implements View.OnTouchListener {
         if (mTrayAnimationTimer != null) mTrayAnimationTimer.cancel();
         mAnimationHandler.removeCallbacksAndMessages(null);
         removeFlutterView();
-        isRunning = false;
-        NotificationManager notificationManager = (NotificationManager) getApplicationContext().getSystemService(Context.NOTIFICATION_SERVICE);
-        notificationManager.cancel(OverlayConstants.NOTIFICATION_ID);
-        instance = null;
+        // A late destroy from an older generation must not mark a replacement
+        // window inactive. That false health result made app-resume stop a live
+        // shift even though the new bubble was still visible.
+        if (instance == this) {
+            isRunning = false;
+            instance = null;
+            NotificationManager notificationManager = (NotificationManager) getApplicationContext().getSystemService(Context.NOTIFICATION_SERVICE);
+            notificationManager.cancel(OverlayConstants.NOTIFICATION_ID);
+        }
         super.onDestroy();
     }
 
@@ -334,7 +339,7 @@ public class OverlayService extends Service implements View.OnTouchListener {
                         | WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
                         | WindowManager.LayoutParams.FLAG_LAYOUT_INSET_DECOR
                         | WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED,
-                PixelFormat.TRANSLUCENT
+                PixelFormat.RGBA_8888
         );
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && WindowSetup.flag == clickableFlag) {
             params.alpha = MAXIMUM_OPACITY_ALLOWED_FOR_S_AND_HIGHER;
@@ -498,23 +503,34 @@ public class OverlayService extends Service implements View.OnTouchListener {
         if (view instanceof SurfaceView) {
             SurfaceView surface = (SurfaceView) view;
             surface.setZOrderOnTop(true);
-            surface.getHolder().setFormat(PixelFormat.TRANSLUCENT);
+            surface.getHolder().setFormat(PixelFormat.RGBA_8888);
             if (transparentSurfaces.add(surface)) {
                 surface.getHolder().addCallback(new SurfaceHolder.Callback() {
                     @Override
                     public void surfaceCreated(SurfaceHolder holder) {
                         // App/window transitions can recreate this Surface
                         // without reattaching or resizing the FlutterView.
-                        holder.setFormat(PixelFormat.TRANSLUCENT);
+                        holder.setFormat(PixelFormat.RGBA_8888);
                         surface.setZOrderOnTop(true);
+                        traceWindow("surface-created", flutterView == null
+                                ? null
+                                : (WindowManager.LayoutParams) flutterView.getLayoutParams());
                     }
 
                     @Override
                     public void surfaceChanged(
-                            SurfaceHolder holder, int format, int width, int height) {}
+                            SurfaceHolder holder, int format, int width, int height) {
+                        Log.i("FOXYCO_OVERLAY", "g=" + generation
+                                + " event=surface-changed format=" + format
+                                + " size=" + width + "x" + height);
+                    }
 
                     @Override
-                    public void surfaceDestroyed(SurfaceHolder holder) {}
+                    public void surfaceDestroyed(SurfaceHolder holder) {
+                        traceWindow("surface-destroyed", flutterView == null
+                                ? null
+                                : (WindowManager.LayoutParams) flutterView.getLayoutParams());
+                    }
                 });
             }
         }
@@ -543,7 +559,9 @@ public class OverlayService extends Service implements View.OnTouchListener {
     /// something the next edit has to remember.
     private void applyLayout(WindowManager.LayoutParams params) {
         if (windowManager == null || flutterView == null) return;
-        params.format = PixelFormat.TRANSLUCENT;
+        // Samsung intermittently resolves the generic TRANSLUCENT format to an
+        // opaque buffer after app/window switches. Require an alpha channel.
+        params.format = PixelFormat.RGBA_8888;
         restoreSurfaceTransparency();
         windowManager.updateViewLayout(flutterView, params);
         // Samsung can recreate the child surface after a resize. Re-assert
@@ -770,7 +788,7 @@ public class OverlayService extends Service implements View.OnTouchListener {
                         | WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
                         | WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS
                         | WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
-                PixelFormat.TRANSLUCENT);
+                PixelFormat.RGBA_8888);
         lp.gravity = Gravity.BOTTOM;
 
         zone.setAlpha(0f);
