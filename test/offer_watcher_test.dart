@@ -31,10 +31,19 @@ class _FakeWatcher extends AccessibilityWatcher {
 }
 
 class _OfferTestSettingsController extends SettingsController {
+  _OfferTestSettingsController([
+    this.watchedApps = const {
+      GigPlatform.uber,
+      GigPlatform.hopp,
+      GigPlatform.lyft,
+    },
+  ]);
+
+  final Set<GigPlatform> watchedApps;
+
   @override
-  FoxSettings build() => FoxSettings.defaults.copyWith(
-    watchedApps: {GigPlatform.uber, GigPlatform.hopp, GigPlatform.lyft},
-  );
+  FoxSettings build() =>
+      FoxSettings.defaults.copyWith(watchedApps: watchedApps);
 }
 
 class _FakeOcrCapture extends OcrCapture {
@@ -93,6 +102,8 @@ class _FakeOverlayService implements OverlayService {
 
   @override
   Stream<OverlayAction> get actionStream => const Stream.empty();
+  @override
+  Stream<String> get diagnosticStream => const Stream.empty();
   @override
   Future<bool> isPermissionGranted() async => true;
   @override
@@ -224,7 +235,7 @@ void main() {
   late _FakeOcrCapture ocr;
   late _FakeVerdictVoice voice;
 
-  ProviderContainer container() {
+  ProviderContainer container({Set<GigPlatform>? watchedApps}) {
     final c = ProviderContainer(
       overrides: [
         accessibilityWatcherProvider.overrideWithValue(watcher),
@@ -232,7 +243,12 @@ void main() {
         ocrCaptureProvider.overrideWithValue(ocr),
         verdictVoiceProvider.overrideWithValue(voice),
         dashboardProvider.overrideWith(_GrantedDashboardController.new),
-        settingsProvider.overrideWith(_OfferTestSettingsController.new),
+        settingsProvider.overrideWith(
+          () => _OfferTestSettingsController(
+            watchedApps ??
+                const {GigPlatform.uber, GigPlatform.hopp, GigPlatform.lyft},
+          ),
+        ),
       ],
     );
     addTearDown(c.dispose);
@@ -1023,6 +1039,36 @@ void main() {
     expect(overlay.clears, 0);
     expect(c.read(offerWatcherProvider)?.platform, GigPlatform.uber);
   });
+
+  for (final entry in {
+    GigPlatform.hopp: ParserRegistry.hoppPackage,
+    GigPlatform.lyft: ParserRegistry.lyftPackage,
+    GigPlatform.doorDash: ParserRegistry.doorDashPackage,
+    GigPlatform.instacart: ParserRegistry.instacartPackage,
+    GigPlatform.skip: ParserRegistry.skipPackage,
+  }.entries) {
+    test('Uber OCR probes over selected ${entry.key.label} screens', () async {
+      final c = container(watchedApps: {GigPlatform.uber, entry.key});
+      c.read(settingsProvider.notifier).setOcrEnabled(true);
+      ocr
+        ..lines = _uberA.texts
+        ..packageName = entry.value;
+      c.read(offerWatcherProvider);
+      c.read(overlayControllerProvider);
+
+      watcher.emit(
+        ScreenRead(
+          packageName: entry.value,
+          texts: const ['Map'],
+          isActive: true,
+        ),
+      );
+      await overlay.firstShow.future.timeout(const Duration(seconds: 10));
+
+      expect(ocr.captures, 1);
+      expect(c.read(offerLogProvider).single.platform, GigPlatform.uber);
+    });
+  }
 
   test('covered Lyft returns for five seconds after Uber OCR closes', () async {
     final previousCooldown = OfferWatcher.ocrCooldown;

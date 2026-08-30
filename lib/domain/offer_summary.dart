@@ -128,6 +128,28 @@ class OfferSummary {
     unitCount: unitCount,
   );
 
+  OfferSummary withTotalKm(double value, {required Verdict correctedVerdict}) =>
+      OfferSummary(
+        platform: platform,
+        verdict: correctedVerdict,
+        payout: payout,
+        finalPayout: finalPayout,
+        bonus: bonus,
+        pickupKm: pickupKm,
+        totalKm: value,
+        totalMinutes: totalMinutes,
+        seenAt: seenAt,
+        outcome: outcome,
+        outcomeIsManual: outcomeIsManual,
+        detectedOutcome: detectedOutcome,
+        scoringSnapshot: scoringSnapshot,
+        category: category,
+        isQueued: isQueued,
+        deliveryCount: deliveryCount,
+        itemCount: itemCount,
+        unitCount: unitCount,
+      );
+
   Map<String, dynamic> toJson() => {
     'platform': platform.name,
     'verdict': verdict.name,

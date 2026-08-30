@@ -69,6 +69,8 @@ class _FakeOverlayService implements OverlayService {
   @override
   Stream<OverlayAction> get actionStream => const Stream.empty();
   @override
+  Stream<String> get diagnosticStream => const Stream.empty();
+  @override
   Future<bool> isActive() async => active;
   @override
   Future<void> startWatching({

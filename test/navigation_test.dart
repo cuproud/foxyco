@@ -174,6 +174,15 @@ void main() {
 
     expect(find.text(r'CA$18.61'), findsAtLeastNWidgets(1));
     expect(container.read(offerLogProvider).single.finalPayout, 18.61);
+
+    await tester.tap(find.text('Correct distance'));
+    await beat(tester);
+    await tester.enterText(find.byType(TextField).last, '30.4');
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await beat(tester);
+
+    expect(container.read(offerLogProvider).single.totalKm, 30.4);
+    expect(find.text('30.4 km'), findsOneWidget);
     await tester.binding.handlePopRoute();
     await beat(tester);
     expect(container.read(tabIndexProvider), 0);

@@ -35,6 +35,7 @@ final overlayServiceProvider = Provider<OverlayService>(
 ///      dashboard never disagree.
 class OverlayController extends Notifier<void> {
   StreamSubscription<OverlayAction>? _actionSub;
+  StreamSubscription<String>? _diagnosticSub;
 
   /// Overlay start/hide calls cross a platform channel and can finish out of
   /// order. Serialize status transitions so a slow "start" can never complete
@@ -49,7 +50,13 @@ class OverlayController extends Notifier<void> {
   @override
   void build() {
     _actionSub = _service.actionStream.listen(_onAction);
-    ref.onDispose(() => _actionSub?.cancel());
+    _diagnosticSub = _service.diagnosticStream.listen(
+      (message) => ref.read(foxLogProvider).log('overlay-native', message),
+    );
+    ref.onDispose(() {
+      _actionSub?.cancel();
+      _diagnosticSub?.cancel();
+    });
 
     // Mirror every watch-status change onto the overlay window. `fireImmediately`
     // applies the CURRENT status too, so first-boot `watching` brings the bubble

@@ -8,7 +8,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../domain/fox_settings.dart';
 import '../domain/offer_summary.dart';
 import '../domain/platform.dart';
+import '../domain/rate_mode.dart';
+import '../domain/thresholds.dart';
 import '../domain/verdict.dart';
+import '../domain/decision_engine.dart';
 import 'fox_log.dart';
 import 'history_backup.dart';
 import '../ui/home/dashboard_state.dart' show Tally;
@@ -396,6 +399,52 @@ class OfferLog extends Notifier<List<OfferSummary>> {
     state = [
       ...state.take(index),
       state[index].withFinalPayout(value),
+      ...state.skip(index + 1),
+    ];
+    _saveSoon();
+    return true;
+  }
+
+  /// Correct a parser/OCR distance without deleting the history row. This is
+  /// deliberately available for every platform: Accessibility selectors can
+  /// change too, even though the first reported decimal loss came from Uber OCR.
+  bool setTotalDistance(OfferSummary offer, double totalKm) {
+    if (!totalKm.isFinite || totalKm <= 0 || totalKm < offer.pickupKm) {
+      return false;
+    }
+    final index = state.indexWhere(
+      (candidate) =>
+          candidate.seenAt == offer.seenAt &&
+          candidate.platform == offer.platform,
+    );
+    if (index < 0) return false;
+    final current = state[index];
+    final snapshot = current.scoringSnapshot;
+    var verdict = current.verdict;
+    if (snapshot != null) {
+      if (snapshot.minimumPayoutEnabled &&
+          current.payout < snapshot.minimumPayout) {
+        verdict = Verdict.bad;
+      } else {
+        final hourly =
+            snapshot.rateMode == RateMode.perHour && current.totalMinutes > 0;
+        verdict = const DecisionEngine().evaluate(
+          hourly ? current.pricePerHour : current.payout / totalKm,
+          hourly
+              ? Thresholds(
+                  goodAtOrAbove: snapshot.goodPerHour,
+                  badBelow: snapshot.badPerHour,
+                )
+              : Thresholds(
+                  goodAtOrAbove: snapshot.goodPerKm,
+                  badBelow: snapshot.badPerKm,
+                ),
+        );
+      }
+    }
+    state = [
+      ...state.take(index),
+      current.withTotalKm(totalKm, correctedVerdict: verdict),
       ...state.skip(index + 1),
     ];
     _saveSoon();

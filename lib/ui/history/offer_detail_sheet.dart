@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../domain/distance_unit.dart';
 import '../../domain/offer_summary.dart';
 import '../../services/offer_log.dart';
 import '../../services/session_log.dart';
@@ -39,7 +40,8 @@ class _OfferDetailSheet extends ConsumerWidget {
         .watch(offerLogProvider)
         .where(
           (candidate) =>
-              candidate.seenAt == offer.seenAt && candidate.sameCardAs(offer),
+              candidate.seenAt == offer.seenAt &&
+              candidate.platform == offer.platform,
         )
         .firstOrNull;
     final current = o ?? offer;
@@ -319,7 +321,19 @@ class _OfferDetailSheet extends ConsumerWidget {
                         : '—',
                     rightLabel: 'TOTAL TIME',
                   ),
-                  const SizedBox(height: Gap.sm),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton.icon(
+                      onPressed: () => _editTotalDistance(
+                        context,
+                        ref,
+                        current,
+                        distanceUnit,
+                      ),
+                      icon: const Icon(Icons.edit_rounded, size: 15),
+                      label: const Text('Correct distance'),
+                    ),
+                  ),
                   _DetailBand(
                     leftIcon: Icons.location_on_outlined,
                     leftValue: current.pickupKm > 0
@@ -478,6 +492,76 @@ class _OfferDetailSheet extends ConsumerWidget {
     final changed = ref
         .read(offerLogProvider.notifier)
         .setFinalPayout(offer, value.isNaN ? null : value);
+    if (changed) {
+      await ref
+          .read(sessionLogProvider.notifier)
+          .refreshForOffer(offer, ref.read(offerLogProvider));
+    }
+  }
+
+  Future<void> _editTotalDistance(
+    BuildContext context,
+    WidgetRef ref,
+    OfferSummary offer,
+    DistanceUnit unit,
+  ) async {
+    var input = unit.distanceFromKm(offer.totalKm).toStringAsFixed(1);
+    String? error;
+    final value = await showDialog<double>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) {
+          void save() {
+            final parsed = double.tryParse(input.trim().replaceAll(',', '.'));
+            final km = parsed == null ? null : unit.distanceToKm(parsed);
+            if (km == null || !km.isFinite || km <= 0 || km < offer.pickupKm) {
+              setState(() => error = 'Enter a valid total distance');
+              return;
+            }
+            Navigator.pop(context, km);
+          }
+
+          return AlertDialog(
+            title: const Text('Correct distance'),
+            content: TextFormField(
+              initialValue: input,
+              autofocus: true,
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
+              textInputAction: TextInputAction.done,
+              inputFormatters: [
+                TextInputFormatter.withFunction(
+                  (oldValue, newValue) =>
+                      RegExp(r'^\d*(?:[.,]\d{0,2})?$').hasMatch(newValue.text)
+                      ? newValue
+                      : oldValue,
+                ),
+              ],
+              onChanged: (value) => input = value,
+              onFieldSubmitted: (_) => save(),
+              decoration: InputDecoration(
+                suffixText: unit.shortLabel,
+                labelText: 'Total distance',
+                helperText: 'Use the distance shown by the gig app',
+                errorText: error,
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(onPressed: save, child: const Text('Save')),
+            ],
+          );
+        },
+      ),
+    );
+    if (value == null) return;
+    final changed = ref
+        .read(offerLogProvider.notifier)
+        .setTotalDistance(offer, value);
     if (changed) {
       await ref
           .read(sessionLogProvider.notifier)

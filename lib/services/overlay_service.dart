@@ -45,6 +45,13 @@ class OverlayService {
       .where((a) => a != null)
       .cast<OverlayAction>();
 
+  /// Privacy-safe native window/surface events used to diagnose Samsung's
+  /// intermittent grey mask. No offer or screen text crosses this channel.
+  Stream<String> get diagnosticStream => FlutterOverlayWindow.overlayListener
+      .where((data) => data is Map && data['kind'] == 'diagnostic')
+      .map((data) => (data as Map)['message']?.toString() ?? '')
+      .where((message) => message.isNotEmpty);
+
   /// Resting window size in **logical dp** (converted to physical px below).
   /// The window starts BUBBLE-sized — small enough to hug a screen edge and be
   /// dragged/snapped freely. The overlay isolate grows it to fit the pill while

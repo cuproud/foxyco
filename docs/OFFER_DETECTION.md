@@ -1,6 +1,6 @@
 # Offer Detection and Verdict Logic
 
-Canonical implementation map for `1.0.12+100`, verified against the code on
+Canonical implementation map for `1.0.13+101`, verified against the code on
 2026-08-29.
 
 ## Maintenance contract
@@ -214,8 +214,8 @@ The current path is:
 
 1. A selected active app emits an empty, incomplete, or offer-shaped frame.
 2. FoxyCo requests at most one screenshot per 1.5 seconds. Busy/cooldown misses
-   can schedule one bounded retry, including a cross-app probe while another
-   selected driver app is active.
+     can schedule one bounded retry, including a cross-app probe while any
+     other selected supported driver app is active.
 3. The FoxyCo overlay rectangle is redacted from the bitmap.
 4. Bundled ML Kit recognizes text in memory and sorts lines top-to-bottom,
    left-to-right.
@@ -247,8 +247,9 @@ covered non-Uber offer that was captured no more than 15 seconds earlier.
 
 ## Cross-app and stacked-offer behavior
 
-When a Hopp, Lyft, or other selected card is active and Uber draws a card above
-it without emitting an Uber Accessibility event:
+When any selected non-Uber app (Hopp, Lyft, DoorDash, Instacart, or Skip) is
+active and Uber draws a card above it without emitting an Uber Accessibility
+event:
 
 1. every active lower-app event triggers a rate-limited Uber OCR probe, even
    when the lower app exposes only map text;
@@ -358,6 +359,11 @@ Automatic inference never overwrites a driver's manual outcome correction.
 Manual final payout also remains separate from the originally offered payout
 and verdict.
 
+History also allows the driver to correct total distance for any platform when
+a source app or OCR supplied a bad value. The correction preserves the row and
+rescales the historical verdict from its saved scoring snapshot; distances are
+still stored canonically in kilometres.
+
 An accepted-trip marker that was already visible when a new offer appeared is
 not evidence that the new offer was taken. This occurs when Uber or Lyft draws
 a new request over the current trip screen. FoxyCo leaves that new offer's
@@ -374,8 +380,9 @@ log-throttled to once per 10 seconds.
 
 If app resume finds permissions intact but native overlay health inactive, the
 shift remains Watching, the window is recreated, and the recovery reason is
-written to diagnostics. Native logcat also records overlay generation, window
-format/size, and surface create/change/destroy events without screen content.
+written to diagnostics. Overlay generation, window type/format/alpha/size, and
+surface create/change/destroy events are written both to native logcat and the
+copyable in-app diagnostic log without screen content.
 
 For every capture/parser/scoring change:
 

@@ -31,6 +31,7 @@ class _FakeOverlayService implements OverlayService {
 
   /// Drives actionStream so tests can inject bubble gestures.
   final _actions = StreamController<OverlayAction>.broadcast();
+  final _diagnostics = StreamController<String>.broadcast();
 
   _FakeOverlayService({this.granted = true, this.requestSucceeds = true});
 
@@ -38,6 +39,8 @@ class _FakeOverlayService implements OverlayService {
 
   @override
   Stream<OverlayAction> get actionStream => _actions.stream;
+  @override
+  Stream<String> get diagnosticStream => _diagnostics.stream;
 
   @override
   Future<bool> isPermissionGranted() async => granted;

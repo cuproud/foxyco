@@ -2,10 +2,20 @@
 
 Audit date: 2026-08-29
 
-Candidate: `1.0.12+100`
+Candidate: `1.0.13+101`
 
 Automated checks pass. Play upload remains conditional on the device and
 Console checks in `MANUAL_TESTS.md` and `PLAY_RELEASE.md`.
+
+## Build 101 changes
+
+- Cross-app Uber probing is explicitly verified over every supported selected
+  non-Uber app: Hopp, Lyft, DoorDash, Instacart, and Skip.
+- Any platform's saved History distance can be corrected without deleting the
+  row; rates, session summaries, and the snapshot-based verdict refresh.
+- Privacy-safe native mask diagnostics now reach copied in-app Diagnostics as
+  well as ADB logcat.
+- Version and release documentation are synchronized to build 101.
 
 ## Build 100 changes
 
@@ -21,7 +31,7 @@ Console checks in `MANUAL_TESTS.md` and `PLAY_RELEASE.md`.
   native generation and surface lifecycle diagnostics were expanded.
 - Overlay buffers explicitly require RGBA alpha, and detail-band icons align
   at the left edge of each half.
-- Version and release documentation are synchronized to build 100.
+- Version and release documentation were synchronized to build 100.
 
 ## Verification
 
@@ -32,13 +42,13 @@ Console checks in `MANUAL_TESTS.md` and `PLAY_RELEASE.md`.
 - Signed release bundle and checksum verification: passed
 - Firestore rules and guarded Play bundle preflight: passed
 
-Verified Play artifact: `FoxyCo-v1.0.12+100-release-20260829-2056.aab`
+Verified Play artifact: `FoxyCo-v1.0.13+101-release-20260829-2159.aab`
 
-SHA-256: `7521598110ae577705450b9be3efdd4a00bc8231313252d8a828ab9ab2f36d46`
+SHA-256: `9c6b9899d2847608b4f9a0e1f2dc02545b82c181e053cf6b715fadb1d8adc8a1`
 
 ## Device gates
 
-- Reproduce plain Lyft/Hopp map → Uber → lower-offer restoration with real cards.
+- Reproduce every selected non-Uber app → Uber → lower-offer restoration with real cards.
 - Confirm `$28.41` never stores `304 km` and the corrected OCR stores `30.4 km`.
 - Confirm Lyft's `$44.83` earnings balance never becomes an offer payout.
 - Verify stale Uber cards clear promptly and never create duplicate History.

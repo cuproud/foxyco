@@ -386,13 +386,14 @@ class OfferWatcher extends Notifier<Offer?> {
         if (read.isActive &&
             parser != null &&
             settings.watches(parser.platform)) {
-          // Uber can draw its card over Hopp/Lyft without emitting an Uber
-          // Accessibility event. Probe once from the active lower-app frame;
+          // Uber can draw its card over any selected driver app without
+          // emitting an Uber Accessibility event. Probe once from the active
+          // lower-app frame;
           // only a confirmed Uber card starts the existing lifecycle polling.
           unawaited(_requestOcr(read.packageName));
         }
         // With OCR enabled, Uber offer data comes only from OCR. Test mode may
-        // also trigger from another watched app to exercise Uber-over-Lyft,
+        // also trigger from another watched app to exercise stacked Uber,
         // but that app keeps its normal low-latency Accessibility parse.
       }
       if (read.texts.isEmpty) {
@@ -582,7 +583,7 @@ class OfferWatcher extends Notifier<Offer?> {
 
     final key = _keyFor(offer);
     if (read.source == CaptureSource.accessibility && read.isActive) {
-      // A lower Lyft/Hopp card can keep emitting while an Uber card is visibly
+      // A lower selected-app card can keep emitting while Uber is visibly
       // stacked above it. Only Uber evidence can invalidate an Uber screenshot.
       if (offer.platform == GigPlatform.uber) _accessibilityOfferGeneration++;
       _pendingOcrCorrectionKey = null;

@@ -520,7 +520,7 @@ public class OverlayService extends Service implements View.OnTouchListener {
                     @Override
                     public void surfaceChanged(
                             SurfaceHolder holder, int format, int width, int height) {
-                        Log.i("FOXYCO_OVERLAY", "g=" + generation
+                        traceDiagnostic("g=" + generation
                                 + " event=surface-changed format=" + format
                                 + " size=" + width + "x" + height);
                     }
@@ -703,7 +703,20 @@ public class OverlayService extends Service implements View.OnTouchListener {
                 + " flags=0x" + Integer.toHexString(params.flags)
                 + " alpha=" + params.alpha
                 + " size=" + params.width + "x" + params.height;
-        Log.i("FOXYCO_OVERLAY", "g=" + generation + " event=" + event + details);
+        traceDiagnostic("g=" + generation + " event=" + event + details);
+    }
+
+    private void traceDiagnostic(String message) {
+        Log.i("FOXYCO_OVERLAY", message);
+        try {
+            if (WindowSetup.messenger == null) return;
+            Map<String, Object> diagnostic = new HashMap<>();
+            diagnostic.put("kind", "diagnostic");
+            diagnostic.put("message", message);
+            WindowSetup.messenger.send(diagnostic);
+        } catch (Exception e) {
+            Log.e("OverlayService", "traceDiagnostic failed", e);
+        }
     }
 
     private void createNotificationChannel() {
