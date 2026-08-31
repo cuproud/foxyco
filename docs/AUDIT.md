@@ -1,11 +1,22 @@
 # Release audit
 
-Audit date: 2026-08-29
+Audit date: 2026-08-30
 
-Candidate: `1.0.13+101`
+Candidate: `1.0.14+102`
 
 Automated checks pass. Play upload remains conditional on the device and
 Console checks in `MANUAL_TESTS.md` and `PLAY_RELEASE.md`.
+
+## Build 102 changes
+
+- Active-trip evidence now survives offer and partial frames until the driver
+  app positively returns to browse/home, preventing a covered offer from being
+  falsely marked Accepted when the original trip screen returns.
+- Diagnostic-only route matching compares pending offer locations with later
+  accepted-trip screens in memory. Logs contain opaque session fingerprints,
+  counts, scores, and uniqueness only; History and outcome inference are not
+  changed by the shadow result.
+- Version and release documentation are synchronized to build 102.
 
 ## Build 101 changes
 
@@ -42,9 +53,9 @@ Console checks in `MANUAL_TESTS.md` and `PLAY_RELEASE.md`.
 - Signed release bundle and checksum verification: passed
 - Firestore rules and guarded Play bundle preflight: passed
 
-Verified Play artifact: `FoxyCo-v1.0.13+101-release-20260829-2159.aab`
+Verified Play artifact: `FoxyCo-v1.0.14+102-release-20260830-2351.aab`
 
-SHA-256: `9c6b9899d2847608b4f9a0e1f2dc02545b82c181e053cf6b715fadb1d8adc8a1`
+SHA-256: `158992e20a6c1638bd450e3589e1393b4f241c26557eb9df916590e8e6f146dd`
 
 ## Device gates
 

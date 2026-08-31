@@ -2158,13 +2158,14 @@ void main() {
         watcher.emit(
           const ScreenRead(
             packageName: ParserRegistry.uberPackage,
-            texts: [
-              'Dropping off Alex',
-              'UberX',
-              '\$5.75',
-              '8 mins (5.1 km) trip',
-              'Accept',
-            ],
+            texts: ['Dropping off Alex'],
+            isActive: true,
+          ),
+        );
+        watcher.emit(
+          const ScreenRead(
+            packageName: ParserRegistry.uberPackage,
+            texts: ['UberX', '\$5.75', '8 mins (5.1 km) trip', 'Accept'],
             isActive: true,
           ),
         );

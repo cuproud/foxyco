@@ -22,6 +22,7 @@ import '../ocr/ocr_capture.dart';
 import '../parse_health.dart';
 import '../verdict_voice.dart';
 import 'accessibility_watcher.dart';
+import 'route_shadow_diagnostics.dart';
 
 /// DI seams so tests can swap fakes for the real plugin wrapper / engine.
 final parserRegistryProvider = Provider<ParserRegistry>(
@@ -46,6 +47,9 @@ final decisionEngineProvider = Provider<DecisionEngine>(
 /// we don't tear the accessibility stream down and back up on every toggle.
 class OfferWatcher extends Notifier<Offer?> {
   StreamSubscription<ScreenRead>? _sub;
+  late final RouteShadowDiagnostics _routeShadow = RouteShadowDiagnostics(
+    log: (message) => ref.read(foxLogProvider).log('route-shadow', message),
+  );
 
   /// Signature of the offer currently on the pill, so we don't re-show it. The
   /// same offer card re-fires accessibility events constantly (map pans, a "1
@@ -302,13 +306,17 @@ class OfferWatcher extends Notifier<Offer?> {
       if (source != null) {
         if (ParserPatterns.looksLikeAcceptedTrip(source.platform, read.texts)) {
           _activeTripScreens.add(source.platform);
-        } else {
+        } else if (ParserPatterns.looksLikeBrowse(read.texts.join(' '))) {
+          // Offer and partial frames can cover an ongoing trip. Keep that trip
+          // active until the app positively returns to browse/home; otherwise
+          // the underlying trip screen falsely accepts the covered offer.
           _activeTripScreens.remove(source.platform);
         }
       }
     }
     OfferParser? parser;
     Offer? offer;
+    var parsedTexts = read.texts;
     ScreenWindow? offerWindow;
     ScreenWindow? topCardWindow;
     if (read.source == CaptureSource.ocr) {
@@ -326,6 +334,7 @@ class OfferWatcher extends Notifier<Offer?> {
       parser = registry.forPackage(ParserRegistry.uberPackage);
       if (parser == null) return;
       final cardTexts = UberParser.isolateOcrCard(read.texts);
+      parsedTexts = cardTexts;
       final joined = cardTexts.join(' ');
       offer = _uberOcrEvidence.hasMatch(joined)
           ? parser.parse(cardTexts)
@@ -439,6 +448,7 @@ class OfferWatcher extends Notifier<Offer?> {
           if (parsed != null) {
             parser = candidate;
             offer = parsed;
+            parsedTexts = frame.texts;
             offerWindow = frame.window;
             break;
           }
@@ -747,6 +757,7 @@ class OfferWatcher extends Notifier<Offer?> {
       );
     }
     _outcomeCandidates[offer.platform] = summary;
+    _routeShadow.recordOffer(offer.platform, key, parsedTexts);
     if (!offer.isQueued && _activeTripScreens.contains(offer.platform)) {
       _offersShownDuringTrip[offer.platform] = summary;
     } else {
@@ -910,20 +921,21 @@ class OfferWatcher extends Notifier<Offer?> {
     List<String> texts, {
     required bool isActive,
   }) {
-    if (!ref.read(settingsProvider).trackOutcomes) return;
     if (!isActive) return;
-    final candidate = _outcomeCandidates[platform];
-    if (candidate == null) return;
     final queuedAccepted = ParserPatterns.looksLikeQueuedOfferAccepted(
       platform,
       texts,
     );
+    final accepted =
+        queuedAccepted || ParserPatterns.looksLikeAcceptedTrip(platform, texts);
+    if (accepted) _routeShadow.observeAcceptedScreen(platform, texts);
+    if (!ref.read(settingsProvider).trackOutcomes) return;
+    final candidate = _outcomeCandidates[platform];
+    if (candidate == null) return;
     if (identical(_offersShownDuringTrip[platform], candidate) &&
         !queuedAccepted) {
       return;
     }
-    final accepted =
-        queuedAccepted || ParserPatterns.looksLikeAcceptedTrip(platform, texts);
     if (accepted) {
       if (_pendingOutcomePlatform == platform) _cancelPendingOutcome();
       final changed = ref

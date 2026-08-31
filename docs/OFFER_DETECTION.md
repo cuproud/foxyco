@@ -1,7 +1,7 @@
 # Offer Detection and Verdict Logic
 
-Canonical implementation map for `1.0.13+101`, verified against the code on
-2026-08-29.
+Canonical implementation map for `1.0.14+102`, verified against the code on
+2026-08-30.
 
 ## Maintenance contract
 
@@ -370,6 +370,10 @@ a new request over the current trip screen. FoxyCo leaves that new offer's
 outcome unknown unless the app emits an explicit queued-offer confirmation;
 the driver can still correct it manually in History.
 
+Active-trip state survives offer and ambiguous partial frames and clears only
+after a positive browse/home frame, so the covered trip screen cannot stamp a
+new Hopp, Lyft, or Uber offer as taken when it reappears.
+
 ## Diagnostics and required verification
 
 Parser health records successful parses, textless frames, and card-like misses.
@@ -377,6 +381,12 @@ Production diagnostic logs contain package, source, node count, parser shape,
 timing, parsed economics, and verdict; they do not contain raw screen/OCR text,
 addresses, rider names, or screenshots. Repeated identical miss signatures are
 log-throttled to once per 10 seconds.
+
+Route matching is diagnostic-only in build 102. Offer and accepted-trip frames
+are compared in memory; logs contain only per-process opaque fingerprints,
+candidate counts, similarity scores, and whether one pending offer matched
+uniquely. Raw and normalized locations are neither logged nor persisted, and
+shadow results do not change History or inferred outcomes.
 
 If app resume finds permissions intact but native overlay health inactive, the
 shift remains Watching, the window is recreated, and the recovery reason is
