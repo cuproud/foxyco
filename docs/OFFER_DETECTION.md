@@ -1,7 +1,7 @@
 # Offer Detection and Verdict Logic
 
-Canonical implementation map for `1.0.14+102`, verified against the code on
-2026-08-30.
+Canonical implementation map for `1.0.14+103`, verified against the code on
+2026-08-31.
 
 ## Maintenance contract
 
@@ -382,7 +382,7 @@ timing, parsed economics, and verdict; they do not contain raw screen/OCR text,
 addresses, rider names, or screenshots. Repeated identical miss signatures are
 log-throttled to once per 10 seconds.
 
-Route matching is diagnostic-only in build 102. Offer and accepted-trip frames
+Route matching is diagnostic-only in build 103. Offer and accepted-trip frames
 are compared in memory; logs contain only per-process opaque fingerprints,
 candidate counts, similarity scores, and whether one pending offer matched
 uniquely. Raw and normalized locations are neither logged nor persisted, and

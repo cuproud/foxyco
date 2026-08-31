@@ -1,6 +1,6 @@
 # Architecture
 
-Updated 2026-08-30 for `1.0.14+102`.
+Updated 2026-08-31 for `1.0.14+103`.
 
 ## Boundaries
 

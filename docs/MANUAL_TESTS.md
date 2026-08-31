@@ -27,7 +27,7 @@ Legend: 🟢 GOOD  🟡 OK  🔴 BAD (pill shows icon + WORD + `km · $payout`).
 Run these before promoting the AAB. They cover the highest-risk build changes
 without requiring DoorDash, Instacart or Skip accounts.
 
-**Current candidate:** Play bundle build 102. Real-device validation is pending
+**Current candidate:** Play bundle build 103. Real-device validation is pending
 for cross-app OCR, overlay transparency, active-trip outcome isolation, and
 diagnostic-only route matching.
 
@@ -51,8 +51,8 @@ diagnostic-only route matching.
 | Q.16 | While an Uber/Lyft trip screen is active, let another offer appear and decline it | The new History row remains Unknown/Not taken; the existing trip text never marks it Accepted | [ ] build 99 |
 | Q.17 | Add two car reminders, then tap Home's car-reminder icon | Badge shows 2; the sheet lists both reminders and allows add/edit without visiting Settings | [ ] build 99 |
 | Q.18 | With Lyft earnings `$44.83` visible, receive `$8.28`, `$9.01`, and `$10.14` offers | Each pill/voice/history uses the card fare once; no initial GOOD verdict from `$44.83` | [ ] build 100 |
-| Q.19 | During an active Hopp/Lyft/Uber trip, let another offer fully cover the trip screen, dismiss it, then return to the trip | The covered offer stays Unknown; the restored pickup/trip screen does not mark it Accepted | [ ] build 102 |
-| Q.20 | Show two Uber Radar offers, tap Match on the first, allow another offer to appear, then wait for Uber to confirm the first | `route-shadow` logs show multiple pending fingerprints and a unique/non-unique score without any address text; History behavior is unchanged | [ ] build 102 |
+| Q.19 | During an active Hopp/Lyft/Uber trip, let another offer fully cover the trip screen, dismiss it, then return to the trip | The covered offer stays Unknown; the restored pickup/trip screen does not mark it Accepted | [ ] build 103 |
+| Q.20 | Show two Uber Radar offers, tap Match on the first, allow another offer to appear, then wait for Uber to confirm the first | `route-shadow` logs show multiple pending fingerprints and a unique/non-unique score without any address text; History behavior is unchanged | [ ] build 103 |
 
 ---
 
@@ -647,7 +647,7 @@ _Last updated: 2026-07-25 (M12: polish pass + light theme; white car card + abov
 | OCR.14 | Show an Uber card whose dark Match/Accept text is missed but whose Uber tier, payout, away leg and trip leg are readable | One correct verdict/history row; the missing action line alone does not lose the card | [ ] |
 | OCR.15 | Capture a `$7.54` / 7.4 km Uber offer through OCR, then inspect the pill, Home tally and History after restart | Exactly one `$7.54` OK row at about `$1.02/km`; never `$754`, GOOD, `$101.89/km`, or a duplicate | [ ] |
 | OCR.16 | Let a real Uber card clear, then make the next OCR frame resemble its pickup distance as a payout (today's `$2.00` / 2.0 km regression) | The changed payout is held for confirmation and creates no false verdict/history row | [ ] |
-| OCR.17 | Fresh install build 102, clear all history, then record 3–5 regular Uber offers plus Uber over each selected supported app | Every physical card maps to exactly one correct row; readable Uber uses Accessibility and cross-app probes stay rate-limited | [ ] |
+| OCR.17 | Fresh install build 103, clear all history, then record 3–5 regular Uber offers plus Uber over each selected supported app | Every physical card maps to exactly one correct row; readable Uber uses Accessibility and cross-app probes stay rate-limited | [ ] |
 | OCR.18 | Open an incorrect History distance, tap Correct distance, enter the gig app's value, then reopen the row | The saved distance, rates, session summary, and snapshot-based verdict use the correction for every platform | [ ] |
 | OCR.19 | Reproduce or attempt the grey mask across Maps and each selected gig app, then copy Diagnostics | `overlay-native` lines include generation, window type/format/alpha/size, and surface lifecycle without screen or offer text | [ ] |
 | OCR.20 | Copy Diagnostics after the Q.20 Radar sequence | Route logs contain only opaque per-process IDs, candidate counts, similarity scores, and `unique`; no pickup/drop-off address or raw OCR/Accessibility text appears | [ ] |
