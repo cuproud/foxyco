@@ -51,9 +51,8 @@ class _WatchingDashboardController extends DashboardController {
 
 class _SelectedAppsSettingsController extends SettingsController {
   @override
-  FoxSettings build() => FoxSettings.defaults.copyWith(
-    watchedApps: {GigPlatform.uber},
-  );
+  FoxSettings build() =>
+      FoxSettings.defaults.copyWith(watchedApps: {GigPlatform.uber});
 }
 
 class _AvailableUpdateController extends PlayUpdateController {
@@ -206,8 +205,8 @@ void main() {
 
     expect(find.textContaining('offers scored'), findsAtLeastNWidgets(1));
     expect(find.text('accepted'), findsAtLeastNWidgets(1));
-    expect(find.text(r'$42.00   |   $21/hr'), findsOneWidget);
-    await tester.tap(find.text(r'$42.00   |   $21/hr'));
+    expect(find.text(r'$42.00   |   $21/hr online'), findsOneWidget);
+    await tester.tap(find.text(r'$42.00   |   $21/hr online'));
     await tester.pump();
     expect(find.text(r'Best $/km'), findsOneWidget);
     expect(find.text('Good avg'), findsOneWidget);

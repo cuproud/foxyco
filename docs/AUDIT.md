@@ -2,10 +2,21 @@
 
 Audit date: 2026-08-31
 
-Candidate: `1.0.14+103`
+Candidate: `1.0.14+104`
 
 Automated checks pass. Play upload remains conditional on the device and
 Console checks in `MANUAL_TESTS.md` and `PLAY_RELEASE.md`.
+
+## Build 104 changes
+
+- Lower Lyft offers are cached even when Uber wins the overlay race, so the
+  Lyft verdict returns after the covering Uber card closes.
+- History counts and distance-editor guidance fit without clipping, and a
+  successful feedback handoff clears the submitted form.
+- Final earnings can record included tips and toll reimbursements; tolls stay
+  visible in History but are excluded from performance rates.
+- Session and trip hourly rates are labeled by their actual time basis.
+- Version and release documentation are synchronized to build 104.
 
 ## Build 103 changes
 
@@ -53,9 +64,9 @@ Console checks in `MANUAL_TESTS.md` and `PLAY_RELEASE.md`.
 - Signed release bundle and checksum verification: passed
 - Firestore rules and guarded Play bundle preflight: passed
 
-Verified Play artifact: `FoxyCo-v1.0.14+103-release-20260831-0000.aab`
+Verified Play artifact: `FoxyCo-v1.0.14+104-release-20260831-1217.aab`
 
-SHA-256: `4ae6d60cbe7badd91fe887ae35f1b84d118ef38711b083162ab415a9a9ffaef6`
+SHA-256: `bf9a78c67e9c558873ce5cf3967c69437c248e51478139c8d862fd2638499a17`
 
 ## Device gates
 

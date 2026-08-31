@@ -398,6 +398,26 @@ void main() {
     expect((byApp.decoration! as BoxDecoration).color, FoxColors.bgSurface);
   });
 
+  testWidgets('four-digit app totals stay on one line', (tester) async {
+    final now = DateTime.now();
+    final offers = [
+      for (var i = 0; i < 1000; i++)
+        _offer(now.subtract(Duration(milliseconds: i))),
+      _offer(now, platform: GigPlatform.lyft),
+    ];
+    await tester.pumpWidget(_app(offers));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('history_by_app')),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+
+    final byApp = find.byKey(const Key('history_by_app'));
+    expect(find.descendant(of: byApp, matching: find.text('1000')), findsOne);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('back to top appears after a long scroll and returns home', (
     tester,
   ) async {

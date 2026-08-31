@@ -231,6 +231,13 @@ void _validateRecord(Map<String, dynamic> record, int row) {
     );
   }
   number('bonus');
+  for (final key in ['tip', 'tollReimbursement']) {
+    final value = record[key];
+    if (value != null &&
+        (value is! num || !value.toDouble().isFinite || value < 0)) {
+      throw HistoryBackupException('Backup row $row contains an invalid $key.');
+    }
+  }
   final pickup = number('pickupKm');
   final total = number('totalKm');
   if (pickup > total) {

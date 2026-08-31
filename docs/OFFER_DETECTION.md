@@ -1,6 +1,6 @@
 # Offer Detection and Verdict Logic
 
-Canonical implementation map for `1.0.14+103`, verified against the code on
+Canonical implementation map for `1.0.14+104`, verified against the code on
 2026-08-31.
 
 ## Maintenance contract
@@ -256,8 +256,9 @@ event:
 2. the lower offer may parse normally while that screenshot is in flight;
 3. a confirmed Uber OCR offer replaces the lower pill and owns the visible
    lifecycle;
-4. repeated lower-app frames are cached when complete and can neither overwrite
-   nor clear the Uber pill;
+4. repeated lower-app frames are parsed and cached when complete even when the
+     first complete lower card arrives after Uber already owns the pill; they
+     can neither overwrite nor clear the Uber pill;
 5. OCR polling checks whether the Uber card is still visible; and
 6. after the no-card marker, a still-fresh covered offer is parsed and shown
    again.
@@ -357,7 +358,10 @@ history row most recently created for each platform remains the candidate.
 
 Automatic inference never overwrites a driver's manual outcome correction.
 Manual final payout also remains separate from the originally offered payout
-and verdict.
+and verdict. A final payout may record included tip and toll-reimbursement
+amounts. Both remain part of the displayed amount received and are never added
+again; tips count as earnings, while reimbursed tolls are excluded from the
+post-trip $/km and $/hr performance rates because they offset an expense.
 
 History also allows the driver to correct total distance for any platform when
 a source app or OCR supplied a bad value. The correction preserves the row and
@@ -382,7 +386,7 @@ timing, parsed economics, and verdict; they do not contain raw screen/OCR text,
 addresses, rider names, or screenshots. Repeated identical miss signatures are
 log-throttled to once per 10 seconds.
 
-Route matching is diagnostic-only in build 103. Offer and accepted-trip frames
+Route matching is diagnostic-only in build 104. Offer and accepted-trip frames
 are compared in memory; logs contain only per-process opaque fingerprints,
 candidate counts, similarity scores, and whether one pending offer matched
 uniquely. Raw and normalized locations are neither logged nor persisted, and

@@ -309,17 +309,27 @@ void main() {
     final l = log();
     final upfront = l.record(offer(seenAt: t, payout: 19.70, totalKm: 14.1));
 
-    expect(l.setFinalPayout(upfront, 22.26), isTrue);
+    expect(
+      l.setFinalPayout(upfront, 38.34, tip: 5.19, tollReimbursement: 9.16),
+      isTrue,
+    );
     final updated = l.state.single;
     expect(updated.payout, 19.70);
-    expect(updated.finalPayout, 22.26);
-    expect(updated.effectivePricePerKm, closeTo(22.26 / 14.1, 1e-9));
+    expect(updated.finalPayout, 38.34);
+    expect(updated.tip, 5.19);
+    expect(updated.tollReimbursement, 9.16);
+    expect(updated.effectivePayout, 38.34);
+    expect(updated.effectivePricePerKm, closeTo(29.18 / 14.1, 1e-9));
 
     final restored = OfferSummary.fromJson(updated.toJson());
     expect(restored.payout, 19.70);
-    expect(restored.finalPayout, 22.26);
+    expect(restored.finalPayout, 38.34);
+    expect(restored.tip, 5.19);
+    expect(restored.tollReimbursement, 9.16);
     expect(l.setFinalPayout(updated, null), isTrue);
     expect(l.state.single.effectivePayout, 19.70);
+    expect(l.state.single.tip, 0);
+    expect(l.state.single.tollReimbursement, 0);
   });
 
   test('offer received during hydration survives with disk history', () async {

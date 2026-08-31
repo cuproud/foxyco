@@ -1096,6 +1096,40 @@ void main() {
     expect(c.read(offerLogProvider), hasLength(2));
   });
 
+  test(
+    'Lyft first parsed beneath active Uber returns when Uber closes',
+    () async {
+      final previousCooldown = OfferWatcher.ocrCooldown;
+      OfferWatcher.ocrCooldown = Duration.zero;
+      addTearDown(() => OfferWatcher.ocrCooldown = previousCooldown);
+      final c = container();
+      c.read(settingsProvider.notifier).setOcrEnabled(true);
+      ocr.responses.addAll([
+        OcrFrame(packageName: ParserRegistry.lyftPackage, lines: _uberB.texts),
+        const OcrFrame(
+          packageName: ParserRegistry.lyftPackage,
+          lines: ['__FOXYCO_NO_UBER_CARD__'],
+        ),
+      ]);
+      c.read(offerWatcherProvider);
+      c.read(overlayControllerProvider);
+
+      watcher.emit(
+        const ScreenRead(
+          packageName: ParserRegistry.lyftPackage,
+          texts: ["You're online"],
+          isActive: true,
+        ),
+      );
+      await overlay.firstShow.future.timeout(const Duration(seconds: 10));
+      watcher.emit(_lyftA);
+      await overlay.secondShow.future.timeout(const Duration(seconds: 10));
+
+      expect(overlay.shown.map((pill) => pill.payout), [4.85, 10]);
+      expect(c.read(offerWatcherProvider)?.platform, GigPlatform.lyft);
+    },
+  );
+
   test('non-Uber incomplete cards remain Accessibility-only', () async {
     final c = container();
     c.read(settingsProvider.notifier).setOcrEnabled(true);

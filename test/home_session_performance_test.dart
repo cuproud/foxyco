@@ -52,7 +52,7 @@ void main() {
 
     expect(find.text('Est. earnings'), findsOneWidget);
     expect(find.text('Accepted offers only'), findsOneWidget);
-    expect(find.text('Session rate'), findsOneWidget);
+    expect(find.text('Online session rate'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -66,14 +66,14 @@ void main() {
 
     await tester.pumpWidget(_app(_session(estimatedEarnings: 126.40)));
 
-    expect(find.text(r'$126.40   |   $42/hr'), findsOneWidget);
+    expect(find.text(r'$126.40   |   $42/hr online'), findsOneWidget);
     final collapsed = tester.widget<Text>(
       find.byKey(const ValueKey('session-performance-collapsed')),
     );
     final earningsSpan =
         (collapsed.textSpan! as TextSpan).children!.first as TextSpan;
     expect(earningsSpan.style?.color, FoxColors.brandFox);
-    await tester.tap(find.text(r'$126.40   |   $42/hr'));
+    await tester.tap(find.text(r'$126.40   |   $42/hr online'));
     await tester.pumpAndSettle();
 
     expect(find.text(r'$126.40'), findsOneWidget);
@@ -103,7 +103,7 @@ void main() {
         (collapsed.textSpan! as TextSpan).children!.first as TextSpan;
     expect(earningsSpan.style?.color, FoxColors.brandFoxDeep);
 
-    await tester.tap(find.text(r'$126.40   |   $42/hr'));
+    await tester.tap(find.text(r'$126.40   |   $42/hr online'));
     await tester.pumpAndSettle();
     expect(
       tester

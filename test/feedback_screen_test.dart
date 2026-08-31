@@ -240,6 +240,36 @@ void main() {
     expect(find.byTooltip('Remove screenshot'), findsNWidgets(2));
   });
 
+  testWidgets('successful email handoff resets the form', (tester) async {
+    tester.view.physicalSize = const Size(1080, 2200);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final platform = FakeFeedbackPlatform(picked: const ['/tmp/one.png']);
+    await tester.pumpWidget(host(platform));
+    await tester.tap(find.text('Other'));
+    await tester.enterText(
+      find.byKey(const Key('feedback-description')),
+      'Reset this after handoff.',
+    );
+    await tester.tap(find.byKey(const Key('feedback-add-screenshots')));
+    await tester.pumpAndSettle();
+
+    final send = find.byKey(const Key('feedback-send'));
+    await tester.ensureVisible(send);
+    await tester.tap(send);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Reset this after handoff.'), findsNothing);
+    expect(find.byTooltip('Remove screenshot'), findsNothing);
+    expect(
+      tester
+          .widget<ChoiceChip>(find.widgetWithText(ChoiceChip, 'Problem'))
+          .selected,
+      isTrue,
+    );
+  });
+
   testWidgets('builds safe runtime context and handles share failure', (
     tester,
   ) async {

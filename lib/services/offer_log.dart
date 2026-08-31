@@ -203,6 +203,10 @@ class OfferLog extends Notifier<List<OfferSummary>> {
         payout: existing.payout,
         finalPayout: existing.finalPayout ?? incoming.finalPayout,
         bonus: existing.bonus == 0 ? incoming.bonus : existing.bonus,
+        tip: existing.finalPayout != null ? existing.tip : incoming.tip,
+        tollReimbursement: existing.finalPayout != null
+            ? existing.tollReimbursement
+            : incoming.tollReimbursement,
         pickupKm: existing.pickupKm,
         totalKm: existing.totalKm,
         totalMinutes: existing.totalMinutes,
@@ -389,8 +393,22 @@ class OfferLog extends Notifier<List<OfferSummary>> {
       markOutcome(offer, outcome, includeQueued: true, manual: true);
 
   /// Set realized earnings without rewriting the original offer or verdict.
-  bool setFinalPayout(OfferSummary offer, double? value) {
-    if (value != null && (!value.isFinite || value <= 0)) return false;
+  bool setFinalPayout(
+    OfferSummary offer,
+    double? value, {
+    double tip = 0,
+    double tollReimbursement = 0,
+  }) {
+    if (value != null &&
+        (!value.isFinite ||
+            value <= 0 ||
+            !tip.isFinite ||
+            tip < 0 ||
+            !tollReimbursement.isFinite ||
+            tollReimbursement < 0 ||
+            tip + tollReimbursement > value)) {
+      return false;
+    }
     final index = state.indexWhere(
       (candidate) =>
           candidate.seenAt == offer.seenAt && candidate.sameCardAs(offer),
@@ -398,7 +416,11 @@ class OfferLog extends Notifier<List<OfferSummary>> {
     if (index < 0) return false;
     state = [
       ...state.take(index),
-      state[index].withFinalPayout(value),
+      state[index].withFinalPayout(
+        value,
+        tip: value == null ? 0 : tip,
+        tollReimbursement: value == null ? 0 : tollReimbursement,
+      ),
       ...state.skip(index + 1),
     ];
     _saveSoon();

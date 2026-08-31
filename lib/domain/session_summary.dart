@@ -19,6 +19,7 @@ class SessionSummary {
   final int declined;
   final int unknown;
   final double estimatedEarnings;
+  final double estimatedPerformanceEarnings;
   final int missingFinalPayouts;
   final double? actualEarnings;
   final bool actualEarningsIsManual;
@@ -45,6 +46,7 @@ class SessionSummary {
     this.declined = 0,
     this.unknown = 0,
     this.estimatedEarnings = 0,
+    double? estimatedPerformanceEarnings,
     this.missingFinalPayouts = 0,
     this.actualEarnings,
     this.actualEarningsIsManual = false,
@@ -52,14 +54,18 @@ class SessionSummary {
     this.bestPerKm = 0,
     this.goodAvgPerKm = 0,
     this.busiestHour,
-  });
+  }) : estimatedPerformanceEarnings =
+           estimatedPerformanceEarnings ?? estimatedEarnings;
 
   int get total => good + ok + bad;
   Duration get duration => endedAt.difference(startedAt);
   double get earnings => actualEarnings ?? estimatedEarnings;
+  double get performanceEarnings =>
+      actualEarnings ?? estimatedPerformanceEarnings;
   bool get hasActualEarnings => actualEarnings != null;
-  double get hourlyEarnings =>
-      duration.inMinutes > 0 ? earnings / (duration.inMinutes / 60) : 0;
+  double get hourlyEarnings => duration.inMinutes > 0
+      ? performanceEarnings / (duration.inMinutes / 60)
+      : 0;
 
   /// A mis-slide: went live and stopped again within a minute, having seen
   /// nothing. Recording these buried a real 3h shift under an empty 0m card
@@ -78,6 +84,7 @@ class SessionSummary {
     declined: declined,
     unknown: unknown,
     estimatedEarnings: estimatedEarnings,
+    estimatedPerformanceEarnings: estimatedPerformanceEarnings,
     missingFinalPayouts: missingFinalPayouts,
     actualEarnings: value,
     actualEarningsIsManual: value != null,
@@ -128,6 +135,10 @@ class SessionSummary {
         0.0,
         (sum, o) => sum + o.effectivePayout,
       ),
+      estimatedPerformanceEarnings: earningOffers.fold<double>(
+        0.0,
+        (sum, o) => sum + o.performancePayout,
+      ),
       missingFinalPayouts: earningOffers
           .where((o) => o.finalPayout == null)
           .length,
@@ -150,6 +161,7 @@ class SessionSummary {
     'declined': declined,
     'unknown': unknown,
     'estimatedEarnings': estimatedEarnings,
+    'estimatedPerformanceEarnings': estimatedPerformanceEarnings,
     'missingFinalPayouts': missingFinalPayouts,
     if (actualEarnings != null) 'actualEarnings': actualEarnings,
     if (actualEarningsIsManual) 'actualEarningsIsManual': true,
@@ -174,6 +186,8 @@ class SessionSummary {
     declined: (j['declined'] as num?)?.toInt() ?? 0,
     unknown: (j['unknown'] as num?)?.toInt() ?? 0,
     estimatedEarnings: (j['estimatedEarnings'] as num?)?.toDouble() ?? 0,
+    estimatedPerformanceEarnings: (j['estimatedPerformanceEarnings'] as num?)
+        ?.toDouble(),
     missingFinalPayouts: (j['missingFinalPayouts'] as num?)?.toInt() ?? 0,
     actualEarnings: (j['actualEarnings'] as num?)?.toDouble(),
     actualEarningsIsManual: j['actualEarningsIsManual'] == true,

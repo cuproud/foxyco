@@ -21,6 +21,8 @@ class OfferSummary {
   final double payout; // dollars
   final double? finalPayout; // manually entered realized earnings
   final double bonus; // included in payout; 0 when absent/unknown
+  final double tip; // included in finalPayout; 0 when absent/unknown
+  final double tollReimbursement; // included in finalPayout; not earnings
   final double pickupKm; // dead mileage to the rider; 0 when unknown
   final double totalKm; // pickup + dropoff
   final double totalMinutes; // pickup + trip; 0 when unknown
@@ -44,6 +46,8 @@ class OfferSummary {
     required this.payout,
     this.finalPayout,
     this.bonus = 0,
+    this.tip = 0,
+    this.tollReimbursement = 0,
     required this.totalKm,
     required this.seenAt,
     this.pickupKm = 0,
@@ -81,9 +85,13 @@ class OfferSummary {
   double get pricePerHour => totalMinutes > 0 ? payout / totalMinutes * 60 : 0;
 
   double get effectivePayout => finalPayout ?? payout;
-  double get effectivePricePerKm => totalKm > 0 ? effectivePayout / totalKm : 0;
+  double get performancePayout => effectivePayout > tollReimbursement
+      ? effectivePayout - tollReimbursement
+      : 0;
+  double get effectivePricePerKm =>
+      totalKm > 0 ? performancePayout / totalKm : 0;
   double get effectivePricePerHour =>
-      totalMinutes > 0 ? effectivePayout / totalMinutes * 60 : 0;
+      totalMinutes > 0 ? performancePayout / totalMinutes * 60 : 0;
 
   OfferSummary withOutcome(OfferOutcome o, {bool manual = false}) =>
       OfferSummary(
@@ -92,6 +100,8 @@ class OfferSummary {
         payout: payout,
         finalPayout: finalPayout,
         bonus: bonus,
+        tip: tip,
+        tollReimbursement: tollReimbursement,
         pickupKm: pickupKm,
         totalKm: totalKm,
         totalMinutes: totalMinutes,
@@ -107,12 +117,18 @@ class OfferSummary {
         unitCount: unitCount,
       );
 
-  OfferSummary withFinalPayout(double? value) => OfferSummary(
+  OfferSummary withFinalPayout(
+    double? value, {
+    double tip = 0,
+    double tollReimbursement = 0,
+  }) => OfferSummary(
     platform: platform,
     verdict: verdict,
     payout: payout,
     finalPayout: value,
     bonus: bonus,
+    tip: tip,
+    tollReimbursement: tollReimbursement,
     pickupKm: pickupKm,
     totalKm: totalKm,
     totalMinutes: totalMinutes,
@@ -135,6 +151,8 @@ class OfferSummary {
         payout: payout,
         finalPayout: finalPayout,
         bonus: bonus,
+        tip: tip,
+        tollReimbursement: tollReimbursement,
         pickupKm: pickupKm,
         totalKm: value,
         totalMinutes: totalMinutes,
@@ -156,6 +174,8 @@ class OfferSummary {
     'payout': payout,
     if (finalPayout != null) 'finalPayout': finalPayout,
     'bonus': bonus,
+    if (tip > 0) 'tip': tip,
+    if (tollReimbursement > 0) 'tollReimbursement': tollReimbursement,
     'pickupKm': pickupKm,
     'totalKm': totalKm,
     'totalMinutes': totalMinutes,
@@ -181,6 +201,8 @@ class OfferSummary {
     payout: (j['payout'] as num?)?.toDouble() ?? 0,
     finalPayout: (j['finalPayout'] as num?)?.toDouble(),
     bonus: (j['bonus'] as num?)?.toDouble() ?? 0,
+    tip: (j['tip'] as num?)?.toDouble() ?? 0,
+    tollReimbursement: (j['tollReimbursement'] as num?)?.toDouble() ?? 0,
     pickupKm: (j['pickupKm'] as num?)?.toDouble() ?? 0,
     totalKm: (j['totalKm'] as num?)?.toDouble() ?? 0,
     totalMinutes: (j['totalMinutes'] as num?)?.toDouble() ?? 0,

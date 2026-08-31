@@ -71,8 +71,16 @@ class _FeedbackScreenState extends ConsumerState<FeedbackScreen> {
             ? await ref.read(foxLogProvider).tail(maxChars: 20 * 1024)
             : '',
       );
-      if (!await widget.platform.send(message) && mounted) {
+      final opened = await widget.platform.send(message);
+      if (!mounted) return;
+      if (!opened) {
         _showFailure("Couldn't open an email app.");
+      } else {
+        setState(() {
+          _category = FeedbackCategory.bug;
+          _images.clear();
+        });
+        _description.clear();
       }
     } on PlatformException {
       if (mounted) _showFailure("Couldn't open an email app.");

@@ -250,38 +250,29 @@ class _OfferDetailSheet extends ConsumerWidget {
                   ],
                   if (current.bonus > 0) ...[
                     const SizedBox(height: Gap.sm),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: VerdictColors.good.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(Radii.pill),
-                        border: Border.all(
-                          color: VerdictColors.good.withValues(alpha: 0.28),
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.card_giftcard_rounded,
-                            size: 15,
-                            color: VerdictColors.good,
-                          ),
-                          const SizedBox(width: Gap.xs),
-                          Text(
-                            'Includes ${currency.prefix}${current.bonus.toStringAsFixed(2)} bonus',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                              color: VerdictColors.good,
-                              fontFeatures: [FontFeature.tabularFigures()],
-                            ),
-                          ),
-                        ],
-                      ),
+                    _IncludedAmount(
+                      icon: Icons.card_giftcard_rounded,
+                      text:
+                          'Includes ${currency.prefix}${current.bonus.toStringAsFixed(2)} bonus',
+                      color: VerdictColors.good,
+                    ),
+                  ],
+                  if (current.tip > 0) ...[
+                    const SizedBox(height: Gap.sm),
+                    _IncludedAmount(
+                      icon: Icons.volunteer_activism_rounded,
+                      text:
+                          'Includes ${currency.prefix}${current.tip.toStringAsFixed(2)} tip',
+                      color: VerdictColors.good,
+                    ),
+                  ],
+                  if (current.tollReimbursement > 0) ...[
+                    const SizedBox(height: Gap.sm),
+                    _IncludedAmount(
+                      icon: Icons.receipt_long_rounded,
+                      text:
+                          'Includes ${currency.prefix}${current.tollReimbursement.toStringAsFixed(2)} toll reimbursement',
+                      color: FoxColors.brandFox,
                     ),
                   ],
                   const SizedBox(height: Gap.md),
@@ -303,7 +294,7 @@ class _OfferDetailSheet extends ConsumerWidget {
                           value: current.effectivePricePerHour > 0
                               ? '${currency.prefix}${current.effectivePricePerHour.toStringAsFixed(2)}'
                               : '—',
-                          label: 'PER HOUR',
+                          label: 'TRIP RATE / HOUR',
                           color: style.color,
                         ),
                       ),
@@ -428,45 +419,109 @@ class _OfferDetailSheet extends ConsumerWidget {
     String prefix,
   ) async {
     var input = offer.finalPayout?.toStringAsFixed(2) ?? '';
+    var tipInput = offer.tip > 0 ? offer.tip.toStringAsFixed(2) : '';
+    var tollInput = offer.tollReimbursement > 0
+        ? offer.tollReimbursement.toStringAsFixed(2)
+        : '';
     String? error;
-    final value = await showDialog<double>(
+    final moneyFormatter = TextInputFormatter.withFunction(
+      (oldValue, newValue) =>
+          RegExp(r'^\d*(?:[.,]\d{0,2})?$').hasMatch(newValue.text)
+          ? newValue
+          : oldValue,
+    );
+    double? parseOptional(String value) => value.trim().isEmpty
+        ? 0
+        : double.tryParse(value.trim().replaceAll(',', '.'));
+    final value = await showDialog<({double? payout, double tip, double toll})>(
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setState) {
           void save() {
             final parsed = double.tryParse(input.trim().replaceAll(',', '.'));
+            final tip = parseOptional(tipInput);
+            final toll = parseOptional(tollInput);
             if (parsed == null || !parsed.isFinite || parsed <= 0) {
               setState(() => error = 'Enter an amount above zero');
               return;
             }
-            Navigator.pop(context, (parsed * 100).round() / 100);
+            if (tip == null ||
+                !tip.isFinite ||
+                tip < 0 ||
+                toll == null ||
+                !toll.isFinite ||
+                toll < 0 ||
+                tip + toll > parsed) {
+              setState(() => error = 'Tip and toll must fit within the total');
+              return;
+            }
+            Navigator.pop(context, (
+              payout: (parsed * 100).round() / 100,
+              tip: (tip * 100).round() / 100,
+              toll: (toll * 100).round() / 100,
+            ));
           }
 
           return AlertDialog(
             title: const Text('Final earnings'),
-            content: TextFormField(
-              initialValue: input,
-              autofocus: true,
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
-              ),
-              textInputAction: TextInputAction.done,
-              inputFormatters: [
-                TextInputFormatter.withFunction(
-                  (oldValue, newValue) =>
-                      RegExp(r'^\d*(?:[.,]\d{0,2})?$').hasMatch(newValue.text)
-                      ? newValue
-                      : oldValue,
-                ),
-              ],
-              onChanged: (value) => input = value,
-              onFieldSubmitted: (_) => save(),
-              decoration: InputDecoration(
-                prefixText: prefix,
-                labelText: 'Amount received',
-                helperText:
-                    'Upfront offer: $prefix${offer.payout.toStringAsFixed(2)}',
-                errorText: error,
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextFormField(
+                    key: const Key('final-payout-total'),
+                    initialValue: input,
+                    autofocus: true,
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    textInputAction: TextInputAction.next,
+                    inputFormatters: [moneyFormatter],
+                    onChanged: (value) => input = value,
+                    decoration: InputDecoration(
+                      prefixText: prefix,
+                      labelText: 'Final amount received',
+                      helperText:
+                          'Upfront offer: $prefix${offer.payout.toStringAsFixed(2)}',
+                      helperMaxLines: 2,
+                      errorText: error,
+                      errorMaxLines: 2,
+                    ),
+                  ),
+                  const SizedBox(height: Gap.sm),
+                  TextFormField(
+                    key: const Key('final-payout-tip'),
+                    initialValue: tipInput,
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    textInputAction: TextInputAction.next,
+                    inputFormatters: [moneyFormatter],
+                    onChanged: (value) => tipInput = value,
+                    decoration: InputDecoration(
+                      prefixText: prefix,
+                      labelText: 'Tip included (optional)',
+                    ),
+                  ),
+                  const SizedBox(height: Gap.sm),
+                  TextFormField(
+                    key: const Key('final-payout-toll'),
+                    initialValue: tollInput,
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    textInputAction: TextInputAction.done,
+                    inputFormatters: [moneyFormatter],
+                    onChanged: (value) => tollInput = value,
+                    onFieldSubmitted: (_) => save(),
+                    decoration: InputDecoration(
+                      prefixText: prefix,
+                      labelText: 'Toll reimbursement (optional)',
+                      helperText: 'Excluded from performance rates',
+                      helperMaxLines: 2,
+                    ),
+                  ),
+                ],
               ),
             ),
             actions: [
@@ -475,7 +530,11 @@ class _OfferDetailSheet extends ConsumerWidget {
                   style: TextButton.styleFrom(
                     foregroundColor: VerdictColors.bad,
                   ),
-                  onPressed: () => Navigator.pop(context, double.nan),
+                  onPressed: () => Navigator.pop(context, (
+                    payout: null,
+                    tip: 0.0,
+                    toll: 0.0,
+                  )),
                   child: const Text('Remove'),
                 ),
               TextButton(
@@ -491,7 +550,12 @@ class _OfferDetailSheet extends ConsumerWidget {
     if (value == null) return;
     final changed = ref
         .read(offerLogProvider.notifier)
-        .setFinalPayout(offer, value.isNaN ? null : value);
+        .setFinalPayout(
+          offer,
+          value.payout,
+          tip: value.tip,
+          tollReimbursement: value.toll,
+        );
     if (changed) {
       await ref
           .read(sessionLogProvider.notifier)
@@ -544,7 +608,9 @@ class _OfferDetailSheet extends ConsumerWidget {
                 suffixText: unit.shortLabel,
                 labelText: 'Total distance',
                 helperText: 'Use the distance shown by the gig app',
+                helperMaxLines: 2,
                 errorText: error,
+                errorMaxLines: 2,
               ),
             ),
             actions: [
@@ -568,6 +634,46 @@ class _OfferDetailSheet extends ConsumerWidget {
           .refreshForOffer(offer, ref.read(offerLogProvider));
     }
   }
+}
+
+class _IncludedAmount extends StatelessWidget {
+  const _IncludedAmount({
+    required this.icon,
+    required this.text,
+    required this.color,
+  });
+
+  final IconData icon;
+  final String text;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+    decoration: BoxDecoration(
+      color: color.withValues(alpha: 0.12),
+      borderRadius: BorderRadius.circular(Radii.pill),
+      border: Border.all(color: color.withValues(alpha: 0.28)),
+    ),
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 15, color: color),
+        const SizedBox(width: Gap.xs),
+        Flexible(
+          child: Text(
+            text,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: color,
+              fontFeatures: const [FontFeature.tabularFigures()],
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
 }
 
 class _DetailMetric extends StatelessWidget {

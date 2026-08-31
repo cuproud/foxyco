@@ -11,6 +11,8 @@ void main() {
     payout: 12.34,
     finalPayout: 13.01,
     bonus: 1.25,
+    tip: 0.51,
+    tollReimbursement: 2.25,
     pickupKm: 2.3,
     totalKm: 8.7,
     totalMinutes: 24,

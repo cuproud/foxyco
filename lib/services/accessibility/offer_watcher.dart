@@ -459,18 +459,6 @@ class OfferWatcher extends Notifier<Offer?> {
     final activeParser = parser;
     if (activeParser == null) return;
 
-    // A selected lower app keeps emitting active map/partial frames while an
-    // Uber card is visibly stacked above it. Only OCR can prove that top card
-    // left; treating the lower frame as a foreground switch cleared the Uber
-    // verdict within milliseconds on device.
-    if (read.source == CaptureSource.accessibility &&
-        _uberOcrCardActive &&
-        _shownPlatform == GigPlatform.uber &&
-        activeParser.platform != GigPlatform.uber) {
-      if (read.isActive) unawaited(_requestOcr(read.packageName));
-      return;
-    }
-
     if (read.source == CaptureSource.accessibility &&
         offer?.platform != GigPlatform.uber &&
         offer != null) {
@@ -482,6 +470,19 @@ class OfferWatcher extends Notifier<Offer?> {
         unawaited(_requestOcr(read.packageName));
         return;
       }
+    }
+
+    // A selected lower app keeps emitting active map/partial frames while an
+    // Uber card is visibly stacked above it. Only OCR can prove that top card
+    // left; treating the lower frame as a foreground switch cleared the Uber
+    // verdict within milliseconds on device. Complete lower cards were cached
+    // above first so the real-device race can restore them after Uber closes.
+    if (read.source == CaptureSource.accessibility &&
+        _uberOcrCardActive &&
+        _shownPlatform == GigPlatform.uber &&
+        activeParser.platform != GigPlatform.uber) {
+      if (read.isActive) unawaited(_requestOcr(read.packageName));
+      return;
     }
 
     // A confirmed foreground switch must not leave the previous app's offer

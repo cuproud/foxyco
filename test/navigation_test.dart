@@ -168,15 +168,31 @@ void main() {
     await tester.tap(find.text('Add final'));
     await beat(tester);
     expect(find.text(r'Upfront offer: CA$18.60'), findsOneWidget);
-    await tester.enterText(find.byType(TextField).last, '18,61');
+    await tester.enterText(
+      find.byKey(const Key('final-payout-total')),
+      '38,34',
+    );
+    await tester.enterText(find.byKey(const Key('final-payout-tip')), '5,19');
+    await tester.enterText(find.byKey(const Key('final-payout-toll')), '9,16');
     await tester.testTextInput.receiveAction(TextInputAction.done);
     await beat(tester);
 
-    expect(find.text(r'CA$18.61'), findsAtLeastNWidgets(1));
-    expect(container.read(offerLogProvider).single.finalPayout, 18.61);
+    expect(find.text(r'CA$38.34'), findsAtLeastNWidgets(1));
+    expect(container.read(offerLogProvider).single.finalPayout, 38.34);
+    expect(container.read(offerLogProvider).single.tip, 5.19);
+    expect(container.read(offerLogProvider).single.tollReimbursement, 9.16);
+    expect(find.text(r'Includes CA$5.19 tip'), findsOneWidget);
+    expect(find.text(r'Includes CA$9.16 toll reimbursement'), findsOneWidget);
 
     await tester.tap(find.text('Correct distance'));
     await beat(tester);
+    expect(
+      tester
+          .widget<TextField>(find.byType(TextField).last)
+          .decoration
+          ?.helperMaxLines,
+      2,
+    );
     await tester.enterText(find.byType(TextField).last, '30.4');
     await tester.testTextInput.receiveAction(TextInputAction.done);
     await beat(tester);

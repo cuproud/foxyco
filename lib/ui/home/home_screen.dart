@@ -1775,7 +1775,7 @@ class _SessionPerformanceState extends State<SessionPerformance> {
         ? '${settings.currency.symbol}${session.earnings.toStringAsFixed(2)}'
         : '—';
     final hourly = session.hourlyEarnings > 0
-        ? '${settings.currency.symbol}${session.hourlyEarnings.toStringAsFixed(0)}/hr'
+        ? '${settings.currency.symbol}${session.hourlyEarnings.toStringAsFixed(0)}/hr online'
         : '—';
     final earningsColor = Theme.of(context).brightness == Brightness.light
         ? FoxColors.brandFoxDeep
@@ -1796,9 +1796,9 @@ class _SessionPerformanceState extends State<SessionPerformance> {
         valueKey: const ValueKey('session-performance-earnings'),
       ),
       _SessionMetric(
-        title: 'Session rate',
-        value: hourly == '—' ? hourly : hourly.replaceFirst('/hr', ''),
-        support: 'Per active hour',
+        title: 'Online session rate',
+        value: hourly == '—' ? hourly : hourly.replaceFirst('/hr online', ''),
+        support: 'Per online hour',
         text: text,
       ),
     ];

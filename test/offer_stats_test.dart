@@ -81,9 +81,30 @@ void main() {
     ]);
 
     expect(stats.acceptedEarnings, 38);
+    expect(stats.acceptedPerformanceEarnings, 38);
     expect(stats.acceptedKm, 15);
     expect(stats.acceptedMinutes, 60);
     expect(stats.accepted, 2);
+  });
+
+  test('toll stays in received total but not performance earnings', () {
+    final stats = OfferStats.from([
+      OfferSummary(
+        platform: GigPlatform.hopp,
+        verdict: Verdict.good,
+        payout: 22.14,
+        finalPayout: 38.34,
+        tollReimbursement: 9.16,
+        totalKm: 20,
+        totalMinutes: 60,
+        seenAt: DateTime(2026, 8, 31, 8),
+        outcome: OfferOutcome.completed,
+      ),
+    ]);
+
+    expect(stats.acceptedEarnings, 38.34);
+    expect(stats.acceptedPerformanceEarnings, closeTo(29.18, 1e-9));
+    expect(stats.best!.effectivePricePerHour, closeTo(29.18, 1e-9));
   });
 
   test('session summary carries accepted count with legacy default', () {

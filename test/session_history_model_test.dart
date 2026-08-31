@@ -99,6 +99,36 @@ void main() {
     );
   });
 
+  test('session rate excludes reimbursed toll but payout keeps it', () {
+    final start = DateTime(2026, 8, 31, 8);
+    final session = SessionSummary.from(
+      startedAt: start,
+      endedAt: start.add(const Duration(hours: 1)),
+      offers: [
+        OfferSummary(
+          platform: GigPlatform.hopp,
+          verdict: Verdict.good,
+          payout: 22.14,
+          finalPayout: 38.34,
+          tip: 5.19,
+          tollReimbursement: 9.16,
+          totalKm: 20,
+          totalMinutes: 45,
+          seenAt: start,
+          outcome: OfferOutcome.completed,
+        ),
+      ],
+    );
+
+    expect(session.earnings, 38.34);
+    expect(session.performanceEarnings, closeTo(29.18, 1e-9));
+    expect(session.hourlyEarnings, closeTo(29.18, 1e-9));
+    expect(
+      SessionSummary.fromJson(session.toJson()).performanceEarnings,
+      closeTo(29.18, 1e-9),
+    );
+  });
+
   test('manual actual session earnings do not alter captured offers', () {
     final offer = _offer(OfferOutcome.completed, payout: 25);
     final session = SessionSummary.from(

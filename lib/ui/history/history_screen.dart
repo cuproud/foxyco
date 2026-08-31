@@ -1564,15 +1564,19 @@ class _AppVerdictChart extends StatelessWidget {
         ),
         const SizedBox(width: Gap.sm),
         SizedBox(
-          width: 24,
-          child: Text(
-            '$total',
-            textAlign: TextAlign.right,
-            style: TextStyle(
-              fontSize: 11.5,
-              fontWeight: FontWeight.w700,
-              color: FoxColors.cream,
-              fontFeatures: [FontFeature.tabularFigures()],
+          width: Gap.xxl,
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerRight,
+            child: Text(
+              '$total',
+              maxLines: 1,
+              style: TextStyle(
+                fontSize: 11.5,
+                fontWeight: FontWeight.w700,
+                color: FoxColors.cream,
+                fontFeatures: [FontFeature.tabularFigures()],
+              ),
             ),
           ),
         ),
@@ -1724,6 +1728,33 @@ class _OfferRow extends ConsumerWidget {
                         fontSize: 11,
                         fontWeight: FontWeight.w700,
                         color: VerdictColors.good,
+                        fontFeatures: [FontFeature.tabularFigures()],
+                      ),
+                    ),
+                  ],
+                  if (offer.tip > 0) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      '+${settings.currency.prefix}${offer.tip.toStringAsFixed(2)} tip',
+                      maxLines: 1,
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: VerdictColors.good,
+                        fontFeatures: [FontFeature.tabularFigures()],
+                      ),
+                    ),
+                  ],
+                  if (offer.tollReimbursement > 0) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      '+${settings.currency.prefix}${offer.tollReimbursement.toStringAsFixed(2)} toll reimbursement',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: FoxColors.brandFox,
                         fontFeatures: [FontFeature.tabularFigures()],
                       ),
                     ),
@@ -2012,7 +2043,7 @@ class _HistoryPerformanceState extends State<_HistoryPerformance> {
         ? '${settings.currency.symbol}${stats.acceptedEarnings.toStringAsFixed(2)}'
         : '—';
     final hourly = stats.acceptedMinutes > 0
-        ? '${settings.currency.symbol}${(stats.acceptedEarnings / stats.acceptedMinutes * 60).toStringAsFixed(2)}'
+        ? '${settings.currency.symbol}${(stats.acceptedPerformanceEarnings / stats.acceptedMinutes * 60).toStringAsFixed(2)}'
         : '—';
     final acceptedKm = stats.acceptedKm > 0
         ? settings.distanceUnit
@@ -2107,7 +2138,7 @@ class _HistoryPerformanceState extends State<_HistoryPerformance> {
                                       ? 'History performance'
                                       : stats.accepted == 0
                                       ? 'No accepted offers'
-                                      : '$earnings   |   $hourly/hr',
+                                      : '$earnings   |   $hourly/hr trip',
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   style: TextStyle(
@@ -2162,9 +2193,9 @@ class _HistoryPerformanceState extends State<_HistoryPerformance> {
                                       left: Gap.md,
                                     ),
                                     child: _HeroValue(
-                                      label: 'History rate',
+                                      label: 'Trip rate',
                                       value: hourly,
-                                      sub: 'Per accepted hour',
+                                      sub: 'Per accepted trip hour',
                                       fontSize: compact ? 22 : 26,
                                     ),
                                   ),

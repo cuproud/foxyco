@@ -14,6 +14,7 @@ class OfferStats {
   final int bad;
   final int accepted;
   final double acceptedEarnings;
+  final double acceptedPerformanceEarnings;
   final double acceptedKm;
   final double acceptedMinutes;
 
@@ -35,6 +36,7 @@ class OfferStats {
     this.bad = 0,
     this.accepted = 0,
     this.acceptedEarnings = 0,
+    this.acceptedPerformanceEarnings = 0,
     this.acceptedKm = 0,
     this.acceptedMinutes = 0,
     this.goodAvgPerKm = 0,
@@ -47,6 +49,7 @@ class OfferStats {
 
     var good = 0, ok = 0, bad = 0, accepted = 0;
     var acceptedEarnings = 0.0;
+    var acceptedPerformanceEarnings = 0.0;
     var acceptedKm = 0.0;
     var acceptedMinutes = 0.0;
     var goodPerKmSum = 0.0;
@@ -73,6 +76,7 @@ class OfferStats {
           o.outcome == OfferOutcome.completed) {
         accepted++;
         acceptedEarnings += o.effectivePayout;
+        acceptedPerformanceEarnings += o.performancePayout;
         acceptedKm += o.totalKm;
         acceptedMinutes += o.totalMinutes;
       }
@@ -99,6 +103,7 @@ class OfferStats {
       bad: bad,
       accepted: accepted,
       acceptedEarnings: acceptedEarnings,
+      acceptedPerformanceEarnings: acceptedPerformanceEarnings,
       acceptedKm: acceptedKm,
       acceptedMinutes: acceptedMinutes,
       goodAvgPerKm: goodPerKmCount == 0 ? 0 : goodPerKmSum / goodPerKmCount,

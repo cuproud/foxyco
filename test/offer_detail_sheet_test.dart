@@ -22,14 +22,14 @@ void main() {
     seenAt: DateTime(2026, 7, 26, 19, 58),
   );
 
-  Future<void> open(WidgetTester tester) async {
+  Future<void> open(WidgetTester tester, [OfferSummary? selected]) async {
     await tester.pumpWidget(
       ProviderScope(
         child: MaterialApp(
           home: Scaffold(
             body: Builder(
               builder: (context) => TextButton(
-                onPressed: () => showOfferDetail(context, offer),
+                onPressed: () => showOfferDetail(context, selected ?? offer),
                 child: const Text('open'),
               ),
             ),
@@ -54,7 +54,7 @@ void main() {
     expect(find.text('CA\$17.01'), findsOne);
     expect(find.text('UberX Share Comfort'), findsOne); // not ellipsised away
     expect(find.text('PER KM'), findsOne);
-    expect(find.text('PER HOUR'), findsOne);
+    expect(find.text('TRIP RATE / HOUR'), findsOne);
     expect(find.text('TOTAL DISTANCE'), findsOne);
     expect(find.text('TOTAL TIME'), findsOne);
     expect(find.textContaining('saved scoring snapshot'), findsNothing);
@@ -76,5 +76,31 @@ void main() {
 
     expect(tester.takeException(), isNull);
     expect(find.text('CA\$17.01'), findsOne);
+  });
+
+  testWidgets('shows included tip and toll with net performance rate', (
+    tester,
+  ) async {
+    await open(
+      tester,
+      OfferSummary(
+        platform: GigPlatform.hopp,
+        verdict: Verdict.good,
+        payout: 22.14,
+        finalPayout: 38.34,
+        tip: 5.19,
+        tollReimbursement: 9.16,
+        totalKm: 20,
+        totalMinutes: 60,
+        outcome: OfferOutcome.completed,
+        seenAt: DateTime(2026, 8, 31, 8),
+      ),
+    );
+
+    expect(find.text(r'Includes CA$5.19 tip'), findsOneWidget);
+    expect(find.text(r'Includes CA$9.16 toll reimbursement'), findsOneWidget);
+    expect(find.text(r'CA$1.46'), findsOneWidget);
+    expect(find.text(r'CA$29.18'), findsOneWidget);
+    expect(find.text('TRIP RATE / HOUR'), findsOneWidget);
   });
 }
