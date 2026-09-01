@@ -159,6 +159,7 @@ class OfferWatcher extends Notifier<Offer?> {
   Offer? _lastUberOffer;
   DateTime? _lastUberOfferAt;
   DateTime? _lastOcrAt;
+  DateTime? _lastRoutineOcrLogAt;
   Timer? _ocrRetryTimer;
   String? _pendingOcrPackage;
   ScreenRead? _coveredRead;
@@ -166,6 +167,7 @@ class OfferWatcher extends Notifier<Offer?> {
 
   @visibleForTesting
   static Duration ocrCooldown = const Duration(milliseconds: 1500);
+  static const routineOcrLogInterval = Duration(seconds: 30);
   @visibleForTesting
   static Duration coveredOfferFreshness = const Duration(seconds: 15);
   static const _noUberCard = '__FOXYCO_NO_UBER_CARD__';
@@ -873,15 +875,25 @@ class OfferWatcher extends Notifier<Offer?> {
         retry = retryOnMiss;
         return;
       }
-      ref
-          .read(foxLogProvider)
-          .log(
-            'ocr',
-            'recognized ${frame.lines.length} lines '
-                'trigger=$packageName '
-                'active=${frame.packageName.isEmpty ? 'unknown' : frame.packageName} '
-                'ms=${DateTime.now().difference(now).inMilliseconds}',
-          );
+      final routineNoCard =
+          frame.lines.length == 1 && frame.lines.single == _noUberCard;
+      final shouldLog =
+          !routineNoCard ||
+          _lastRoutineOcrLogAt == null ||
+          DateTime.now().difference(_lastRoutineOcrLogAt!) >=
+              routineOcrLogInterval;
+      if (shouldLog) {
+        if (routineNoCard) _lastRoutineOcrLogAt = DateTime.now();
+        ref
+            .read(foxLogProvider)
+            .log(
+              'ocr',
+              'recognized ${frame.lines.length} lines '
+                  'trigger=$packageName '
+                  'active=${frame.packageName.isEmpty ? 'unknown' : frame.packageName} '
+                  'ms=${DateTime.now().difference(now).inMilliseconds}',
+            );
+      }
       _onRead(
         ScreenRead(
           packageName: frame.packageName.isEmpty

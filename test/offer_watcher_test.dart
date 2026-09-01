@@ -12,6 +12,7 @@ import 'package:foxyco/domain/verdict.dart';
 import 'package:foxyco/parser/parser_registry.dart';
 import 'package:foxyco/services/accessibility/accessibility_watcher.dart';
 import 'package:foxyco/services/accessibility/offer_watcher.dart';
+import 'package:foxyco/services/fox_log.dart';
 import 'package:foxyco/services/offer_log.dart';
 import 'package:foxyco/services/ocr/ocr_capture.dart';
 import 'package:foxyco/services/overlay_service.dart';
@@ -75,6 +76,17 @@ class _FakeVerdictVoice extends VerdictVoice {
   Future<void> speak(Verdict verdict, int cooldownSeconds) async {
     spoken.add((verdict, cooldownSeconds));
   }
+}
+
+class _MemoryFoxLog extends FoxLog {
+  final entries = <({String tag, String message})>[];
+
+  @override
+  void log(String tag, String message) =>
+      entries.add((tag: tag, message: message));
+
+  @override
+  void dispose() {}
 }
 
 /// Records what the overlay was asked to show; no platform channels.
@@ -235,13 +247,14 @@ void main() {
   late _FakeOcrCapture ocr;
   late _FakeVerdictVoice voice;
 
-  ProviderContainer container({Set<GigPlatform>? watchedApps}) {
+  ProviderContainer container({Set<GigPlatform>? watchedApps, FoxLog? log}) {
     final c = ProviderContainer(
       overrides: [
         accessibilityWatcherProvider.overrideWithValue(watcher),
         overlayServiceProvider.overrideWithValue(overlay),
         ocrCaptureProvider.overrideWithValue(ocr),
         verdictVoiceProvider.overrideWithValue(voice),
+        if (log != null) foxLogProvider.overrideWithValue(log),
         dashboardProvider.overrideWith(_GrantedDashboardController.new),
         settingsProvider.overrideWith(
           () => _OfferTestSettingsController(
@@ -774,6 +787,46 @@ void main() {
       expect(overlay.shown, hasLength(1));
     },
   );
+
+  test('routine no-card OCR diagnostics are sampled', () async {
+    final previous = OfferWatcher.ocrCooldown;
+    OfferWatcher.ocrCooldown = Duration.zero;
+    addTearDown(() => OfferWatcher.ocrCooldown = previous);
+    final log = _MemoryFoxLog();
+    final c = container(log: log);
+    c.read(settingsProvider.notifier).setOcrEnabled(true);
+    ocr.responses.addAll(const [
+      OcrFrame(
+        packageName: ParserRegistry.lyftPackage,
+        lines: ['__FOXYCO_NO_UBER_CARD__'],
+      ),
+      OcrFrame(
+        packageName: ParserRegistry.lyftPackage,
+        lines: ['__FOXYCO_NO_UBER_CARD__'],
+      ),
+    ]);
+    c.read(offerWatcherProvider);
+
+    watcher.emit(
+      const ScreenRead(
+        packageName: ParserRegistry.lyftPackage,
+        texts: ["You're online"],
+        isActive: true,
+      ),
+    );
+    for (var i = 0; i < 20 && ocr.captures < 2; i++) {
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+    }
+
+    expect(ocr.captures, 2); // initial check plus the existing bounded retry
+    expect(
+      log.entries.where(
+        (entry) =>
+            entry.tag == 'ocr' && entry.message.startsWith('recognized 1'),
+      ),
+      hasLength(1),
+    );
+  });
 
   test(
     'one conflicting OCR frame cannot replace live Uber economics',

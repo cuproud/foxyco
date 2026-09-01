@@ -248,22 +248,31 @@ class _OfferDetailSheet extends ConsumerWidget {
                       ),
                     ),
                   ],
-                  if (current.bonus > 0) ...[
+                  if (current.bonus > 0 || current.tip > 0) ...[
                     const SizedBox(height: Gap.sm),
-                    _IncludedAmount(
-                      icon: Icons.card_giftcard_rounded,
-                      text:
-                          'Includes ${currency.prefix}${current.bonus.toStringAsFixed(2)} bonus',
-                      color: VerdictColors.good,
-                    ),
-                  ],
-                  if (current.tip > 0) ...[
-                    const SizedBox(height: Gap.sm),
-                    _IncludedAmount(
-                      icon: Icons.volunteer_activism_rounded,
-                      text:
-                          'Includes ${currency.prefix}${current.tip.toStringAsFixed(2)} tip',
-                      color: VerdictColors.good,
+                    Row(
+                      children: [
+                        if (current.bonus > 0)
+                          Expanded(
+                            child: _IncludedAmount(
+                              icon: Icons.card_giftcard_rounded,
+                              text:
+                                  'Bonus ${currency.prefix}${current.bonus.toStringAsFixed(2)}',
+                              color: VerdictColors.good,
+                            ),
+                          ),
+                        if (current.bonus > 0 && current.tip > 0)
+                          const SizedBox(width: Gap.xs),
+                        if (current.tip > 0)
+                          Expanded(
+                            child: _IncludedAmount(
+                              icon: Icons.volunteer_activism_rounded,
+                              text:
+                                  'Tip ${currency.prefix}${current.tip.toStringAsFixed(2)}',
+                              color: VerdictColors.good,
+                            ),
+                          ),
+                      ],
                     ),
                   ],
                   if (current.tollReimbursement > 0) ...[
@@ -271,7 +280,7 @@ class _OfferDetailSheet extends ConsumerWidget {
                     _IncludedAmount(
                       icon: Icons.receipt_long_rounded,
                       text:
-                          'Includes ${currency.prefix}${current.tollReimbursement.toStringAsFixed(2)} toll reimbursement',
+                          'Toll ${currency.prefix}${current.tollReimbursement.toStringAsFixed(2)}',
                       color: FoxColors.brandFox,
                     ),
                   ],
@@ -311,18 +320,16 @@ class _OfferDetailSheet extends ConsumerWidget {
                         ? '${current.totalMinutes.round()} min'
                         : '—',
                     rightLabel: 'TOTAL TIME',
-                  ),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: TextButton.icon(
+                    leftAction: IconButton(
+                      key: const Key('correct-distance'),
                       onPressed: () => _editTotalDistance(
                         context,
                         ref,
                         current,
                         distanceUnit,
                       ),
-                      icon: const Icon(Icons.edit_rounded, size: 15),
-                      label: const Text('Correct distance'),
+                      tooltip: 'Correct distance',
+                      icon: const Icon(Icons.edit_rounded, size: 18),
                     ),
                   ),
                   _DetailBand(
@@ -418,7 +425,9 @@ class _OfferDetailSheet extends ConsumerWidget {
     OfferSummary offer,
     String prefix,
   ) async {
-    var input = offer.finalPayout?.toStringAsFixed(2) ?? '';
+    var input = offer.finalPayout == null
+        ? ''
+        : (offer.finalPayout! - offer.tip).toStringAsFixed(2);
     var tipInput = offer.tip > 0 ? offer.tip.toStringAsFixed(2) : '';
     var tollInput = offer.tollReimbursement > 0
         ? offer.tollReimbursement.toStringAsFixed(2)
@@ -451,12 +460,13 @@ class _OfferDetailSheet extends ConsumerWidget {
                 toll == null ||
                 !toll.isFinite ||
                 toll < 0 ||
-                tip + toll > parsed) {
-              setState(() => error = 'Tip and toll must fit within the total');
+                toll > parsed) {
+              setState(() => error = 'Toll must fit within earnings');
               return;
             }
+            final total = parsed + tip;
             Navigator.pop(context, (
-              payout: (parsed * 100).round() / 100,
+              payout: (total * 100).round() / 100,
               tip: (tip * 100).round() / 100,
               toll: (toll * 100).round() / 100,
             ));
@@ -480,9 +490,9 @@ class _OfferDetailSheet extends ConsumerWidget {
                     onChanged: (value) => input = value,
                     decoration: InputDecoration(
                       prefixText: prefix,
-                      labelText: 'Final amount received',
+                      labelText: 'Earnings before tip',
                       helperText:
-                          'Upfront offer: $prefix${offer.payout.toStringAsFixed(2)}',
+                          'Upfront: $prefix${offer.payout.toStringAsFixed(2)} · tip is added',
                       helperMaxLines: 2,
                       errorText: error,
                       errorMaxLines: 2,
@@ -500,7 +510,7 @@ class _OfferDetailSheet extends ConsumerWidget {
                     onChanged: (value) => tipInput = value,
                     decoration: InputDecoration(
                       prefixText: prefix,
-                      labelText: 'Tip included (optional)',
+                      labelText: 'Tip',
                     ),
                   ),
                   const SizedBox(height: Gap.sm),
@@ -516,7 +526,7 @@ class _OfferDetailSheet extends ConsumerWidget {
                     onFieldSubmitted: (_) => save(),
                     decoration: InputDecoration(
                       prefixText: prefix,
-                      labelText: 'Toll reimbursement (optional)',
+                      labelText: 'Toll reimbursement',
                       helperText: 'Excluded from performance rates',
                       helperMaxLines: 2,
                     ),
@@ -740,6 +750,7 @@ class _DetailBand extends StatelessWidget {
     required this.rightIcon,
     required this.rightValue,
     required this.rightLabel,
+    this.leftAction,
   });
 
   final IconData leftIcon;
@@ -748,6 +759,7 @@ class _DetailBand extends StatelessWidget {
   final IconData rightIcon;
   final String rightValue;
   final String rightLabel;
+  final Widget? leftAction;
 
   @override
   Widget build(BuildContext context) => Container(
@@ -764,6 +776,7 @@ class _DetailBand extends StatelessWidget {
             icon: leftIcon,
             value: leftValue,
             label: leftLabel,
+            action: leftAction,
           ),
         ),
         Container(width: 1, height: 44, color: FoxColors.border),
@@ -784,11 +797,13 @@ class _DetailBandItem extends StatelessWidget {
     required this.icon,
     required this.value,
     required this.label,
+    this.action,
   });
 
   final IconData icon;
   final String value;
   final String label;
+  final Widget? action;
 
   @override
   Widget build(BuildContext context) => Row(
@@ -807,20 +822,27 @@ class _DetailBandItem extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            FittedBox(
-              fit: BoxFit.scaleDown,
-              alignment: Alignment.centerLeft,
-              child: Text(
-                value,
-                maxLines: 1,
-                style: TextStyle(
-                  fontFamily: FoxFonts.display,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
-                  color: FoxColors.textPrimary,
-                  fontFeatures: const [FontFeature.tabularFigures()],
+            Row(
+              children: [
+                Expanded(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      value,
+                      maxLines: 1,
+                      style: TextStyle(
+                        fontFamily: FoxFonts.display,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: FoxColors.textPrimary,
+                        fontFeatures: const [FontFeature.tabularFigures()],
+                      ),
+                    ),
+                  ),
                 ),
-              ),
+                ?action,
+              ],
             ),
             Text(
               label,

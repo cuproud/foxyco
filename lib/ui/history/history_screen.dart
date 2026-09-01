@@ -1618,7 +1618,9 @@ class _OfferRow extends ConsumerWidget {
         ),
         if (offer.finalPayout != null)
           Text(
-            'from ${settings.currency.prefix}${offer.payout.toStringAsFixed(2)}',
+            offer.tollReimbursement > 0
+                ? 'net ${settings.currency.prefix}${offer.performancePayout.toStringAsFixed(2)}'
+                : 'from ${settings.currency.prefix}${offer.payout.toStringAsFixed(2)}',
             maxLines: 1,
             style: TextStyle(
               fontSize: 10.5,
@@ -1719,36 +1721,44 @@ class _OfferRow extends ConsumerWidget {
                         ),
                     ],
                   ),
-                  if (offer.bonus > 0) ...[
+                  if (offer.bonus > 0 || offer.tip > 0) ...[
                     const SizedBox(height: 4),
-                    Text(
-                      '+${settings.currency.prefix}${offer.bonus.toStringAsFixed(2)} bonus',
-                      maxLines: 1,
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        color: VerdictColors.good,
-                        fontFeatures: [FontFeature.tabularFigures()],
-                      ),
-                    ),
-                  ],
-                  if (offer.tip > 0) ...[
-                    const SizedBox(height: 4),
-                    Text(
-                      '+${settings.currency.prefix}${offer.tip.toStringAsFixed(2)} tip',
-                      maxLines: 1,
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        color: VerdictColors.good,
-                        fontFeatures: [FontFeature.tabularFigures()],
-                      ),
+                    Row(
+                      children: [
+                        if (offer.bonus > 0)
+                          Expanded(
+                            child: Text(
+                              '+${settings.currency.prefix}${offer.bonus.toStringAsFixed(2)} bonus',
+                              maxLines: 1,
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: VerdictColors.good,
+                                fontFeatures: [FontFeature.tabularFigures()],
+                              ),
+                            ),
+                          ),
+                        if (offer.tip > 0)
+                          Expanded(
+                            child: Text(
+                              '+${settings.currency.prefix}${offer.tip.toStringAsFixed(2)} tip',
+                              maxLines: 1,
+                              textAlign: TextAlign.end,
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: VerdictColors.good,
+                                fontFeatures: [FontFeature.tabularFigures()],
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
                   ],
                   if (offer.tollReimbursement > 0) ...[
                     const SizedBox(height: 4),
                     Text(
-                      '+${settings.currency.prefix}${offer.tollReimbursement.toStringAsFixed(2)} toll reimbursement',
+                      '+${settings.currency.prefix}${offer.tollReimbursement.toStringAsFixed(2)} toll',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(

@@ -44,6 +44,7 @@ import java.util.HashSet;
 import java.util.Objects;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.util.concurrent.Executor;
 
 import io.flutter.embedding.android.FlutterTextureView;
 import io.flutter.embedding.android.FlutterView;
@@ -79,11 +80,17 @@ public class AccessibilityListener extends AccessibilityService {
     // Queue depth 1: a new event evicts any not-yet-started walk, so we always
     // parse the freshest frame instead of grinding through a stale backlog.
     private static final Handler sWorker;
+    private static final Handler sOcrWorker;
+    private static final Executor OCR_EXECUTOR;
     private static final Handler sMain = new Handler(Looper.getMainLooper());
     static {
         HandlerThread thread = new HandlerThread("foxyco-a11y");
         thread.start();
         sWorker = new Handler(thread.getLooper());
+        HandlerThread ocrThread = new HandlerThread("foxyco-ocr");
+        ocrThread.start();
+        sOcrWorker = new Handler(ocrThread.getLooper());
+        OCR_EXECUTOR = command -> sOcrWorker.post(command);
     }
     private final Object eventLock = new Object();
     private AccessibilityEvent pendingEvent;
@@ -494,7 +501,7 @@ public class AccessibilityListener extends AccessibilityService {
         try {
             takeScreenshot(
                     Display.DEFAULT_DISPLAY,
-                    getMainExecutor(),
+                    OCR_EXECUTOR,
                     new TakeScreenshotCallback() {
                         @Override
                         public void onSuccess(ScreenshotResult screenshot) {
@@ -503,7 +510,7 @@ public class AccessibilityListener extends AccessibilityService {
 
                         @Override
                         public void onFailure(int errorCode) {
-                            finishOcr(token, Collections.emptyList());
+                            sMain.post(() -> finishOcr(token, Collections.emptyList()));
                         }
                     }
             );
@@ -530,11 +537,17 @@ public class AccessibilityListener extends AccessibilityService {
             buffer.close();
         }
         if (bitmap == null) {
-            finishOcr(token, Collections.emptyList());
+            sMain.post(() -> finishOcr(token, Collections.emptyList()));
             return;
         }
+        final Bitmap captured = bitmap;
+        sMain.post(() -> processOcrBitmap(token, captured));
+    }
+
+    /** Starts ML Kit on main after the large HardwareBuffer copy finishes off-main. */
+    private void processOcrBitmap(long token, Bitmap bitmap) {
         if (!isCurrentOcr(token)) {
-            wipeAndRecycle(bitmap);
+            recycleOcrBitmap(bitmap);
             return;
         }
         redactFoxyOverlay(bitmap);
@@ -583,13 +596,17 @@ public class AccessibilityListener extends AccessibilityService {
                             finishOcr(token, Collections.emptyList()))
                     .addOnCompleteListener(task -> {
                         if (activeOcrBitmap == captured) activeOcrBitmap = null;
-                        wipeAndRecycle(captured);
+                        recycleOcrBitmap(captured);
                     });
         } catch (RuntimeException error) {
             activeOcrBitmap = null;
-            wipeAndRecycle(bitmap);
+            recycleOcrBitmap(bitmap);
             finishOcr(token, Collections.emptyList());
         }
+    }
+
+    private static void recycleOcrBitmap(Bitmap bitmap) {
+        OCR_EXECUTOR.execute(() -> wipeAndRecycle(bitmap));
     }
 
     private boolean isCurrentOcr(long token) {

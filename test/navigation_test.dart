@@ -167,7 +167,7 @@ void main() {
 
     await tester.tap(find.text('Add final'));
     await beat(tester);
-    expect(find.text(r'Upfront offer: CA$18.60'), findsOneWidget);
+    expect(find.text(r'Upfront: CA$18.60 · tip is added'), findsOneWidget);
     await tester.enterText(
       find.byKey(const Key('final-payout-total')),
       '38,34',
@@ -177,14 +177,14 @@ void main() {
     await tester.testTextInput.receiveAction(TextInputAction.done);
     await beat(tester);
 
-    expect(find.text(r'CA$38.34'), findsAtLeastNWidgets(1));
-    expect(container.read(offerLogProvider).single.finalPayout, 38.34);
+    expect(find.text(r'CA$43.53'), findsAtLeastNWidgets(1));
+    expect(container.read(offerLogProvider).single.finalPayout, 43.53);
     expect(container.read(offerLogProvider).single.tip, 5.19);
     expect(container.read(offerLogProvider).single.tollReimbursement, 9.16);
-    expect(find.text(r'Includes CA$5.19 tip'), findsOneWidget);
-    expect(find.text(r'Includes CA$9.16 toll reimbursement'), findsOneWidget);
+    expect(find.text(r'Tip CA$5.19'), findsOneWidget);
+    expect(find.text(r'Toll CA$9.16'), findsOneWidget);
 
-    await tester.tap(find.text('Correct distance'));
+    await tester.tap(find.byKey(const Key('correct-distance')));
     await beat(tester);
     expect(
       tester

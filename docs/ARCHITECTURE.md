@@ -1,6 +1,6 @@
 # Architecture
 
-Updated 2026-08-31 for `1.0.14+104`.
+Updated 2026-09-01 for `1.0.14+105`.
 
 ## Boundaries
 
@@ -36,7 +36,9 @@ change whenever their behavior changes.
 
 At the architecture level, Accessibility is primary, parsers fail closed, Uber
 OCR is an on-device fallback for inaccessible/stacked cards, and only a complete
-normalized `Offer` reaches the pure-Dart decision engine.
+normalized `Offer` reaches the pure-Dart decision engine. Android copies and
+clears screenshot bitmap data on a dedicated OCR worker; overlay redaction and
+the single-request guard keep UI access serialized and recognition bounded.
 
 ## Persistence
 
@@ -46,10 +48,13 @@ summaries as version-tolerant JSON. An offer record preserves:
 - captured payout, bonus, pickup/drop-off distance, duration, workload, app,
   category, queue state, verdict, timestamp, and scoring snapshot;
 - detected outcome separately from a manual outcome correction; and
-- original payout separately from a manually entered final payout.
+- original payout separately from a manually entered final payout, tip, and
+  toll reimbursement.
 
-Manual corrections win over later inference. History is capped and retention
-can be configured. Android backup and data extraction are disabled.
+Manual corrections win over later inference. A manually entered tip is added to
+the final payout once; reimbursed tolls remain visible but are excluded from
+performance earnings and rates. History is capped and retention can be
+configured. Android backup and data extraction are disabled.
 
 History hydration collapses the two known payout correction signatures: a
 dropped payout decimal (`$7.54`/`$754`) and pickup distance misread as payout.

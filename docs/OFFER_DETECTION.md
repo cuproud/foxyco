@@ -1,7 +1,7 @@
 # Offer Detection and Verdict Logic
 
-Canonical implementation map for `1.0.14+104`, verified against the code on
-2026-08-31.
+Canonical implementation map for `1.0.14+105`, verified against the code on
+2026-09-01.
 
 ## Maintenance contract
 
@@ -225,6 +225,14 @@ The current path is:
    evidence before invoking `UberParser`.
 7. The bitmap is erased and recycled; only recognized strings cross to Dart.
 
+The full-resolution hardware-buffer copy and bitmap wipe run on a dedicated OCR
+worker so screenshot preparation cannot stall overlay gestures or the main app
+UI. Only one OCR request may be active, matching ML Kit's keep-latest/backpressure
+guidance. Routine successful checks that find no Uber card are sampled in the
+persistent diagnostic log once per 30 seconds; offers, slow/empty captures,
+discarded frames, and failures remain logged immediately. Sampling changes only
+diagnostic disk traffic, never capture cadence or parsing.
+
 Late OCR is discarded if the Accessibility generation changed while capture
 was running. It is also discarded when the captured active package is not a
 recognized, currently selected driver app. This prevents screenshots viewed in
@@ -358,10 +366,10 @@ history row most recently created for each platform remains the candidate.
 
 Automatic inference never overwrites a driver's manual outcome correction.
 Manual final payout also remains separate from the originally offered payout
-and verdict. A final payout may record included tip and toll-reimbursement
-amounts. Both remain part of the displayed amount received and are never added
-again; tips count as earnings, while reimbursed tolls are excluded from the
-post-trip $/km and $/hr performance rates because they offset an expense.
+and verdict. The edit form takes earnings before tip, then adds the separately
+entered tip once to the stored and displayed final payout. A toll reimbursement
+is already part of the entered earnings; it is recorded separately and excluded
+from post-trip $/km and $/hr performance rates because it offsets an expense.
 
 History also allows the driver to correct total distance for any platform when
 a source app or OCR supplied a bad value. The correction preserves the row and

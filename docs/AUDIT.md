@@ -1,11 +1,24 @@
 # Release audit
 
-Audit date: 2026-08-31
+Audit date: 2026-09-01
 
-Candidate: `1.0.14+104`
+Candidate: `1.0.14+105`
 
 Automated checks pass. Play upload remains conditional on the device and
 Console checks in `MANUAL_TESTS.md` and `PLAY_RELEASE.md`.
+
+## Build 105 changes
+
+- Final payout editing adds a separately entered tip exactly once, keeps toll
+  reimbursement separate from performance earnings, and exposes the net fare
+  on compact History cards.
+- Bonus and tip share one compact detail row, toll wording is shorter, long
+  values fit without clipping, and distance editing uses an inline icon.
+- Screenshot bitmap copying and clearing run outside the Android UI thread;
+  routine no-card OCR diagnostics are sampled without changing capture cadence,
+  parsing, retries, or offer delivery.
+- Version, About, architecture, offer-detection, testing, and release
+  documentation are synchronized to build 105.
 
 ## Build 104 changes
 
@@ -64,9 +77,9 @@ Console checks in `MANUAL_TESTS.md` and `PLAY_RELEASE.md`.
 - Signed release bundle and checksum verification: passed
 - Firestore rules and guarded Play bundle preflight: passed
 
-Verified Play artifact: `FoxyCo-v1.0.14+104-release-20260831-1217.aab`
+Verified Play artifact: `FoxyCo-v1.0.14+105-release-20260901-1728.aab`
 
-SHA-256: `bf9a78c67e9c558873ce5cf3967c69437c248e51478139c8d862fd2638499a17`
+SHA-256: `39d879aef80b3e75726b8ca50bc611cbe71e00211b3c90d85fc27cdfcd6645bf`
 
 ## Device gates
 

@@ -78,6 +78,25 @@ void main() {
     expect(find.text('CA\$17.01'), findsOne);
   });
 
+  testWidgets('large text final earnings form keeps labels visible', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1080, 2400);
+    tester.view.devicePixelRatio = 3;
+    tester.platformDispatcher.textScaleFactorTestValue = 2.0;
+    addTearDown(tester.view.reset);
+    addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+
+    await open(tester, offer.withOutcome(OfferOutcome.taken));
+    await tester.tap(find.text('Add final'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Earnings before tip'), findsOneWidget);
+    expect(find.text('Tip'), findsOneWidget);
+    expect(find.text('Toll reimbursement'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('shows included tip and toll with net performance rate', (
     tester,
   ) async {
@@ -97,8 +116,8 @@ void main() {
       ),
     );
 
-    expect(find.text(r'Includes CA$5.19 tip'), findsOneWidget);
-    expect(find.text(r'Includes CA$9.16 toll reimbursement'), findsOneWidget);
+    expect(find.text(r'Tip CA$5.19'), findsOneWidget);
+    expect(find.text(r'Toll CA$9.16'), findsOneWidget);
     expect(find.text(r'CA$1.46'), findsOneWidget);
     expect(find.text(r'CA$29.18'), findsOneWidget);
     expect(find.text('TRIP RATE / HOUR'), findsOneWidget);

@@ -27,7 +27,7 @@ Legend: 🟢 GOOD  🟡 OK  🔴 BAD (pill shows icon + WORD + `km · $payout`).
 Run these before promoting the AAB. They cover the highest-risk build changes
 without requiring DoorDash, Instacart or Skip accounts.
 
-**Current candidate:** Play bundle build 104. Real-device validation is pending
+**Current candidate:** Play bundle build 105. Real-device validation is pending
 for cross-app OCR, overlay transparency, active-trip outcome isolation, and
 diagnostic-only route matching.
 
@@ -53,6 +53,8 @@ diagnostic-only route matching.
 | Q.18 | With Lyft earnings `$44.83` visible, receive `$8.28`, `$9.01`, and `$10.14` offers | Each pill/voice/history uses the card fare once; no initial GOOD verdict from `$44.83` | [ ] build 100 |
 | Q.19 | During an active Hopp/Lyft/Uber trip, let another offer fully cover the trip screen, dismiss it, then return to the trip | The covered offer stays Unknown; the restored pickup/trip screen does not mark it Accepted | [ ] build 104 |
 | Q.20 | Show two Uber Radar offers, tap Match on the first, allow another offer to appear, then wait for Uber to confirm the first | `route-shadow` logs show multiple pending fingerprints and a unique/non-unique score without any address text; History behavior is unchanged | [ ] build 104 |
+| Q.21 | Open an accepted History row, enter earnings before tip, a tip, bonus, and toll reimbursement, then save and reopen it | Final payout adds the tip once; the card shows net fare excluding toll; bonus/tip share one row; no amount clips | [ ] build 105 |
+| Q.22 | Watch stacked Uber-over-Lyft/Hopp offers for 30–60 minutes while dragging the bubble and profiling power | Offers and restoration remain timely, gestures stay smooth, routine no-card diagnostics appear no more than once per 30 seconds, and power use has no unexpected regression | [ ] build 105 |
 
 ---
 
