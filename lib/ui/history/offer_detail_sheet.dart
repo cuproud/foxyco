@@ -806,24 +806,25 @@ class _DetailBandItem extends StatelessWidget {
   final Widget? action;
 
   @override
-  Widget build(BuildContext context) => Row(
-    mainAxisAlignment: MainAxisAlignment.start,
-    crossAxisAlignment: CrossAxisAlignment.start,
+  Widget build(BuildContext context) => Stack(
+    clipBehavior: Clip.none,
     children: [
-      SizedBox(
-        width: 24,
-        child: Align(
-          alignment: Alignment.topLeft,
-          child: Icon(icon, size: 20, color: FoxColors.brandFox),
-        ),
-      ),
-      const SizedBox(width: Gap.xs),
-      Flexible(
+      Padding(
+        padding: EdgeInsets.only(right: action == null ? 0 : 40),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
+                SizedBox(
+                  width: 24,
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Icon(icon, size: 20, color: FoxColors.brandFox),
+                  ),
+                ),
+                const SizedBox(width: Gap.xs),
                 Expanded(
                   child: FittedBox(
                     fit: BoxFit.scaleDown,
@@ -841,21 +842,25 @@ class _DetailBandItem extends StatelessWidget {
                     ),
                   ),
                 ),
-                ?action,
               ],
             ),
-            Text(
-              label,
-              maxLines: 1,
-              style: TextStyle(
-                fontSize: 9,
-                fontWeight: FontWeight.w700,
-                color: FoxColors.textDisabled,
+            Padding(
+              padding: const EdgeInsets.only(left: 24 + Gap.xs),
+              child: Text(
+                label,
+                maxLines: 1,
+                style: TextStyle(
+                  fontSize: 9,
+                  fontWeight: FontWeight.w700,
+                  color: FoxColors.textDisabled,
+                ),
               ),
             ),
           ],
         ),
       ),
+      if (action case final action?)
+        Positioned(right: -8, top: -14, child: action),
     ],
   );
 }

@@ -78,6 +78,27 @@ void main() {
     expect(find.text('CA\$17.01'), findsOne);
   });
 
+  testWidgets('distance and time icons share their value centerline', (
+    tester,
+  ) async {
+    await open(tester);
+
+    for (final (icon, value) in [
+      (Icons.route_rounded, '26.0 km'),
+      (Icons.schedule_rounded, '28 min'),
+      (Icons.location_on_outlined, '0.2 km'),
+      (Icons.flag_outlined, '25.8 km'),
+    ]) {
+      expect(
+        (tester.getCenter(find.byIcon(icon)).dy -
+                tester.getCenter(find.text(value)).dy)
+            .abs(),
+        lessThan(1),
+        reason: '$value icon must align with its value',
+      );
+    }
+  });
+
   testWidgets('large text final earnings form keeps labels visible', (
     tester,
   ) async {

@@ -173,6 +173,7 @@ class OfferSummary {
     'verdict': verdict.name,
     'payout': payout,
     if (finalPayout != null) 'finalPayout': finalPayout,
+    if (finalPayout != null) 'finalPayoutIncludesTip': true,
     'bonus': bonus,
     if (tip > 0) 'tip': tip,
     if (tollReimbursement > 0) 'tollReimbursement': tollReimbursement,
@@ -191,41 +192,53 @@ class OfferSummary {
     if (unitCount > 0) 'unitCount': unitCount,
   };
 
-  factory OfferSummary.fromJson(Map<String, dynamic> j) => OfferSummary(
-    platform:
-        GigPlatform.values.where((p) => p.name == j['platform']).firstOrNull ??
-        GigPlatform.uber,
-    verdict:
-        Verdict.values.where((v) => v.name == j['verdict']).firstOrNull ??
-        Verdict.unknown,
-    payout: (j['payout'] as num?)?.toDouble() ?? 0,
-    finalPayout: (j['finalPayout'] as num?)?.toDouble(),
-    bonus: (j['bonus'] as num?)?.toDouble() ?? 0,
-    tip: (j['tip'] as num?)?.toDouble() ?? 0,
-    tollReimbursement: (j['tollReimbursement'] as num?)?.toDouble() ?? 0,
-    pickupKm: (j['pickupKm'] as num?)?.toDouble() ?? 0,
-    totalKm: (j['totalKm'] as num?)?.toDouble() ?? 0,
-    totalMinutes: (j['totalMinutes'] as num?)?.toDouble() ?? 0,
-    seenAt: DateTime.fromMillisecondsSinceEpoch(
-      (j['seenAt'] as num?)?.toInt() ?? 0,
-    ),
-    // Old blobs (pre-outcome) load as unknown.
-    outcome:
-        OfferOutcome.values.where((o) => o.name == j['outcome']).firstOrNull ??
-        OfferOutcome.unknown,
-    outcomeIsManual: j['outcomeIsManual'] == true,
-    detectedOutcome: OfferOutcome.values
-        .where((o) => o.name == j['detectedOutcome'])
-        .firstOrNull,
-    scoringSnapshot: j['scoringSnapshot'] is Map
-        ? ScoringSnapshot.fromJson(
-            Map<String, dynamic>.from(j['scoringSnapshot'] as Map),
-          )
-        : null,
-    category: j['category'] is String ? j['category'] as String : null,
-    isQueued: j['isQueued'] == true,
-    deliveryCount: (j['deliveryCount'] as num?)?.toInt() ?? 0,
-    itemCount: (j['itemCount'] as num?)?.toInt() ?? 0,
-    unitCount: (j['unitCount'] as num?)?.toInt() ?? 0,
-  );
+  factory OfferSummary.fromJson(Map<String, dynamic> j) {
+    final tip = (j['tip'] as num?)?.toDouble() ?? 0;
+    final storedFinalPayout = (j['finalPayout'] as num?)?.toDouble();
+    final finalPayout =
+        storedFinalPayout != null && j['finalPayoutIncludesTip'] != true
+        ? ((storedFinalPayout + tip) * 100).round() / 100
+        : storedFinalPayout;
+    return OfferSummary(
+      platform:
+          GigPlatform.values
+              .where((p) => p.name == j['platform'])
+              .firstOrNull ??
+          GigPlatform.uber,
+      verdict:
+          Verdict.values.where((v) => v.name == j['verdict']).firstOrNull ??
+          Verdict.unknown,
+      payout: (j['payout'] as num?)?.toDouble() ?? 0,
+      finalPayout: finalPayout,
+      bonus: (j['bonus'] as num?)?.toDouble() ?? 0,
+      tip: tip,
+      tollReimbursement: (j['tollReimbursement'] as num?)?.toDouble() ?? 0,
+      pickupKm: (j['pickupKm'] as num?)?.toDouble() ?? 0,
+      totalKm: (j['totalKm'] as num?)?.toDouble() ?? 0,
+      totalMinutes: (j['totalMinutes'] as num?)?.toDouble() ?? 0,
+      seenAt: DateTime.fromMillisecondsSinceEpoch(
+        (j['seenAt'] as num?)?.toInt() ?? 0,
+      ),
+      // Old blobs (pre-outcome) load as unknown.
+      outcome:
+          OfferOutcome.values
+              .where((o) => o.name == j['outcome'])
+              .firstOrNull ??
+          OfferOutcome.unknown,
+      outcomeIsManual: j['outcomeIsManual'] == true,
+      detectedOutcome: OfferOutcome.values
+          .where((o) => o.name == j['detectedOutcome'])
+          .firstOrNull,
+      scoringSnapshot: j['scoringSnapshot'] is Map
+          ? ScoringSnapshot.fromJson(
+              Map<String, dynamic>.from(j['scoringSnapshot'] as Map),
+            )
+          : null,
+      category: j['category'] is String ? j['category'] as String : null,
+      isQueued: j['isQueued'] == true,
+      deliveryCount: (j['deliveryCount'] as num?)?.toInt() ?? 0,
+      itemCount: (j['itemCount'] as num?)?.toInt() ?? 0,
+      unitCount: (j['unitCount'] as num?)?.toInt() ?? 0,
+    );
+  }
 }

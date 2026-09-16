@@ -2,10 +2,32 @@
 
 Audit date: 2026-09-01
 
-Candidate: `1.0.14+105`
+Candidate: `1.0.14+107`
 
 Automated checks pass. Play upload remains conditional on the device and
 Console checks in `MANUAL_TESTS.md` and `PLAY_RELEASE.md`.
+
+## Build 107 changes
+
+- Total distance, total time, pickup, and ride icons now share the exact
+  vertical centerline of their values.
+- The distance-edit button is overlaid at the cell edge, preserving its full
+  tap target without pushing the route value or label out of alignment.
+- Widget coverage measures all four icon/value pairs and protects the compact
+  sheet at normal, short, and large-text layouts.
+- Version, About, testing, and release documentation are synchronized to build
+  107.
+
+## Build 106 changes
+
+- Unmarked saved final payouts add their separately stored tip once while
+  loading. New and rewritten rows persist an inclusion marker so restart,
+  backup, and import cannot add it again.
+- The reported Lyft example now resolves `CA$50.44 + CA$2.00 tip` to
+  `CA$52.44` received and `CA$28.88` performance earnings after its
+  `CA$23.56` toll reimbursement.
+- Version, About, architecture, offer-detection, testing, and release
+  documentation are synchronized to build 106.
 
 ## Build 105 changes
 
@@ -77,9 +99,9 @@ Console checks in `MANUAL_TESTS.md` and `PLAY_RELEASE.md`.
 - Signed release bundle and checksum verification: passed
 - Firestore rules and guarded Play bundle preflight: passed
 
-Verified Play artifact: `FoxyCo-v1.0.14+105-release-20260901-1728.aab`
+Verified Play artifact: `FoxyCo-v1.0.14+107-release-20260901-2122.aab`
 
-SHA-256: `39d879aef80b3e75726b8ca50bc611cbe71e00211b3c90d85fc27cdfcd6645bf`
+SHA-256: `b99855cc52f446ecf447c6e18cb66fb434a8ae5c04d5348a355a5501ee1b8852`
 
 ## Device gates
 

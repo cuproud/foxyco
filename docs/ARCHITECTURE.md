@@ -1,6 +1,6 @@
 # Architecture
 
-Updated 2026-09-01 for `1.0.14+105`.
+Updated 2026-09-01 for `1.0.14+107`.
 
 ## Boundaries
 
@@ -55,6 +55,10 @@ Manual corrections win over later inference. A manually entered tip is added to
 the final payout once; reimbursed tolls remain visible but are excluded from
 performance earnings and rates. History is capped and retention can be
 configured. Android backup and data extraction are disabled.
+
+Final-payout JSON marks that its separately stored tip is already included.
+Unmarked legacy rows add that tip once while loading, then serialize with the
+marker so restart, backup, and import cannot add it again.
 
 History hydration collapses the two known payout correction signatures: a
 dropped payout decimal (`$7.54`/`$754`) and pickup distance misread as payout.

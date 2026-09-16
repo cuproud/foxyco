@@ -1,6 +1,6 @@
 # Offer Detection and Verdict Logic
 
-Canonical implementation map for `1.0.14+105`, verified against the code on
+Canonical implementation map for `1.0.14+107`, verified against the code on
 2026-09-01.
 
 ## Maintenance contract
@@ -370,6 +370,10 @@ and verdict. The edit form takes earnings before tip, then adds the separately
 entered tip once to the stored and displayed final payout. A toll reimbursement
 is already part of the entered earnings; it is recorded separately and excluded
 from post-trip $/km and $/hr performance rates because it offsets an expense.
+Serialized final payouts carry a marker confirming that the separate tip is
+already included. Unmarked legacy rows add the stored tip once during decoding;
+their next serialization writes the marker, preventing repeat addition across
+restart, backup, or import.
 
 History also allows the driver to correct total distance for any platform when
 a source app or OCR supplied a bad value. The correction preserves the row and
