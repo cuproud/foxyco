@@ -1,7 +1,7 @@
 # Offer Detection and Verdict Logic
 
-Canonical implementation map for `1.0.14+107`, verified against the code on
-2026-09-01.
+Canonical implementation map for `1.0.14+108`, verified against the code on
+2026-09-16.
 
 ## Maintenance contract
 
@@ -409,6 +409,32 @@ shift remains Watching, the window is recreated, and the recovery reason is
 written to diagnostics. Overlay generation, window type/format/alpha/size, and
 surface create/change/destroy events are written both to native logcat and the
 copyable in-app diagnostic log without screen content.
+
+Build 108 adds visibility, attachment, display/rotation, view and surface
+opacity, surface revision, and device/Android version to those diagnostics.
+An already-requested OCR capture records its active package when that sampled
+context changes; this is not continuous foreground monitoring and does not
+subscribe to Maps events. Native OCR reports timeout, screenshot failure code,
+bitmap/recognition failure, and sanitized card-shape counts. Routine no-card
+shape logs are limited to once per 30 seconds. Dart logs distinguish the
+synthetic no-card marker from recognized offer text; stale results include
+generation, invalidation reason, line count, no-card flag, and elapsed time.
+Capture cadence, generation guards, parser routing, and outcomes are unchanged.
+
+On surface/visibility or sampled capture-context changes, a coalesced check
+copies only the top-left 2x2 pixels of FoxyCo's own SurfaceView, at most once
+per 10 seconds on API 26+. It records PixelCopy result, alpha range, and
+whether the surface revision changed before completion, then clears/recycles
+the bitmap. No image, RGB values, or other app pixels are retained. Alpha is
+evidence about the app buffer, not a detector of Samsung compositor defects;
+even transparent pixels cannot prove the displayed bubble has no grey mask.
+No new automatic recovery or mask fix is claimed.
+
+Reported reproduction (S24 Ultra, September 2026): select Google Maps inside
+Lyft; the mask appears immediately when external Maps opens. Stop/start
+Watching clears it. Existing logs show Maps capture handoffs and normal RGBA
+window parameters, but do not identify which rendering layer became opaque.
+Retest this exact sequence using Q.24 before treating the defect as resolved.
 
 For every capture/parser/scoring change:
 

@@ -23,9 +23,11 @@ import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
 import android.content.IntentFilter;
 import android.graphics.Point;
+import android.graphics.Rect;
 import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
+import android.os.SystemClock;
 import android.util.DisplayMetrics;
 import android.util.Log;
 import android.util.TypedValue;
@@ -33,6 +35,7 @@ import android.view.Display;
 import android.view.Gravity;
 import android.view.HapticFeedbackConstants;
 import android.view.MotionEvent;
+import android.view.PixelCopy;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 import android.view.View;
@@ -77,8 +80,30 @@ public class OverlayService extends Service implements View.OnTouchListener {
     private static OverlayService instance;
     private static long nextGeneration = 0;
     private long generation;
+    private SurfaceView diagnosticSurface;
+    private int surfaceRevision;
+    private String capturePackage = "";
+    private long lastCornerCheckAt = -10000;
+    private boolean cornerCheckBusy;
+    private final Runnable cornerCheck = this::checkSurfaceCorner;
     public static boolean isRunning = false;
     private WindowManager windowManager = null;
+
+    /** Called only by an already-requested OCR capture; no additional app monitoring. */
+    public static void traceOcr(String event, String packageName) {
+        OverlayService current = instance;
+        if (current == null) return;
+        if ("start".equals(event)) {
+            if (packageName.equals(current.capturePackage)) return;
+            current.capturePackage = packageName;
+            current.traceWindow("capture-context", current.flutterView == null ? null
+                    : (WindowManager.LayoutParams) current.flutterView.getLayoutParams());
+            current.scheduleCornerCheck();
+        } else {
+            current.traceDiagnostic("g=" + current.generation + " event=ocr-" + event
+                    + " active=" + (packageName.isEmpty() ? "unknown" : packageName));
+        }
+    }
 
     /** Clear FoxyCo's visible window from an in-memory OCR screenshot. */
     public static void redactCapture(Bitmap bitmap) {
@@ -176,6 +201,9 @@ public class OverlayService extends Service implements View.OnTouchListener {
         }
         windowManager = null;
         flutterView = null;
+        diagnosticSurface = null;
+        surfaceRevision++;
+        mAnimationHandler.removeCallbacks(cornerCheck);
         if (manager != null && view != null) {
             try {
                 manager.removeView(view);
@@ -250,7 +278,14 @@ public class OverlayService extends Service implements View.OnTouchListener {
         // window behind the bubble. SurfaceView owns its transparent holder for
         // its full lifecycle instead of relying on setOpaque(false) retries.
         flutterView = new FlutterView(
-                getApplicationContext(), TransparencyMode.transparent);
+                getApplicationContext(), TransparencyMode.transparent) {
+            @Override
+            protected void onWindowVisibilityChanged(int visibility) {
+                super.onWindowVisibilityChanged(visibility);
+                traceWindow("window-visibility-" + visibility, null);
+                scheduleCornerCheck();
+            }
+        };
         flutterView.attachToFlutterEngine(FlutterEngineCache.getInstance().get(OverlayConstants.CACHED_TAG));
         flutterView.setFitsSystemWindows(true);
         flutterView.setFocusable(true);
@@ -502,12 +537,16 @@ public class OverlayService extends Service implements View.OnTouchListener {
         view.setBackgroundColor(Color.TRANSPARENT);
         if (view instanceof SurfaceView) {
             SurfaceView surface = (SurfaceView) view;
+            diagnosticSurface = surface;
             surface.setZOrderOnTop(true);
             surface.getHolder().setFormat(PixelFormat.RGBA_8888);
             if (transparentSurfaces.add(surface)) {
                 surface.getHolder().addCallback(new SurfaceHolder.Callback() {
                     @Override
                     public void surfaceCreated(SurfaceHolder holder) {
+                        surfaceRevision++;
+                        traceWindow("surface-created-before-restore", flutterView == null
+                                ? null : (WindowManager.LayoutParams) flutterView.getLayoutParams());
                         // App/window transitions can recreate this Surface
                         // without reattaching or resizing the FlutterView.
                         holder.setFormat(PixelFormat.RGBA_8888);
@@ -520,13 +559,17 @@ public class OverlayService extends Service implements View.OnTouchListener {
                     @Override
                     public void surfaceChanged(
                             SurfaceHolder holder, int format, int width, int height) {
+                        surfaceRevision++;
                         traceDiagnostic("g=" + generation
+                                + " revision=" + surfaceRevision
                                 + " event=surface-changed format=" + format
                                 + " size=" + width + "x" + height);
+                        scheduleCornerCheck();
                     }
 
                     @Override
                     public void surfaceDestroyed(SurfaceHolder holder) {
+                        surfaceRevision++;
                         traceWindow("surface-destroyed", flutterView == null
                                 ? null
                                 : (WindowManager.LayoutParams) flutterView.getLayoutParams());
@@ -647,6 +690,8 @@ public class OverlayService extends Service implements View.OnTouchListener {
     public void onCreate() {
         generation = ++nextGeneration;
         traceWindow("create", null);
+        traceDiagnostic("g=" + generation + " event=device model=" + Build.MODEL
+                + " android=" + Build.VERSION.RELEASE + " sdk=" + Build.VERSION.SDK_INT);
         // Get the cached FlutterEngine
         FlutterEngine flutterEngine = FlutterEngineCache.getInstance().get(OverlayConstants.CACHED_TAG);
 
@@ -703,7 +748,75 @@ public class OverlayService extends Service implements View.OnTouchListener {
                 + " flags=0x" + Integer.toHexString(params.flags)
                 + " alpha=" + params.alpha
                 + " size=" + params.width + "x" + params.height;
+        FlutterView view = flutterView;
+        if (view != null) {
+            Display display = view.getDisplay();
+            details += " attached=" + view.isAttachedToWindow() + " shown=" + view.isShown()
+                    + " viewAlpha=" + view.getAlpha() + " opaque=" + view.isOpaque()
+                    + " viewSize=" + view.getWidth() + "x" + view.getHeight()
+                    + " display=" + (display == null ? -1 : display.getDisplayId())
+                    + " rotation=" + (display == null ? -1 : display.getRotation());
+        }
+        SurfaceView surface = diagnosticSurface;
+        if (surface != null) {
+            details += " revision=" + surfaceRevision
+                    + " surfaceValid=" + surface.getHolder().getSurface().isValid()
+                    + " surfaceOpaque=" + surface.isOpaque()
+                    + " surfaceAlpha=" + surface.getAlpha()
+                    + " surfaceFrame=" + surface.getHolder().getSurfaceFrame().toShortString();
+        }
+        details += " captureContext=" + (capturePackage.isEmpty() ? "unknown" : capturePackage);
         traceDiagnostic("g=" + generation + " event=" + event + details);
+    }
+
+    private void scheduleCornerCheck() {
+        mAnimationHandler.removeCallbacks(cornerCheck);
+        mAnimationHandler.postDelayed(cornerCheck, 300);
+    }
+
+    /** Inspect only our own 2x2 surface corner, never Maps pixels or screen content.
+     * Alpha is evidence about Flutter's buffer, not proof of compositor correctness. */
+    private void checkSurfaceCorner() {
+        SurfaceView surface = diagnosticSurface;
+        long now = SystemClock.elapsedRealtime();
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O || surface == null
+                || !surface.isShown() || !surface.getHolder().getSurface().isValid()
+                || surface.getWidth() < 2 || surface.getHeight() < 2
+                || cornerCheckBusy || now - lastCornerCheckAt < 10000) return;
+        lastCornerCheckAt = now;
+        cornerCheckBusy = true;
+        final int revision = surfaceRevision;
+        final Bitmap sample = Bitmap.createBitmap(2, 2, Bitmap.Config.ARGB_8888);
+        try {
+            PixelCopy.request(surface, new Rect(0, 0, 2, 2), sample, result -> {
+                try {
+                    if (instance != this) return;
+                    int minAlpha = 255, maxAlpha = 0;
+                    if (result == PixelCopy.SUCCESS) {
+                        for (int y = 0; y < 2; y++) {
+                            for (int x = 0; x < 2; x++) {
+                                int alpha = Color.alpha(sample.getPixel(x, y));
+                                minAlpha = Math.min(minAlpha, alpha);
+                                maxAlpha = Math.max(maxAlpha, alpha);
+                            }
+                        }
+                    }
+                    traceDiagnostic("g=" + generation + " event=surface-corner revision=" + revision
+                            + " stale=" + (revision != surfaceRevision) + " result=" + result
+                            + (result == PixelCopy.SUCCESS
+                                    ? " alphaMin=" + minAlpha + " alphaMax=" + maxAlpha : ""));
+                } finally {
+                    sample.eraseColor(Color.TRANSPARENT);
+                    sample.recycle();
+                    cornerCheckBusy = false;
+                }
+            }, new Handler(getMainLooper()));
+        } catch (IllegalArgumentException | IllegalStateException error) {
+            sample.eraseColor(Color.TRANSPARENT);
+            sample.recycle();
+            cornerCheckBusy = false;
+            traceDiagnostic("g=" + generation + " event=surface-corner unavailable");
+        }
     }
 
     private void traceDiagnostic(String message) {

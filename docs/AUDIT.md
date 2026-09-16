@@ -1,11 +1,25 @@
 # Release audit
 
-Audit date: 2026-09-01
+Audit date: 2026-09-16
 
-Candidate: `1.0.14+107`
+Candidate: `1.0.14+108`
 
 Automated checks pass. Play upload remains conditional on the device and
 Console checks in `MANUAL_TESTS.md` and `PLAY_RELEASE.md`.
+
+## Build 108 changes
+
+- No layout, animation, parser, scoring, or outcome-rule changes from build 107.
+- Expanded native window/surface and sampled OCR handoff diagnostics, including
+  device/Android version and bounded alpha-only sampling of our own 2x2 corner.
+- Native OCR failures/timeouts and card-shape counts are distinguishable;
+  stale Dart OCR logs explain generation invalidation and synthetic no-card
+  results without recording raw text.
+- Regression checks cover stale-result reasons and no-card labeling.
+- User confirmed the intermittent S24 Ultra mask appears immediately when
+  selecting external Google Maps inside Lyft. Restarting Watching clears it.
+  The supplied logs do not prove the root cause; build 108 is diagnostic,
+  not a verified mask or stacked-Radar fix. Q.24 remains a device gate.
 
 ## Build 107 changes
 
@@ -96,12 +110,19 @@ Console checks in `MANUAL_TESTS.md` and `PLAY_RELEASE.md`.
 - Full Flutter suite: passed
 - Focused parser/watcher/dashboard regression suites: passed
 - Native Android overlay/OCR compilation: passed
+- Android release lint: passed
 - Signed release bundle and checksum verification: passed
+- Bundletool validation and packaged version code `108`: passed
 - Firestore rules and guarded Play bundle preflight: passed
 
-Verified Play artifact: `FoxyCo-v1.0.14+107-release-20260901-2122.aab`
+Verified Play artifact: `FoxyCo-v1.0.14+108-release-20260916-0008.aab`
 
-SHA-256: `b99855cc52f446ecf447c6e18cb66fb434a8ae5c04d5348a355a5501ee1b8852`
+SHA-256: `ad0605e2e51e7cd92b5468b1299f1b700fa1f90cfd71341e5893dc4ffb2af022`
+
+Jarsigner reports `jar verified` with self-signed upload-certificate,
+no-timestamp, and streaming ZIP manifest-order warnings. Android bundle
+validation is checked separately; Play acceptance and device testing remain
+external gates, not claims made by host checks.
 
 ## Device gates
 

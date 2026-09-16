@@ -116,6 +116,7 @@ public class AccessibilityListener extends AccessibilityService {
     private String pendingOcrPackage = "";
     private TextRecognizer ocrRecognizer;
     private Bitmap activeOcrBitmap;
+    private long lastOcrShapeLogAt = -30000;
     private static final Pattern UBER_TIER = Pattern.compile(
             "\\buber\\s*(?:x|xl|share|comfort|green|pet|premier|black|connect|eats)\\b",
             Pattern.CASE_INSENSITIVE
@@ -496,7 +497,11 @@ public class AccessibilityListener extends AccessibilityService {
         AccessibilityNodeInfo activeRoot = getRootInActiveWindow();
         CharSequence activePackage = activeRoot == null ? null : activeRoot.getPackageName();
         pendingOcrPackage = activePackage == null ? "" : activePackage.toString();
-        ocrTimeout = () -> finishOcr(token, Collections.emptyList());
+        traceOcr("start");
+        ocrTimeout = () -> {
+            traceOcr("timeout token=" + token);
+            finishOcr(token, Collections.emptyList());
+        };
         sMain.postDelayed(ocrTimeout, OCR_TIMEOUT_MS);
         try {
             takeScreenshot(
@@ -510,11 +515,16 @@ public class AccessibilityListener extends AccessibilityService {
 
                         @Override
                         public void onFailure(int errorCode) {
-                            sMain.post(() -> finishOcr(token, Collections.emptyList()));
+                            sMain.post(() -> {
+                                if (!isCurrentOcr(token)) return;
+                                traceOcr("screenshot-failed code=" + errorCode + " token=" + token);
+                                finishOcr(token, Collections.emptyList());
+                            });
                         }
                     }
             );
         } catch (RuntimeException error) {
+            traceOcr("request-failed token=" + token);
             finishOcr(token, Collections.emptyList());
         }
         return true;
@@ -537,7 +547,11 @@ public class AccessibilityListener extends AccessibilityService {
             buffer.close();
         }
         if (bitmap == null) {
-            sMain.post(() -> finishOcr(token, Collections.emptyList()));
+            sMain.post(() -> {
+                if (!isCurrentOcr(token)) return;
+                traceOcr("bitmap-unavailable token=" + token);
+                finishOcr(token, Collections.emptyList());
+            });
             return;
         }
         final Bitmap captured = bitmap;
@@ -561,6 +575,7 @@ public class AccessibilityListener extends AccessibilityService {
             final Bitmap captured = bitmap;
             ocrRecognizer.process(InputImage.fromBitmap(captured, 0))
                     .addOnSuccessListener(result -> {
+                        if (!isCurrentOcr(token)) return;
                         List<Text.Line> lines = new ArrayList<>();
                         for (Text.TextBlock block : result.getTextBlocks()) {
                             lines.addAll(block.getLines());
@@ -579,6 +594,19 @@ public class AccessibilityListener extends AccessibilityService {
                             );
                         });
                         List<Text.Line> uberCard = isolateUberCard(lines);
+                        long now = SystemClock.elapsedRealtime();
+                        if (!uberCard.isEmpty() || now - lastOcrShapeLogAt >= 30000) {
+                            lastOcrShapeLogAt = now;
+                            int tiers = 0, trips = 0, actions = 0;
+                            for (Text.Line line : lines) {
+                                if (UBER_TIER.matcher(line.getText()).find()) tiers++;
+                                if (UBER_TRIP.matcher(line.getText()).find()) trips++;
+                                if (OFFER_ACTION.matcher(line.getText()).matches()) actions++;
+                            }
+                            traceOcr("shape token=" + token + " lines=" + lines.size()
+                                    + " tiers=" + tiers + " trips=" + trips + " actions=" + actions
+                                    + " isolated=" + uberCard.size());
+                        }
                         List<String> text = new ArrayList<>();
                         for (Text.Line line : uberCard) {
                             String value = line.getText().trim();
@@ -592,13 +620,17 @@ public class AccessibilityListener extends AccessibilityService {
                         }
                         finishOcr(token, text);
                     })
-                    .addOnFailureListener(error ->
-                            finishOcr(token, Collections.emptyList()))
+                    .addOnFailureListener(error -> {
+                        if (!isCurrentOcr(token)) return;
+                        traceOcr("recognition-failed token=" + token);
+                        finishOcr(token, Collections.emptyList());
+                    })
                     .addOnCompleteListener(task -> {
                         if (activeOcrBitmap == captured) activeOcrBitmap = null;
                         recycleOcrBitmap(captured);
                     });
         } catch (RuntimeException error) {
+            traceOcr("recognition-start-failed token=" + token);
             activeOcrBitmap = null;
             recycleOcrBitmap(bitmap);
             finishOcr(token, Collections.emptyList());
@@ -607,6 +639,18 @@ public class AccessibilityListener extends AccessibilityService {
 
     private static void recycleOcrBitmap(Bitmap bitmap) {
         OCR_EXECUTOR.execute(() -> wipeAndRecycle(bitmap));
+    }
+
+    /** Fixed reason codes and counts only; never log recognized text or exceptions. */
+    private void traceOcr(String event) {
+        try {
+            Class<?> overlay = Class.forName(
+                    "flutter.overlay.window.flutter_overlay_window.OverlayService");
+            overlay.getMethod("traceOcr", String.class, String.class)
+                    .invoke(null, event, pendingOcrPackage);
+        } catch (ReflectiveOperationException | RuntimeException ignored) {
+            // Diagnostic transport must not affect capture or parsing.
+        }
     }
 
     private boolean isCurrentOcr(long token) {

@@ -27,7 +27,7 @@ Legend: 🟢 GOOD  🟡 OK  🔴 BAD (pill shows icon + WORD + `km · $payout`).
 Run these before promoting the AAB. They cover the highest-risk build changes
 without requiring DoorDash, Instacart or Skip accounts.
 
-**Current candidate:** Play bundle build 107. Real-device validation is pending
+**Current candidate:** Play bundle build 108. Real-device validation is pending
 for cross-app OCR, overlay transparency, active-trip outcome isolation, and
 diagnostic-only route matching.
 
@@ -56,6 +56,7 @@ diagnostic-only route matching.
 | Q.21 | Upgrade with the saved Lyft `CA$50.44`, `CA$2.00` tip, `CA$23.56` toll row; then edit, save, restart, export and re-import it | Card/detail stay `CA$52.44` total and `CA$28.88` net throughout; tip is never omitted or added twice; bonus/tip share one row; no amount clips | [ ] build 106 |
 | Q.22 | Watch stacked Uber-over-Lyft/Hopp offers for 30–60 minutes while dragging the bubble and profiling power | Offers and restoration remain timely, gestures stay smooth, routine no-card diagnostics appear no more than once per 30 seconds, and power use has no unexpected regression | [ ] build 105 |
 | Q.23 | Open a completed ride detail and compare total distance/time with pickup/ride | All four orange icons are vertically centered with their values; labels begin under the values; the distance pencil remains easy to tap and shifts nothing | [ ] build 107 |
+| Q.24 | On S24 Ultra, select Google Maps inside Lyft for pickup/drop-off and observe the bubble immediately as external Maps opens; repeat with Android Auto connected, then copy Diagnostics before and after stop/start Watching | Record Android version and exact mask timestamp; compare capture-context, visibility/surface revisions, surface-corner result/alpha/stale, and OCR failure/timeout events. No raw screen text/images in logs; layout unchanged. Transparent corner alone does not prove the mask is fixed | [ ] build 108 |
 
 ---
 

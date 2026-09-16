@@ -153,6 +153,7 @@ class OfferWatcher extends Notifier<Offer?> {
   bool _ocrBusy = false;
   bool _ocrMatched = false;
   int _accessibilityOfferGeneration = 0;
+  String _accessibilityGenerationReason = 'initial';
   bool _uberOcrCardActive = false;
   String? _pendingOcrCorrectionKey;
   String? _pendingSuspiciousOcrKey;
@@ -385,6 +386,9 @@ class OfferWatcher extends Notifier<Offer?> {
           // lifecycle and outcomes. Invalidate a screenshot of the card that
           // just left so it cannot resurrect a dismissed offer.
           _accessibilityOfferGeneration++;
+          _accessibilityGenerationReason = accepted
+              ? 'accepted-screen'
+              : 'browse-after-card';
           _uberOcrCardActive = false;
           _pendingOcrCorrectionKey = null;
           _pendingSuspiciousOcrKey = null;
@@ -392,6 +396,7 @@ class OfferWatcher extends Notifier<Offer?> {
           // A browse frame racing an unfinished first capture is ambiguous:
           // discard that old screenshot and let the bounded retry confirm.
           _accessibilityOfferGeneration++;
+          _accessibilityGenerationReason = 'browse-during-capture';
         }
       } else if (forceCrossAppOcr || checkForCoveredUber) {
         if (read.isActive &&
@@ -598,7 +603,10 @@ class OfferWatcher extends Notifier<Offer?> {
     if (read.source == CaptureSource.accessibility && read.isActive) {
       // A lower selected-app card can keep emitting while Uber is visibly
       // stacked above it. Only Uber evidence can invalidate an Uber screenshot.
-      if (offer.platform == GigPlatform.uber) _accessibilityOfferGeneration++;
+      if (offer.platform == GigPlatform.uber) {
+        _accessibilityOfferGeneration++;
+        _accessibilityGenerationReason = 'accessibility-offer';
+      }
       _pendingOcrCorrectionKey = null;
       _pendingSuspiciousOcrKey = null;
     } else if (read.source == CaptureSource.ocr &&
@@ -870,7 +878,12 @@ class OfferWatcher extends Notifier<Offer?> {
             .log(
               'ocr',
               'discarded stale result trigger=$packageName '
-                  'active=${frame.packageName.isEmpty ? 'unknown' : frame.packageName}',
+                  'active=${frame.packageName.isEmpty ? 'unknown' : frame.packageName} '
+                  'generation=$accessibilityGeneration->$_accessibilityOfferGeneration '
+                  'reason=$_accessibilityGenerationReason '
+                  'lines=${frame.lines.length} '
+                  'noCard=${frame.lines.contains(_noUberCard)} '
+                  'ms=${DateTime.now().difference(now).inMilliseconds}',
             );
         retry = retryOnMiss;
         return;
@@ -889,6 +902,7 @@ class OfferWatcher extends Notifier<Offer?> {
             .log(
               'ocr',
               'recognized ${frame.lines.length} lines '
+                  'noCard=$routineNoCard '
                   'trigger=$packageName '
                   'active=${frame.packageName.isEmpty ? 'unknown' : frame.packageName} '
                   'ms=${DateTime.now().difference(now).inMilliseconds}',

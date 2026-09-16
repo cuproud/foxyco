@@ -826,7 +826,61 @@ void main() {
       ),
       hasLength(1),
     );
+    expect(
+      log.entries.singleWhere((entry) => entry.tag == 'ocr').message,
+      contains('noCard=true'),
+    );
   });
+
+  test(
+    'stale OCR explains invalidation without retaining screen text',
+    () async {
+      final log = _MemoryFoxLog();
+      final c = container(log: log);
+      c.read(settingsProvider.notifier).setOcrEnabled(true);
+      final capture = Completer<OcrFrame>();
+      ocr.nextCapture = capture;
+      c.read(offerWatcherProvider);
+      watcher.emit(
+        const ScreenRead(
+          packageName: ParserRegistry.uberPackage,
+          texts: [],
+          isActive: true,
+        ),
+      );
+      await Future<void>.delayed(Duration.zero);
+      expect(ocr.captures, 1);
+      watcher.emit(
+        const ScreenRead(
+          packageName: ParserRegistry.uberPackage,
+          texts: ['Picking up Private Rider'],
+          isActive: true,
+        ),
+      );
+      await Future<void>.delayed(Duration.zero);
+      capture.complete(
+        const OcrFrame(
+          packageName: ParserRegistry.uberPackage,
+          lines: ['__FOXYCO_NO_UBER_CARD__'],
+        ),
+      );
+      await Future<void>.delayed(Duration.zero);
+      await Future<void>.delayed(Duration.zero);
+      final message = log.entries
+          .singleWhere(
+            (entry) => entry.message.startsWith('discarded stale result'),
+          )
+          .message;
+      expect(message, contains('generation=0->1'));
+      expect(message, contains('reason=accepted-screen'));
+      expect(message, contains('noCard=true'));
+      expect(
+        log.entries.any((entry) => entry.message.contains('Private Rider')),
+        isFalse,
+      );
+      expect(c.read(offerLogProvider), isEmpty);
+    },
+  );
 
   test(
     'one conflicting OCR frame cannot replace live Uber economics',
