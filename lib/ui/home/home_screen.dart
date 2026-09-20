@@ -27,6 +27,7 @@ import '../theme/tokens.dart';
 import 'dashboard_controller.dart';
 import 'dashboard_state.dart';
 import 'fox_tips_card.dart';
+import 'goal_card.dart';
 import 'profile_card.dart';
 import 'recap_widgets.dart';
 import 'slide_to_live.dart';
@@ -47,8 +48,8 @@ class HomeScreen extends ConsumerWidget {
     final controller = ref.read(dashboardProvider.notifier);
     final settings = ref.watch(settingsProvider);
     final blocked = state.status == WatchStatus.blocked;
-    final recentAccepted = ref
-        .watch(offerLogProvider)
+    final offers = ref.watch(offerLogProvider);
+    final recentAccepted = offers
         .where(
           (offer) =>
               offer.outcome == OfferOutcome.taken ||
@@ -150,6 +151,12 @@ class HomeScreen extends ConsumerWidget {
             session: ref.watch(lastSessionProvider),
             onTap: () => ref.read(tabIndexProvider.notifier).go(2),
           ),
+        ),
+        const SizedBox(height: Gap.lg),
+        const _Padded(child: SectionLabel('My goal')),
+        const SizedBox(height: Gap.sm + Gap.xs),
+        _Padded(
+          child: GoalCard(offers: offers, settings: settings),
         ),
         const SizedBox(height: Gap.lg),
         if (recentAccepted.isNotEmpty) ...[

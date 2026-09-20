@@ -63,7 +63,7 @@ class ParserPatterns {
     caseSensitive: false,
   );
 
-  /// A timeline leg: "N min · X km" / "N mins • X km". Shared by Hopp and Lyft,
+  /// A timeline leg: "N min · X km" / "1 hr 28 mins • X km". Shared by Hopp and Lyft,
   /// which use the same dot-line pickup→dropoff card. Tolerant of min/mins and
   /// the separator (middot / bullet / hyphen) between time and distance. The
   /// separator is optional because on-device OCR routinely omits that tiny
@@ -73,7 +73,8 @@ class ParserPatterns {
   /// time but no distance, so it never counts as a leg — that browse-map noise
   /// (bug1 (8)) can't be stitched into a fake trip.
   static final leg = RegExp(
-    r'(\d+)\s*mins?\s*(?:[·•⋅\-]\s*)?([\d.]+)\s*(km|mi|miles?)\b',
+    r'(?:(\d+)\s*h(?:rs?|ours?)?\s*)?(\d+)\s*mins?\s*'
+    r'(?:[·•⋅\-]\s*)?([\d.]+)\s*(km|mi|miles?)\b',
     caseSensitive: false,
   );
 
@@ -305,12 +306,12 @@ class ParserPatterns {
   static ({double pickupKm, double pickupMin, double tripKm, double tripMin})?
   foldLegs(List<RegExpMatch> legs) {
     if (legs.length < 2 || legs.length > _maxLegs) return null;
-    final pickupMin = double.tryParse(legs.first.group(1)!) ?? 0;
+    final pickupMin = _legMinutes(legs.first);
     final pickupKm = _legKm(legs.first);
     var tripMin = 0.0;
     var tripKm = 0.0;
     for (final leg in legs.skip(1)) {
-      tripMin += double.tryParse(leg.group(1)!) ?? 0;
+      tripMin += _legMinutes(leg);
       tripKm += _legKm(leg);
     }
     if (pickupKm + tripKm <= 0) return null;
@@ -323,17 +324,23 @@ class ParserPatterns {
   }
 
   static ({double tripKm, double tripMin})? foldScheduledLeg(RegExpMatch leg) {
-    final tripMin = double.tryParse(leg.group(1)!) ?? 0;
+    final tripMin = _legMinutes(leg);
     final tripKm = _legKm(leg);
     if (tripKm <= 0 || tripMin <= 0) return null;
     return (tripKm: tripKm, tripMin: tripMin);
   }
 
   static double _legKm(RegExpMatch leg) {
-    final value = double.tryParse(leg.group(2)!) ?? 0;
-    final unit = leg.group(3)?.toLowerCase();
+    final value = double.tryParse(leg.group(3)!) ?? 0;
+    final unit = leg.group(4)?.toLowerCase();
     return unit == 'mi' || unit?.startsWith('mile') == true
         ? value * DistanceUnit.kilometresPerMile
         : value;
+  }
+
+  static double _legMinutes(RegExpMatch leg) {
+    final hours = double.tryParse(leg.group(1) ?? '') ?? 0;
+    final minutes = double.tryParse(leg.group(2)!) ?? 0;
+    return hours * 60 + minutes;
   }
 }

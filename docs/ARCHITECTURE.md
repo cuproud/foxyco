@@ -1,6 +1,6 @@
 # Architecture
 
-Updated 2026-09-16 for `1.0.14+108`.
+Updated 2026-09-19 for `1.0.14+109`.
 
 ## Boundaries
 
@@ -56,6 +56,10 @@ the final payout once; reimbursed tolls remain visible but are excluded from
 performance earnings and rates. History is capped and retention can be
 configured. Android backup and data extraction are disabled.
 
+History can also create a completed manual Uber, Lyft, or Hopp ride when live
+capture missed it. The entry uses the supplied payout, total distance, total
+minutes, and past timestamp, then applies the current rideshare scoring rules.
+
 Final-payout JSON marks that its separately stored tip is already included.
 Unmarked legacy rows add that tip once while loading, then serialize with the
 marker so restart, backup, and import cannot add it again.
@@ -95,6 +99,10 @@ Play's declaration, prominent disclosure, consent flow, and review video.
 - Android 8.0+ (`minSdk 26`); Android-only because the overlay and cross-app
   reading model is not available on iOS.
 - Flutter Material 3, Riverpod, and go_router.
+- The startup scene rotates through mountain, snow, and autumn landscapes in
+  one bounded animation. Reduced-motion devices show the final static scene.
+- Home derives Week/Month/Quarter/Year goal progress from taken and completed
+  History payouts; missed offers never count toward the displayed earnings.
 - System text scale plus the in-app text multiplier is capped at 2×; focused
   widget tests cover narrow screens, large text, scrollability, and overlay
   geometry.

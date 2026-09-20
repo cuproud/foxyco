@@ -86,6 +86,21 @@ void main() {
     expect(offer.totalMinutes, 8);
   });
 
+  test('long Lyft trip keeps the hour shown before minutes', () {
+    final offer = parser.parse([
+      r'$61.03',
+      r'Incl. CA$10.17 bonus',
+      r'$39.37/hr est. rate for this ride',
+      '5 mins · 1.8 km',
+      '1 hr 28 mins · 95 km',
+      'Accept',
+    ])!;
+
+    expect(offer.totalKm, 96.8);
+    expect(offer.totalMinutes, 93);
+    expect(offer.pricePerHour, closeTo(39.37, 0.01));
+  });
+
   test('keeps the total when total and bonus share one accessibility node', () {
     final offer = parser.parse([
       'Total \$15.00 + \$3.00 bonus included',

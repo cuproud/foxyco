@@ -41,8 +41,11 @@ void main() {
     expect(find.byKey(const Key('splash-wordmark')), findsOneWidget);
     expect(find.text('SHELL'), findsNothing);
 
-    // Let the drive-in run past its 1.8s controller; splash force-navigates.
-    await tester.pump(const Duration(milliseconds: 2400));
+    expect(find.byKey(const Key('splash-car')), findsOneWidget);
+    expect(find.byKey(const Key('splash-loader')), findsOneWidget);
+
+    // Let the seasonal drive-in finish and navigate.
+    await tester.pump(const Duration(milliseconds: 2700));
     await tester.pumpAndSettle();
     expect(find.text('SHELL'), findsOneWidget);
   });
@@ -56,5 +59,27 @@ void main() {
     await tester.pump(const Duration(milliseconds: 600));
     await tester.pumpAndSettle();
     expect(find.text('SHELL'), findsOneWidget);
+  });
+
+  testWidgets('splash rotates through all three landscapes', (tester) async {
+    await tester.pumpWidget(_app());
+
+    expect(
+      find.bySemanticsLabel(RegExp('FoxyCo mountain welcome scene')),
+      findsOneWidget,
+    );
+    await tester.pump(); // Starts the controller after its post-frame callback.
+    await tester.pump(const Duration(milliseconds: 900));
+    await tester.pump();
+    expect(
+      find.bySemanticsLabel(RegExp('FoxyCo winter welcome scene')),
+      findsOneWidget,
+    );
+    await tester.pump(const Duration(milliseconds: 900));
+    await tester.pump();
+    expect(
+      find.bySemanticsLabel(RegExp('FoxyCo autumn welcome scene')),
+      findsOneWidget,
+    );
   });
 }

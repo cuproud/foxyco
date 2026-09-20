@@ -332,6 +332,25 @@ void main() {
     expect(l.state.single.tollReimbursement, 0);
   });
 
+  test('manual missed ride is scored and stored as completed', () {
+    final l = log();
+    final added = l.addManualRide(
+      platform: GigPlatform.uber,
+      payout: 19.35,
+      totalKm: 11.96,
+      totalMinutes: 30 + 25 / 60,
+      seenAt: t,
+    );
+
+    expect(added, isNotNull);
+    expect(added!.verdict, Verdict.good);
+    expect(added.outcome, OfferOutcome.completed);
+    expect(added.outcomeIsManual, isTrue);
+    expect(added.finalPayout, 19.35);
+    expect(added.category, 'Manual entry');
+    expect(l.state.single, same(added));
+  });
+
   test('offer received during hydration survives with disk history', () async {
     final stored = offer(seenAt: t.subtract(const Duration(hours: 1)));
     SharedPreferences.setMockInitialValues({

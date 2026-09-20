@@ -199,7 +199,9 @@ class _OfferDetailSheet extends ConsumerWidget {
                     children: [
                       Expanded(
                         child: Text(
-                          current.finalPayout == null
+                          current.category == 'Manual entry'
+                              ? 'Manually entered completed ride'
+                              : current.finalPayout == null
                               ? 'Upfront offer'
                               : 'Final earnings · upfront ${currency.prefix}${current.payout.toStringAsFixed(2)}',
                           style: TextStyle(

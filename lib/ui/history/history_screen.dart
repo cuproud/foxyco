@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/offer_stats.dart';
 import '../../domain/offer_summary.dart';
+import '../../domain/distance_unit.dart';
 import '../../domain/fox_settings.dart';
 import '../../domain/platform.dart';
 import '../../domain/verdict.dart';
@@ -194,8 +195,6 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
           ),
           children: [
             Row(
-              crossAxisAlignment: CrossAxisAlignment.baseline,
-              textBaseline: TextBaseline.alphabetic,
               children: [
                 Text(
                   'History',
@@ -213,7 +212,17 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                 ),
               ],
             ),
-            const SizedBox(height: Gap.md),
+            const SizedBox(height: Gap.sm),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: OutlinedButton.icon(
+                key: const ValueKey('history-add-ride'),
+                onPressed: _addRide,
+                icon: const Icon(Icons.add_rounded, size: 18),
+                label: const Text('Add ride'),
+              ),
+            ),
+            const SizedBox(height: Gap.sm),
             _FiltersCard(
               expanded: false,
               range: _range,
@@ -306,6 +315,36 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
 
   void _toggleVerdict(Verdict? v) {
     setState(() => _toggleIn(_verdicts, v));
+  }
+
+  Future<void> _addRide() async {
+    final settings = ref.read(settingsProvider);
+    final input = await showDialog<_ManualRideInput>(
+      context: context,
+      builder: (_) => _ManualRideDialog(
+        unit: settings.distanceUnit,
+        currencyPrefix: settings.currency.prefix,
+      ),
+    );
+    if (input == null || !mounted) return;
+    final added = ref
+        .read(offerLogProvider.notifier)
+        .addManualRide(
+          platform: input.platform,
+          payout: input.payout,
+          totalKm: input.totalKm,
+          totalMinutes: input.totalMinutes,
+          seenAt: input.seenAt,
+        );
+    if (added == null) return;
+    await ref
+        .read(sessionLogProvider.notifier)
+        .refreshForOffer(added, ref.read(offerLogProvider));
+    if (!mounted) return;
+    setState(_resetFilters);
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Ride added to History.')));
   }
 
   Future<void> _showFilters(List<GigPlatform> availableApps) async {
@@ -512,6 +551,192 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
       'Dec',
     ];
     return '${months[t.month - 1]} ${t.day}';
+  }
+}
+
+typedef _ManualRideInput = ({
+  GigPlatform platform,
+  double payout,
+  double totalKm,
+  double totalMinutes,
+  DateTime seenAt,
+});
+
+class _ManualRideDialog extends StatefulWidget {
+  const _ManualRideDialog({required this.unit, required this.currencyPrefix});
+
+  final DistanceUnit unit;
+  final String currencyPrefix;
+
+  @override
+  State<_ManualRideDialog> createState() => _ManualRideDialogState();
+}
+
+class _ManualRideDialogState extends State<_ManualRideDialog> {
+  GigPlatform _platform = GigPlatform.uber;
+  final _payout = TextEditingController();
+  final _distance = TextEditingController();
+  final _minutes = TextEditingController();
+  DateTime _date = DateTime.now();
+  TimeOfDay _time = TimeOfDay.now();
+  String? _error;
+
+  @override
+  void dispose() {
+    _payout.dispose();
+    _distance.dispose();
+    _minutes.dispose();
+    super.dispose();
+  }
+
+  double? _number(TextEditingController controller) =>
+      double.tryParse(controller.text.trim().replaceAll(',', '.'));
+
+  Future<void> _pickDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _date,
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now(),
+    );
+    if (picked != null) setState(() => _date = picked);
+  }
+
+  Future<void> _pickTime() async {
+    final picked = await showTimePicker(context: context, initialTime: _time);
+    if (picked != null) setState(() => _time = picked);
+  }
+
+  void _save() {
+    final payout = _number(_payout);
+    final distance = _number(_distance);
+    final minutes = _number(_minutes);
+    final seenAt = DateTime(
+      _date.year,
+      _date.month,
+      _date.day,
+      _time.hour,
+      _time.minute,
+    );
+    if (payout == null ||
+        !payout.isFinite ||
+        payout <= 0 ||
+        distance == null ||
+        !distance.isFinite ||
+        distance <= 0 ||
+        minutes == null ||
+        !minutes.isFinite ||
+        minutes <= 0 ||
+        seenAt.isAfter(DateTime.now().add(const Duration(minutes: 5)))) {
+      setState(() => _error = 'Enter positive values and a past ride time.');
+      return;
+    }
+    Navigator.pop(context, (
+      platform: _platform,
+      payout: (payout * 100).round() / 100,
+      totalKm: widget.unit.distanceToKm(distance),
+      totalMinutes: minutes,
+      seenAt: seenAt,
+    ));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final localizations = MaterialLocalizations.of(context);
+    return AlertDialog(
+      title: const Text('Add missed ride'),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            DropdownButtonFormField<GigPlatform>(
+              initialValue: _platform,
+              decoration: const InputDecoration(labelText: 'App'),
+              items:
+                  const [GigPlatform.uber, GigPlatform.hopp, GigPlatform.lyft]
+                      .map(
+                        (platform) => DropdownMenuItem(
+                          value: platform,
+                          child: Text(platform.label),
+                        ),
+                      )
+                      .toList(),
+              onChanged: (value) => setState(() => _platform = value!),
+            ),
+            const SizedBox(height: Gap.sm),
+            TextField(
+              key: const ValueKey('manual-ride-payout'),
+              controller: _payout,
+              autofocus: true,
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
+              decoration: InputDecoration(
+                labelText: 'Payout',
+                prefixText: widget.currencyPrefix,
+              ),
+            ),
+            const SizedBox(height: Gap.sm),
+            TextField(
+              key: const ValueKey('manual-ride-distance'),
+              controller: _distance,
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
+              decoration: InputDecoration(
+                labelText: 'Total distance',
+                suffixText: widget.unit.shortLabel,
+              ),
+            ),
+            const SizedBox(height: Gap.sm),
+            TextField(
+              key: const ValueKey('manual-ride-minutes'),
+              controller: _minutes,
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
+              textInputAction: TextInputAction.done,
+              onSubmitted: (_) => _save(),
+              decoration: const InputDecoration(labelText: 'Total minutes'),
+            ),
+            const SizedBox(height: Gap.sm),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _pickDate,
+                    icon: const Icon(Icons.calendar_today_rounded, size: 16),
+                    label: Text(localizations.formatMediumDate(_date)),
+                  ),
+                ),
+                const SizedBox(width: Gap.sm),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _pickTime,
+                    icon: const Icon(Icons.schedule_rounded, size: 16),
+                    label: Text(localizations.formatTimeOfDay(_time)),
+                  ),
+                ),
+              ],
+            ),
+            if (_error != null) ...[
+              const SizedBox(height: Gap.sm),
+              Text(
+                _error!,
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
+            ],
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(onPressed: _save, child: const Text('Add ride')),
+      ],
+    );
   }
 }
 

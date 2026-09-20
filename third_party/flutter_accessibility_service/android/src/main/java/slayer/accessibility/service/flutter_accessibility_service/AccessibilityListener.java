@@ -490,6 +490,7 @@ public class AccessibilityListener extends AccessibilityService {
         if (service != null) sMain.post(service::cancelOcrInternal);
     }
 
+    @TargetApi(Build.VERSION_CODES.R)
     private boolean requestOcr(OcrCallback callback) {
         if (callback == null || !isOcrAvailable() || pendingOcr != null) return false;
         final long token = ++ocrToken;

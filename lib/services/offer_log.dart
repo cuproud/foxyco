@@ -6,9 +6,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../domain/fox_settings.dart';
+import '../domain/offer.dart';
 import '../domain/offer_summary.dart';
 import '../domain/platform.dart';
 import '../domain/rate_mode.dart';
+import '../domain/scoring_snapshot.dart';
 import '../domain/thresholds.dart';
 import '../domain/verdict.dart';
 import '../domain/decision_engine.dart';
@@ -352,6 +354,57 @@ class OfferLog extends Notifier<List<OfferSummary>> {
     // [_save] waits for it and persists the merged list.
     unawaited(_save());
     return offer;
+  }
+
+  /// Add a completed ride that the live detector never captured.
+  OfferSummary? addManualRide({
+    required GigPlatform platform,
+    required double payout,
+    required double totalKm,
+    required double totalMinutes,
+    required DateTime seenAt,
+  }) {
+    if (!const {
+          GigPlatform.uber,
+          GigPlatform.hopp,
+          GigPlatform.lyft,
+        }.contains(platform) ||
+        !payout.isFinite ||
+        payout <= 0 ||
+        !totalKm.isFinite ||
+        totalKm <= 0 ||
+        !totalMinutes.isFinite ||
+        totalMinutes <= 0 ||
+        seenAt.year < 2020 ||
+        seenAt.isAfter(DateTime.now().add(const Duration(minutes: 5)))) {
+      return null;
+    }
+    final settings = ref.read(settingsProvider);
+    final offer = Offer(
+      platform: platform,
+      payout: payout,
+      pickupKm: 0,
+      dropoffKm: totalKm,
+      dropoffMinutes: totalMinutes,
+      category: 'Manual entry',
+    );
+    final summary = OfferSummary(
+      platform: platform,
+      verdict: const DecisionEngine().scoreOffer(offer, settings),
+      payout: payout,
+      finalPayout: payout,
+      totalKm: totalKm,
+      totalMinutes: totalMinutes,
+      seenAt: seenAt,
+      outcome: OfferOutcome.completed,
+      outcomeIsManual: true,
+      scoringSnapshot: ScoringSnapshot.fromSettings(
+        settings,
+        platform: platform,
+      ),
+      category: offer.category,
+    );
+    return record(summary, confirmedNewCard: true);
   }
 
   /// Stamp the exact offer that produced the follow-up screen. Repeated

@@ -111,6 +111,7 @@ void main() {
     expect(find.text('Ready when you are'), findsOneWidget);
     expect(find.textContaining('offers seen'), findsOneWidget);
     expect(find.text('LAST SESSION'), findsOneWidget);
+    expect(find.text('MY GOAL'), findsOneWidget);
 
     // Off-device the session log is empty — the card shows its empty state.
     expect(find.textContaining('No sessions yet'), findsOneWidget);
@@ -240,7 +241,8 @@ void main() {
     await tester.pump(const Duration(milliseconds: 700));
 
     expect(find.text('51 more than yesterday'), findsOneWidget);
-    expect(find.textContaining('%'), findsNothing);
+    expect(find.textContaining('% more than yesterday'), findsNothing);
+    expect(find.textContaining('% fewer than yesterday'), findsNothing);
   });
 
   testWidgets('Go live / Stop toggles monitoring', (tester) async {

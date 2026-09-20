@@ -1,11 +1,30 @@
 # Release audit
 
-Audit date: 2026-09-16
+Audit date: 2026-09-19
 
-Candidate: `1.0.14+108`
+Candidate: `1.0.14+109`
 
 Automated checks pass. Play upload remains conditional on the device and
 Console checks in `MANUAL_TESTS.md` and `PLAY_RELEASE.md`.
+
+## Build 109 changes
+
+- Lyft and Hopp duration parsing now includes an optional hour component, so
+  `1 hr 28 mins` is 88 minutes rather than 28.
+- History can add a missed completed Uber, Lyft, or Hopp ride with validated
+  payout, distance, duration, and past timestamp; the current rideshare rules
+  produce its stored verdict.
+- Home now shows an animated goal card after Last session. Week, Month,
+  Quarter, and Year progress uses taken/completed History earnings and excludes
+  missed offers.
+- Startup uses the supplied fox-car artwork and rotates Mountains → Snow →
+  Autumn in one bounded native Flutter animation, with a reduced-motion path.
+- Parser, persistence, narrow-layout, Home integration, seasonal rotation, and
+  goal-period regression coverage were added.
+- Vendored overlay/accessibility modules now declare the app's minSdk 26, and
+  the API 30 OCR path carries its existing runtime gate into release lint.
+- The S24 Ultra grey mask is not claimed fixed. Build 108 diagnostics and Q.24
+  remain the evidence path; stop/start Watching remains the known workaround.
 
 ## Build 108 changes
 
@@ -112,12 +131,12 @@ Console checks in `MANUAL_TESTS.md` and `PLAY_RELEASE.md`.
 - Native Android overlay/OCR compilation: passed
 - Android release lint: passed
 - Signed release bundle and checksum verification: passed
-- Bundletool validation and packaged version code `108`: passed
+- Packaged version and About label synchronized to build `109`: passed
 - Firestore rules and guarded Play bundle preflight: passed
 
-Verified Play artifact: `FoxyCo-v1.0.14+108-release-20260916-0008.aab`
+Verified Play artifact: `FoxyCo-v1.0.14+109-release-20260919-2214.aab`
 
-SHA-256: `ad0605e2e51e7cd92b5468b1299f1b700fa1f90cfd71341e5893dc4ffb2af022`
+SHA-256: `e581e132e21c04a1602a91cd6eeec73284a2949d27a6dfc1bc2407cb32ebc0d4`
 
 Jarsigner reports `jar verified` with self-signed upload-certificate,
 no-timestamp, and streaming ZIP manifest-order warnings. Android bundle

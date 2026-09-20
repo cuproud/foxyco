@@ -1,7 +1,7 @@
 # Offer Detection and Verdict Logic
 
-Canonical implementation map for `1.0.14+108`, verified against the code on
-2026-09-16.
+Canonical implementation map for `1.0.14+109`, verified against the code on
+2026-09-19.
 
 ## Maintenance contract
 
@@ -145,7 +145,8 @@ rules, and minimum payout are applied.
 ### Hopp
 
 A complete Hopp offer requires Accept/Match, a clean payout, and two to six
-ordered `N min · X km` legs. The first leg is pickup; every remaining leg is
+ordered `N min · X km` legs. Optional leading hours, such as
+`1 hr 28 mins · 95 km`, are included. The first leg is pickup; every remaining leg is
 summed as the trip, which supports up to five trip legs/stops. Fewer than two or
 more than six legs returns `null`.
 
@@ -156,7 +157,8 @@ scoring.
 ### Lyft
 
 A live Lyft offer requires Accept/Add to queue, a clean total payout, and two
-to six ordered `N min · X km` legs. The first is pickup and the rest are summed
+to six ordered `N min · X km` legs. Optional leading hours are included. The
+first is pickup and the rest are summed
 as the trip. Bonus-labelled amounts are stored separately but are already part
 of the displayed payout and are never added again. `Add to queue` marks the
 offer queued and changes only history/category context.
@@ -379,6 +381,12 @@ History also allows the driver to correct total distance for any platform when
 a source app or OCR supplied a bad value. The correction preserves the row and
 rescales the historical verdict from its saved scoring snapshot; distances are
 still stored canonically in kilometres.
+
+History's Add ride action records a completed Uber, Hopp, or Lyft ride that was
+never captured live. The driver supplies payout, total distance, total minutes,
+and the ride date/time. FoxyCo scores those values against the current rideshare
+rules, stores the payout as final earnings, and marks the outcome as a manual
+completion. Manual entry does not attempt to reconstruct an unseen offer card.
 
 An accepted-trip marker that was already visible when a new offer appeared is
 not evidence that the new offer was taken. This occurs when Uber or Lyft draws
