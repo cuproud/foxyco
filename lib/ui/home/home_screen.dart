@@ -156,7 +156,11 @@ class HomeScreen extends ConsumerWidget {
         const _Padded(child: SectionLabel('My goal')),
         const SizedBox(height: Gap.sm + Gap.xs),
         _Padded(
-          child: GoalCard(offers: offers, settings: settings),
+          child: GoalCard(
+            offers: offers,
+            settings: settings,
+            onGoalChanged: ref.read(settingsProvider.notifier).setEarningsGoal,
+          ),
         ),
         const SizedBox(height: Gap.lg),
         if (recentAccepted.isNotEmpty) ...[

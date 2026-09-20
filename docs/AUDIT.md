@@ -1,11 +1,18 @@
 # Release audit
 
-Audit date: 2026-09-19
+Audit date: 2026-09-20
 
-Candidate: `1.0.14+109`
+Candidate: `1.0.14+110`
 
 Automated checks pass. Play upload remains conditional on the device and
 Console checks in `MANUAL_TESTS.md` and `PLAY_RELEASE.md`.
+
+## Build 110 changes
+
+- Week, Month, Quarter, and Year earnings targets are editable from the Home
+  goal card and persist with the driver's existing settings.
+- Large goal and progress amounts scale to narrow cards instead of clipping.
+- Focused tests cover editing, serialization, and narrow-screen layout.
 
 ## Build 109 changes
 

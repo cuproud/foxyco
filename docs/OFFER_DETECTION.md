@@ -1,7 +1,7 @@
 # Offer Detection and Verdict Logic
 
-Canonical implementation map for `1.0.14+109`, verified against the code on
-2026-09-19.
+Canonical implementation map for `1.0.14+110`, verified against the code on
+2026-09-20.
 
 ## Maintenance contract
 

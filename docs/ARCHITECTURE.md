@@ -1,6 +1,6 @@
 # Architecture
 
-Updated 2026-09-19 for `1.0.14+109`.
+Updated 2026-09-20 for `1.0.14+110`.
 
 ## Boundaries
 
@@ -102,7 +102,8 @@ Play's declaration, prominent disclosure, consent flow, and review video.
 - The startup scene rotates through mountain, snow, and autumn landscapes in
   one bounded animation. Reduced-motion devices show the final static scene.
 - Home derives Week/Month/Quarter/Year goal progress from taken and completed
-  History payouts; missed offers never count toward the displayed earnings.
+  History payouts; missed offers never count. Each target is editable from the
+  selected period on the card and persists in the existing settings blob.
 - System text scale plus the in-app text multiplier is capped at 2×; focused
   widget tests cover narrow screens, large text, scrollability, and overlay
   geometry.

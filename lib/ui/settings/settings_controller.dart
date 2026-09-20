@@ -290,6 +290,18 @@ class SettingsController extends Notifier<FoxSettings> {
     ),
   );
 
+  void setEarningsGoal(EarningsGoalPeriod period, double amount) {
+    final goal = amount.clamp(1, 999999.99).toDouble();
+    _change(
+      (current) => switch (period) {
+        EarningsGoalPeriod.week => current.copyWith(weeklyGoal: goal),
+        EarningsGoalPeriod.month => current.copyWith(monthlyGoal: goal),
+        EarningsGoalPeriod.quarter => current.copyWith(quarterlyGoal: goal),
+        EarningsGoalPeriod.year => current.copyWith(yearlyGoal: goal),
+      },
+    );
+  }
+
   /// UI thresholds are expressed in the selected unit; storage/scoring stays
   /// canonical in dollars per kilometre.
   void setDisplayedGood(double value) => _change((current) {

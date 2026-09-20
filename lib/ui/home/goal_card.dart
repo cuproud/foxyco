@@ -1,24 +1,22 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../domain/fox_settings.dart';
 import '../../domain/offer_summary.dart';
 import '../theme/tokens.dart';
 
-enum _GoalPeriod {
-  week('Week', 500),
-  month('Month', 2000),
-  quarter('Quarter', 6000),
-  year('Year', 24000);
-
-  const _GoalPeriod(this.label, this.target);
-
-  final String label;
-  final double target;
+extension on EarningsGoalPeriod {
+  String get label => switch (this) {
+    EarningsGoalPeriod.week => 'Week',
+    EarningsGoalPeriod.month => 'Month',
+    EarningsGoalPeriod.quarter => 'Quarter',
+    EarningsGoalPeriod.year => 'Year',
+  };
 
   (DateTime, DateTime) range(DateTime now) => switch (this) {
-    week => () {
+    EarningsGoalPeriod.week => () {
       final start = DateTime(
         now.year,
         now.month,
@@ -26,12 +24,15 @@ enum _GoalPeriod {
       ).subtract(Duration(days: now.weekday - 1));
       return (start, start.add(const Duration(days: 7)));
     }(),
-    month => (DateTime(now.year, now.month), DateTime(now.year, now.month + 1)),
-    quarter => () {
+    EarningsGoalPeriod.month => (
+      DateTime(now.year, now.month),
+      DateTime(now.year, now.month + 1),
+    ),
+    EarningsGoalPeriod.quarter => () {
       final month = ((now.month - 1) ~/ 3) * 3 + 1;
       return (DateTime(now.year, month), DateTime(now.year, month + 3));
     }(),
-    year => (DateTime(now.year), DateTime(now.year + 1)),
+    EarningsGoalPeriod.year => (DateTime(now.year), DateTime(now.year + 1)),
   };
 }
 
@@ -41,18 +42,33 @@ class GoalCard extends StatefulWidget {
     required this.offers,
     required this.settings,
     this.now,
+    this.onGoalChanged,
   });
 
   final List<OfferSummary> offers;
   final FoxSettings settings;
   final DateTime? now;
+  final void Function(EarningsGoalPeriod period, double amount)? onGoalChanged;
 
   @override
   State<GoalCard> createState() => _GoalCardState();
 }
 
 class _GoalCardState extends State<GoalCard> {
-  _GoalPeriod _period = _GoalPeriod.week;
+  EarningsGoalPeriod _period = EarningsGoalPeriod.week;
+
+  Future<void> _editGoal() async {
+    final amount = await showModalBottomSheet<double>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => _EditGoalSheet(
+        period: _period,
+        amount: widget.settings.goalFor(_period),
+        symbol: widget.settings.currency.symbol,
+      ),
+    );
+    if (amount != null && mounted) widget.onGoalChanged?.call(_period, amount);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -67,7 +83,7 @@ class _GoalCardState extends State<GoalCard> {
                   offer.outcome == OfferOutcome.completed),
         )
         .fold<double>(0, (total, offer) => total + offer.performancePayout);
-    final target = _period.target;
+    final target = widget.settings.goalFor(_period);
     final progress = (earned / target).clamp(0.0, 1.0);
     final left = math.max(0.0, target - earned);
     final today = DateTime(now.year, now.month, now.day);
@@ -99,12 +115,28 @@ class _GoalCardState extends State<GoalCard> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  '${_period.label}ly goal',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: FoxColors.textPrimary,
-                    fontWeight: FontWeight.w800,
-                  ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        '${_period.label}ly goal',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(
+                              color: FoxColors.textPrimary,
+                              fontWeight: FontWeight.w800,
+                            ),
+                      ),
+                    ),
+                    if (widget.onGoalChanged != null)
+                      TextButton.icon(
+                        key: const ValueKey('edit-goal'),
+                        onPressed: _editGoal,
+                        icon: const Icon(Icons.edit_rounded, size: 16),
+                        label: const Text('Edit'),
+                      ),
+                  ],
                 ),
                 const SizedBox(height: 2),
                 Text(
@@ -122,32 +154,35 @@ class _GoalCardState extends State<GoalCard> {
                 Row(
                   children: [
                     Expanded(
-                      child: Text.rich(
-                        TextSpan(
-                          children: [
-                            TextSpan(
-                              text: '$symbol${_amount(earned)}',
-                              style: TextStyle(
-                                color: FoxColors.brandText,
-                                fontFamily: FoxFonts.display,
-                                fontSize: 34,
-                                fontWeight: FontWeight.w800,
-                                letterSpacing: -1.4,
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerLeft,
+                        child: Text.rich(
+                          TextSpan(
+                            children: [
+                              TextSpan(
+                                text: '$symbol${_amount(earned)}',
+                                style: TextStyle(
+                                  color: FoxColors.brandText,
+                                  fontFamily: FoxFonts.display,
+                                  fontSize: 34,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: -1.4,
+                                ),
                               ),
-                            ),
-                            TextSpan(
-                              text: '  of $symbol${_amount(target)}',
-                              style: TextStyle(
-                                color: FoxColors.textSecondary,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w500,
+                              TextSpan(
+                                text: '  of $symbol${_amount(target)}',
+                                style: TextStyle(
+                                  color: FoxColors.textSecondary,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
+                          maxLines: 1,
+                          softWrap: false,
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.fade,
-                        softWrap: false,
                       ),
                     ),
                     const SizedBox(width: Gap.sm),
@@ -231,8 +266,8 @@ class _GoalCardState extends State<GoalCard> {
 class _PeriodTabs extends StatelessWidget {
   const _PeriodTabs({required this.selected, required this.onChanged});
 
-  final _GoalPeriod selected;
-  final ValueChanged<_GoalPeriod> onChanged;
+  final EarningsGoalPeriod selected;
+  final ValueChanged<EarningsGoalPeriod> onChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -242,7 +277,7 @@ class _PeriodTabs extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.all(3),
         child: Row(
-          children: _GoalPeriod.values.map((period) {
+          children: EarningsGoalPeriod.values.map((period) {
             final active = period == selected;
             return Expanded(
               child: Semantics(
@@ -472,14 +507,20 @@ class _GoalStat extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              value,
-              maxLines: 1,
-              overflow: TextOverflow.fade,
-              style: TextStyle(
-                color: FoxColors.textPrimary,
-                fontSize: 17,
-                fontWeight: FontWeight.w800,
+            SizedBox(
+              width: double.infinity,
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  value,
+                  maxLines: 1,
+                  style: TextStyle(
+                    color: FoxColors.textPrimary,
+                    fontSize: 17,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
               ),
             ),
             Text(
@@ -488,6 +529,126 @@ class _GoalStat extends StatelessWidget {
               style: TextStyle(color: FoxColors.textSecondary, fontSize: 9),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _EditGoalSheet extends StatefulWidget {
+  const _EditGoalSheet({
+    required this.period,
+    required this.amount,
+    required this.symbol,
+  });
+
+  final EarningsGoalPeriod period;
+  final double amount;
+  final String symbol;
+
+  @override
+  State<_EditGoalSheet> createState() => _EditGoalSheetState();
+}
+
+class _EditGoalSheetState extends State<_EditGoalSheet> {
+  final _formKey = GlobalKey<FormState>();
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(
+      text: widget.amount == widget.amount.roundToDouble()
+          ? widget.amount.round().toString()
+          : widget.amount.toStringAsFixed(2),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  double? _value() => double.tryParse(_controller.text.replaceAll(',', '.'));
+
+  void _save() {
+    if (_formKey.currentState?.validate() ?? false) {
+      Navigator.pop(context, _value());
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(
+          Gap.lg,
+          Gap.lg,
+          Gap.lg,
+          Gap.lg + MediaQuery.viewInsetsOf(context).bottom,
+        ),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                'Edit ${widget.period.label.toLowerCase()} goal',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+              const SizedBox(height: Gap.md),
+              TextFormField(
+                key: const ValueKey('goal-amount'),
+                controller: _controller,
+                autofocus: true,
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                inputFormatters: [
+                  TextInputFormatter.withFunction((oldValue, newValue) {
+                    return RegExp(
+                          r'^\d{0,6}([.,]\d{0,2})?$',
+                        ).hasMatch(newValue.text)
+                        ? newValue
+                        : oldValue;
+                  }),
+                ],
+                decoration: InputDecoration(
+                  labelText: 'Goal amount',
+                  prefixText: widget.symbol,
+                  helperText: 'Maximum ${widget.symbol}999,999.99',
+                ),
+                validator: (_) {
+                  final value = _value();
+                  if (value == null || value < 1 || value > 999999.99) {
+                    return 'Enter an amount from 1 to 999,999.99';
+                  }
+                  return null;
+                },
+                onFieldSubmitted: (_) => _save(),
+              ),
+              const SizedBox(height: Gap.lg),
+              OverflowBar(
+                alignment: MainAxisAlignment.end,
+                spacing: Gap.sm,
+                overflowSpacing: Gap.sm,
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('Cancel'),
+                  ),
+                  FilledButton(
+                    key: const ValueKey('save-goal'),
+                    onPressed: _save,
+                    child: const Text('Save goal'),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );

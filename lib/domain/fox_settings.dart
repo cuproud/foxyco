@@ -10,6 +10,8 @@ import 'rate_mode.dart';
 import 'thresholds.dart';
 import 'verdict.dart';
 
+enum EarningsGoalPeriod { week, month, quarter, year }
+
 /// Everything the driver can tune, in one persisted object.
 ///
 /// Pure Dart (no Flutter/plugins). [toJson]/[fromJson] are the whole storage
@@ -99,6 +101,10 @@ class FoxSettings {
   /// numeric currency reported by the gig app; no FX conversion is attempted.
   final DistanceUnit distanceUnit;
   final AppCurrency currency;
+  final double weeklyGoal;
+  final double monthlyGoal;
+  final double quarterlyGoal;
+  final double yearlyGoal;
 
   const FoxSettings({
     required this.thresholds,
@@ -131,6 +137,10 @@ class FoxSettings {
     this.skin = AppSkin.light,
     this.distanceUnit = DistanceUnit.kilometres,
     this.currency = AppCurrency.cad,
+    this.weeklyGoal = 500,
+    this.monthlyGoal = 2000,
+    this.quarterlyGoal = 6000,
+    this.yearlyGoal = 24000,
   });
 
   static const keepForever = 9999;
@@ -191,6 +201,13 @@ class FoxSettings {
   double minimumPayoutFor(GigPlatform platform) =>
       platform.isDelivery ? deliveryMinimumPayout : minimumPayout;
 
+  double goalFor(EarningsGoalPeriod period) => switch (period) {
+    EarningsGoalPeriod.week => weeklyGoal,
+    EarningsGoalPeriod.month => monthlyGoal,
+    EarningsGoalPeriod.quarter => quarterlyGoal,
+    EarningsGoalPeriod.year => yearlyGoal,
+  };
+
   /// The cut points for the ACTIVE [rateMode] — what the engine scores with.
   Thresholds get activeThresholds => switch (rateMode) {
     RateMode.perKm => thresholds,
@@ -228,6 +245,10 @@ class FoxSettings {
     AppSkin? skin,
     DistanceUnit? distanceUnit,
     AppCurrency? currency,
+    double? weeklyGoal,
+    double? monthlyGoal,
+    double? quarterlyGoal,
+    double? yearlyGoal,
   }) => FoxSettings(
     thresholds: thresholds ?? this.thresholds,
     hourThresholds: hourThresholds ?? this.hourThresholds,
@@ -262,6 +283,10 @@ class FoxSettings {
     skin: skin ?? this.skin,
     distanceUnit: distanceUnit ?? this.distanceUnit,
     currency: currency ?? this.currency,
+    weeklyGoal: weeklyGoal ?? this.weeklyGoal,
+    monthlyGoal: monthlyGoal ?? this.monthlyGoal,
+    quarterlyGoal: quarterlyGoal ?? this.quarterlyGoal,
+    yearlyGoal: yearlyGoal ?? this.yearlyGoal,
   );
 
   Map<String, dynamic> toJson() => {
@@ -298,6 +323,10 @@ class FoxSettings {
     'skin': skin.name,
     'distanceUnit': distanceUnit.name,
     'currency': currency.name,
+    'weeklyGoal': weeklyGoal,
+    'monthlyGoal': monthlyGoal,
+    'quarterlyGoal': quarterlyGoal,
+    'yearlyGoal': yearlyGoal,
   };
 
   factory FoxSettings.fromJson(Map<String, dynamic> j) {
@@ -421,6 +450,10 @@ class FoxSettings {
       skin: AppSkin.fromName(j['skin'] as String?),
       distanceUnit: DistanceUnit.fromName(j['distanceUnit'] as String?),
       currency: AppCurrency.fromName(j['currency'] as String?),
+      weeklyGoal: number('weeklyGoal', d.weeklyGoal, 1, 999999.99),
+      monthlyGoal: number('monthlyGoal', d.monthlyGoal, 1, 999999.99),
+      quarterlyGoal: number('quarterlyGoal', d.quarterlyGoal, 1, 999999.99),
+      yearlyGoal: number('yearlyGoal', d.yearlyGoal, 1, 999999.99),
     );
   }
 }

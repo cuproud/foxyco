@@ -27,10 +27,10 @@ Legend: 🟢 GOOD  🟡 OK  🔴 BAD (pill shows icon + WORD + `km · $payout`).
 Run these before promoting the AAB. They cover the highest-risk build changes
 without requiring DoorDash, Instacart or Skip accounts.
 
-**Current candidate:** Play bundle build 109. Real-device validation is pending
-for the new startup/Home flows, manual ride recovery, long-hour route parsing,
-cross-app OCR, overlay transparency, active-trip outcome isolation, and
-diagnostic-only route matching.
+**Current candidate:** Play bundle build 110. Real-device validation is pending
+for editable Home goals, startup/Home flows, manual ride recovery, long-hour
+route parsing, cross-app OCR, overlay transparency, active-trip outcome
+isolation, and diagnostic-only route matching.
 
 | # | How | PASS bar | Status |
 |---|-----|----------|--------|
@@ -59,7 +59,7 @@ diagnostic-only route matching.
 | Q.23 | Open a completed ride detail and compare total distance/time with pickup/ride | All four orange icons are vertically centered with their values; labels begin under the values; the distance pencil remains easy to tap and shifts nothing | [ ] build 107 |
 | Q.24 | On S24 Ultra, select Google Maps inside Lyft for pickup/drop-off and observe the bubble immediately as external Maps opens; repeat with Android Auto connected, then copy Diagnostics before and after stop/start Watching | Record Android version and exact mask timestamp; compare capture-context, visibility/surface revisions, surface-corner result/alpha/stale, and OCR failure/timeout events. No raw screen text/images in logs; layout unchanged. Transparent corner alone does not prove the mask is fixed | [ ] build 108 |
 | Q.25 | Cold-start build 109 with animations enabled; repeat with Android Remove animations enabled | Normal startup rotates Mountains → Snow → Autumn with the supplied fox car, smoke, logo, tagline and wheel loader, then opens Home within the hard ceiling. Reduced motion shows one static scene and exits promptly | [ ] build 109 |
-| Q.26 | Home → scroll directly below Last session; switch Week, Month, Quarter and Year | My goal is immediately after Last session; the car moves to each period's progress, values fit at large text, and only taken/completed History payouts count | [ ] build 109 |
+| Q.26 | Home → scroll below Last session; switch each goal period, edit each target, restart, then enable the largest app text | Each saved target survives restart; progress updates immediately; six-digit earnings and targets fit without clipping; only taken/completed History payouts count | [ ] build 110 |
 | Q.27 | History → Add ride → enter Uber `$19.35`, `11.96 km`, `30.42 min`, Sep 19 at 1:49 PM | One completed Manual entry appears, uses the current rules/verdict, updates Home goal progress, and survives restart | [ ] build 109 |
 | Q.28 | Capture a Lyft/Hopp offer containing `1 hr 28 mins` plus another minute leg | Total duration includes the hour (93 minutes for a separate 5-minute leg); hourly verdict and History rate are not inflated | [ ] build 109 |
 

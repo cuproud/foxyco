@@ -48,4 +48,59 @@ void main() {
     expect(find.text('Monthly goal'), findsOneWidget);
     expect(find.text('18%'), findsOneWidget);
   });
+
+  testWidgets('goal can be edited and large amounts fit', (tester) async {
+    tester.view.physicalSize = const Size(320, 720);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    EarningsGoalPeriod? changedPeriod;
+    double? changedAmount;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: GoalCard(
+            offers: const [],
+            settings: FoxSettings.defaults.copyWith(weeklyGoal: 999999.99),
+            onGoalChanged: (period, amount) {
+              changedPeriod = period;
+              changedAmount = amount;
+            },
+          ),
+        ),
+      ),
+    );
+
+    expect(tester.takeException(), isNull);
+    await tester.tap(find.byKey(const ValueKey('edit-goal')));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    await tester.enterText(
+      find.byKey(const ValueKey('goal-amount')),
+      '123456.78',
+    );
+    await tester.tap(find.byKey(const ValueKey('save-goal')));
+    await tester.pumpAndSettle();
+
+    expect(changedPeriod, EarningsGoalPeriod.week);
+    expect(changedAmount, 123456.78);
+    expect(tester.takeException(), isNull);
+  });
+
+  test('goal amounts survive settings serialization', () {
+    final settings = FoxSettings.defaults.copyWith(
+      weeklyGoal: 750,
+      monthlyGoal: 3000,
+      quarterlyGoal: 8500,
+      yearlyGoal: 32000,
+    );
+
+    final restored = FoxSettings.fromJson(settings.toJson());
+
+    expect(restored.weeklyGoal, 750);
+    expect(restored.monthlyGoal, 3000);
+    expect(restored.quarterlyGoal, 8500);
+    expect(restored.yearlyGoal, 32000);
+  });
 }
