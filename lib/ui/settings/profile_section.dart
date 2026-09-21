@@ -40,6 +40,11 @@ class ProfileSection extends ConsumerWidget {
       AccessSource.none => 'Sign in with Google to protect your trial.',
       _ => trial.email ?? 'Your access status is being checked.',
     };
+    final signInLabel = switch (access.source) {
+      AccessSource.purchase || AccessSource.cachedPurchase =>
+        'Sign in with Google to manage your account',
+      _ => 'Sign in with Google to protect your trial',
+    };
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -121,7 +126,7 @@ class ProfileSection extends ConsumerWidget {
               key: const ValueKey('signin-account'),
               onPressed: () => _signIn(context, ref),
               icon: const Icon(Icons.login_rounded, size: 18),
-              label: const Text('Sign in with Google to protect your trial'),
+              label: Text(signInLabel),
             ),
           ),
         ],

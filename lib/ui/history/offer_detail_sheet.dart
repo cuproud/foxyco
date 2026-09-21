@@ -54,7 +54,9 @@ class _OfferDetailSheet extends ConsumerWidget {
     final canEditFinalPayout =
         current.outcome == OfferOutcome.taken ||
         current.outcome == OfferOutcome.completed ||
+        current.outcome == OfferOutcome.cancelled ||
         current.finalPayout != null;
+    final cancelled = current.outcome == OfferOutcome.cancelled;
     final time = MaterialLocalizations.of(context).formatTimeOfDay(
       TimeOfDay.fromDateTime(current.seenAt),
       alwaysUse24HourFormat: MediaQuery.of(context).alwaysUse24HourFormat,
@@ -201,6 +203,10 @@ class _OfferDetailSheet extends ConsumerWidget {
                         child: Text(
                           current.category == 'Manual entry'
                               ? 'Manually entered completed ride'
+                              : cancelled && current.finalPayout == null
+                              ? 'Original offer · cancellation fee not recorded'
+                              : cancelled
+                              ? 'Cancellation fee · original offer ${currency.prefix}${current.payout.toStringAsFixed(2)}'
                               : current.finalPayout == null
                               ? 'Upfront offer'
                               : 'Final earnings · upfront ${currency.prefix}${current.payout.toStringAsFixed(2)}',
@@ -221,7 +227,11 @@ class _OfferDetailSheet extends ConsumerWidget {
                           ),
                           icon: const Icon(Icons.edit_rounded, size: 15),
                           label: Text(
-                            current.finalPayout == null ? 'Add final' : 'Edit',
+                            current.finalPayout == null
+                                ? cancelled
+                                      ? 'Add fee'
+                                      : 'Add final'
+                                : 'Edit',
                           ),
                         ),
                     ],
@@ -292,8 +302,9 @@ class _OfferDetailSheet extends ConsumerWidget {
                       Expanded(
                         child: _DetailMetric(
                           icon: Icons.trending_up_rounded,
-                          value:
-                              '${currency.prefix}${distanceUnit.rateFromPerKm(current.effectivePricePerKm).toStringAsFixed(2)}',
+                          value: cancelled
+                              ? '—'
+                              : '${currency.prefix}${distanceUnit.rateFromPerKm(current.effectivePricePerKm).toStringAsFixed(2)}',
                           label: 'PER ${distanceUnit.shortLabel.toUpperCase()}',
                           color: style.color,
                         ),
@@ -302,7 +313,7 @@ class _OfferDetailSheet extends ConsumerWidget {
                       Expanded(
                         child: _DetailMetric(
                           icon: Icons.star_outline_rounded,
-                          value: current.effectivePricePerHour > 0
+                          value: !cancelled && current.effectivePricePerHour > 0
                               ? '${currency.prefix}${current.effectivePricePerHour.toStringAsFixed(2)}'
                               : '—',
                           label: 'TRIP RATE / HOUR',
@@ -427,6 +438,7 @@ class _OfferDetailSheet extends ConsumerWidget {
     OfferSummary offer,
     String prefix,
   ) async {
+    final cancelled = offer.outcome == OfferOutcome.cancelled;
     var input = offer.finalPayout == null
         ? ''
         : (offer.finalPayout! - offer.tip).toStringAsFixed(2);
@@ -452,8 +464,15 @@ class _OfferDetailSheet extends ConsumerWidget {
             final parsed = double.tryParse(input.trim().replaceAll(',', '.'));
             final tip = parseOptional(tipInput);
             final toll = parseOptional(tollInput);
-            if (parsed == null || !parsed.isFinite || parsed <= 0) {
-              setState(() => error = 'Enter an amount above zero');
+            if (parsed == null ||
+                !parsed.isFinite ||
+                parsed < 0 ||
+                (!cancelled && parsed == 0)) {
+              setState(
+                () => error = cancelled
+                    ? 'Enter zero or the fee received'
+                    : 'Enter an amount above zero',
+              );
               return;
             }
             if (tip == null ||
@@ -466,16 +485,16 @@ class _OfferDetailSheet extends ConsumerWidget {
               setState(() => error = 'Toll must fit within earnings');
               return;
             }
-            final total = parsed + tip;
+            final total = parsed + (cancelled ? 0 : tip);
             Navigator.pop(context, (
               payout: (total * 100).round() / 100,
-              tip: (tip * 100).round() / 100,
-              toll: (toll * 100).round() / 100,
+              tip: cancelled ? 0 : (tip * 100).round() / 100,
+              toll: cancelled ? 0 : (toll * 100).round() / 100,
             ));
           }
 
           return AlertDialog(
-            title: const Text('Final earnings'),
+            title: Text(cancelled ? 'Cancellation fee' : 'Final earnings'),
             content: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -492,47 +511,52 @@ class _OfferDetailSheet extends ConsumerWidget {
                     onChanged: (value) => input = value,
                     decoration: InputDecoration(
                       prefixText: prefix,
-                      labelText: 'Earnings before tip',
-                      helperText:
-                          'Upfront: $prefix${offer.payout.toStringAsFixed(2)} · tip is added',
+                      labelText: cancelled
+                          ? 'Fee received'
+                          : 'Earnings before tip',
+                      helperText: cancelled
+                          ? 'Enter 0 if no cancellation fee was paid'
+                          : 'Upfront: $prefix${offer.payout.toStringAsFixed(2)} · tip is added',
                       helperMaxLines: 2,
                       errorText: error,
                       errorMaxLines: 2,
                     ),
                   ),
-                  const SizedBox(height: Gap.sm),
-                  TextFormField(
-                    key: const Key('final-payout-tip'),
-                    initialValue: tipInput,
-                    keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true,
+                  if (!cancelled) ...[
+                    const SizedBox(height: Gap.sm),
+                    TextFormField(
+                      key: const Key('final-payout-tip'),
+                      initialValue: tipInput,
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
+                      textInputAction: TextInputAction.next,
+                      inputFormatters: [moneyFormatter],
+                      onChanged: (value) => tipInput = value,
+                      decoration: InputDecoration(
+                        prefixText: prefix,
+                        labelText: 'Tip',
+                      ),
                     ),
-                    textInputAction: TextInputAction.next,
-                    inputFormatters: [moneyFormatter],
-                    onChanged: (value) => tipInput = value,
-                    decoration: InputDecoration(
-                      prefixText: prefix,
-                      labelText: 'Tip',
+                    const SizedBox(height: Gap.sm),
+                    TextFormField(
+                      key: const Key('final-payout-toll'),
+                      initialValue: tollInput,
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
+                      textInputAction: TextInputAction.done,
+                      inputFormatters: [moneyFormatter],
+                      onChanged: (value) => tollInput = value,
+                      onFieldSubmitted: (_) => save(),
+                      decoration: InputDecoration(
+                        prefixText: prefix,
+                        labelText: 'Toll reimbursement',
+                        helperText: 'Excluded from performance rates',
+                        helperMaxLines: 2,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: Gap.sm),
-                  TextFormField(
-                    key: const Key('final-payout-toll'),
-                    initialValue: tollInput,
-                    keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true,
-                    ),
-                    textInputAction: TextInputAction.done,
-                    inputFormatters: [moneyFormatter],
-                    onChanged: (value) => tollInput = value,
-                    onFieldSubmitted: (_) => save(),
-                    decoration: InputDecoration(
-                      prefixText: prefix,
-                      labelText: 'Toll reimbursement',
-                      helperText: 'Excluded from performance rates',
-                      helperMaxLines: 2,
-                    ),
-                  ),
+                  ],
                 ],
               ),
             ),

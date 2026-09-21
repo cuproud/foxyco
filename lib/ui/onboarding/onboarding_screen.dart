@@ -2,12 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../domain/overlay_payload.dart';
 import '../../domain/thresholds.dart';
+import '../../domain/verdict.dart';
 import '../../services/accessibility/accessibility_watcher.dart';
 import '../home/dashboard_controller.dart';
 import '../legal/accessibility_disclosure.dart';
 import '../legal/legal_links.dart';
 import '../overlay/overlay_controller.dart';
+import '../overlay/verdict_pill.dart';
 import '../settings/garage_controller.dart';
 import '../settings/settings_controller.dart';
 import '../theme/tokens.dart';
@@ -124,7 +127,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                     // greeting on Home never appears — ProfileCard hides itself
                     // on an empty name, so first-run Home had no greeting at
                     // all until the driver found Settings → Garage.
-                    footer: _NameField(controller: _name),
+                    footer: _FirstPageFooter(controller: _name),
                   ),
                   const _Page(
                     hero: _GlowIcon(Icons.tune_rounded),
@@ -288,6 +291,47 @@ class _BillingPromise extends StatelessWidget {
         ),
       ],
     ),
+  );
+}
+
+class _FirstPageFooter extends StatelessWidget {
+  const _FirstPageFooter({required this.controller});
+
+  final TextEditingController controller;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    children: [
+      Text(
+        'Example offer',
+        style: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+          color: FoxColors.textSecondary,
+        ),
+      ),
+      const SizedBox(height: Gap.sm),
+      Semantics(
+        label:
+            'Example good offer. 2 dollars 10 cents per kilometre, 12 kilometres, 31 dollars per hour.',
+        child: const FittedBox(
+          fit: BoxFit.scaleDown,
+          child: VerdictPill(
+            animate: false,
+            size: PillSize.small,
+            payload: OverlayPayload(
+              verdict: Verdict.good,
+              totalKm: 12,
+              payout: 25.20,
+              totalMinutes: 48,
+              entitled: true,
+            ),
+          ),
+        ),
+      ),
+      const SizedBox(height: Gap.lg),
+      _NameField(controller: controller),
+    ],
   );
 }
 

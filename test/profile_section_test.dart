@@ -122,7 +122,7 @@ void main() {
 
     expect(find.byKey(const ValueKey('signin-account')), findsOneWidget);
     expect(
-      find.text('Sign in with Google to protect your trial'),
+      find.text('Sign in with Google to manage your account'),
       findsOneWidget,
     );
     await tester.tap(find.byKey(const ValueKey('signin-account')));

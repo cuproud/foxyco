@@ -143,4 +143,19 @@ void main() {
     expect(find.text(r'CA$29.18'), findsOneWidget);
     expect(find.text('TRIP RATE / HOUR'), findsOneWidget);
   });
+
+  testWidgets('cancelled ride records a fee without trip performance rates', (
+    tester,
+  ) async {
+    await open(tester, offer.withOutcome(OfferOutcome.cancelled));
+
+    expect(find.text('Add fee'), findsOneWidget);
+    await tester.tap(find.text('Add fee'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Cancellation fee'), findsOneWidget);
+    expect(find.text('Fee received'), findsOneWidget);
+    expect(find.text('Tip'), findsNothing);
+    expect(find.text('Toll reimbursement'), findsNothing);
+  });
 }

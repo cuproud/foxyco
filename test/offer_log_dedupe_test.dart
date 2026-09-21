@@ -332,6 +332,17 @@ void main() {
     expect(l.state.single.tollReimbursement, 0);
   });
 
+  test('cancelled offer can record an explicit zero fee', () {
+    final l = log();
+    final cancelled = l.record(
+      offer(seenAt: t, payout: 20, outcome: OfferOutcome.cancelled),
+    );
+
+    expect(l.setFinalPayout(cancelled, 0), isTrue);
+    expect(l.state.single.finalPayout, 0);
+    expect(l.state.single.effectivePayout, 0);
+  });
+
   test('manual missed ride is scored and stored as completed', () {
     final l = log();
     final added = l.addManualRide(

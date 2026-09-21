@@ -15,6 +15,7 @@ import '../../services/session_log.dart';
 import '../overlay/overlay_controller.dart';
 import '../paywall/access_banner.dart';
 import '../legal/accessibility_disclosure.dart';
+import '../history/history_intent.dart';
 import '../settings/reminder_controller.dart';
 import '../settings/reminder_section.dart';
 import '../settings/settings_controller.dart';
@@ -160,6 +161,12 @@ class HomeScreen extends ConsumerWidget {
             offers: offers,
             settings: settings,
             onGoalChanged: ref.read(settingsProvider.notifier).setEarningsGoal,
+            onViewHistory: (period) {
+              ref
+                  .read(pendingHistoryIntentProvider.notifier)
+                  .open(HistoryIntent.forGoal(period));
+              ref.read(tabIndexProvider.notifier).go(2);
+            },
           ),
         ),
         const SizedBox(height: Gap.lg),

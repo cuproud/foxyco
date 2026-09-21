@@ -2,10 +2,23 @@
 
 Audit date: 2026-09-20
 
-Candidate: `1.0.14+110`
+Candidate: `1.0.14+111`
 
 Automated checks pass. Play upload remains conditional on the device and
 Console checks in `MANUAL_TESTS.md` and `PLAY_RELEASE.md`.
+
+## Build 111 changes
+
+- Manual final-payout and cancellation-fee corrections now refresh History
+  totals, saved session summaries, and Home goal progress from one shared
+  rollup. Cancelled offers contribute no accepted count, route distance/time,
+  or trip performance rate.
+- History separates confirmed final money from accepted-offer estimates; the
+  goal card links to its contributing calendar-period rows.
+- First-run onboarding shows the real verdict pill before permissions, and
+  lifetime-account sign-in copy no longer refers to protecting a trial.
+- The S24 Ultra grey-mask/Maps handoff remains a physical-device gate; no host-
+  only overlay fix is claimed.
 
 ## Build 110 changes
 
@@ -138,12 +151,12 @@ Console checks in `MANUAL_TESTS.md` and `PLAY_RELEASE.md`.
 - Native Android overlay/OCR compilation: passed
 - Android release lint: passed
 - Signed release bundle and checksum verification: passed
-- Packaged version and About label synchronized to build `109`: passed
+- Packaged version and About label synchronized to build `111`: passed
 - Firestore rules and guarded Play bundle preflight: passed
 
-Verified Play artifact: `FoxyCo-v1.0.14+109-release-20260919-2214.aab`
+Verified Play artifact: `FoxyCo-v1.0.14+111-release-20260920-2241.aab`
 
-SHA-256: `e581e132e21c04a1602a91cd6eeec73284a2949d27a6dfc1bc2407cb32ebc0d4`
+SHA-256: `3b5e62cb5fd1b683521ce47c22b17467b868119ce95d73112f58df2a6534b1c0`
 
 Jarsigner reports `jar verified` with self-signed upload-certificate,
 no-timestamp, and streaming ZIP manifest-order warnings. Android bundle

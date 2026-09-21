@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../domain/fox_settings.dart';
+import '../../domain/offer_stats.dart';
 import '../../domain/offer_summary.dart';
 import '../theme/tokens.dart';
 
@@ -14,26 +15,6 @@ extension on EarningsGoalPeriod {
     EarningsGoalPeriod.quarter => 'Quarter',
     EarningsGoalPeriod.year => 'Year',
   };
-
-  (DateTime, DateTime) range(DateTime now) => switch (this) {
-    EarningsGoalPeriod.week => () {
-      final start = DateTime(
-        now.year,
-        now.month,
-        now.day,
-      ).subtract(Duration(days: now.weekday - 1));
-      return (start, start.add(const Duration(days: 7)));
-    }(),
-    EarningsGoalPeriod.month => (
-      DateTime(now.year, now.month),
-      DateTime(now.year, now.month + 1),
-    ),
-    EarningsGoalPeriod.quarter => () {
-      final month = ((now.month - 1) ~/ 3) * 3 + 1;
-      return (DateTime(now.year, month), DateTime(now.year, month + 3));
-    }(),
-    EarningsGoalPeriod.year => (DateTime(now.year), DateTime(now.year + 1)),
-  };
 }
 
 class GoalCard extends StatefulWidget {
@@ -43,12 +24,14 @@ class GoalCard extends StatefulWidget {
     required this.settings,
     this.now,
     this.onGoalChanged,
+    this.onViewHistory,
   });
 
   final List<OfferSummary> offers;
   final FoxSettings settings;
   final DateTime? now;
   final void Function(EarningsGoalPeriod period, double amount)? onGoalChanged;
+  final ValueChanged<EarningsGoalPeriod>? onViewHistory;
 
   @override
   State<GoalCard> createState() => _GoalCardState();
@@ -73,16 +56,15 @@ class _GoalCardState extends State<GoalCard> {
   @override
   Widget build(BuildContext context) {
     final now = widget.now ?? DateTime.now();
-    final (start, end) = _period.range(now);
-    final earned = widget.offers
-        .where(
-          (offer) =>
-              !offer.seenAt.isBefore(start) &&
-              offer.seenAt.isBefore(end) &&
-              (offer.outcome == OfferOutcome.taken ||
-                  offer.outcome == OfferOutcome.completed),
-        )
-        .fold<double>(0, (total, offer) => total + offer.performancePayout);
+    final (start, end) = _period.dateRange(now);
+    final earned = OfferStats.from(
+      widget.offers
+          .where(
+            (offer) =>
+                !offer.seenAt.isBefore(start) && offer.seenAt.isBefore(end),
+          )
+          .toList(),
+    ).recordedEarnings;
     final target = widget.settings.goalFor(_period);
     final progress = (earned / target).clamp(0.0, 1.0);
     final left = math.max(0.0, target - earned);
@@ -140,7 +122,7 @@ class _GoalCardState extends State<GoalCard> {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  'Recorded earnings',
+                  'Recorded payouts · final amounts and cancellation fees',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: FoxColors.textSecondary,
                   ),
@@ -250,6 +232,15 @@ class _GoalCardState extends State<GoalCard> {
                     _GoalStat(value: '$symbol$daily', label: 'per day to goal'),
                   ],
                 ),
+                if (widget.onViewHistory != null) ...[
+                  const SizedBox(height: Gap.sm),
+                  TextButton.icon(
+                    key: const ValueKey('goal-view-history'),
+                    onPressed: () => widget.onViewHistory!(_period),
+                    icon: const Icon(Icons.receipt_long_rounded, size: 16),
+                    label: const Text('View contributing History'),
+                  ),
+                ],
               ],
             ),
           ),

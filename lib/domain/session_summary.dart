@@ -109,11 +109,6 @@ class SessionSummary {
     final completed = sessionOffers
         .where((o) => o.outcome == OfferOutcome.completed)
         .toList();
-    final earningOffers = sessionOffers.where(
-      (o) =>
-          o.outcome == OfferOutcome.taken ||
-          o.outcome == OfferOutcome.completed,
-    );
     return SessionSummary(
       startedAt: startedAt,
       endedAt: endedAt,
@@ -131,17 +126,9 @@ class SessionSummary {
       unknown: sessionOffers
           .where((o) => o.outcome == OfferOutcome.unknown)
           .length,
-      estimatedEarnings: earningOffers.fold(
-        0.0,
-        (sum, o) => sum + o.effectivePayout,
-      ),
-      estimatedPerformanceEarnings: earningOffers.fold<double>(
-        0.0,
-        (sum, o) => sum + o.performancePayout,
-      ),
-      missingFinalPayouts: earningOffers
-          .where((o) => o.finalPayout == null)
-          .length,
+      estimatedEarnings: stats.recordedEarnings,
+      estimatedPerformanceEarnings: stats.recordedPerformanceEarnings,
+      missingFinalPayouts: stats.missingFinalPayouts,
       platforms: sessionOffers.map((o) => o.platform).toSet(),
       bestPerKm: stats.best?.effectivePricePerKm ?? 0,
       goodAvgPerKm: stats.goodAvgPerKm,

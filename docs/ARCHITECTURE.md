@@ -1,6 +1,6 @@
 # Architecture
 
-Updated 2026-09-20 for `1.0.14+110`.
+Updated 2026-09-20 for `1.0.14+111`.
 
 ## Boundaries
 
@@ -101,9 +101,11 @@ Play's declaration, prominent disclosure, consent flow, and review video.
 - Flutter Material 3, Riverpod, and go_router.
 - The startup scene rotates through mountain, snow, and autumn landscapes in
   one bounded animation. Reduced-motion devices show the final static scene.
-- Home derives Week/Month/Quarter/Year goal progress from taken and completed
-  History payouts; missed offers never count. Each target is editable from the
-  selected period on the card and persists in the existing settings blob.
+- Home derives Week/Month/Quarter/Year goal progress from recorded History
+  payouts. A final payout replaces its upfront offer; a cancelled ride adds
+  only its entered cancellation fee. Missed offers and cancelled route
+  distance/time never count. Each target is editable and links to the exact
+  calendar-period History rows contributing to it.
 - System text scale plus the in-app text multiplier is capped at 2×; focused
   widget tests cover narrow screens, large text, scrollability, and overlay
   geometry.

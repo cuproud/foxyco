@@ -1,6 +1,6 @@
 # Offer Detection and Verdict Logic
 
-Canonical implementation map for `1.0.14+110`, verified against the code on
+Canonical implementation map for `1.0.14+111`, verified against the code on
 2026-09-20.
 
 ## Maintenance contract
@@ -372,6 +372,16 @@ and verdict. The edit form takes earnings before tip, then adds the separately
 entered tip once to the stored and displayed final payout. A toll reimbursement
 is already part of the entered earnings; it is recorded separately and excluded
 from post-trip $/km and $/hr performance rates because it offsets an expense.
+For taken/completed rides, the saved final payout replaces the upfront offer in
+History totals, saved-session totals, and Home goal progress.
+
+A manually cancelled History row can record the cancellation fee received,
+including an explicit zero. Financial totals and goal progress include only
+that fee, never the cancelled offer's original payout. Cancelled rows remain
+excluded from accepted counts, accepted distance/minutes, and trip performance
+rates because the offered route was not completed. Changing the manual outcome,
+final payout, or cancellation fee refreshes the affected saved session summary;
+the live History rollup and Home goal derive directly from the updated rows.
 Serialized final payouts carry a marker confirming that the separate tip is
 already included. Unmarked legacy rows add the stored tip once during decoding;
 their next serialization writes the marker, preventing repeat addition across

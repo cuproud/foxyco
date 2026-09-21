@@ -71,6 +71,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
   ScrollController? _scrollController;
   bool _showBackToTop = false;
   HistoryRange _range = HistoryRange.today;
+  EarningsGoalPeriod? _goalPeriod;
   final Set<GigPlatform?> _apps = {null}; // null == "All"
   final Set<Verdict?> _verdicts = {null}; // null == "All"
   HistoryOutcomeFilter _outcome = HistoryOutcomeFilter.all;
@@ -81,10 +82,13 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
   void initState() {
     super.initState();
     ref.listenManual<HistoryIntent?>(pendingHistoryIntentProvider, (_, intent) {
-      if (intent != HistoryIntent.needsReview || !mounted) return;
+      if (intent == null || !mounted) return;
       setState(() {
         _range = HistoryRange.all;
-        _outcome = HistoryOutcomeFilter.needsReview;
+        _goalPeriod = intent.goalPeriod;
+        _outcome = intent == HistoryIntent.needsReview
+            ? HistoryOutcomeFilter.needsReview
+            : HistoryOutcomeFilter.all;
         _apps
           ..clear()
           ..add(null);
@@ -93,7 +97,9 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
           ..add(null);
         _topOnly = false;
       });
-      ref.read(pendingHistoryIntentProvider.notifier).clear();
+      Future.microtask(() {
+        if (mounted) ref.read(pendingHistoryIntentProvider.notifier).clear();
+      });
     }, fireImmediately: true);
   }
 
@@ -132,35 +138,47 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
       DateTime.now().difference(DateTime(t.year, t.month, t.day)).inDays;
 
   bool _passes(OfferSummary o) {
-    final d = _daysAgo(o.seenAt);
-    switch (_range) {
-      case HistoryRange.today:
-        if (d != 0) return false;
-      case HistoryRange.week:
-        if (d >= 7) return false; // today + 6 prior days = 7
-      case HistoryRange.month:
-        if (d >= 30) return false;
-      case HistoryRange.all:
-        break;
+    if (_goalPeriod case final period?) {
+      final (start, end) = period.dateRange(DateTime.now());
+      if (o.seenAt.isBefore(start) || !o.seenAt.isBefore(end)) return false;
+    } else {
+      final d = _daysAgo(o.seenAt);
+      switch (_range) {
+        case HistoryRange.today:
+          if (d != 0) return false;
+        case HistoryRange.week:
+          if (d >= 7) return false; // today + 6 prior days = 7
+        case HistoryRange.month:
+          if (d >= 30) return false;
+        case HistoryRange.all:
+          break;
+      }
     }
     if (!_apps.contains(null) && !_apps.contains(o.platform)) return false;
     if (!_verdicts.contains(null) && !_verdicts.contains(o.verdict)) {
       return false;
     }
-    final outcomeMatches = switch (_outcome) {
-      HistoryOutcomeFilter.all => true,
-      HistoryOutcomeFilter.accepted =>
-        o.outcome == OfferOutcome.taken || o.outcome == OfferOutcome.completed,
-      HistoryOutcomeFilter.declined => o.outcome == OfferOutcome.missed,
-      HistoryOutcomeFilter.cancelled => o.outcome == OfferOutcome.cancelled,
-      HistoryOutcomeFilter.completed => o.outcome == OfferOutcome.completed,
-      HistoryOutcomeFilter.unknown => o.outcome == OfferOutcome.unknown,
-      HistoryOutcomeFilter.needsReview =>
-        o.outcome == OfferOutcome.unknown ||
-            ((o.outcome == OfferOutcome.taken ||
-                    o.outcome == OfferOutcome.completed) &&
-                o.finalPayout == null),
-    };
+    final outcomeMatches = _goalPeriod != null
+        ? o.outcome == OfferOutcome.taken ||
+              o.outcome == OfferOutcome.completed ||
+              (o.outcome == OfferOutcome.cancelled && o.finalPayout != null)
+        : switch (_outcome) {
+            HistoryOutcomeFilter.all => true,
+            HistoryOutcomeFilter.accepted =>
+              o.outcome == OfferOutcome.taken ||
+                  o.outcome == OfferOutcome.completed,
+            HistoryOutcomeFilter.declined => o.outcome == OfferOutcome.missed,
+            HistoryOutcomeFilter.cancelled =>
+              o.outcome == OfferOutcome.cancelled,
+            HistoryOutcomeFilter.completed =>
+              o.outcome == OfferOutcome.completed,
+            HistoryOutcomeFilter.unknown => o.outcome == OfferOutcome.unknown,
+            HistoryOutcomeFilter.needsReview =>
+              o.outcome == OfferOutcome.unknown ||
+                  ((o.outcome == OfferOutcome.taken ||
+                          o.outcome == OfferOutcome.completed) &&
+                      o.finalPayout == null),
+          };
     if (!outcomeMatches) return false;
     // Top-only is a FARE floor, nothing more. It used to also require
     // verdict == GOOD, which read as "filter broken": raise the fare and a
@@ -202,7 +220,9 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                 ),
                 const Spacer(),
                 Text(
-                  HistoryScreen.headerLabel(stats.total, _range),
+                  _goalPeriod == null
+                      ? HistoryScreen.headerLabel(stats.total, _range)
+                      : '${stats.total} this ${_goalPeriod!.name}',
                   style: TextStyle(
                     fontSize: 12.5,
                     fontWeight: FontWeight.w600,
@@ -226,6 +246,9 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
             _FiltersCard(
               expanded: false,
               range: _range,
+              periodOverride: _goalPeriod == null
+                  ? null
+                  : 'This ${_goalPeriod!.name}',
               apps: _apps,
               verdicts: _verdicts,
               availableApps: availableApps,
@@ -234,6 +257,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
               minFare: _minFare,
               matchCount: stats.total,
               onRange: (range) => setState(() {
+                _goalPeriod = null;
                 _range = range;
                 if (range == HistoryRange.all) _resetFilters();
               }),
@@ -387,6 +411,9 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                     child: _FiltersCard(
                       expanded: true,
                       range: _range,
+                      periodOverride: _goalPeriod == null
+                          ? null
+                          : 'This ${_goalPeriod!.name}',
                       apps: _apps,
                       verdicts: _verdicts,
                       availableApps: availableApps,
@@ -398,13 +425,17 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                           .where(_passes)
                           .length,
                       onRange: (range) => update(() {
+                        _goalPeriod = null;
                         _range = range;
                         if (range == HistoryRange.all) _resetFilters();
                       }),
                       onApp: (app) => update(() => _toggleIn(_apps, app)),
                       onVerdict: (verdict) =>
                           update(() => _toggleIn(_verdicts, verdict)),
-                      onOutcome: (outcome) => update(() => _outcome = outcome),
+                      onOutcome: (outcome) => update(() {
+                        _goalPeriod = null;
+                        _outcome = outcome;
+                      }),
                       onTopToggle: () => update(() => _topOnly = !_topOnly),
                       onFare: (delta) => update(
                         () => _minFare = (_minFare + delta).clamp(0, 100),
@@ -459,6 +490,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
 
   void _resetFilters() {
     _range = HistoryRange.all;
+    _goalPeriod = null;
     _apps
       ..clear()
       ..add(null);
@@ -747,6 +779,7 @@ class _FiltersCard extends StatelessWidget {
   const _FiltersCard({
     required this.expanded,
     required this.range,
+    this.periodOverride,
     required this.apps,
     required this.verdicts,
     required this.availableApps,
@@ -766,6 +799,7 @@ class _FiltersCard extends StatelessWidget {
 
   final bool expanded;
   final HistoryRange range;
+  final String? periodOverride;
   final Set<GigPlatform?> apps;
   final Set<Verdict?> verdicts;
   final List<GigPlatform> availableApps;
@@ -787,6 +821,7 @@ class _FiltersCard extends StatelessWidget {
     if (!verdicts.contains(null)) true,
     if (outcome != HistoryOutcomeFilter.all) true,
     if (topOnly) true,
+    if (periodOverride != null) true,
     if (range != HistoryRange.today && range != HistoryRange.all) true,
   ].length;
 
@@ -797,18 +832,21 @@ class _FiltersCard extends StatelessWidget {
         ? apps.first!.label
         : '${apps.length} platforms';
     final fare = topOnly ? '\$$minFare+ fare' : 'Any fare';
-    final period = switch (range) {
-      HistoryRange.today => 'Today',
-      HistoryRange.week => 'Last 7 days',
-      HistoryRange.month => 'Last 30 days',
-      HistoryRange.all => 'All time',
-    };
+    final period =
+        periodOverride ??
+        switch (range) {
+          HistoryRange.today => 'Today',
+          HistoryRange.week => 'Last 7 days',
+          HistoryRange.month => 'Last 30 days',
+          HistoryRange.all => 'All time',
+        };
     final extras = <String>[
       if (!verdicts.contains(null))
         verdicts.length == 1
             ? VerdictStyle.of(verdicts.first!).label
             : '${verdicts.length} verdicts',
       if (outcome != HistoryOutcomeFilter.all) _outcomeLabel(outcome),
+      if (periodOverride != null) 'Goal payouts',
     ];
     return [platform, fare, period, ...extras].join(' · ');
   }
@@ -2015,8 +2053,9 @@ class _OfferRow extends ConsumerWidget {
                       Expanded(
                         child: _OfferMetric(
                           icon: Icons.speed_rounded,
-                          value:
-                              '${settings.currency.symbol}${settings.distanceUnit.rateFromPerKm(offer.effectivePricePerKm).toStringAsFixed(2)}/${settings.distanceUnit.shortLabel}',
+                          value: offer.outcome == OfferOutcome.cancelled
+                              ? '—'
+                              : '${settings.currency.symbol}${settings.distanceUnit.rateFromPerKm(offer.effectivePricePerKm).toStringAsFixed(2)}/${settings.distanceUnit.shortLabel}',
                           emphasized: true,
                         ),
                       ),
@@ -2274,9 +2313,13 @@ class _HistoryPerformanceState extends State<_HistoryPerformance> {
   Widget build(BuildContext context) {
     final stats = widget.stats;
     final settings = widget.settings;
-    final earnings = stats.acceptedEarnings > 0
-        ? '${settings.currency.symbol}${stats.acceptedEarnings.toStringAsFixed(2)}'
+    final earnings = stats.recordedEarnings > 0
+        ? '${settings.currency.symbol}${stats.recordedEarnings.toStringAsFixed(2)}'
         : '—';
+    final confirmed =
+        '${settings.currency.symbol}${stats.confirmedEarnings.toStringAsFixed(2)}';
+    final estimated =
+        '${settings.currency.symbol}${stats.estimatedEarnings.toStringAsFixed(2)}';
     final hourly = stats.acceptedMinutes > 0
         ? '${settings.currency.symbol}${(stats.acceptedPerformanceEarnings / stats.acceptedMinutes * 60).toStringAsFixed(2)}'
         : '—';
@@ -2371,8 +2414,8 @@ class _HistoryPerformanceState extends State<_HistoryPerformance> {
                                 child: Text(
                                   _expanded
                                       ? 'History performance'
-                                      : stats.accepted == 0
-                                      ? 'No accepted offers'
+                                      : stats.recordedEarnings == 0
+                                      ? 'No recorded payouts'
                                       : '$earnings   |   $hourly/hr trip',
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
@@ -2405,8 +2448,10 @@ class _HistoryPerformanceState extends State<_HistoryPerformance> {
                                 Expanded(
                                   flex: 11,
                                   child: _HeroValue(
-                                    label: 'Estimated earnings',
+                                    label: 'Tracked payouts',
                                     value: earnings,
+                                    sub:
+                                        '$confirmed final · $estimated estimated · ${stats.missingFinalPayouts} need update',
                                     fontSize: compact ? 25 : 29,
                                     valueKey: const ValueKey(
                                       'history-performance-earnings',
@@ -2533,9 +2578,14 @@ class _HeroValue extends StatelessWidget {
       ),
       if (sub != null) ...[
         const SizedBox(height: 2),
-        Text(
-          sub!,
-          style: TextStyle(fontSize: 10.5, color: FoxColors.textSecondary),
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.centerLeft,
+          child: Text(
+            sub!,
+            maxLines: 1,
+            style: TextStyle(fontSize: 10.5, color: FoxColors.textSecondary),
+          ),
         ),
       ],
     ],

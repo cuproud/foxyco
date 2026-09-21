@@ -12,6 +12,28 @@ import 'verdict.dart';
 
 enum EarningsGoalPeriod { week, month, quarter, year }
 
+extension EarningsGoalPeriodRange on EarningsGoalPeriod {
+  (DateTime, DateTime) dateRange(DateTime now) => switch (this) {
+    EarningsGoalPeriod.week => () {
+      final start = DateTime(
+        now.year,
+        now.month,
+        now.day,
+      ).subtract(Duration(days: now.weekday - 1));
+      return (start, start.add(const Duration(days: 7)));
+    }(),
+    EarningsGoalPeriod.month => (
+      DateTime(now.year, now.month),
+      DateTime(now.year, now.month + 1),
+    ),
+    EarningsGoalPeriod.quarter => () {
+      final month = ((now.month - 1) ~/ 3) * 3 + 1;
+      return (DateTime(now.year, month), DateTime(now.year, month + 3));
+    }(),
+    EarningsGoalPeriod.year => (DateTime(now.year), DateTime(now.year + 1)),
+  };
+}
+
 /// Everything the driver can tune, in one persisted object.
 ///
 /// Pure Dart (no Flutter/plugins). [toJson]/[fromJson] are the whole storage

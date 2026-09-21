@@ -107,6 +107,40 @@ void main() {
     expect(stats.best!.effectivePricePerHour, closeTo(29.18, 1e-9));
   });
 
+  test('final payouts and cancellation fees drive recorded earnings', () {
+    final stats = OfferStats.from([
+      OfferSummary(
+        platform: GigPlatform.uber,
+        verdict: Verdict.good,
+        payout: 20,
+        finalPayout: 25,
+        totalKm: 10,
+        totalMinutes: 30,
+        seenAt: DateTime(2026, 9, 20, 10),
+        outcome: OfferOutcome.completed,
+      ),
+      OfferSummary(
+        platform: GigPlatform.lyft,
+        verdict: Verdict.good,
+        payout: 30,
+        finalPayout: 5,
+        totalKm: 20,
+        totalMinutes: 45,
+        seenAt: DateTime(2026, 9, 20, 11),
+        outcome: OfferOutcome.cancelled,
+      ),
+    ]);
+
+    expect(stats.acceptedEarnings, 25);
+    expect(stats.cancellationFees, 5);
+    expect(stats.recordedEarnings, 30);
+    expect(stats.confirmedEarnings, 30);
+    expect(stats.estimatedEarnings, 0);
+    expect(stats.accepted, 1);
+    expect(stats.acceptedKm, 10);
+    expect(stats.acceptedMinutes, 30);
+  });
+
   test('session summary carries accepted count with legacy default', () {
     final session = SessionSummary.from(
       startedAt: DateTime(2026, 7, 16),

@@ -6,6 +6,7 @@ import 'package:foxyco/domain/platform.dart';
 import 'package:foxyco/domain/verdict.dart';
 import 'package:foxyco/services/offer_log.dart';
 import 'package:foxyco/ui/history/history_screen.dart';
+import 'package:foxyco/ui/history/history_intent.dart';
 import 'package:foxyco/ui/theme/app_theme.dart';
 import 'package:foxyco/ui/theme/tokens.dart';
 
@@ -127,8 +128,85 @@ void main() {
     await tester.pumpWidget(_app([_offer(DateTime.now())]));
     await tester.pumpAndSettle();
 
-    expect(find.text('No accepted offers'), findsOneWidget);
+    expect(find.text('No recorded payouts'), findsOneWidget);
   });
+
+  testWidgets('performance separates confirmed and estimated payouts', (
+    tester,
+  ) async {
+    final now = DateTime.now();
+    await tester.pumpWidget(
+      _app([
+        _offer(
+          now,
+          outcome: OfferOutcome.completed,
+          payout: 20,
+          finalPayout: 25,
+        ),
+        _offer(now, outcome: OfferOutcome.taken, payout: 20),
+        _offer(
+          now,
+          outcome: OfferOutcome.cancelled,
+          payout: 30,
+          finalPayout: 5,
+        ),
+      ]),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('history-performance-toggle')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Tracked payouts'), findsOneWidget);
+    expect(find.text(r'$50.00'), findsOneWidget);
+    expect(
+      find.text(r'$30.00 final · $20.00 estimated · 1 need update'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets(
+    'goal intent shows only payouts contributing this calendar week',
+    (tester) async {
+      final now = DateTime.now();
+      final start = DateTime(
+        now.year,
+        now.month,
+        now.day,
+      ).subtract(Duration(days: now.weekday - 1));
+      final offers = [
+        _offer(start, outcome: OfferOutcome.completed, finalPayout: 25),
+        _offer(
+          start.add(const Duration(hours: 1)),
+          outcome: OfferOutcome.cancelled,
+          finalPayout: 5,
+        ),
+        _offer(start, outcome: OfferOutcome.missed),
+        _offer(
+          start.subtract(const Duration(days: 1)),
+          outcome: OfferOutcome.completed,
+          finalPayout: 50,
+        ),
+      ];
+      final container = ProviderContainer(
+        overrides: [offerLogProvider.overrideWith(() => _FixedLog(offers))],
+      );
+      addTearDown(container.dispose);
+      container
+          .read(pendingHistoryIntentProvider.notifier)
+          .open(HistoryIntent.goalWeek);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: const MaterialApp(home: Scaffold(body: HistoryScreen())),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('2 this week'), findsOneWidget);
+      expect(find.textContaining('This week · Goal payouts'), findsOneWidget);
+    },
+  );
 
   testWidgets('offer card keeps compact content and footer aligned', (
     tester,

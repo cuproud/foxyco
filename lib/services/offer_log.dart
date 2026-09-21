@@ -454,7 +454,8 @@ class OfferLog extends Notifier<List<OfferSummary>> {
   }) {
     if (value != null &&
         (!value.isFinite ||
-            value <= 0 ||
+            value < 0 ||
+            (value == 0 && offer.outcome != OfferOutcome.cancelled) ||
             !tip.isFinite ||
             tip < 0 ||
             !tollReimbursement.isFinite ||

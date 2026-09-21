@@ -39,6 +39,8 @@ void main() {
 
     expect(find.byType(OnboardingScreen), findsOneWidget);
     expect(find.textContaining('Meet FoxyCo'), findsOneWidget);
+    expect(find.text('Example offer'), findsOneWidget);
+    expect(find.text(r'$2.10'), findsOneWidget);
     expect(find.text('Next'), findsOneWidget);
     expect(find.text('Skip for now'), findsOneWidget);
   });

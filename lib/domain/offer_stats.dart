@@ -15,6 +15,10 @@ class OfferStats {
   final int accepted;
   final double acceptedEarnings;
   final double acceptedPerformanceEarnings;
+  final double confirmedEarnings;
+  final double estimatedEarnings;
+  final double cancellationFees;
+  final int missingFinalPayouts;
   final double acceptedKm;
   final double acceptedMinutes;
 
@@ -37,6 +41,10 @@ class OfferStats {
     this.accepted = 0,
     this.acceptedEarnings = 0,
     this.acceptedPerformanceEarnings = 0,
+    this.confirmedEarnings = 0,
+    this.estimatedEarnings = 0,
+    this.cancellationFees = 0,
+    this.missingFinalPayouts = 0,
     this.acceptedKm = 0,
     this.acceptedMinutes = 0,
     this.goodAvgPerKm = 0,
@@ -44,12 +52,20 @@ class OfferStats {
     this.busiestHour,
   });
 
+  double get recordedEarnings => acceptedEarnings + cancellationFees;
+  double get recordedPerformanceEarnings =>
+      acceptedPerformanceEarnings + cancellationFees;
+
   static OfferStats from(List<OfferSummary> offers) {
     if (offers.isEmpty) return const OfferStats();
 
     var good = 0, ok = 0, bad = 0, accepted = 0;
     var acceptedEarnings = 0.0;
     var acceptedPerformanceEarnings = 0.0;
+    var confirmedEarnings = 0.0;
+    var estimatedEarnings = 0.0;
+    var cancellationFees = 0.0;
+    var missingFinalPayouts = 0;
     var acceptedKm = 0.0;
     var acceptedMinutes = 0.0;
     var goodPerKmSum = 0.0;
@@ -77,8 +93,17 @@ class OfferStats {
         accepted++;
         acceptedEarnings += o.effectivePayout;
         acceptedPerformanceEarnings += o.performancePayout;
+        if (o.finalPayout == null) {
+          estimatedEarnings += o.payout;
+          missingFinalPayouts++;
+        } else {
+          confirmedEarnings += o.finalPayout!;
+        }
         acceptedKm += o.totalKm;
         acceptedMinutes += o.totalMinutes;
+      } else if (o.outcome == OfferOutcome.cancelled && o.finalPayout != null) {
+        cancellationFees += o.finalPayout!;
+        confirmedEarnings += o.finalPayout!;
       }
       if (best == null || o.effectivePricePerKm > best.effectivePricePerKm) {
         best = o;
@@ -104,6 +129,10 @@ class OfferStats {
       accepted: accepted,
       acceptedEarnings: acceptedEarnings,
       acceptedPerformanceEarnings: acceptedPerformanceEarnings,
+      confirmedEarnings: confirmedEarnings,
+      estimatedEarnings: estimatedEarnings,
+      cancellationFees: cancellationFees,
+      missingFinalPayouts: missingFinalPayouts,
       acceptedKm: acceptedKm,
       acceptedMinutes: acceptedMinutes,
       goodAvgPerKm: goodPerKmCount == 0 ? 0 : goodPerKmSum / goodPerKmCount,

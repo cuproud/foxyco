@@ -12,11 +12,13 @@ import 'package:foxyco/domain/verdict.dart';
 OfferSummary _offer(
   OfferOutcome outcome, {
   double payout = 20,
+  double? finalPayout,
   DateTime? seenAt,
 }) => OfferSummary(
   platform: GigPlatform.uber,
   verdict: Verdict.good,
   payout: payout,
+  finalPayout: finalPayout,
   pickupKm: 1,
   totalKm: 10,
   totalMinutes: 30,
@@ -59,16 +61,21 @@ void main() {
       offers: [
         _offer(OfferOutcome.completed, payout: 25, seenAt: start),
         _offer(OfferOutcome.taken, payout: 40, seenAt: start),
-        _offer(OfferOutcome.cancelled, payout: 30, seenAt: start),
+        _offer(
+          OfferOutcome.cancelled,
+          payout: 30,
+          finalPayout: 5,
+          seenAt: start,
+        ),
         _offer(OfferOutcome.missed, payout: 10, seenAt: start),
       ],
     );
 
-    expect(session.estimatedEarnings, 65);
+    expect(session.estimatedEarnings, 70);
     expect(session.completed, 1);
     expect(session.cancelled, 1);
     expect(session.declined, 1);
-    expect(session.hourlyEarnings, 32.5);
+    expect(session.hourlyEarnings, 35);
   });
 
   test('completed earnings prefer an entered final payout', () {
