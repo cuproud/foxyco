@@ -1,6 +1,6 @@
 # Manual Test Log
 
-## Current candidate — `1.0.15+113` (2026-09-28)
+## Current candidate — `1.0.16+114` (2026-09-28)
 
 | # | Step | Expect | Pass |
 |---|---|---|---|

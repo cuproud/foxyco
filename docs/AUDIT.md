@@ -2,10 +2,21 @@
 
 Audit date: 2026-09-28
 
-Candidate: `1.0.15+113`
+Candidate: `1.0.16+114`
 
 Automated checks pass. Play upload remains conditional on the device and
 Console checks in `MANUAL_TESTS.md` and `PLAY_RELEASE.md`.
+
+## Build 114 — new Play upload version
+
+Build 113 was already uploaded to Play Console. Build 114 increments both
+version name and version code to `1.0.16+114`; app behavior is unchanged.
+The guarded release helper passed Flutter analysis, the full Flutter test suite,
+and Firestore rules tests. The generated AAB's JAR signature verified.
+
+Verified artifact: `FoxyCo-v1.0.16+114-release-20260928-0121.aab`
+
+SHA-256: `34c1fdefc0f6e4bee64cf99185a933616e00e13503e83b1bd121afeadf3d1607`
 
 ## Build 113 changes
 
