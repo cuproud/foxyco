@@ -12,7 +12,9 @@ class OfferStats {
   final int good;
   final int ok;
   final int bad;
+  final int unscored;
   final int accepted;
+  final int declined;
   final double acceptedEarnings;
   final double acceptedPerformanceEarnings;
   final double confirmedEarnings;
@@ -38,7 +40,9 @@ class OfferStats {
     this.good = 0,
     this.ok = 0,
     this.bad = 0,
+    this.unscored = 0,
     this.accepted = 0,
+    this.declined = 0,
     this.acceptedEarnings = 0,
     this.acceptedPerformanceEarnings = 0,
     this.confirmedEarnings = 0,
@@ -53,13 +57,16 @@ class OfferStats {
   });
 
   double get recordedEarnings => acceptedEarnings + cancellationFees;
+  int get knownOutcomes => accepted + declined;
+  double? get acceptanceRate =>
+      knownOutcomes == 0 ? null : accepted / knownOutcomes;
   double get recordedPerformanceEarnings =>
       acceptedPerformanceEarnings + cancellationFees;
 
   static OfferStats from(List<OfferSummary> offers) {
     if (offers.isEmpty) return const OfferStats();
 
-    var good = 0, ok = 0, bad = 0, accepted = 0;
+    var good = 0, ok = 0, bad = 0, unscored = 0, accepted = 0, declined = 0;
     var acceptedEarnings = 0.0;
     var acceptedPerformanceEarnings = 0.0;
     var confirmedEarnings = 0.0;
@@ -86,7 +93,7 @@ class OfferStats {
         case Verdict.bad:
           bad++;
         case Verdict.unknown:
-          break;
+          unscored++;
       }
       if (o.outcome == OfferOutcome.taken ||
           o.outcome == OfferOutcome.completed) {
@@ -104,6 +111,8 @@ class OfferStats {
       } else if (o.outcome == OfferOutcome.cancelled && o.finalPayout != null) {
         cancellationFees += o.finalPayout!;
         confirmedEarnings += o.finalPayout!;
+      } else if (o.outcome == OfferOutcome.missed) {
+        declined++;
       }
       if (best == null || o.effectivePricePerKm > best.effectivePricePerKm) {
         best = o;
@@ -126,7 +135,9 @@ class OfferStats {
       good: good,
       ok: ok,
       bad: bad,
+      unscored: unscored,
       accepted: accepted,
+      declined: declined,
       acceptedEarnings: acceptedEarnings,
       acceptedPerformanceEarnings: acceptedPerformanceEarnings,
       confirmedEarnings: confirmedEarnings,

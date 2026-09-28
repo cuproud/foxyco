@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../domain/car_reminder.dart';
 import '../../domain/fox_settings.dart';
@@ -58,6 +59,15 @@ class HomeScreen extends ConsumerWidget {
         )
         .take(3)
         .toList();
+    final reviewCount = offers
+        .where(
+          (offer) =>
+              offer.outcome == OfferOutcome.unknown ||
+              ((offer.outcome == OfferOutcome.taken ||
+                      offer.outcome == OfferOutcome.completed) &&
+                  offer.finalPayout == null),
+        )
+        .length;
     Future<void> requestMissingPermissions() =>
         controller.requestMissingPermissions(
           confirmAccessibility: () => showAccessibilityDisclosure(context),
@@ -131,26 +141,39 @@ class HomeScreen extends ConsumerWidget {
           _Padded(child: _AccessAlert(onFix: requestMissingPermissions)),
           const SizedBox(height: Gap.lg),
         ],
-        // Car reminder inside its lead window — tap through to Settings' Garage
-        // group (section 1), where the reminders themselves live.
+        // Car reminder inside its lead window — tap through to Garage, where
+        // vehicle details, reminders, and expenses live.
         if (ref.watch(dueRemindersProvider).isNotEmpty) ...[
           _Padded(
             child: _ReminderBanner(
               reminder: ref.watch(dueRemindersProvider).first,
-              onTap: () =>
-                  ref.read(tabIndexProvider.notifier).go(3, section: 1),
+              onTap: () => ref.read(tabIndexProvider.notifier).go(2),
+            ),
+          ),
+          const SizedBox(height: Gap.lg),
+        ],
+        if (reviewCount > 0) ...[
+          const _Padded(child: SectionLabel('Review inbox')),
+          const SizedBox(height: Gap.sm + Gap.xs),
+          _Padded(
+            child: _ReviewInboxCard(
+              count: reviewCount,
+              onTap: () {
+                ref
+                    .read(pendingHistoryIntentProvider.notifier)
+                    .open(HistoryIntent.needsReview);
+                ref.read(tabIndexProvider.notifier).go(3);
+              },
             ),
           ),
           const SizedBox(height: Gap.lg),
         ],
         const _Padded(child: SectionLabel('Last session')),
         const SizedBox(height: Gap.sm + Gap.xs),
-        // Tap through to History — the card summarises offers the driver has no
-        // other way to reach from Home.
         _Padded(
           child: _SessionCard(
             session: ref.watch(lastSessionProvider),
-            onTap: () => ref.read(tabIndexProvider.notifier).go(2),
+            onTap: () => context.push('/sessions'),
           ),
         ),
         const SizedBox(height: Gap.lg),
@@ -165,7 +188,7 @@ class HomeScreen extends ConsumerWidget {
               ref
                   .read(pendingHistoryIntentProvider.notifier)
                   .open(HistoryIntent.forGoal(period));
-              ref.read(tabIndexProvider.notifier).go(2);
+              ref.read(tabIndexProvider.notifier).go(3);
             },
           ),
         ),
@@ -197,6 +220,70 @@ class HomeScreen extends ConsumerWidget {
       ],
     );
   }
+}
+
+class _ReviewInboxCard extends StatelessWidget {
+  const _ReviewInboxCard({required this.count, required this.onTap});
+
+  final int count;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Material(
+    color: FoxColors.bgSurface,
+    borderRadius: BorderRadius.circular(Radii.card),
+    child: InkWell(
+      key: const Key('review-inbox-card'),
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(Radii.card),
+      child: Container(
+        padding: const EdgeInsets.all(Gap.md),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(Radii.card),
+          border: Border.all(color: FoxColors.brandFox.withValues(alpha: .35)),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: FoxColors.brandFox.withValues(alpha: .12),
+                borderRadius: BorderRadius.circular(Radii.cardSm),
+              ),
+              child: const Icon(
+                Icons.fact_check_outlined,
+                color: FoxColors.brandFox,
+              ),
+            ),
+            const SizedBox(width: Gap.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '$count ${count == 1 ? 'offer needs' : 'offers need'} review',
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      color: FoxColors.textPrimary,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Confirm outcomes or add final payouts.',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: FoxColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.arrow_forward_rounded, color: FoxColors.brandFox),
+          ],
+        ),
+      ),
+    ),
+  );
 }
 
 class _RecentAccepted extends ConsumerStatefulWidget {

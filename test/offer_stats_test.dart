@@ -31,7 +31,7 @@ void main() {
     expect(OfferStats.from(const []).goodAvgPerKm, 0);
   });
 
-  test('counts split by verdict; unknown excluded from the split', () {
+  test('counts every verdict, including unscored offers', () {
     final stats = OfferStats.from([
       _o(Verdict.good, 15, 10),
       _o(Verdict.good, 20, 10),
@@ -43,6 +43,19 @@ void main() {
     expect(stats.good, 2);
     expect(stats.ok, 1);
     expect(stats.bad, 1);
+    expect(stats.unscored, 1);
+    expect(stats.good + stats.ok + stats.bad + stats.unscored, stats.total);
+  });
+
+  test('acceptance rate excludes unknown and cancelled outcomes', () {
+    final stats = OfferStats.from([
+      _o(Verdict.good, 15, 10, outcome: OfferOutcome.taken),
+      _o(Verdict.ok, 10, 10, outcome: OfferOutcome.missed),
+      _o(Verdict.bad, 8, 10, outcome: OfferOutcome.unknown),
+      _o(Verdict.bad, 8, 10, outcome: OfferOutcome.cancelled),
+    ]);
+    expect(stats.knownOutcomes, 2);
+    expect(stats.acceptanceRate, .5);
   });
 
   test('accepted is counted separately from the verdict split', () {

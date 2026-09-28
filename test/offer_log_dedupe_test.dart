@@ -362,6 +362,20 @@ void main() {
     expect(l.state.single, same(added));
   });
 
+  test('manual entry accepts a supported delivery platform', () {
+    final l = log();
+    final added = l.addManualRide(
+      platform: GigPlatform.doorDash,
+      payout: 18,
+      totalKm: 9,
+      totalMinutes: 31,
+      seenAt: t,
+    );
+
+    expect(added?.platform, GigPlatform.doorDash);
+    expect(added?.outcome, OfferOutcome.completed);
+  });
+
   test('offer received during hydration survives with disk history', () async {
     final stored = offer(seenAt: t.subtract(const Duration(hours: 1)));
     SharedPreferences.setMockInitialValues({

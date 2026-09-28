@@ -68,8 +68,7 @@ class _GoalCardState extends State<GoalCard> {
     final target = widget.settings.goalFor(_period);
     final progress = (earned / target).clamp(0.0, 1.0);
     final left = math.max(0.0, target - earned);
-    final today = DateTime(now.year, now.month, now.day);
-    final daysLeft = math.max(1, end.difference(today).inDays);
+    final daysLeft = math.max(1, calendarDaysBetween(now, end));
     final daily = (left / daysLeft).ceil();
     final symbol = widget.settings.currency.symbol;
     final percent = (progress * 100).round();

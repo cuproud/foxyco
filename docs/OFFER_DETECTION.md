@@ -392,10 +392,11 @@ a source app or OCR supplied a bad value. The correction preserves the row and
 rescales the historical verdict from its saved scoring snapshot; distances are
 still stored canonically in kilometres.
 
-History's Add ride action records a completed Uber, Hopp, or Lyft ride that was
+History's Add trip or delivery action records a completed job from any
+currently supported platform that was
 never captured live. The driver supplies payout, total distance, total minutes,
-and the ride date/time. FoxyCo scores those values against the current rideshare
-rules, stores the payout as final earnings, and marks the outcome as a manual
+and the job date/time. FoxyCo scores those values against the current rules for
+that platform, stores the payout as final earnings, and marks the outcome as a manual
 completion. Manual entry does not attempt to reconstruct an unseen offer card.
 
 An accepted-trip marker that was already visible when a new offer appeared is
@@ -439,20 +440,27 @@ synthetic no-card marker from recognized offer text; stale results include
 generation, invalidation reason, line count, no-card flag, and elapsed time.
 Capture cadence, generation guards, parser routing, and outcomes are unchanged.
 
-On surface/visibility or sampled capture-context changes, a coalesced check
-copies only the top-left 2x2 pixels of FoxyCo's own SurfaceView, at most once
-per 10 seconds on API 26+. It records PixelCopy result, alpha range, and
-whether the surface revision changed before completion, then clears/recycles
-the bitmap. No image, RGB values, or other app pixels are retained. Alpha is
-evidence about the app buffer, not a detector of Samsung compositor defects;
-even transparent pixels cannot prove the displayed bubble has no grey mask.
-No new automatic recovery or mask fix is claimed.
+On a sampled Google Maps capture-context change, FoxyCo briefly recreates only
+Flutter's child SurfaceView, preserving the overlay window, engine, position,
+pill, and Watching state. Other app switches remain diagnostic-only. This
+automates the part of stop/start Watching that cleared the Samsung grey mask
+without restarting the service. Surface/visibility and capture-context changes
+also schedule a coalesced check that copies only the
+top-left 2x2 pixels of FoxyCo's own SurfaceView, at most once per 10 seconds on
+API 26+. It records PixelCopy result, alpha range, and whether the surface
+revision changed before completion, then clears/recycles the bitmap. No image,
+RGB values, or other app pixels are retained. Alpha is evidence about the app
+buffer, not proof of compositor correctness.
 
 Reported reproduction (S24 Ultra, September 2026): select Google Maps inside
 Lyft; the mask appears immediately when external Maps opens. Stop/start
 Watching clears it. Existing logs show Maps capture handoffs and normal RGBA
-window parameters, but do not identify which rendering layer became opaque.
-Retest this exact sequence using Q.24 before treating the defect as resolved.
+window parameters and fully transparent sampled pixels, but the surface
+revision remains unchanged through each Maps handoff. That rules out the logged
+window state and Flutter's corner pixels while pointing to the unchanged
+Samsung composition surface. The Maps recovery therefore recreates the child
+surface, matching the effective part of the known workaround. Retest this exact
+sequence using Q.24 before treating the defect as resolved on-device.
 
 For every capture/parser/scoring change:
 

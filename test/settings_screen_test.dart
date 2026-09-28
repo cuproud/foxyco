@@ -15,6 +15,7 @@ import 'package:foxyco/domain/platform.dart';
 import 'package:foxyco/domain/thresholds.dart';
 import 'package:foxyco/domain/verdict.dart';
 import 'package:foxyco/ui/settings/garage_controller.dart';
+import 'package:foxyco/ui/settings/garage_screen.dart';
 import 'package:foxyco/ui/settings/settings_controller.dart';
 import 'package:foxyco/ui/overlay/verdict_pill.dart';
 import 'package:foxyco/ui/rules/rules_screen.dart';
@@ -463,17 +464,21 @@ void main() {
     expect(find.widgetWithText(TextField, 'Name'), findsOneWidget);
   });
 
-  testWidgets('garage section offers an add-vehicle affordance', (
-    tester,
-  ) async {
+  testWidgets('Garage offers an add-vehicle affordance', (tester) async {
     tester.view.physicalSize = const Size(1080, 3600);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
-    await tester.pumpWidget(_host());
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          theme: AppTheme.dark,
+          home: const Scaffold(body: GarageScreen()),
+        ),
+      ),
+    );
     await tester.pumpAndSettle();
 
-    await openGroup(tester, 'Garage');
     expect(find.byKey(const ValueKey('add-vehicle')), findsOneWidget);
     expect(find.text('Add vehicle'), findsOneWidget);
   });
@@ -601,7 +606,7 @@ void main() {
 
     // Operational settings remain grouped after scoring rules move out.
     for (final band in const [
-      'YOU & YOUR CAR',
+      'PROFILE',
       'APP HEALTH',
       'LOOK & FEEL',
       'YOUR DATA',
@@ -612,7 +617,7 @@ void main() {
 
     // Vertical order is the contract — a band header sits above its groups.
     double y(String label) => tester.getTopLeft(find.text(label)).dy;
-    expect(y('YOU & YOUR CAR'), lessThan(y('Profile')));
+    expect(y('PROFILE'), lessThan(y('Profile')));
     expect(y('APP HEALTH'), lessThan(y('Offer detection')));
     expect(y('Offer detection'), lessThan(y('Outcome tracking')));
     expect(y('LOOK & FEEL'), greaterThan(y('Outcome tracking')));
@@ -848,8 +853,6 @@ void main() {
             voiceVerdictEnabled: false,
             announceGoodOffers: false,
             announceOkOffers: true,
-            goodVoiceMinimumPayout: 42,
-            okVoiceMinimumPayout: 18,
             voiceCooldownSeconds: 45,
           )
           .toJson(),
@@ -857,8 +860,6 @@ void main() {
     expect(back.announceGoodOffers, isFalse);
     expect(back.voiceVerdictEnabled, isFalse);
     expect(back.announceOkOffers, isTrue);
-    expect(back.goodVoiceMinimumPayout, 42);
-    expect(back.okVoiceMinimumPayout, 18);
     expect(back.voiceCooldownSeconds, 45);
   });
 
@@ -867,12 +868,10 @@ void main() {
     final settings = FoxSettings.defaults.copyWith(
       minimumPayoutEnabled: true,
       minimumPayout: 7.5,
-      minimumPayoutVerdict: Verdict.ok,
     );
     final back = FoxSettings.fromJson(settings.toJson());
     expect(back.minimumPayoutEnabled, isTrue);
     expect(back.minimumPayout, 7.5);
-    expect(back.minimumPayoutVerdict, Verdict.ok);
   });
 
   test('disabling OCR also clears its test override', () {

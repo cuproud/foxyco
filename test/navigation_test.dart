@@ -13,6 +13,7 @@ import 'package:foxyco/services/play_update_service.dart';
 import 'package:foxyco/ui/settings/about_content.dart';
 import 'package:foxyco/ui/theme/platform_badge.dart';
 import 'package:foxyco/ui/settings/logs_screen.dart';
+import 'package:foxyco/ui/history/session_history_screen.dart';
 import 'package:foxyco/ui/shell/root_shell.dart';
 
 class _NavigationOfferLog extends OfferLog {
@@ -23,7 +24,7 @@ class _NavigationOfferLog extends OfferLog {
   List<OfferSummary> build() => offers;
 }
 
-/// Shell navigation: the connective tissue between the four tabs. Everything
+/// Shell navigation: the connective tissue between the five tabs. Everything
 /// here used to be a dead end — back left the app, tab jumps landed on a
 /// collapsed accordion, and Logs had no route at all.
 void main() {
@@ -288,7 +289,7 @@ void main() {
     expect(find.byType(LogsScreen), findsOneWidget);
   });
 
-  testWidgets('the last-session card opens History', (tester) async {
+  testWidgets('the last-session card opens session history', (tester) async {
     tall(tester);
     final container = scope([
       sessionLogProvider.overrideWith(
@@ -310,7 +311,8 @@ void main() {
 
     await tester.tap(find.textContaining('offers scored'));
     await beat(tester);
-    expect(container.read(tabIndexProvider), 2);
+    expect(find.byType(SessionHistoryScreen), findsOneWidget);
+    expect(find.text('Session history'), findsOneWidget);
   });
 
   testWidgets('re-tapping the active tab scrolls it back to the top', (

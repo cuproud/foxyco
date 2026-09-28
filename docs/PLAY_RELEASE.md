@@ -1,6 +1,6 @@
 # Google Play release runbook
 
-Updated 2026-09-20 for `1.0.14+111`.
+Updated 2026-09-27 for `1.0.14+112`.
 
 ## Before building
 

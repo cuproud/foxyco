@@ -318,9 +318,7 @@ void main() {
 
   test('voice announces each new GOOD offer only when enabled', () async {
     final c = container();
-    c.read(settingsProvider.notifier)
-      ..setAnnounceGoodOffers(true)
-      ..setGoodVoiceMinimumPayout(0);
+    c.read(settingsProvider.notifier).setAnnounceGoodOffers(true);
     c.read(offerWatcherProvider);
     c.read(overlayControllerProvider);
 
@@ -344,9 +342,7 @@ void main() {
 
   test('provisional GOOD is suppressed when the final offer is BAD', () async {
     final c = container();
-    c.read(settingsProvider.notifier)
-      ..setAnnounceGoodOffers(true)
-      ..setGoodVoiceMinimumPayout(0);
+    c.read(settingsProvider.notifier).setAnnounceGoodOffers(true);
     c.read(offerWatcherProvider);
     c.read(overlayControllerProvider);
 
@@ -374,8 +370,7 @@ void main() {
       final c = container();
       c.read(settingsProvider.notifier)
         ..setAnnounceGoodOffers(true)
-        ..setAnnounceOkOffers(true)
-        ..setGoodVoiceMinimumPayout(0);
+        ..setAnnounceOkOffers(true);
       c.read(offerWatcherProvider);
       c.read(overlayControllerProvider);
 

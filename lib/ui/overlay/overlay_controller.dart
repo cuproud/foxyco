@@ -135,7 +135,7 @@ class OverlayController extends Notifier<void> {
         // log entry: OfferWatcher records it immediately before showing it.
         final log = ref.read(offerLogProvider);
         if (!_pillUp || log.isEmpty) break;
-        ref.read(tabIndexProvider.notifier).go(2);
+        ref.read(tabIndexProvider.notifier).go(3);
         ref.read(pendingOfferProvider.notifier).set(log.first);
       case OverlayAction.openPaywall:
         // Locked pill tapped: the driver just tried to read a verdict they

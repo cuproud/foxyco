@@ -18,7 +18,6 @@ import '../../domain/overlay_payload.dart' show PillSize;
 import '../../domain/platform.dart';
 import '../../domain/rate_mode.dart';
 import '../../domain/thresholds.dart';
-import '../../domain/verdict.dart';
 import '../../services/ocr/ocr_capture.dart';
 import '../../services/verdict_voice.dart';
 
@@ -147,11 +146,6 @@ class SettingsController extends Notifier<FoxSettings> {
     (current) => current.copyWith(minimumPayout: amount.clamp(0, 500)),
   );
 
-  void setMinimumPayoutVerdict(Verdict verdict) {
-    if (verdict == Verdict.unknown) return;
-    _change((current) => current.copyWith(minimumPayoutVerdict: verdict));
-  }
-
   /// Pickup-near cutoff (km) — at/under paints the pill's km green, over red.
   void setPickupNearKm(double km) =>
       _change((current) => current.copyWith(pickupNearKm: km.clamp(0.5, 10.0)));
@@ -247,14 +241,6 @@ class SettingsController extends Notifier<FoxSettings> {
 
   void setAnnounceOkOffers(bool on) =>
       _change((current) => current.copyWith(announceOkOffers: on));
-
-  void setGoodVoiceMinimumPayout(double amount) => _change(
-    (current) => current.copyWith(goodVoiceMinimumPayout: amount.clamp(0, 500)),
-  );
-
-  void setOkVoiceMinimumPayout(double amount) => _change(
-    (current) => current.copyWith(okVoiceMinimumPayout: amount.clamp(0, 500)),
-  );
 
   void setVoiceCooldownSeconds(int seconds) => _change(
     (current) => current.copyWith(voiceCooldownSeconds: seconds.clamp(5, 120)),

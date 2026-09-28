@@ -98,6 +98,9 @@ public class OverlayService extends Service implements View.OnTouchListener {
             current.capturePackage = packageName;
             current.traceWindow("capture-context", current.flutterView == null ? null
                     : (WindowManager.LayoutParams) current.flutterView.getLayoutParams());
+            if ("com.google.android.apps.maps".equals(packageName)) {
+                current.refreshSurface();
+            }
             current.scheduleCornerCheck();
         } else {
             current.traceDiagnostic("g=" + current.generation + " event=ocr-" + event
@@ -583,6 +586,24 @@ public class OverlayService extends Service implements View.OnTouchListener {
             View child = root.getChildAt(i);
             restoreSurfaceTransparency(child);
         }
+    }
+
+    /** Recreate only Flutter's child surface after a Maps handoff. Re-applying
+     * alpha/format to the same Samsung surface does not clear the grey mask;
+     * stop/start Watching does because it creates a new surface. */
+    private void refreshSurface() {
+        SurfaceView surface = diagnosticSurface;
+        if (surface == null || !surface.isShown()) return;
+        traceDiagnostic("g=" + generation + " event=surface-refresh-start"
+                + " revision=" + surfaceRevision);
+        surface.setVisibility(View.INVISIBLE);
+        surface.post(() -> {
+            if (instance != this || diagnosticSurface != surface) return;
+            surface.setVisibility(View.VISIBLE);
+            restoreSurfaceTransparency();
+            traceWindow("surface-refresh-finish", flutterView == null
+                    ? null : (WindowManager.LayoutParams) flutterView.getLayoutParams());
+        });
     }
 
     /// FoxyCo patch (device 2026-08-06): the ONLY way this service may call

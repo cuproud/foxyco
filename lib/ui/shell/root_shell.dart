@@ -7,6 +7,7 @@ import '../../services/play_update_service.dart';
 import '../history/history_screen.dart';
 import '../history/offer_detail_sheet.dart';
 import '../home/home_screen.dart';
+import '../settings/garage_screen.dart';
 import '../paywall/paywall_sheet.dart';
 import '../rules/rules_screen.dart';
 import '../settings/settings_controller.dart';
@@ -48,7 +49,7 @@ class PendingOffer extends Notifier<OfferSummary?> {
   void set(OfferSummary? offer) => state = offer;
 }
 
-/// The app's four tabs behind one floating pill nav (references/*.html
+/// The app's five tabs behind one floating pill nav (references/*.html
 /// `.bottom-nav`). An [IndexedStack] keeps each tab's scroll + filter state
 /// alive when you switch, matching the mockups' instant tab feel.
 class RootShell extends ConsumerStatefulWidget {
@@ -64,7 +65,7 @@ class _RootShellState extends ConsumerState<RootShell> {
   /// (a vertical ListView with no controller of its own takes the primary one).
   /// Re-tapping the ACTIVE tab then scrolls it home — the standard bottom-nav
   /// affordance, which the shell had no way to offer before.
-  final _scrolls = List.generate(4, (_) => ScrollController());
+  final _scrolls = List.generate(5, (_) => ScrollController());
 
   @override
   void initState() {
@@ -132,7 +133,7 @@ class _RootShellState extends ConsumerState<RootShell> {
     //
     // So make the switch an explicit teardown: watch both inputs that can
     // change the resolved palette, and key the pages on them. A change discards
-    // the four tab subtrees and rebuilds them against the new statics. Costs
+    // the five tab subtrees and rebuilds them against the new statics. Costs
     // the tabs' scroll offsets on a theme switch, which is a fair price and
     // roughly what a user expects from one.
     final skin = ref.watch(settingsProvider.select((s) => s.skin));
@@ -194,13 +195,20 @@ class _RootShellState extends ConsumerState<RootShell> {
                     enabled: index == 2,
                     child: PrimaryScrollController(
                       controller: _scrolls[2],
-                      child: const HistoryScreen(),
+                      child: const GarageScreen(),
                     ),
                   ),
                   TickerMode(
                     enabled: index == 3,
                     child: PrimaryScrollController(
                       controller: _scrolls[3],
+                      child: const HistoryScreen(),
+                    ),
+                  ),
+                  TickerMode(
+                    enabled: index == 4,
+                    child: PrimaryScrollController(
+                      controller: _scrolls[4],
                       child: const SettingsScreen(),
                     ),
                   ),
@@ -230,6 +238,7 @@ class _NavDest {
 const _dests = [
   _NavDest(Icons.home_rounded, Icons.home_outlined, 'Home'),
   _NavDest(Icons.tune_rounded, Icons.tune_outlined, 'Rules'),
+  _NavDest(Icons.garage_rounded, Icons.garage_outlined, 'Garage'),
   _NavDest(Icons.receipt_long_rounded, Icons.receipt_long_outlined, 'History'),
   _NavDest(Icons.settings_rounded, Icons.settings_outlined, 'Settings'),
 ];

@@ -114,7 +114,6 @@ void main() {
       final settings = perKm.copyWith(
         minimumPayoutEnabled: true,
         minimumPayout: 10,
-        minimumPayoutVerdict: Verdict.good,
       );
       expect(engine.scoreOffer(offer, settings), Verdict.bad);
       expect(
@@ -238,11 +237,7 @@ void main() {
 
     test('OK voice follows the displayed verdict', () {
       expect(
-        engine.qualifiesForVoice(
-          premium,
-          FoxSettings.defaults.copyWith(goodVoiceMinimumPayout: 31),
-          Verdict.ok,
-        ),
+        engine.qualifiesForVoice(premium, FoxSettings.defaults, Verdict.ok),
         isTrue,
       );
     });

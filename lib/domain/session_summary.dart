@@ -58,6 +58,9 @@ class SessionSummary {
            estimatedPerformanceEarnings ?? estimatedEarnings;
 
   int get total => good + ok + bad;
+  int get knownOutcomes => accepted + declined;
+  double? get acceptanceRate =>
+      knownOutcomes == 0 ? null : accepted / knownOutcomes;
   Duration get duration => endedAt.difference(startedAt);
   double get earnings => actualEarnings ?? estimatedEarnings;
   double get performanceEarnings =>

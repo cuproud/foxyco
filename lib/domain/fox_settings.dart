@@ -8,7 +8,6 @@ import 'overlay_payload.dart' show PillSize;
 import 'platform.dart';
 import 'rate_mode.dart';
 import 'thresholds.dart';
-import 'verdict.dart';
 
 enum EarningsGoalPeriod { week, month, quarter, year }
 
@@ -34,6 +33,13 @@ extension EarningsGoalPeriodRange on EarningsGoalPeriod {
   };
 }
 
+/// Whole calendar days between two local dates, unaffected by DST changes.
+int calendarDaysBetween(DateTime start, DateTime end) => DateTime.utc(
+  end.year,
+  end.month,
+  end.day,
+).difference(DateTime.utc(start.year, start.month, start.day)).inDays;
+
 /// Everything the driver can tune, in one persisted object.
 ///
 /// Pure Dart (no Flutter/plugins). [toJson]/[fromJson] are the whole storage
@@ -56,10 +62,6 @@ class FoxSettings {
   /// it disabled until the driver explicitly opts in.
   final bool minimumPayoutEnabled;
   final double minimumPayout;
-
-  /// Legacy persisted field kept so existing settings blobs round-trip.
-  /// Minimum payout failures are always BAD; this value is no longer read.
-  final Verdict minimumPayoutVerdict;
 
   /// Pickup distance at or under this (km) makes the pill's GPS target green;
   /// over it, red. This is informational and does not change the verdict.
@@ -99,10 +101,6 @@ class FoxSettings {
   final bool announceGoodOffers;
   final bool announceOkOffers;
 
-  /// Legacy payout fields retained for settings migration compatibility. They
-  /// are no longer read by verdict scoring or voice announcements.
-  final double goodVoiceMinimumPayout;
-  final double okVoiceMinimumPayout;
   final int voiceCooldownSeconds;
 
   /// Opt-in, on-device screenshot OCR fallback for Uber. Accessibility remains
@@ -134,7 +132,6 @@ class FoxSettings {
     required this.rateMode,
     this.minimumPayoutEnabled = false,
     this.minimumPayout = 5,
-    this.minimumPayoutVerdict = Verdict.bad,
     required this.pickupNearKm,
     this.deliveryThresholds = Thresholds.defaults,
     this.deliveryHourThresholds = defaultHourThresholds,
@@ -150,8 +147,6 @@ class FoxSettings {
     this.voiceVerdictEnabled = true,
     this.announceGoodOffers = true,
     this.announceOkOffers = false,
-    this.goodVoiceMinimumPayout = 30,
-    this.okVoiceMinimumPayout = 20,
     this.voiceCooldownSeconds = 15,
     this.ocrEnabled = false,
     this.ocrTestMode = false,
@@ -181,7 +176,6 @@ class FoxSettings {
     rateMode: RateMode.perKm,
     minimumPayoutEnabled: false,
     minimumPayout: 5,
-    minimumPayoutVerdict: Verdict.bad,
     pickupNearKm: 2.0,
     deliveryThresholds: Thresholds.defaults,
     deliveryHourThresholds: defaultHourThresholds,
@@ -197,8 +191,6 @@ class FoxSettings {
     voiceVerdictEnabled: true,
     announceGoodOffers: true,
     announceOkOffers: false,
-    goodVoiceMinimumPayout: 30,
-    okVoiceMinimumPayout: 20,
     voiceCooldownSeconds: 15,
     ocrEnabled: false,
     ocrTestMode: false,
@@ -242,7 +234,6 @@ class FoxSettings {
     RateMode? rateMode,
     bool? minimumPayoutEnabled,
     double? minimumPayout,
-    Verdict? minimumPayoutVerdict,
     double? pickupNearKm,
     Thresholds? deliveryThresholds,
     Thresholds? deliveryHourThresholds,
@@ -258,8 +249,6 @@ class FoxSettings {
     bool? voiceVerdictEnabled,
     bool? announceGoodOffers,
     bool? announceOkOffers,
-    double? goodVoiceMinimumPayout,
-    double? okVoiceMinimumPayout,
     int? voiceCooldownSeconds,
     bool? ocrEnabled,
     bool? ocrTestMode,
@@ -277,7 +266,6 @@ class FoxSettings {
     rateMode: rateMode ?? this.rateMode,
     minimumPayoutEnabled: minimumPayoutEnabled ?? this.minimumPayoutEnabled,
     minimumPayout: minimumPayout ?? this.minimumPayout,
-    minimumPayoutVerdict: minimumPayoutVerdict ?? this.minimumPayoutVerdict,
     pickupNearKm: pickupNearKm ?? this.pickupNearKm,
     deliveryThresholds: deliveryThresholds ?? this.deliveryThresholds,
     deliveryHourThresholds:
@@ -295,9 +283,6 @@ class FoxSettings {
     voiceVerdictEnabled: voiceVerdictEnabled ?? this.voiceVerdictEnabled,
     announceGoodOffers: announceGoodOffers ?? this.announceGoodOffers,
     announceOkOffers: announceOkOffers ?? this.announceOkOffers,
-    goodVoiceMinimumPayout:
-        goodVoiceMinimumPayout ?? this.goodVoiceMinimumPayout,
-    okVoiceMinimumPayout: okVoiceMinimumPayout ?? this.okVoiceMinimumPayout,
     voiceCooldownSeconds: voiceCooldownSeconds ?? this.voiceCooldownSeconds,
     ocrEnabled: ocrEnabled ?? this.ocrEnabled,
     ocrTestMode: ocrTestMode ?? this.ocrTestMode,
@@ -319,7 +304,6 @@ class FoxSettings {
     'rateMode': rateMode.name,
     'minimumPayoutEnabled': minimumPayoutEnabled,
     'minimumPayout': minimumPayout,
-    'minimumPayoutVerdict': minimumPayoutVerdict.name,
     'pickupNearKm': pickupNearKm,
     'deliveryGood': deliveryThresholds.goodAtOrAbove,
     'deliveryBad': deliveryThresholds.badBelow,
@@ -337,8 +321,6 @@ class FoxSettings {
     'voiceVerdictEnabled': voiceVerdictEnabled,
     'announceGoodOffers': announceGoodOffers,
     'announceOkOffers': announceOkOffers,
-    'goodVoiceMinimumPayout': goodVoiceMinimumPayout,
-    'okVoiceMinimumPayout': okVoiceMinimumPayout,
     'voiceCooldownSeconds': voiceCooldownSeconds,
     'ocrEnabled': ocrEnabled,
     'moneyFont': moneyFont.name,
@@ -402,12 +384,6 @@ class FoxSettings {
       minimumPayoutEnabled:
           (j['minimumPayoutEnabled'] as bool?) ?? d.minimumPayoutEnabled,
       minimumPayout: number('minimumPayout', d.minimumPayout, 0, 500),
-      minimumPayoutVerdict:
-          Verdict.values
-              .where((verdict) => verdict != Verdict.unknown)
-              .where((verdict) => verdict.name == j['minimumPayoutVerdict'])
-              .firstOrNull ??
-          d.minimumPayoutVerdict,
       pickupNearKm: number('pickupNearKm', d.pickupNearKm, 0.5, 10),
       deliveryThresholds: deliveryGood >= deliveryBad
           ? Thresholds(goodAtOrAbove: deliveryGood, badBelow: deliveryBad)
@@ -451,18 +427,6 @@ class FoxSettings {
       announceGoodOffers:
           (j['announceGoodOffers'] as bool?) ?? d.announceGoodOffers,
       announceOkOffers: (j['announceOkOffers'] as bool?) ?? d.announceOkOffers,
-      goodVoiceMinimumPayout: number(
-        'goodVoiceMinimumPayout',
-        d.goodVoiceMinimumPayout,
-        0,
-        500,
-      ),
-      okVoiceMinimumPayout: number(
-        'okVoiceMinimumPayout',
-        d.okVoiceMinimumPayout,
-        0,
-        500,
-      ),
       voiceCooldownSeconds:
           ((j['voiceCooldownSeconds'] as num?)?.toInt() ??
                   d.voiceCooldownSeconds)

@@ -546,7 +546,7 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('history-filter-done')));
     await tester.pumpAndSettle();
 
-    expect(find.text(r'All platforms · $20+ fare · Today'), findsOneWidget);
+    expect(find.text(r'All platforms · CA$20+ fare · Today'), findsOneWidget);
   });
 
   testWidgets('summary math follows verdict and Accepted filters', (
@@ -601,7 +601,7 @@ void main() {
       findsOneWidget,
     );
     expect(
-      find.descendant(of: summary, matching: find.text('Accepted km')),
+      find.descendant(of: summary, matching: find.text('Known accept')),
       findsOneWidget,
     );
 

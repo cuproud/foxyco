@@ -30,10 +30,7 @@ import '../theme/section_label.dart';
 import '../theme/tokens.dart';
 import 'about_content.dart';
 import 'garage_controller.dart';
-import 'garage_section.dart';
 import 'profile_section.dart';
-import 'reminder_controller.dart';
-import 'reminder_section.dart';
 import 'settings_controller.dart';
 import 'settings_controls.dart';
 
@@ -82,7 +79,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   /// which is where every deep link used to land.
   final _rowKeys = List.generate(9, (_) => GlobalKey());
 
-  /// Honour a jump made with `TabIndex.go(3, section: n)`: expand the group the
+  /// Honour a jump made with `TabIndex.go(4, section: n)`: expand the group the
   /// driver actually tapped for and bring it on screen. Consumed once, so
   /// switching to Settings by hand afterwards leaves their accordion alone.
   void _consumeDeepLink() {
@@ -115,14 +112,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     // Settings is always built (it's an IndexedStack child), so the deep link
     // has to hang off the tab CHANGE, not off this build.
     ref.listen<int>(tabIndexProvider, (_, next) {
-      if (next == 3) _consumeDeepLink();
+      if (next == 4) _consumeDeepLink();
     });
 
     final settings = ref.watch(settingsProvider);
     final controller = ref.read(settingsProvider.notifier);
     final text = Theme.of(context).textTheme;
-    final garage = ref.watch(garageProvider);
-    final reminders = ref.watch(reminderProvider);
     final driverName = ref.watch(driverNameProvider);
 
     return ListView(
@@ -138,7 +133,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       children: [
         Text('Settings', style: text.headlineMedium),
         const SizedBox(height: Gap.md),
-        const SectionLabel('You & your car'),
+        const SectionLabel('Profile'),
         const SizedBox(height: Gap.sm + Gap.xs),
         _staggered(
           0,
@@ -150,42 +145,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             accent: _accents[0],
             onTap: () => _toggle(0),
             child: const ProfileSection(),
-          ),
-        ),
-        const SizedBox(height: Gap.sm),
-        _staggered(
-          1,
-          SettingsGroup(
-            title: 'Garage',
-            icon: Icons.garage_outlined,
-            summary:
-                '${garage.vehicles.length} vehicle'
-                '${garage.vehicles.length == 1 ? '' : 's'} · '
-                '${reminders.length} reminder'
-                '${reminders.length == 1 ? '' : 's'}',
-            open: _open == 1,
-            accent: _accents[1],
-            onTap: () => _toggle(1),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const GarageList(),
-                const SizedBox(height: Gap.lg),
-                Row(
-                  children: [
-                    Icon(
-                      Icons.notifications_none_rounded,
-                      size: 14,
-                      color: FoxColors.textDisabled,
-                    ),
-                    const SizedBox(width: 6),
-                    Text('CAR REMINDERS', style: text.labelSmall),
-                  ],
-                ),
-                const SizedBox(height: Gap.sm),
-                const ReminderSection(),
-              ],
-            ),
           ),
         ),
         const SizedBox(height: Gap.lg),

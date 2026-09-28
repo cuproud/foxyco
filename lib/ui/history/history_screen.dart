@@ -66,6 +66,12 @@ String _outcomeLabel(HistoryOutcomeFilter value) => switch (value) {
   HistoryOutcomeFilter.needsReview => 'Needs review',
 };
 
+String _hourLabel(BuildContext context, int hour) =>
+    MaterialLocalizations.of(context).formatTimeOfDay(
+      TimeOfDay(hour: hour, minute: 0),
+      alwaysUse24HourFormat: MediaQuery.alwaysUse24HourFormatOf(context),
+    );
+
 class _HistoryScreenState extends ConsumerState<HistoryScreen> {
   static const _bottomNavClearance = 112.0;
   ScrollController? _scrollController;
@@ -134,8 +140,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     controller.animateTo(0, duration: Motion.morph, curve: Motion.curve);
   }
 
-  int _daysAgo(DateTime t) =>
-      DateTime.now().difference(DateTime(t.year, t.month, t.day)).inDays;
+  int _daysAgo(DateTime t) => calendarDaysBetween(t, DateTime.now());
 
   bool _passes(OfferSummary o) {
     if (_goalPeriod case final period?) {
@@ -191,6 +196,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
   @override
   Widget build(BuildContext context) {
     final all = ref.watch(offerLogProvider);
+    final settings = ref.watch(settingsProvider);
     final availableApps = ParserRegistry.supportedPlatforms;
     final filtered = all.where(_passes).toList()
       ..sort(
@@ -239,7 +245,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                 key: const ValueKey('history-add-ride'),
                 onPressed: _addRide,
                 icon: const Icon(Icons.add_rounded, size: 18),
-                label: const Text('Add ride'),
+                label: const Text('Add trip or delivery'),
               ),
             ),
             const SizedBox(height: Gap.sm),
@@ -255,6 +261,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
               outcome: _outcome,
               topOnly: _topOnly,
               minFare: _minFare,
+              currencyPrefix: settings.currency.prefix,
               matchCount: stats.total,
               onRange: (range) => setState(() {
                 _goalPeriod = null;
@@ -368,10 +375,11 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     setState(_resetFilters);
     ScaffoldMessenger.of(
       context,
-    ).showSnackBar(const SnackBar(content: Text('Ride added to History.')));
+    ).showSnackBar(const SnackBar(content: Text('Completed job added.')));
   }
 
   Future<void> _showFilters(List<GigPlatform> availableApps) async {
+    final settings = ref.read(settingsProvider);
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -420,6 +428,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                       outcome: _outcome,
                       topOnly: _topOnly,
                       minFare: _minFare,
+                      currencyPrefix: settings.currency.prefix,
                       matchCount: ref
                           .read(offerLogProvider)
                           .where(_passes)
@@ -684,15 +693,14 @@ class _ManualRideDialogState extends State<_ManualRideDialog> {
             DropdownButtonFormField<GigPlatform>(
               initialValue: _platform,
               decoration: const InputDecoration(labelText: 'App'),
-              items:
-                  const [GigPlatform.uber, GigPlatform.hopp, GigPlatform.lyft]
-                      .map(
-                        (platform) => DropdownMenuItem(
-                          value: platform,
-                          child: Text(platform.label),
-                        ),
-                      )
-                      .toList(),
+              items: ParserRegistry.supportedPlatforms
+                  .map(
+                    (platform) => DropdownMenuItem(
+                      value: platform,
+                      child: Text(platform.label),
+                    ),
+                  )
+                  .toList(),
               onChanged: (value) => setState(() => _platform = value!),
             ),
             const SizedBox(height: Gap.sm),
@@ -766,7 +774,7 @@ class _ManualRideDialogState extends State<_ManualRideDialog> {
           onPressed: () => Navigator.pop(context),
           child: const Text('Cancel'),
         ),
-        FilledButton(onPressed: _save, child: const Text('Add ride')),
+        FilledButton(onPressed: _save, child: const Text('Add completed job')),
       ],
     );
   }
@@ -786,6 +794,7 @@ class _FiltersCard extends StatelessWidget {
     required this.outcome,
     required this.topOnly,
     required this.minFare,
+    required this.currencyPrefix,
     required this.matchCount,
     required this.onRange,
     required this.onApp,
@@ -806,6 +815,7 @@ class _FiltersCard extends StatelessWidget {
   final HistoryOutcomeFilter outcome;
   final bool topOnly;
   final int minFare;
+  final String currencyPrefix;
   final int matchCount;
   final ValueChanged<HistoryRange> onRange;
   final ValueChanged<GigPlatform?> onApp;
@@ -831,7 +841,7 @@ class _FiltersCard extends StatelessWidget {
         : apps.length == 1
         ? apps.first!.label
         : '${apps.length} platforms';
-    final fare = topOnly ? '\$$minFare+ fare' : 'Any fare';
+    final fare = topOnly ? '$currencyPrefix$minFare+ fare' : 'Any fare';
     final period =
         periodOverride ??
         switch (range) {
@@ -989,6 +999,7 @@ class _FiltersCard extends StatelessWidget {
                   child: _TopFilter(
                     on: topOnly,
                     minFare: minFare,
+                    currencyPrefix: currencyPrefix,
                     matchCount: matchCount,
                     onToggle: onTopToggle,
                     onFare: onFare,
@@ -1349,6 +1360,7 @@ class _TopFilter extends StatelessWidget {
   const _TopFilter({
     required this.on,
     required this.minFare,
+    required this.currencyPrefix,
     required this.matchCount,
     required this.onToggle,
     required this.onFare,
@@ -1356,6 +1368,7 @@ class _TopFilter extends StatelessWidget {
 
   final bool on;
   final int minFare;
+  final String currencyPrefix;
   final int matchCount;
   final VoidCallback onToggle;
   final ValueChanged<int> onFare;
@@ -1384,7 +1397,7 @@ class _TopFilter extends StatelessWidget {
                     const SizedBox(height: 2),
                     Text(
                       on
-                          ? '$matchCount offers · over \$$minFare'
+                          ? '$matchCount offers · over $currencyPrefix$minFare'
                           : '$matchCount offers · any fare',
                       style: TextStyle(
                         fontSize: 12,
@@ -1423,7 +1436,7 @@ class _TopFilter extends StatelessWidget {
                   SizedBox(
                     width: 46,
                     child: Text(
-                      '\$$minFare',
+                      '$currencyPrefix$minFare',
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontFamily: FoxFonts.display,
@@ -1628,19 +1641,14 @@ class _HourlyChart extends StatelessWidget {
             ),
           ),
           const SizedBox(height: Gap.xs),
-          // Sparse hour axis: 12A · 6A · 12P · 6P.
+          // Sparse, locale-aware hour axis.
           Row(
             children: [
-              for (final (flex, label) in [
-                (6, '12 AM'),
-                (6, '6 AM'),
-                (6, '12 PM'),
-                (6, '6 PM'),
-              ])
+              for (final (flex, hour) in [(6, 0), (6, 6), (6, 12), (6, 18)])
                 Expanded(
                   flex: flex,
                   child: Text(
-                    label,
+                    _hourLabel(context, hour),
                     style: TextStyle(
                       fontSize: 9.5,
                       fontWeight: FontWeight.w600,
@@ -2244,6 +2252,14 @@ class _VerdictSummaryRow extends StatelessWidget {
         verdict: Verdict.bad,
         icon: Icons.cancel_outlined,
       ),
+      if (stats.unscored > 0) ...[
+        const SizedBox(width: Gap.sm),
+        _VerdictSummaryChip(
+          count: stats.unscored,
+          verdict: Verdict.unknown,
+          icon: Icons.help_outline_rounded,
+        ),
+      ],
     ],
   );
 }
@@ -2323,11 +2339,9 @@ class _HistoryPerformanceState extends State<_HistoryPerformance> {
     final hourly = stats.acceptedMinutes > 0
         ? '${settings.currency.symbol}${(stats.acceptedPerformanceEarnings / stats.acceptedMinutes * 60).toStringAsFixed(2)}'
         : '—';
-    final acceptedKm = stats.acceptedKm > 0
-        ? settings.distanceUnit
-              .distanceFromKm(stats.acceptedKm)
-              .toStringAsFixed(1)
-        : '—';
+    final acceptance = stats.acceptanceRate == null
+        ? '—'
+        : '${(stats.acceptanceRate! * 100).round()}%';
     final textScale = MediaQuery.textScalerOf(context).scale(1);
     final expandedHeight = 260.0 + (textScale > 1 ? (textScale - 1) * 80 : 0);
     final light = Theme.of(context).brightness == Brightness.light;
@@ -2513,9 +2527,8 @@ class _HistoryPerformanceState extends State<_HistoryPerformance> {
                                   ),
                                   const _GlassDivider(),
                                   _HeroStat(
-                                    value: acceptedKm,
-                                    label:
-                                        'Accepted ${settings.distanceUnit.shortLabel}',
+                                    value: acceptance,
+                                    label: 'Known accept',
                                   ),
                                 ],
                               ),
@@ -2779,13 +2792,6 @@ class _StatsCard extends ConsumerWidget {
 
   final OfferStats stats;
 
-  /// `17` → "5 PM" (hour-of-day label for the busiest-hour stat).
-  static String _hourLabel(int h) {
-    final ampm = h < 12 ? 'AM' : 'PM';
-    final display = h % 12 == 0 ? 12 : h % 12;
-    return '$display $ampm';
-  }
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final s = stats;
@@ -2839,7 +2845,9 @@ class _StatsCard extends ConsumerWidget {
               _CompactStat(
                 icon: Icons.schedule_rounded,
                 label: 'Busiest hour',
-                value: s.busiestHour != null ? _hourLabel(s.busiestHour!) : '—',
+                value: s.busiestHour != null
+                    ? _hourLabel(context, s.busiestHour!)
+                    : '—',
                 color: FoxColors.brandFox,
               ),
             ],

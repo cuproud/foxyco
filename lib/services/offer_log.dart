@@ -14,6 +14,7 @@ import '../domain/scoring_snapshot.dart';
 import '../domain/thresholds.dart';
 import '../domain/verdict.dart';
 import '../domain/decision_engine.dart';
+import '../parser/parser_registry.dart';
 import 'fox_log.dart';
 import 'history_backup.dart';
 import '../ui/home/dashboard_state.dart' show Tally;
@@ -356,7 +357,7 @@ class OfferLog extends Notifier<List<OfferSummary>> {
     return offer;
   }
 
-  /// Add a completed ride that the live detector never captured.
+  /// Add a completed trip or delivery that the live detector never captured.
   OfferSummary? addManualRide({
     required GigPlatform platform,
     required double payout,
@@ -364,11 +365,7 @@ class OfferLog extends Notifier<List<OfferSummary>> {
     required double totalMinutes,
     required DateTime seenAt,
   }) {
-    if (!const {
-          GigPlatform.uber,
-          GigPlatform.hopp,
-          GigPlatform.lyft,
-        }.contains(platform) ||
+    if (!ParserRegistry.hasParser(platform) ||
         !payout.isFinite ||
         payout <= 0 ||
         !totalKm.isFinite ||

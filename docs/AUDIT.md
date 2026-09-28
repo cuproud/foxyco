@@ -1,6 +1,6 @@
 # Release audit
 
-Audit date: 2026-09-20
+Audit date: 2026-09-27
 
 Candidate: `1.0.14+111`
 
@@ -17,8 +17,11 @@ Console checks in `MANUAL_TESTS.md` and `PLAY_RELEASE.md`.
   goal card links to its contributing calendar-period rows.
 - First-run onboarding shows the real verdict pill before permissions, and
   lifetime-account sign-in copy no longer refers to protecting a trial.
-- The S24 Ultra grey-mask/Maps handoff remains a physical-device gate; no host-
-  only overlay fix is claimed.
+- A Google Maps OCR capture context now recreates only Flutter's child surface,
+  automating the part of stop/start Watching that cleared the S24 Ultra grey
+  mask while preserving the service and shift. Other app switches remain
+  diagnostic-only. Q.24 remains a physical-device gate before this recovery is
+  claimed verified.
 
 ## Build 110 changes
 

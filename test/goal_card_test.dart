@@ -8,6 +8,13 @@ import 'package:foxyco/ui/home/goal_card.dart';
 import 'package:foxyco/ui/history/history_intent.dart';
 
 void main() {
+  test('calendar day math ignores elapsed hours', () {
+    expect(
+      calendarDaysBetween(DateTime(2026, 3, 8, 23), DateTime(2026, 3, 9, 1)),
+      1,
+    );
+  });
+
   testWidgets('goal matches History accepted earnings and switches periods', (
     tester,
   ) async {

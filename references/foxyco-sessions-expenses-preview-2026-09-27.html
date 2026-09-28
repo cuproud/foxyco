@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>FoxyCo session and expense preview</title>
+  <style>
+    :root{color-scheme:light dark;--bg:#ebe7de;--paper:#fffaf1;--soft:#f0eadf;--ink:#17231f;--muted:#6e756f;--line:#d9d0c2;--orange:#ed6b2e;--green:#172a24;--cream:#fff8e8;--gold:#d8aa57;--red:#b55f50;--shadow:0 28px 70px #4e392522}
+    @media(prefers-color-scheme:dark){:root{--bg:#0e1411;--paper:#18211d;--soft:#222c27;--ink:#f4eee3;--muted:#a6aea9;--line:#344039;--green:#09110d;--shadow:0 28px 70px #0008}}
+    *{box-sizing:border-box}body{margin:0;min-height:100dvh;background:radial-gradient(circle at 12% 8%,#ed6b2e17,transparent 24%),var(--bg);color:var(--ink);font-family:"Avenir Next","Segoe UI",sans-serif}button,input,select{font:inherit}button{cursor:pointer}.board{max-width:1420px;margin:auto;padding:34px 20px 70px}.intro{display:grid;grid-template-columns:1.4fr .75fr;gap:28px;align-items:end;margin-bottom:30px}.brand{display:flex;align-items:center;gap:10px;font-weight:900;margin-bottom:16px}.brand img{width:38px;height:38px;object-fit:contain}.intro h1{max-width:780px;margin:0;font-size:clamp(34px,5vw,68px);line-height:.94;letter-spacing:-.06em}.intro p{margin:0;color:var(--muted);line-height:1.55}.sample{display:block;margin-top:10px;font-size:12px}.phones{display:grid;grid-template-columns:repeat(3,minmax(300px,1fr));gap:22px;align-items:start}.phone{min-height:790px;overflow:hidden;border:1px solid var(--line);border-radius:36px;background:var(--paper);box-shadow:var(--shadow)}.bar{display:flex;align-items:center;gap:12px;padding:22px 19px 11px}.bar button{width:39px;height:39px;border:0;border-radius:13px;background:var(--soft);color:var(--ink);font-size:20px}.bar h2{margin:0;font-size:20px;letter-spacing:-.03em}.content{padding:8px 17px 27px}.eyebrow{margin:18px 2px 9px;color:var(--muted);font-size:11px;font-weight:900;letter-spacing:.12em;text-transform:uppercase}.car-stage{height:122px;position:relative;border-radius:24px;background:linear-gradient(145deg,var(--soft),transparent);overflow:hidden}.car-stage img{position:absolute;width:80%;right:-2%;bottom:-8px;filter:drop-shadow(0 18px 18px #0003)}.car-stage span{position:absolute;top:18px;left:18px;font-weight:800;font-size:13px;color:var(--muted)}
+    .session-card{position:relative;overflow:hidden;border-radius:25px;background:var(--green);color:var(--cream);padding:19px}.session-card:after{content:"";position:absolute;width:170px;height:110px;right:-45px;top:12px;background:url('../assets/car/foxy_car_core.png') center/contain no-repeat;opacity:.12}.session-top{display:flex;justify-content:space-between;gap:15px;position:relative;z-index:1}.session-top small{color:#b9c2bc}.session-top b{display:block;margin-top:3px}.earned{font-size:42px;font-weight:900;letter-spacing:-.06em;margin:25px 0 14px;position:relative;z-index:1}.stats{display:grid;grid-template-columns:1.25fr 1fr 1fr;gap:7px;position:relative;z-index:1}.stat{padding:10px 9px;border:1px solid #ffffff16;border-radius:13px;background:#ffffff0a}.stat b{display:block;font-size:17px}.stat span{font-size:9px;color:#b9c2bc}.mix{display:flex;height:6px;gap:2px;margin-top:14px}.mix i{border-radius:6px;background:var(--orange)}.mix i:nth-child(2){background:var(--gold)}.mix i:nth-child(3){background:var(--red)}.history-toggle{width:100%;display:flex;justify-content:space-between;align-items:center;margin-top:15px;padding:12px 2px 0;border:0;border-top:1px solid #ffffff18;background:transparent;color:var(--cream);font-weight:800}.history-toggle span{transition:transform .25s}.history-toggle[aria-expanded="true"] span{transform:rotate(180deg)}.history-drawer{display:grid;grid-template-rows:0fr;transition:grid-template-rows .35s ease}.history-drawer>div{overflow:hidden}.history-drawer.open{grid-template-rows:1fr}.history-list{display:grid;gap:8px;padding-top:12px}.history-row{display:grid;grid-template-columns:40px 1fr auto;gap:10px;align-items:center;padding:10px;border-radius:13px;background:#ffffff0a}.history-row time{font-size:10px;color:#b9c2bc}.history-row b{font-size:13px}.history-row strong{font-size:14px}.history-row .day{width:38px;height:38px;display:grid;place-items:center;border:1px solid #ffffff19;border-radius:11px;font-weight:900}.home-note{padding:15px 4px;color:var(--muted);font-size:12px;line-height:1.5}
+    .periods{display:grid;grid-template-columns:repeat(3,1fr);padding:4px;border-radius:14px;background:var(--soft)}.periods button{border:0;border-radius:10px;padding:9px 4px;background:transparent;color:var(--muted);font-size:11px;font-weight:850}.periods .active{background:var(--paper);color:var(--ink);box-shadow:0 5px 14px #00000012}.period-nav{display:flex;align-items:center;justify-content:space-between;padding:14px 2px 10px}.period-nav button{width:37px;height:37px;border:1px solid var(--line);border-radius:12px;background:transparent;color:var(--ink)}.period-nav b{font-size:13px}.chart-card{position:relative;overflow:hidden;padding:19px 17px 14px;border-radius:25px;background:var(--green);color:var(--cream)}.chart-card:before{content:"";position:absolute;inset:0;background:radial-gradient(circle at 82% 9%,#ed6b2e22,transparent 28%);pointer-events:none}.chart-head{display:flex;justify-content:space-between;align-items:start;position:relative}.chart-head small{color:#b9c2bc}.chart-head strong{display:block;margin-top:3px;font-size:34px;letter-spacing:-.055em}.signal{padding:6px 9px;border-radius:10px;background:#ffffff0d;color:#cbd4ce;font-size:10px}.chart{height:184px;margin-top:8px;position:relative}.chart canvas{width:100%;height:100%;display:block}.chart-legend{display:flex;gap:16px;position:relative;font-size:10px;color:#b9c2bc}.chart-legend i{display:inline-block;width:7px;height:7px;margin-right:5px;border-radius:50%;background:var(--orange)}.chart-legend span:last-child i{background:var(--gold)}.receipt{margin-top:11px;border:1px solid var(--line);border-radius:20px;padding:15px;background:var(--soft)}.receipt dl{margin:0}.receipt dl div{display:flex;justify-content:space-between;padding:8px 2px;color:var(--muted);font-size:12px}.receipt dd{margin:0;color:var(--ink);font-weight:850}.receipt .net{margin-top:5px;padding-top:13px;border-top:1px solid var(--line);color:var(--ink);font-weight:900}.receipt .net dd{font-size:19px;color:var(--orange)}.expense-button{width:100%;margin-top:12px;padding:12px;border:0;border-radius:13px;background:var(--orange);color:white;font-weight:900}.category-strip{display:flex;gap:8px;overflow:auto;scroll-snap-type:x mandatory;padding:12px 0 4px;scrollbar-width:none}.category-strip::-webkit-scrollbar{display:none}.category{min-width:130px;padding:13px;border:1px solid var(--line);border-radius:16px;scroll-snap-align:start}.category b{display:block;font-size:15px}.category span{font-size:10px;color:var(--muted)}.note{margin:10px 3px 0;color:var(--muted);font-size:10px;line-height:1.45}
+    .vehicle{display:flex;align-items:center;gap:13px;padding:15px;border-radius:20px;background:var(--green);color:var(--cream)}.vehicle img{width:88px}.vehicle small{color:#b9c2bc}.vehicle b{display:block;margin-top:2px}.reminder{padding:16px;border:1px solid var(--line);border-radius:20px}.reminder-top{display:flex;justify-content:space-between;gap:12px}.reminder small{color:var(--muted)}.reminder h3{margin:4px 0;font-size:17px}.reminder button{align-self:center;border:0;border-radius:12px;padding:10px 12px;background:var(--orange);color:white;font-weight:850}.progress{height:6px;margin-top:14px;border-radius:8px;background:var(--soft);overflow:hidden}.progress i{display:block;width:76%;height:100%;border-radius:8px;background:var(--orange)}.ledger-head{display:flex;align-items:end;justify-content:space-between;margin:22px 2px 10px}.ledger-head h3{margin:0;font-size:16px}.ledger-head small{display:block;color:var(--muted)}.ledger-head strong{font-size:20px}.ledger{display:grid;gap:8px}.expense-row{display:grid;grid-template-columns:41px 1fr auto;gap:10px;align-items:center;padding:11px;border-radius:15px;background:var(--soft)}.expense-icon{width:40px;height:40px;display:grid;place-items:center;border-radius:12px;background:var(--paper);font-size:15px;font-weight:900;color:var(--orange)}.expense-row b{display:block;font-size:13px}.expense-row small{color:var(--muted);font-size:10px}.expense-row button{border:0;background:transparent;color:var(--ink);font-weight:850}.add-small{width:100%;margin-top:10px;padding:11px;border:1px dashed var(--line);border-radius:14px;background:transparent;color:var(--ink);font-weight:850}
+    dialog{width:min(420px,calc(100% - 28px));padding:0;border:1px solid var(--line);border-radius:25px;background:var(--paper);color:var(--ink);box-shadow:var(--shadow)}dialog::backdrop{background:#08100ccd;backdrop-filter:blur(8px)}dialog form{padding:21px}dialog h3{margin:0 0 17px;font-size:22px}dialog label{display:grid;gap:6px;margin:12px 0;color:var(--muted);font-size:12px;font-weight:800}dialog input,dialog select{width:100%;border:1px solid var(--line);border-radius:12px;background:var(--soft);color:var(--ink);padding:12px}dialog menu{display:flex;gap:8px;justify-content:flex-end;margin:19px 0 0;padding:0}dialog menu button{border:0;border-radius:12px;padding:11px 14px;background:var(--soft);color:var(--ink);font-weight:850}dialog menu .save{background:var(--orange);color:white}.delete{margin-right:auto;color:var(--red)!important}
+    @media(max-width:1030px){.phones{grid-template-columns:repeat(2,minmax(300px,1fr))}.phone:last-child{grid-column:1/-1;max-width:500px;justify-self:center;width:100%}}
+    @media(max-width:700px){.board{padding:22px 12px 45px}.intro{grid-template-columns:1fr}.phones{grid-template-columns:1fr}.phone,.phone:last-child{grid-column:auto;max-width:500px;width:100%;justify-self:center;min-height:0}.intro h1{font-size:42px}}
+    @media(prefers-reduced-motion:reduce){*,*:before,*:after{scroll-behavior:auto!important;transition:none!important;animation:none!important}}
+  </style>
+</head>
+<body>
+  <main class="board">
+    <header class="intro">
+      <div><div class="brand"><img src="../assets/branding/foxyco_bubble.png" alt="">FoxyCo</div><h1>One session surface. One expense ledger. Better reports.</h1></div>
+      <p>Last Session and history share one compact Home card. Garage records vehicle costs. Expenses brings income and costs together in a clear report.<span class="sample">Interactive concept with sample data</span></p>
+    </header>
+    <section class="phones">
+      <article class="phone">
+        <div class="bar"><button aria-label="Back">‹</button><h2>Home</h2></div>
+        <div class="content">
+          <div class="car-stage"><span>Ready for offers</span><img src="../assets/car/foxy_car_core.png" alt="FoxyCo car"></div>
+          <div class="eyebrow">Session recap</div>
+          <section class="session-card">
+            <div class="session-top"><div><small>Last session</small><b>Sat, Sep 27</b></div><div><small>Duration</small><b>2h 15m</b></div></div>
+            <div class="earned">CA$78.42</div>
+            <div class="stats"><div class="stat"><b>CA$34.85</b><span>per active hour</span></div><div class="stat"><b>62%</b><span>known accept</span></div><div class="stat"><b>21</b><span>offers seen</span></div></div>
+            <div class="mix" aria-label="5 good, 4 okay, 12 bad offers"><i style="flex:5"></i><i style="flex:4"></i><i style="flex:12"></i></div>
+            <button class="history-toggle" id="sessionToggle" aria-expanded="false">Recent sessions <span>⌄</span></button>
+            <div class="history-drawer" id="sessionHistory"><div><div class="history-list">
+              <div class="history-row"><div class="day">27</div><div><b>Today</b><time>2:31 PM - 4:46 PM</time></div><strong>CA$78.42</strong></div>
+              <div class="history-row"><div class="day">24</div><div><b>Wednesday</b><time>8:03 AM - 11:14 AM</time></div><strong>CA$91.08</strong></div>
+              <div class="history-row"><div class="day">21</div><div><b>Sunday</b><time>6:32 AM - 9:18 AM</time></div><strong>CA$64.90</strong></div>
+            </div></div></div>
+          </section>
+          <p class="home-note">The old Performance block is removed. Tap Recent sessions for context without adding another Home section.</p>
+        </div>
+      </article>
+
+      <article class="phone">
+        <div class="bar"><button aria-label="Back">‹</button><h2>Expenses</h2></div>
+        <div class="content">
+          <div class="periods"><button class="active" data-mode="month">Monthly</button><button data-mode="quarter">Quarterly</button><button data-mode="year">Yearly</button></div>
+          <div class="period-nav"><button id="prev" aria-label="Previous period">‹</button><b id="period">September 2026</b><button id="next" aria-label="Next period">›</button></div>
+          <section class="chart-card">
+            <div class="chart-head"><div><small>Recorded income</small><strong id="income">CA$2,846</strong></div><span class="signal" id="change">+8.4%</span></div>
+            <div class="chart"><canvas id="chart" width="700" height="360" aria-label="Animated income and expense trend"></canvas></div>
+            <div class="chart-legend"><span><i></i>Income</span><span><i></i>Expenses</span></div>
+          </section>
+          <section class="receipt"><dl><div><dt>Final payouts</dt><dd id="finalIncome">CA$2,312</dd></div><div><dt>Estimated payouts</dt><dd id="estimatedIncome">CA$534</dd></div><div><dt>Recorded expenses</dt><dd id="expenseTotal">CA$687</dd></div><div class="net"><dt>Report balance</dt><dd id="net">CA$2,159</dd></div></dl><button class="expense-button" data-add>Add expense</button></section>
+          <div class="category-strip" id="categories"></div>
+          <p class="note">Garage and manual expenses feed this report. Values remain editable.</p>
+        </div>
+      </article>
+
+      <article class="phone">
+        <div class="bar"><button aria-label="Back">‹</button><h2>Garage</h2></div>
+        <div class="content">
+          <section class="vehicle"><img src="../assets/car/foxy_car_core.png" alt="Car"><div><small>Primary vehicle</small><b>2020 Toyota Corolla</b></div></section>
+          <div class="eyebrow">Next reminder</div>
+          <section class="reminder"><div class="reminder-top"><div><small>Due in 640 km</small><h3>Oil change</h3><small>Suggested by mileage</small></div><button id="completeReminder">Complete</button></div><div class="progress"><i></i></div></section>
+          <div class="ledger-head"><div><h3>Vehicle expenses</h3><small>Included in reports</small></div><strong id="garageTotal">CA$0</strong></div>
+          <div class="ledger" id="ledger"></div>
+          <button class="add-small" data-add>+ Add vehicle expense</button>
+          <p class="note">Completing a reminder can create a prefilled expense. Edit or delete any entry here and the expense summary updates immediately.</p>
+        </div>
+      </article>
+    </section>
+  </main>
+
+  <dialog id="expenseDialog">
+    <form id="expenseForm">
+      <h3 id="dialogTitle">Add expense</h3>
+      <label>Category<select id="category"><option>Gas</option><option>Fuel charging</option><option>Tolls</option><option>Parking</option><option>Maintenance</option><option>Oil change</option><option>Inspection</option><option>Winter tires</option><option>Car wash</option><option>Supplies</option><option>Other miscellaneous</option></select></label>
+      <label>Description<input id="description" required placeholder="What was this for?"></label>
+      <label>Amount<input id="amount" required min="0.01" step="0.01" type="number" inputmode="decimal" placeholder="0.00"></label>
+      <label>Date<input id="date" required type="date"></label>
+      <menu><button class="delete" id="deleteExpense" type="button">Delete</button><button type="button" id="cancelExpense">Cancel</button><button class="save" type="submit">Save</button></menu>
+    </form>
+  </dialog>
+  <script>
+    const money=n=>'CA$'+n.toLocaleString('en-CA',{minimumFractionDigits:0,maximumFractionDigits:2});
+    const expenses=[
+      {category:'Gas',description:'Shell fuel',amount:128.40,date:'2026-09-26'},
+      {category:'Oil change',description:'Synthetic oil service',amount:94.25,date:'2026-09-19'},
+      {category:'Parking',description:'Downtown parking',amount:28,date:'2026-09-17'},
+      {category:'Car wash',description:'Exterior wash',amount:18,date:'2026-09-14'},
+      {category:'Supplies',description:'Phone mount',amount:34.80,date:'2026-09-06'}
+    ];
+    const categoryGroup=c=>c==='Gas'||c==='Fuel charging'?'Fuel and charging':c==='Tolls'||c==='Parking'?'Parking and tolls':c==='Supplies'?'Supplies':c==='Car wash'?'Car care':c==='Other miscellaneous'?'Other':'Maintenance';
+    const dialog=document.querySelector('#expenseDialog'),form=document.querySelector('#expenseForm');let editing=-1;
+    function renderExpenses(){
+      const total=expenses.reduce((sum,e)=>sum+e.amount,0),ledger=document.querySelector('#ledger');
+      document.querySelector('#garageTotal').textContent=money(total);ledger.innerHTML='';
+      expenses.slice().reverse().forEach((e,reversedIndex)=>{const index=expenses.length-1-reversedIndex,row=document.createElement('div');row.className='expense-row';row.innerHTML=`<div class="expense-icon">${e.category[0]}</div><div><b>${e.description}</b><small>${e.category} | ${e.date}</small></div><button aria-label="Edit ${e.description}">${money(e.amount)}</button>`;row.querySelector('button').onclick=()=>openExpense(index);ledger.append(row)});
+      const grouped={};expenses.forEach(e=>grouped[categoryGroup(e.category)]=(grouped[categoryGroup(e.category)]||0)+e.amount);
+      const categories=document.querySelector('#categories');categories.innerHTML='';Object.entries(grouped).sort((a,b)=>b[1]-a[1]).forEach(([name,value])=>{const card=document.createElement('div');card.className='category';card.innerHTML=`<b>${money(value)}</b><span>${name}</span>`;categories.append(card)});renderReport();
+    }
+    function openExpense(index=-1,prefill={}){editing=index;const item=index>=0?expenses[index]:prefill;document.querySelector('#dialogTitle').textContent=index>=0?'Edit expense':'Add expense';document.querySelector('#deleteExpense').hidden=index<0;document.querySelector('#category').value=item.category||'Gas';document.querySelector('#description').value=item.description||'';document.querySelector('#amount').value=item.amount||'';document.querySelector('#date').value=item.date||'2026-09-27';dialog.showModal()}
+    document.querySelectorAll('[data-add]').forEach(button=>button.onclick=()=>openExpense());document.querySelector('#completeReminder').onclick=()=>openExpense(-1,{category:'Oil change',description:'Oil change service'});document.querySelector('#cancelExpense').onclick=()=>dialog.close();
+    document.querySelector('#deleteExpense').onclick=()=>{if(editing>=0)expenses.splice(editing,1);dialog.close();renderExpenses()};
+    form.onsubmit=event=>{event.preventDefault();const item={category:document.querySelector('#category').value,description:document.querySelector('#description').value.trim(),amount:Number(document.querySelector('#amount').value),date:document.querySelector('#date').value};if(!item.description||!item.amount||!item.date)return;editing>=0?expenses[editing]=item:expenses.push(item);dialog.close();renderExpenses()};
+    const labels={month:['July 2026','August 2026','September 2026','October 2026'],quarter:['Q1 2026','Q2 2026','Q3 2026','Q4 2026'],year:['2024','2025','2026','2027']};let mode='month',periodIndex=2,frame;
+    function reportData(){const base={month:2846,quarter:8612,year:34190}[mode],step={month:185,quarter:740,year:2200}[mode],income=base+(periodIndex-2)*step,manual=expenses.reduce((sum,e)=>sum+e.amount,0),expense=Math.round(income*.14)+manual;return{income,expense}}
+    function renderReport(){const {income,expense}=reportData(),final=Math.round(income*.812);document.querySelector('#period').textContent=labels[mode][periodIndex];document.querySelector('#income').textContent=money(income);document.querySelector('#finalIncome').textContent=money(final);document.querySelector('#estimatedIncome').textContent=money(income-final);document.querySelector('#expenseTotal').textContent=money(expense);document.querySelector('#net').textContent=money(income-expense);document.querySelector('#change').textContent=(periodIndex===0?'+3.1%':periodIndex===1?'+5.7%':periodIndex===2?'+8.4%':'-2.2%');animateChart()}
+    function animateChart(){cancelAnimationFrame(frame);const reduced=matchMedia('(prefers-reduced-motion:reduce)').matches,start=performance.now();function tick(now){drawChart(reduced?1:Math.min(1,(now-start)/750));if(!reduced&&now-start<750)frame=requestAnimationFrame(tick)}frame=requestAnimationFrame(tick)}
+    function drawChart(progress){const canvas=document.querySelector('#chart'),ctx=canvas.getContext('2d'),css=getComputedStyle(document.documentElement),incomeSets=[[22,34,31,48,44,63,57,77,70,91],[18,28,38,35,52,48,68,64,80,88],[21,33,29,45,54,61,58,78,84,96],[24,30,42,39,51,66,62,75,90,86]],expenseSets=[[18,23,20,29,26,34,31,39,36,44],[20,18,25,22,31,28,36,33,41,39],[17,22,24,27,25,33,35,32,40,43],[19,24,21,30,28,37,34,42,39,46]],values=incomeSets[periodIndex],costs=expenseSets[periodIndex],w=canvas.width,h=canvas.height,pad=18,x=i=>pad+i*(w-pad*2)/(values.length-1),y=n=>h-30-n*2.7;ctx.clearRect(0,0,w,h);ctx.strokeStyle='#ffffff13';ctx.lineWidth=1;for(let line=65;line<h;line+=70){ctx.beginPath();ctx.moveTo(0,line);ctx.lineTo(w,line);ctx.stroke()}const count=Math.max(2,Math.ceil(progress*values.length));function path(series){ctx.beginPath();series.slice(0,count).forEach((n,i)=>i?ctx.lineTo(x(i),y(n)):ctx.moveTo(x(i),y(n)))}path(values);const gradient=ctx.createLinearGradient(0,0,0,h);gradient.addColorStop(0,'#ed6b2e55');gradient.addColorStop(1,'#ed6b2e00');ctx.lineTo(x(count-1),h);ctx.lineTo(x(0),h);ctx.closePath();ctx.fillStyle=gradient;ctx.fill();path(values);ctx.strokeStyle=css.getPropertyValue('--orange');ctx.lineWidth=7;ctx.lineCap='round';ctx.lineJoin='round';ctx.stroke();path(costs);ctx.setLineDash([12,10]);ctx.strokeStyle=css.getPropertyValue('--gold');ctx.lineWidth=4;ctx.stroke();ctx.setLineDash([])}
+    document.querySelectorAll('.periods button').forEach(button=>button.onclick=()=>{document.querySelector('.periods .active').classList.remove('active');button.classList.add('active');mode=button.dataset.mode;periodIndex=2;renderReport()});document.querySelector('#prev').onclick=()=>{periodIndex=Math.max(0,periodIndex-1);renderReport()};document.querySelector('#next').onclick=()=>{periodIndex=Math.min(3,periodIndex+1);renderReport()};
+    document.querySelector('#sessionToggle').onclick=event=>{const open=event.currentTarget.getAttribute('aria-expanded')==='true';event.currentTarget.setAttribute('aria-expanded',String(!open));document.querySelector('#sessionHistory').classList.toggle('open',!open)};
+    addEventListener('resize',()=>drawChart(1));renderExpenses();
+  </script>
+</body>
+</html>
