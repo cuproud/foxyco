@@ -59,15 +59,6 @@ class HomeScreen extends ConsumerWidget {
         )
         .take(3)
         .toList();
-    final reviewCount = offers
-        .where(
-          (offer) =>
-              offer.outcome == OfferOutcome.unknown ||
-              ((offer.outcome == OfferOutcome.taken ||
-                      offer.outcome == OfferOutcome.completed) &&
-                  offer.finalPayout == null),
-        )
-        .length;
     Future<void> requestMissingPermissions() =>
         controller.requestMissingPermissions(
           confirmAccessibility: () => showAccessibilityDisclosure(context),
@@ -152,27 +143,11 @@ class HomeScreen extends ConsumerWidget {
           ),
           const SizedBox(height: Gap.lg),
         ],
-        if (reviewCount > 0) ...[
-          const _Padded(child: SectionLabel('Review inbox')),
-          const SizedBox(height: Gap.sm + Gap.xs),
-          _Padded(
-            child: _ReviewInboxCard(
-              count: reviewCount,
-              onTap: () {
-                ref
-                    .read(pendingHistoryIntentProvider.notifier)
-                    .open(HistoryIntent.needsReview);
-                ref.read(tabIndexProvider.notifier).go(3);
-              },
-            ),
-          ),
-          const SizedBox(height: Gap.lg),
-        ],
-        const _Padded(child: SectionLabel('Last session')),
+        const _Padded(child: SectionLabel('Session recap')),
         const SizedBox(height: Gap.sm + Gap.xs),
         _Padded(
           child: _SessionCard(
-            session: ref.watch(lastSessionProvider),
+            sessions: ref.watch(sessionLogProvider),
             onTap: () => context.push('/sessions'),
           ),
         ),
@@ -220,70 +195,6 @@ class HomeScreen extends ConsumerWidget {
       ],
     );
   }
-}
-
-class _ReviewInboxCard extends StatelessWidget {
-  const _ReviewInboxCard({required this.count, required this.onTap});
-
-  final int count;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) => Material(
-    color: FoxColors.bgSurface,
-    borderRadius: BorderRadius.circular(Radii.card),
-    child: InkWell(
-      key: const Key('review-inbox-card'),
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(Radii.card),
-      child: Container(
-        padding: const EdgeInsets.all(Gap.md),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(Radii.card),
-          border: Border.all(color: FoxColors.brandFox.withValues(alpha: .35)),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: FoxColors.brandFox.withValues(alpha: .12),
-                borderRadius: BorderRadius.circular(Radii.cardSm),
-              ),
-              child: const Icon(
-                Icons.fact_check_outlined,
-                color: FoxColors.brandFox,
-              ),
-            ),
-            const SizedBox(width: Gap.md),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '$count ${count == 1 ? 'offer needs' : 'offers need'} review',
-                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      color: FoxColors.textPrimary,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    'Confirm outcomes or add final payouts.',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: FoxColors.textSecondary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const Icon(Icons.arrow_forward_rounded, color: FoxColors.brandFox),
-          ],
-        ),
-      ),
-    ),
-  );
 }
 
 class _RecentAccepted extends ConsumerStatefulWidget {
@@ -1482,241 +1393,264 @@ class _AccessAlert extends StatelessWidget {
 /// The date is spelled out for EVERY session, today's included. It used to be
 /// dropped on a same-day session, which read as "this is current" the morning
 /// after a night shift.
-class _SessionCard extends ConsumerWidget {
-  const _SessionCard({required this.session, required this.onTap});
-  final SessionSummary? session;
+class _SessionCard extends ConsumerStatefulWidget {
+  const _SessionCard({required this.sessions, required this.onTap});
+  final List<SessionSummary> sessions;
   final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_SessionCard> createState() => _SessionCardState();
+}
+
+class _SessionCardState extends ConsumerState<_SessionCard> {
+  bool _showRecent = false;
+
+  @override
+  Widget build(BuildContext context) {
     final settings = ref.watch(settingsProvider);
-    final s = session;
-    // Nothing to show yet → nothing to open; the empty card's own copy points
-    // at the slide instead.
-    if (s == null) return const _EmptySession();
+    final days = SessionDaySummary.recent(widget.sessions);
+    if (days.isEmpty) return const _EmptySession();
+    final day = days.first;
 
     final text = Theme.of(context).textTheme;
     final l10n = MaterialLocalizations.of(context);
-    // Locale-aware times (12h markets see "6:48 PM", not hardcoded 24h).
     String clock(DateTime t) => l10n.formatTimeOfDay(
       TimeOfDay.fromDateTime(t),
       alwaysUse24HourFormat: MediaQuery.of(context).alwaysUse24HourFormat,
     );
     final now = DateTime.now();
-    final endedDay = DateUtils.dateOnly(s.endedAt);
-    final daysAgo = DateUtils.dateOnly(now).difference(endedDay).inDays;
-    final day = switch (daysAgo) {
+    final daysAgo = DateUtils.dateOnly(now).difference(day.date).inDays;
+    final dayLabel = switch (daysAgo) {
       0 => 'Today',
       1 => 'Yesterday',
-      _ => l10n.formatShortDate(s.endedAt),
+      _ => l10n.formatShortDate(day.date),
     };
 
-    // GestureDetector, not InkWell: the card paints its own gradient, which
-    // would sit on top of the ripple anyway.
-    return Semantics(
-      button: true,
-      hint: 'Open History',
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: () {
-          HapticFeedback.selectionClick();
-          onTap();
-        },
-        child: Container(
-          padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [FoxColors.inkSoft, FoxColors.ink],
-            ),
-            borderRadius: BorderRadius.circular(Radii.card),
-            border: Border.all(color: FoxColors.borderSoft),
-            boxShadow: Shadows.card,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Day + clock range on the left, time-on-watch on the right. Both
-              // sides are bounded: the old version let an unbounded date string
-              // run straight out of the card (device 2026-07-25).
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
+    return Container(
+      padding: const EdgeInsets.fromLTRB(18, 16, 18, 12),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [FoxColors.inkSoft, FoxColors.ink],
+        ),
+        borderRadius: BorderRadius.circular(Radii.card),
+        border: Border.all(color: FoxColors.borderSoft),
+        boxShadow: Shadows.card,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Semantics(
+            button: true,
+            hint: 'Open session history',
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () {
+                HapticFeedback.selectionClick();
+                widget.onTap();
+              },
+              child: Row(
                 children: [
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        Text(dayLabel, style: text.titleSmall),
                         Text(
-                          day,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
-                            color: FoxColors.cream,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          '${clock(s.startedAt)} – ${clock(s.endedAt)}',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 11.5,
-                            fontWeight: FontWeight.w600,
-                            color: FoxColors.textSecondary,
-                            fontFeatures: [FontFeature.tabularFigures()],
-                          ),
+                          '${clock(day.startedAt)} – ${clock(day.endedAt)}',
+                          style: TextStyle(color: FoxColors.textSecondary),
                         ),
                       ],
                     ),
                   ),
-                  const SizedBox(width: Gap.sm),
-                  // Own Row so the icon centers against the digits. Inheriting the
-                  // outer row's CrossAxisAlignment.start top-aligned a 15px icon
-                  // box with a 17px text box, which left the icon riding high
-                  // (device 2026-07-25).
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.timer_outlined,
-                        size: 15,
-                        color: FoxColors.textSecondary,
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        durationLabel(s.duration),
-                        style: TextStyle(
-                          fontFamily: FoxFonts.display,
-                          fontSize: 17,
-                          fontWeight: FontWeight.w600,
-                          color: FoxColors.cream,
-                          fontFeatures: const [FontFeature.tabularFigures()],
-                        ),
-                      ),
-                    ],
+                  Text(
+                    durationLabel(day.duration),
+                    style: TextStyle(
+                      color: FoxColors.cream,
+                      fontFamily: FoxFonts.display,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ],
               ),
-              const SizedBox(height: Gap.md),
-              _SessionVolume(session: s, text: text),
-              if (s.total == 0) ...[
-                const SizedBox(height: Gap.xs),
-                Text(
-                  'No offers appeared while FoxyCo was live.',
-                  style: text.bodyMedium?.copyWith(
-                    color: FoxColors.textSecondary,
-                  ),
-                ),
-              ] else ...[
-                const SizedBox(height: Gap.sm + Gap.xs),
-                _SessionQuality(session: s),
-                const SizedBox(height: Gap.sm),
-                SessionPerformance(session: s, settings: settings, text: text),
-              ],
+            ),
+          ),
+          const SizedBox(height: Gap.md),
+          Text(
+            'ACCEPTED AMOUNT',
+            style: TextStyle(
+              color: FoxColors.textSecondary,
+              fontSize: 9.5,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 1,
+            ),
+          ),
+          const SizedBox(height: Gap.xs),
+          Text(
+            '${settings.currency.symbol}${day.earnings.toStringAsFixed(2)}',
+            style: TextStyle(
+              color: FoxColors.brandFox,
+              fontFamily: FoxFonts.display,
+              fontSize: 36,
+              fontWeight: FontWeight.w900,
+              height: 1,
+              fontFeatures: const [FontFeature.tabularFigures()],
+            ),
+          ),
+          const SizedBox(height: Gap.sm),
+          Row(
+            children: [
+              _SessionDayStat(
+                value:
+                    '${settings.currency.symbol}${day.hourlyEarnings.toStringAsFixed(2)}',
+                label: 'per active hour',
+              ),
+              _SessionDayStat(
+                value: day.acceptanceRate == null
+                    ? '—'
+                    : '${(day.acceptanceRate! * 100).round()}%',
+                label: 'known accept',
+              ),
+              _SessionDayStat(value: '${day.total}', label: 'offers seen'),
             ],
           ),
-        ),
+          const SizedBox(height: Gap.sm),
+          _SessionQuality(session: day),
+          if (days.length > 1) ...[
+            const SizedBox(height: Gap.xs),
+            TextButton(
+              key: const Key('session-recap-toggle'),
+              onPressed: () => setState(() => _showRecent = !_showRecent),
+              style: TextButton.styleFrom(
+                foregroundColor: FoxColors.cream,
+                padding: const EdgeInsets.symmetric(vertical: Gap.sm),
+              ),
+              child: Row(
+                children: [
+                  const Text('Recent sessions'),
+                  const Spacer(),
+                  Icon(
+                    _showRecent
+                        ? Icons.expand_less_rounded
+                        : Icons.expand_more_rounded,
+                  ),
+                ],
+              ),
+            ),
+            if (_showRecent)
+              for (final recent in days.skip(1))
+                _RecentSessionDay(
+                  day: recent,
+                  label: _dayLabel(l10n, now, recent.date),
+                  currency: settings.currency.symbol,
+                  clock: clock,
+                ),
+          ],
+        ],
       ),
     );
   }
 }
 
-class _SessionVolume extends StatelessWidget {
-  const _SessionVolume({required this.session, required this.text});
+String _dayLabel(MaterialLocalizations l10n, DateTime now, DateTime date) =>
+    switch (DateUtils.dateOnly(now).difference(date).inDays) {
+      0 => 'Today',
+      1 => 'Yesterday',
+      _ => l10n.formatShortDate(date),
+    };
 
-  final SessionSummary session;
-  final TextTheme text;
+class _SessionDayStat extends StatelessWidget {
+  const _SessionDayStat({required this.value, required this.label});
+  final String value;
+  final String label;
 
   @override
-  Widget build(BuildContext context) => Row(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Expanded(
-        child: _volumeMetric(
-          '${session.total}',
-          session.total == 1 ? 'offer scored' : 'offers scored',
-          text.titleLarge?.copyWith(
-            fontFamily: FoxFonts.display,
-            fontSize: 36,
-            height: 1,
-            fontWeight: FontWeight.w600,
-            letterSpacing: -1,
+  Widget build(BuildContext context) => Expanded(
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          value,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
             color: FoxColors.cream,
+            fontWeight: FontWeight.w800,
             fontFeatures: const [FontFeature.tabularFigures()],
           ),
         ),
-      ),
-      const SizedBox(width: Gap.md),
-      Expanded(
-        child: Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: Gap.md,
-            vertical: Gap.sm + Gap.xs,
-          ),
-          decoration: BoxDecoration(
-            color: VerdictColors.goodBg,
-            borderRadius: BorderRadius.circular(Radii.cardSm),
-            border: Border.all(
-              color: VerdictColors.good.withValues(alpha: 0.28),
-            ),
-          ),
-          child: _volumeMetric(
-            '${session.accepted}',
-            'accepted',
-            text.titleMedium?.copyWith(
-              fontFamily: FoxFonts.display,
-              fontSize: 28,
-              height: 1,
-              fontWeight: FontWeight.w700,
-              color: FoxColors.cream,
-              fontFeatures: const [FontFeature.tabularFigures()],
-            ),
-            icon: Icons.check_circle_outline,
-          ),
+        Text(
+          label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(fontSize: 9.5, color: FoxColors.textSecondary),
         ),
-      ),
-    ],
+      ],
+    ),
   );
+}
 
-  Widget _volumeMetric(
-    String value,
-    String label,
-    TextStyle? valueStyle, {
-    IconData? icon,
-  }) => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (icon != null) ...[
-            Icon(icon, size: 16, color: VerdictColors.good),
-            const SizedBox(width: Gap.xs),
-          ],
-          Text(value, style: valueStyle),
-        ],
-      ),
-      const SizedBox(height: 3),
-      Text(
-        label,
-        maxLines: 1,
-        style: TextStyle(
-          fontSize: 12.5,
-          fontWeight: FontWeight.w600,
-          color: icon == null ? FoxColors.textSecondary : VerdictColors.good,
+class _RecentSessionDay extends StatelessWidget {
+  const _RecentSessionDay({
+    required this.day,
+    required this.label,
+    required this.currency,
+    required this.clock,
+  });
+  final SessionDaySummary day;
+  final String label;
+  final String currency;
+  final String Function(DateTime) clock;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(top: Gap.xs),
+    child: Row(
+      children: [
+        Container(
+          width: 38,
+          height: 38,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            border: Border.all(color: FoxColors.borderSoft),
+            borderRadius: BorderRadius.circular(Radii.field),
+          ),
+          child: Text(
+            '${day.date.day}',
+            style: TextStyle(color: FoxColors.cream),
+          ),
         ),
-      ),
-    ],
+        const SizedBox(width: Gap.sm),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label, style: TextStyle(color: FoxColors.cream)),
+              Text(
+                '${clock(day.startedAt)} – ${clock(day.endedAt)} · ${durationLabel(day.duration)}',
+                style: TextStyle(fontSize: 10, color: FoxColors.textSecondary),
+              ),
+            ],
+          ),
+        ),
+        Text(
+          '$currency${day.earnings.toStringAsFixed(2)}',
+          style: TextStyle(
+            color: FoxColors.brandFox,
+            fontWeight: FontWeight.w800,
+            fontFeatures: const [FontFeature.tabularFigures()],
+          ),
+        ),
+      ],
+    ),
   );
 }
 
 class _SessionQuality extends StatelessWidget {
   const _SessionQuality({required this.session});
 
-  final SessionSummary session;
+  final SessionDaySummary session;
 
   @override
   Widget build(BuildContext context) {

@@ -78,6 +78,36 @@ void main() {
     expect(session.hourlyEarnings, 35);
   });
 
+  test('daily recap combines work blocks and keeps breaks out of duration', () {
+    final day = DateTime(2026, 8, 18);
+    final first = SessionSummary(
+      startedAt: day.add(const Duration(hours: 7)),
+      endedAt: day.add(const Duration(hours: 12)),
+      good: 2,
+      accepted: 1,
+      declined: 1,
+      estimatedEarnings: 42,
+    );
+    final second = SessionSummary(
+      startedAt: day.add(const Duration(hours: 16)),
+      endedAt: day.add(const Duration(hours: 20)),
+      bad: 3,
+      accepted: 2,
+      estimatedEarnings: 68,
+    );
+
+    final recap = SessionDaySummary.recent([second, first]).single;
+
+    expect(recap.duration, const Duration(hours: 9));
+    expect(recap.earnings, 110);
+    expect(recap.total, 5);
+    expect(recap.accepted, 3);
+    expect(recap.acceptanceRate, closeTo(0.75, 1e-9));
+    expect(recap.hourlyEarnings, closeTo(110 / 9, 1e-9));
+    expect(recap.startedAt, first.startedAt);
+    expect(recap.endedAt, second.endedAt);
+  });
+
   test('completed earnings prefer an entered final payout', () {
     final start = DateTime(2026, 8, 21, 15);
     final offer = OfferSummary(

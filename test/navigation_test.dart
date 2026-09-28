@@ -289,7 +289,7 @@ void main() {
     expect(find.byType(LogsScreen), findsOneWidget);
   });
 
-  testWidgets('the last-session card opens session history', (tester) async {
+  testWidgets('the session recap opens session history', (tester) async {
     tall(tester);
     final container = scope([
       sessionLogProvider.overrideWith(
@@ -309,7 +309,7 @@ void main() {
     ]);
     await pumpShell(tester, container);
 
-    await tester.tap(find.textContaining('offers scored'));
+    await tester.tap(find.textContaining('–').first);
     await beat(tester);
     expect(find.byType(SessionHistoryScreen), findsOneWidget);
     expect(find.text('Session history'), findsOneWidget);

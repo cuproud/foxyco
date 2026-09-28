@@ -192,3 +192,62 @@ class SessionSummary {
     busiestHour: (j['busiestHour'] as num?)?.toInt(),
   );
 }
+
+/// Finished watcher sessions combined by calendar day for the Home recap.
+/// Duration adds active periods (breaks are excluded); the displayed time
+/// range spans the first start through the final stop.
+class SessionDaySummary {
+  final DateTime date;
+  final List<SessionSummary> sessions;
+
+  const SessionDaySummary({required this.date, required this.sessions});
+
+  DateTime get startedAt => sessions
+      .map((session) => session.startedAt)
+      .reduce((a, b) => a.isBefore(b) ? a : b);
+  DateTime get endedAt => sessions
+      .map((session) => session.endedAt)
+      .reduce((a, b) => a.isAfter(b) ? a : b);
+  Duration get duration => sessions.fold(
+    Duration.zero,
+    (total, session) => total + session.duration,
+  );
+  int get total => sessions.fold(0, (total, session) => total + session.total);
+  int get good => sessions.fold(0, (total, session) => total + session.good);
+  int get ok => sessions.fold(0, (total, session) => total + session.ok);
+  int get bad => sessions.fold(0, (total, session) => total + session.bad);
+  int get accepted =>
+      sessions.fold(0, (total, session) => total + session.accepted);
+  int get declined =>
+      sessions.fold(0, (total, session) => total + session.declined);
+  double get earnings =>
+      sessions.fold(0, (total, session) => total + session.earnings);
+  double? get acceptanceRate =>
+      accepted + declined == 0 ? null : accepted / (accepted + declined);
+  double get hourlyEarnings =>
+      duration.inMinutes == 0 ? 0 : earnings / (duration.inMinutes / 60);
+
+  static List<SessionDaySummary> recent(
+    List<SessionSummary> sessions, {
+    int limit = 3,
+  }) {
+    final byDay = <DateTime, List<SessionSummary>>{};
+    for (final session in sessions) {
+      final date = DateTime(
+        session.startedAt.year,
+        session.startedAt.month,
+        session.startedAt.day,
+      );
+      byDay.putIfAbsent(date, () => []).add(session);
+    }
+    final days =
+        byDay.entries
+            .map(
+              (entry) =>
+                  SessionDaySummary(date: entry.key, sessions: entry.value),
+            )
+            .toList()
+          ..sort((a, b) => b.date.compareTo(a.date));
+    return days.take(limit).toList();
+  }
+}

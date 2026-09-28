@@ -105,12 +105,13 @@ void main() {
       ),
     );
 
-    // Brand bar + the hero status + today's tally + the last-session card.
+    // Brand bar + hero status + today's tally + full-day session recap.
     // Boot lands stopped (spec M5 §4): monitoring waits for an explicit start.
     expect(find.text('FoxyCo'), findsOneWidget);
     expect(find.text('Ready when you are'), findsOneWidget);
     expect(find.textContaining('offers seen'), findsOneWidget);
-    expect(find.text('LAST SESSION'), findsOneWidget);
+    expect(find.text('SESSION RECAP'), findsOneWidget);
+    expect(find.text('Review Inbox'), findsNothing);
     expect(find.text('MY GOAL'), findsOneWidget);
 
     // Off-device the session log is empty — the card shows its empty state.
@@ -174,7 +175,9 @@ void main() {
     expect(find.text('FoxyCo update available'), findsNothing);
   });
 
-  testWidgets('Last Session keeps metrics without outcomes', (tester) async {
+  testWidgets('Session recap shows the full-day amount without outcomes', (
+    tester,
+  ) async {
     tall(tester);
     await tester.pumpWidget(
       ProviderScope(
@@ -204,16 +207,12 @@ void main() {
     );
     await tester.pump();
 
-    expect(find.textContaining('offers scored'), findsAtLeastNWidgets(1));
-    expect(find.text('accepted'), findsAtLeastNWidgets(1));
-    expect(find.text(r'$42.00   |   $21/hr online'), findsOneWidget);
-    await tester.tap(find.text(r'$42.00   |   $21/hr online'));
-    await tester.pump();
-    expect(find.text(r'Best $/km'), findsOneWidget);
-    expect(find.text('Good avg'), findsOneWidget);
-    expect(find.text('Busiest'), findsOneWidget);
-    expect(find.textContaining('completed ·'), findsNothing);
-    expect(find.textContaining('not taken'), findsNothing);
+    expect(find.text('ACCEPTED AMOUNT'), findsOneWidget);
+    expect(find.text(r'$42.00'), findsOneWidget);
+    expect(find.text('offers seen'), findsOneWidget);
+    expect(find.textContaining(r'Best $/km'), findsNothing);
+    expect(find.textContaining('Good avg'), findsNothing);
+    expect(find.textContaining('Busiest'), findsNothing);
   });
 
   testWidgets('small yesterday baseline uses an absolute comparison', (

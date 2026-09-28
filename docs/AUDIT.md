@@ -1,11 +1,43 @@
 # Release audit
 
-Audit date: 2026-09-27
+Audit date: 2026-09-28
 
-Candidate: `1.0.14+111`
+Candidate: `1.0.15+113`
 
 Automated checks pass. Play upload remains conditional on the device and
 Console checks in `MANUAL_TESTS.md` and `PLAY_RELEASE.md`.
+
+## Build 113 changes
+
+- Home replaces the Review Inbox backlog card with a compact full-day Session
+  recap. Multiple shifts on one date combine their active duration and earnings;
+  the two most recent earlier workdays are available under Recent sessions.
+- History session rows gain a floating return-to-top control, and payout amounts
+  use the FoxyCo orange accent.
+- Garage places a premium income-versus-expenses report below Vehicles. Monthly,
+  quarterly, and yearly views navigate with arrows or graph swipes and show
+  animated income/expense lines, payout breakdown, ledger expenses, balance,
+  and category totals.
+- Report income reuses History's recorded payout rollup, including final
+  cancellation fees and toll reimbursements once. Expenses come from editable
+  Garage ledger entries. Report balance is not a tax calculation.
+- The vehicle-expense editor keeps Save visible above the keyboard.
+
+## Build 113 verification
+
+- Flutter analysis: passed
+- Full Flutter test suite: passed
+- Firestore rules tests: passed
+- Signed AAB built with the guarded release helper and Play licensing key
+- JAR signature verification: passed (self-signed upload certificate)
+- Device checks R113.1–R113.9: pending; see `MANUAL_TESTS.md`
+
+Verified artifact: `FoxyCo-v1.0.15+113-release-20260928-0114.aab`
+
+SHA-256: `be32be3c140330668dbe08f4075b7e989810c245548b535a1e9e7d3666ed3e50`
+
+The checks above establish a signed bundle and host-side behavior only. Play
+acceptance, device behavior, and rollout remain external release gates.
 
 ## Build 111 changes
 

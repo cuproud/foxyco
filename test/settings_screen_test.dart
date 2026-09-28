@@ -483,6 +483,36 @@ void main() {
     expect(find.text('Add vehicle'), findsOneWidget);
   });
 
+  testWidgets('vehicle expense editor keeps Save visible in its footer', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(400, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          theme: AppTheme.dark,
+          home: const Scaffold(body: GarageScreen()),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Add vehicle expense'));
+    await tester.tap(find.text('Add vehicle expense'));
+    await tester.pumpAndSettle();
+
+    final save = find.byKey(const Key('save-vehicle-expense'));
+    expect(save, findsOneWidget);
+    expect(tester.getRect(save).bottom, lessThanOrEqualTo(800));
+    tester.view.viewInsets = const FakeViewPadding(bottom: 300);
+    addTearDown(tester.view.resetViewInsets);
+    await tester.pumpAndSettle();
+    expect(tester.getRect(save).bottom, lessThanOrEqualTo(500));
+    expectNoLayoutError(tester, 'vehicle expense editor');
+  });
+
   testWidgets('font picker shows samples saves choice', (tester) async {
     tester.view.physicalSize = const Size(1080, 3600);
     tester.view.devicePixelRatio = 1.0;

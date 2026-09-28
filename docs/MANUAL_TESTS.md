@@ -1,5 +1,22 @@
 # Manual Test Log
 
+## Current candidate — `1.0.15+113` (2026-09-28)
+
+| # | Step | Expect | Pass |
+|---|---|---|---|
+| R113.1 | Open Home | No Review Inbox/backlog card appears. Session recap shows the whole latest workday, combining split shifts and showing the combined accepted amount in orange. |
+| R113.2 | Expand Recent sessions in Session recap | Today and up to the two most recent prior workdays appear; separate shifts on one date remain combined. |
+| R113.3 | History → Session history; scroll down | Orange up-arrow appears; tapping it returns smoothly to the top. Recorded payout amounts use orange. |
+| R113.4 | Settings → Garage → expand Income vs expenses | Premium line graph and final/estimated payout, recorded expense, and balance summary appear below Vehicles. |
+| R113.5 | Select Monthly, Quarterly, Yearly and use previous/next arrows | Period label, graph, payout totals, expense totals, and category totals update for each selected period. |
+| R113.6 | Swipe left/right on the graph | Moves to next/previous period; both year boundaries and February dates remain correct. |
+| R113.7 | Add/edit/delete a vehicle expense with the report open | Save is visible above the keyboard. Report and matching expense category totals update after save/edit/delete. |
+| R113.8 | Review offers with final payouts, estimates, cancellation fees, and toll reimbursements | Only recorded accepted/completed payouts and final cancellation fees count as income; toll reimbursement is not added twice. |
+| R113.9 | Expand Maintenance reminders and return to the report | Maintenance reminders remain independently collapsible; chart period and totals remain intact. |
+
+Device checks are pending until performed on a phone. Automated widget/model
+coverage does not replace these release checks.
+
 Hand-verify checklist. I keep it current as features land; you spot-check any
 row, any time. Mark `[x]` pass / `[!]` fail (add a note), leave `[ ]` untested.
 No need to check in order or all at once.

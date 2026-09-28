@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/car_reminder.dart';
+import '../../domain/offer_summary.dart';
 import '../../domain/vehicle_expense.dart';
+import '../../services/offer_log.dart';
 import 'garage_controller.dart';
 import 'garage_section.dart';
+import 'income_expense_report.dart';
 import 'reminder_controller.dart';
 import 'reminder_section.dart';
 import 'settings_controller.dart';
@@ -34,6 +37,7 @@ class GarageScreen extends ConsumerWidget {
     final vehicle = ref.watch(activeVehicleProvider);
     final reminders = ref.watch(reminderProvider);
     final expenses = ref.watch(vehicleExpenseProvider);
+    final offers = ref.watch(offerLogProvider);
     final total = expenses.fold<double>(0, (sum, item) => sum + item.amount);
     final currency = ref
         .watch(settingsProvider.select((s) => s.currency))
@@ -95,30 +99,48 @@ class GarageScreen extends ConsumerWidget {
           ),
         ),
         const SizedBox(height: Gap.lg),
-        const SectionLabel('Care reminders'),
-        const SizedBox(height: Gap.sm),
-        Container(
-          padding: const EdgeInsets.all(Gap.md),
-          decoration: BoxDecoration(
-            color: FoxColors.bgSurface,
+        _IncomeExpenseSection(
+          offers: offers,
+          expenses: expenses,
+          currency: currency,
+          onAdd: () => showVehicleExpenseEditor(context, ref),
+        ),
+        const SizedBox(height: Gap.lg),
+        Material(
+          color: FoxColors.bgSurface,
+          elevation: 2,
+          shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(Radii.card),
-            border: Border.all(color: FoxColors.borderSoft),
-            boxShadow: Shadows.card,
+            side: BorderSide(color: FoxColors.borderSoft),
           ),
-          child: reminders.isEmpty
-              ? const ReminderSection()
-              : Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _NextReminder(
-                      reminder:
-                          ref.watch(dueRemindersProvider).firstOrNull ??
-                          reminders.first,
-                    ),
-                    const SizedBox(height: Gap.sm),
-                    const ReminderSection(),
-                  ],
+          child: ExpansionTile(
+            key: const Key('maintenance-reminders-section'),
+            tilePadding: const EdgeInsets.symmetric(horizontal: Gap.md),
+            childrenPadding: const EdgeInsets.fromLTRB(
+              Gap.md,
+              0,
+              Gap.md,
+              Gap.md,
+            ),
+            leading: const Icon(Icons.build_circle_outlined),
+            title: const Text('Maintenance reminders'),
+            subtitle: Text(
+              reminders.isEmpty
+                  ? 'Service and upkeep schedule'
+                  : '${reminders.length} scheduled',
+            ),
+            children: [
+              if (reminders.isNotEmpty) ...[
+                _NextReminder(
+                  reminder:
+                      ref.watch(dueRemindersProvider).firstOrNull ??
+                      reminders.first,
                 ),
+                const SizedBox(height: Gap.sm),
+              ],
+              const ReminderSection(),
+            ],
+          ),
         ),
         const SizedBox(height: Gap.lg),
         Row(
@@ -189,6 +211,44 @@ class GarageScreen extends ConsumerWidget {
       ],
     );
   }
+}
+
+class _IncomeExpenseSection extends StatelessWidget {
+  const _IncomeExpenseSection({
+    required this.offers,
+    required this.expenses,
+    required this.currency,
+    required this.onAdd,
+  });
+  final List<OfferSummary> offers;
+  final List<VehicleExpense> expenses;
+  final String currency;
+  final VoidCallback onAdd;
+
+  @override
+  Widget build(BuildContext context) => Material(
+    color: FoxColors.bgSurface,
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(Radii.card),
+      side: BorderSide(color: FoxColors.borderSoft),
+    ),
+    child: ExpansionTile(
+      key: const Key('income-expenses-section'),
+      tilePadding: const EdgeInsets.symmetric(horizontal: Gap.md),
+      childrenPadding: const EdgeInsets.fromLTRB(Gap.md, 0, Gap.md, Gap.md),
+      leading: const Icon(Icons.compare_arrows_rounded),
+      title: const Text('Income vs expenses'),
+      subtitle: const Text('Monthly · Quarterly · Yearly'),
+      children: [
+        IncomeExpenseReport(
+          offers: offers,
+          expenses: expenses,
+          currency: currency,
+          onAdd: onAdd,
+        ),
+      ],
+    ),
+  );
 }
 
 class _NextReminder extends StatelessWidget {
@@ -346,84 +406,120 @@ class _VehicleExpenseEditorState extends ConsumerState<_VehicleExpenseEditor> {
   }
 
   @override
-  Widget build(BuildContext context) => Padding(
-    padding: EdgeInsets.fromLTRB(
-      Gap.lg,
-      Gap.sm,
-      Gap.lg,
-      Gap.lg + MediaQuery.viewInsetsOf(context).bottom,
-    ),
-    child: SingleChildScrollView(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            widget.existing == null ? 'Add vehicle expense' : 'Edit expense',
-            style: Theme.of(context).textTheme.titleLarge,
-          ),
-          const SizedBox(height: Gap.md),
-          DropdownButtonFormField<String>(
-            initialValue: _category,
-            decoration: const InputDecoration(labelText: 'Category'),
-            items: [
-              for (final category in _expenseCategories)
-                DropdownMenuItem(value: category, child: Text(category)),
-            ],
-            onChanged: (value) {
-              if (value != null) setState(() => _category = value);
-            },
-          ),
-          const SizedBox(height: Gap.sm),
-          TextField(
-            controller: _description,
-            textCapitalization: TextCapitalization.sentences,
-            decoration: const InputDecoration(labelText: 'Description'),
-          ),
-          const SizedBox(height: Gap.sm),
-          TextField(
-            controller: _amount,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            decoration: const InputDecoration(
-              labelText: 'Amount',
-              prefixText: '\$',
+  Widget build(BuildContext context) {
+    final keyboard = MediaQuery.viewInsetsOf(context).bottom;
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(Gap.lg, Gap.sm, Gap.lg, Gap.md + keyboard),
+        child: SizedBox(
+          width: MediaQuery.sizeOf(context).width - Gap.lg * 2,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.sizeOf(context).height * .78,
             ),
-          ),
-          const SizedBox(height: Gap.sm),
-          OutlinedButton.icon(
-            onPressed: _pickDate,
-            icon: const Icon(Icons.calendar_month_outlined),
-            label: Text(
-              MaterialLocalizations.of(context).formatMediumDate(_date),
-            ),
-          ),
-          const SizedBox(height: Gap.md),
-          Row(
-            children: [
-              if (widget.existing != null)
-                TextButton(
-                  onPressed: () {
-                    ref
-                        .read(vehicleExpenseProvider.notifier)
-                        .remove(widget.existing!.id);
-                    Navigator.pop(context);
-                  },
-                  style: TextButton.styleFrom(
-                    foregroundColor: VerdictColors.bad,
-                  ),
-                  child: const Text('Delete'),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  widget.existing == null
+                      ? 'Add vehicle expense'
+                      : 'Edit expense',
+                  style: Theme.of(context).textTheme.titleLarge,
                 ),
-              const Spacer(),
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Cancel'),
-              ),
-              const SizedBox(width: Gap.xs),
-              FilledButton(onPressed: _save, child: const Text('Save')),
-            ],
+                const SizedBox(height: Gap.sm),
+                Flexible(
+                  child: SingleChildScrollView(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        DropdownButtonFormField<String>(
+                          initialValue: _category,
+                          decoration: const InputDecoration(
+                            labelText: 'Category',
+                          ),
+                          items: [
+                            for (final category in _expenseCategories)
+                              DropdownMenuItem(
+                                value: category,
+                                child: Text(category),
+                              ),
+                          ],
+                          onChanged: (value) {
+                            if (value != null) {
+                              setState(() => _category = value);
+                            }
+                          },
+                        ),
+                        const SizedBox(height: Gap.sm),
+                        TextField(
+                          controller: _description,
+                          textCapitalization: TextCapitalization.sentences,
+                          decoration: const InputDecoration(
+                            labelText: 'Description',
+                          ),
+                        ),
+                        const SizedBox(height: Gap.sm),
+                        TextField(
+                          controller: _amount,
+                          keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true,
+                          ),
+                          decoration: const InputDecoration(
+                            labelText: 'Amount',
+                            prefixText: '\$',
+                          ),
+                        ),
+                        const SizedBox(height: Gap.sm),
+                        OutlinedButton.icon(
+                          onPressed: _pickDate,
+                          icon: const Icon(Icons.calendar_month_outlined),
+                          label: Text(
+                            MaterialLocalizations.of(
+                              context,
+                            ).formatMediumDate(_date),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: Gap.xs),
+                OverflowBar(
+                  alignment: MainAxisAlignment.end,
+                  spacing: Gap.sm,
+                  overflowSpacing: Gap.xs,
+                  children: [
+                    if (widget.existing != null)
+                      TextButton(
+                        onPressed: () {
+                          ref
+                              .read(vehicleExpenseProvider.notifier)
+                              .remove(widget.existing!.id);
+                          Navigator.pop(context);
+                        },
+                        style: TextButton.styleFrom(
+                          foregroundColor: VerdictColors.bad,
+                        ),
+                        child: const Text('Delete'),
+                      ),
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('Cancel'),
+                    ),
+                    FilledButton(
+                      key: const Key('save-vehicle-expense'),
+                      onPressed: _save,
+                      child: const Text('Save'),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
-        ],
+        ),
       ),
-    ),
-  );
+    );
+  }
 }

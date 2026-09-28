@@ -7,30 +7,94 @@ import '../home/recap_widgets.dart';
 import '../settings/settings_controller.dart';
 import '../theme/tokens.dart';
 
-class SessionHistoryScreen extends ConsumerWidget {
+class SessionHistoryScreen extends ConsumerStatefulWidget {
   const SessionHistoryScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<SessionHistoryScreen> createState() =>
+      _SessionHistoryScreenState();
+}
+
+class _SessionHistoryScreenState extends ConsumerState<SessionHistoryScreen> {
+  final _scrollController = ScrollController();
+  bool _showBackToTop = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_handleScroll);
+  }
+
+  @override
+  void dispose() {
+    _scrollController
+      ..removeListener(_handleScroll)
+      ..dispose();
+    super.dispose();
+  }
+
+  void _handleScroll() {
+    final threshold = MediaQuery.sizeOf(context).height * 1.1;
+    final show =
+        _scrollController.hasClients && _scrollController.offset > threshold;
+    if (show != _showBackToTop && mounted) {
+      setState(() => _showBackToTop = show);
+    }
+  }
+
+  void _backToTop() => _scrollController.animateTo(
+    0,
+    duration: Motion.morph,
+    curve: Motion.curve,
+  );
+
+  @override
+  Widget build(BuildContext context) {
     final sessions = ref.watch(sessionLogProvider);
     final settings = ref.watch(settingsProvider);
     return Scaffold(
       appBar: AppBar(title: const Text('Session history')),
       body: sessions.isEmpty
           ? const Center(child: Text('No completed sessions yet.'))
-          : ListView.separated(
-              padding: const EdgeInsets.fromLTRB(
-                Gap.md,
-                Gap.sm,
-                Gap.md,
-                Gap.xl,
-              ),
-              itemCount: sessions.length,
-              separatorBuilder: (_, _) => const SizedBox(height: Gap.sm),
-              itemBuilder: (context, index) => _SessionRow(
-                session: sessions[index],
-                currency: settings.currency.symbol,
-              ),
+          : Stack(
+              children: [
+                ListView.separated(
+                  controller: _scrollController,
+                  padding: const EdgeInsets.fromLTRB(
+                    Gap.md,
+                    Gap.sm,
+                    Gap.md,
+                    Gap.xl,
+                  ),
+                  itemCount: sessions.length,
+                  separatorBuilder: (_, _) => const SizedBox(height: Gap.sm),
+                  itemBuilder: (context, index) => _SessionRow(
+                    session: sessions[index],
+                    currency: settings.currency.symbol,
+                  ),
+                ),
+                Positioned(
+                  right: Gap.md,
+                  bottom: MediaQuery.of(context).padding.bottom + Gap.md,
+                  child: AnimatedSwitcher(
+                    duration: Motion.base,
+                    child: _showBackToTop
+                        ? Material(
+                            key: const ValueKey('session_back_to_top'),
+                            color: FoxColors.bgSurface,
+                            shape: const CircleBorder(),
+                            elevation: 3,
+                            child: IconButton(
+                              tooltip: 'Back to top',
+                              onPressed: _backToTop,
+                              icon: const Icon(Icons.arrow_upward_rounded),
+                              color: FoxColors.brandFox,
+                            ),
+                          )
+                        : const SizedBox.shrink(),
+                  ),
+                ),
+              ],
             ),
     );
   }
@@ -108,6 +172,7 @@ class _SessionRow extends StatelessWidget {
               _Metric(
                 value: '$currency${session.earnings.toStringAsFixed(0)}',
                 label: 'recorded',
+                valueColor: FoxColors.brandFox,
               ),
             ],
           ),
@@ -118,10 +183,11 @@ class _SessionRow extends StatelessWidget {
 }
 
 class _Metric extends StatelessWidget {
-  const _Metric({required this.value, required this.label});
+  const _Metric({required this.value, required this.label, this.valueColor});
 
   final String value;
   final String label;
+  final Color? valueColor;
 
   @override
   Widget build(BuildContext context) => Expanded(
@@ -134,7 +200,7 @@ class _Metric extends StatelessWidget {
           child: Text(
             value,
             style: TextStyle(
-              color: FoxColors.cream,
+              color: valueColor ?? FoxColors.cream,
               fontFamily: FoxFonts.display,
               fontSize: 21,
               fontWeight: FontWeight.w700,
