@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -15,6 +16,8 @@ import 'package:foxyco/ui/home/dashboard_controller.dart';
 import 'package:foxyco/ui/home/dashboard_state.dart';
 import 'package:foxyco/ui/home/slide_to_live.dart';
 import 'package:foxyco/ui/settings/settings_controller.dart';
+import 'package:foxyco/ui/theme/app_theme.dart';
+import 'package:foxyco/ui/theme/tokens.dart';
 
 class _GrantedDashboardController extends DashboardController {
   @override
@@ -208,11 +211,107 @@ void main() {
     await tester.pump();
 
     expect(find.text('ACCEPTED AMOUNT'), findsOneWidget);
+    expect(
+      tester
+          .widget<Text>(find.byKey(const Key('session-recap-accepted-count')))
+          .data,
+      '0',
+    );
     expect(find.text(r'$42.00'), findsOneWidget);
     expect(find.text('offers seen'), findsOneWidget);
     expect(find.textContaining(r'Best $/km'), findsNothing);
     expect(find.textContaining('Good avg'), findsNothing);
     expect(find.textContaining('Busiest'), findsNothing);
+  });
+
+  testWidgets('expanded recap fits narrow screens with enlarged text', (
+    tester,
+  ) async {
+    tall(tester);
+    final font = FontLoader('Inter')
+      ..addFont(rootBundle.load('fonts/Inter.ttf'));
+    await font.load();
+    addTearDown(() => FoxColors.apply(FoxPalette.dark));
+    final sessions = [
+      for (final day in [27, 24, 21])
+        SessionSummary(
+          startedAt: DateTime(2026, 9, day, 12, 13),
+          endedAt: DateTime(2026, 9, day, 17, 50),
+          good: 2,
+          ok: 7,
+          bad: 122,
+          accepted: 17,
+          declined: 114,
+          estimatedEarnings: day == 27 ? 142.85 : 0,
+        ),
+      SessionSummary(
+        startedAt: DateTime(2026, 9, 27, 18),
+        endedAt: DateTime(2026, 9, 27, 19),
+        good: 3,
+        accepted: 3,
+      ),
+    ];
+    for (final palette in [FoxPalette.light, FoxPalette.dark]) {
+      final preview = ValueNotifier<Widget?>(null);
+      addTearDown(preview.dispose);
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            dashboardProvider.overrideWith(_GrantedDashboardController.new),
+            sessionLogProvider.overrideWith(() => _FixedSessionLog(sessions)),
+          ],
+          child: MaterialApp(
+            theme: AppTheme.of(palette),
+            home: ValueListenableBuilder<Widget?>(
+              valueListenable: preview,
+              child: const HomeScreen(),
+              builder: (context, card, home) => Stack(
+                children: [
+                  Offstage(offstage: card != null, child: home),
+                  if (card != null)
+                    SingleChildScrollView(
+                      child: Center(
+                        child: SizedBox(
+                          width: 288,
+                          child: MediaQuery(
+                            data: MediaQuery.of(
+                              context,
+                            ).copyWith(textScaler: const TextScaler.linear(2)),
+                            child: Material(
+                              color: Colors.transparent,
+                              child: card,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.ensureVisible(find.byKey(const Key('session-recap-toggle')));
+      await tester.tap(find.byKey(const Key('session-recap-toggle')));
+      await tester.pump();
+      // Keep Home mounted while checking just the recap at a phone's width.
+      preview.value = tester.widget<Container>(
+        find.byKey(const Key('session-recap-card')),
+      );
+      await tester.pump();
+      expect(find.text(r'$142.85'), findsOneWidget);
+      expect(
+        tester
+            .widget<Text>(find.byKey(const Key('session-recap-accepted-count')))
+            .data,
+        '20',
+      );
+      expect(find.text(r'$0.00'), findsNWidgets(2));
+      expect(find.text('accept rate'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox.shrink());
+    }
   });
 
   testWidgets('small yesterday baseline uses an absolute comparison', (

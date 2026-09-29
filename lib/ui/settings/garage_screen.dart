@@ -14,6 +14,7 @@ import 'settings_controller.dart';
 import 'vehicle_expense_controller.dart';
 import '../theme/section_label.dart';
 import '../theme/tokens.dart';
+import '../shell/root_shell.dart';
 
 const _expenseCategories = [
   'Gas',
@@ -29,11 +30,49 @@ const _expenseCategories = [
   'Other miscellaneous',
 ];
 
-class GarageScreen extends ConsumerWidget {
+class GarageScreen extends ConsumerStatefulWidget {
   const GarageScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<GarageScreen> createState() => _GarageScreenState();
+}
+
+class _GarageScreenState extends ConsumerState<GarageScreen> {
+  final _remindersKey = GlobalKey();
+  final _remindersController = ExpansibleController();
+
+  void _consumeReminderLink() {
+    final tabs = ref.read(tabIndexProvider.notifier);
+    if (ref.read(tabIndexProvider) != 2 || tabs.pendingSection != 1) return;
+    tabs.pendingSection = null;
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      _remindersController.expand();
+      await Future<void>.delayed(Motion.morph);
+      if (!mounted) return;
+      final target = _remindersKey.currentContext;
+      if (target == null || !target.mounted) return;
+      Scrollable.ensureVisible(
+        target,
+        alignment: .08,
+        duration: Motion.morph,
+        curve: Motion.curve,
+      );
+    });
+  }
+
+  @override
+  void dispose() {
+    _remindersController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    ref.listen<int>(tabIndexProvider, (_, next) {
+      if (next == 2) _consumeReminderLink();
+    });
+    _consumeReminderLink();
     final vehicle = ref.watch(activeVehicleProvider);
     final reminders = ref.watch(reminderProvider);
     final expenses = ref.watch(vehicleExpenseProvider);
@@ -44,171 +83,210 @@ class GarageScreen extends ConsumerWidget {
         .prefix;
     String money(double value) => '$currency${value.toStringAsFixed(2)}';
 
-    return ListView(
-      padding: EdgeInsets.fromLTRB(
-        Gap.md,
-        Gap.lg,
-        Gap.md,
-        112 + MediaQuery.of(context).padding.bottom,
-      ),
-      children: [
-        Text('Garage', style: Theme.of(context).textTheme.headlineMedium),
-        const SizedBox(height: Gap.xs),
-        Text(
-          'Your vehicle, care schedule, and running costs.',
-          style: TextStyle(color: FoxColors.textSecondary),
+    return SingleChildScrollView(
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(
+          Gap.md,
+          Gap.lg,
+          Gap.md,
+          112 + MediaQuery.of(context).padding.bottom,
         ),
-        const SizedBox(height: Gap.lg),
-        const SectionLabel('Vehicles'),
-        const SizedBox(height: Gap.sm),
-        Container(
-          padding: const EdgeInsets.all(Gap.sm),
-          decoration: BoxDecoration(
-            color: FoxColors.bgSurface,
-            borderRadius: BorderRadius.circular(Radii.card),
-            border: Border.all(color: FoxColors.borderSoft),
-            boxShadow: Shadows.card,
-          ),
-          child: Column(
-            children: [
-              if (vehicle != null)
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                    Gap.sm,
-                    Gap.sm,
-                    Gap.sm,
-                    Gap.md,
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.garage_rounded, color: FoxColors.brandFox),
-                      const SizedBox(width: Gap.sm),
-                      Expanded(
-                        child: Text(
-                          vehicle.title.isEmpty
-                              ? 'Your vehicle'
-                              : vehicle.title,
-                          style: Theme.of(context).textTheme.titleMedium,
-                        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text('Garage', style: Theme.of(context).textTheme.headlineMedium),
+            const SizedBox(height: Gap.xs),
+            Text(
+              'Your vehicle, care schedule, and running costs.',
+              style: TextStyle(color: FoxColors.textSecondary),
+            ),
+            const SizedBox(height: Gap.lg),
+            const SectionLabel('Vehicles'),
+            const SizedBox(height: Gap.sm),
+            Container(
+              padding: const EdgeInsets.all(Gap.sm),
+              decoration: BoxDecoration(
+                color: FoxColors.bgSurface,
+                borderRadius: BorderRadius.circular(Radii.card),
+                border: Border.all(color: FoxColors.borderSoft),
+                boxShadow: Shadows.card,
+              ),
+              child: Column(
+                children: [
+                  if (vehicle != null)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(
+                        Gap.sm,
+                        Gap.sm,
+                        Gap.sm,
+                        Gap.md,
                       ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.garage_rounded, color: FoxColors.brandFox),
+                          const SizedBox(width: Gap.sm),
+                          Expanded(
+                            child: Text(
+                              vehicle.title.isEmpty
+                                  ? 'Your vehicle'
+                                  : vehicle.title,
+                              style: Theme.of(context).textTheme.titleMedium,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  const GarageList(),
+                ],
+              ),
+            ),
+            const SizedBox(height: Gap.lg),
+            _IncomeExpenseSection(
+              offers: offers,
+              expenses: expenses,
+              currency: currency,
+              onAdd: () => showVehicleExpenseEditor(context, ref),
+            ),
+            const SizedBox(height: Gap.lg),
+            Material(
+              key: _remindersKey,
+              color: FoxColors.bgSurface,
+              elevation: 2,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(Radii.card),
+                side: BorderSide(color: FoxColors.borderSoft),
+              ),
+              child: ExpansionTile(
+                key: const Key('maintenance-reminders-section'),
+                shape: const Border(),
+                collapsedShape: const Border(),
+                controller: _remindersController,
+                tilePadding: const EdgeInsets.symmetric(horizontal: Gap.md),
+                childrenPadding: const EdgeInsets.fromLTRB(
+                  Gap.md,
+                  0,
+                  Gap.md,
+                  Gap.md,
+                ),
+                leading: const Icon(Icons.build_circle_outlined),
+                title: const Text('Maintenance reminders'),
+                subtitle: Text(
+                  reminders.isEmpty
+                      ? 'Service and upkeep schedule'
+                      : '${reminders.length} scheduled',
+                ),
+                children: [
+                  if (reminders.length > 1) ...[
+                    _NextReminder(
+                      reminder:
+                          ref.watch(dueRemindersProvider).firstOrNull ??
+                          reminders.first,
+                    ),
+                    const SizedBox(height: Gap.sm),
+                  ],
+                  const ReminderSection(),
+                ],
+              ),
+            ),
+            const SizedBox(height: Gap.lg),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final amount = Text(
+                  money(total),
+                  style: TextStyle(
+                    color: FoxColors.brandText,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                  ),
+                );
+                final measure = TextPainter(
+                  text: TextSpan(
+                    children: [
+                      TextSpan(
+                        text: 'VEHICLE EXPENSES',
+                        style: Theme.of(context).textTheme.labelSmall,
+                      ),
+                      TextSpan(text: money(total), style: amount.style),
                     ],
                   ),
-                ),
-              const GarageList(),
-            ],
-          ),
-        ),
-        const SizedBox(height: Gap.lg),
-        _IncomeExpenseSection(
-          offers: offers,
-          expenses: expenses,
-          currency: currency,
-          onAdd: () => showVehicleExpenseEditor(context, ref),
-        ),
-        const SizedBox(height: Gap.lg),
-        Material(
-          color: FoxColors.bgSurface,
-          elevation: 2,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(Radii.card),
-            side: BorderSide(color: FoxColors.borderSoft),
-          ),
-          child: ExpansionTile(
-            key: const Key('maintenance-reminders-section'),
-            tilePadding: const EdgeInsets.symmetric(horizontal: Gap.md),
-            childrenPadding: const EdgeInsets.fromLTRB(
-              Gap.md,
-              0,
-              Gap.md,
-              Gap.md,
+                  textDirection: Directionality.of(context),
+                  textScaler: MediaQuery.textScalerOf(context),
+                )..layout();
+                final stacked = measure.width + Gap.lg > constraints.maxWidth;
+                measure.dispose();
+                if (stacked) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SectionLabel('Vehicle expenses'),
+                      const SizedBox(height: Gap.xs),
+                      amount,
+                    ],
+                  );
+                }
+                return Row(
+                  children: [
+                    const Expanded(child: SectionLabel('Vehicle expenses')),
+                    amount,
+                  ],
+                );
+              },
             ),
-            leading: const Icon(Icons.build_circle_outlined),
-            title: const Text('Maintenance reminders'),
-            subtitle: Text(
-              reminders.isEmpty
-                  ? 'Service and upkeep schedule'
-                  : '${reminders.length} scheduled',
-            ),
-            children: [
-              if (reminders.isNotEmpty) ...[
-                _NextReminder(
-                  reminder:
-                      ref.watch(dueRemindersProvider).firstOrNull ??
-                      reminders.first,
-                ),
-                const SizedBox(height: Gap.sm),
-              ],
-              const ReminderSection(),
-            ],
-          ),
-        ),
-        const SizedBox(height: Gap.lg),
-        Row(
-          children: [
-            const Expanded(child: SectionLabel('Vehicle expenses')),
+            const SizedBox(height: Gap.xs),
             Text(
-              money(total),
-              style: TextStyle(
-                color: FoxColors.brandFox,
-                fontSize: 18,
-                fontWeight: FontWeight.w900,
-                fontFeatures: const [FontFeature.tabularFigures()],
+              'These entries contribute to your expense summary.',
+              style: TextStyle(fontSize: 12, color: FoxColors.textSecondary),
+            ),
+            const SizedBox(height: Gap.sm),
+            if (expenses.isEmpty)
+              Container(
+                padding: const EdgeInsets.all(Gap.md),
+                decoration: BoxDecoration(
+                  color: FoxColors.bgSurface,
+                  borderRadius: BorderRadius.circular(Radii.card),
+                  border: Border.all(color: FoxColors.borderSoft),
+                ),
+                child: Text(
+                  'Add fuel, parking, supplies, or maintenance costs to start your ledger.',
+                  style: TextStyle(color: FoxColors.textSecondary),
+                ),
+              )
+            else
+              Material(
+                color: FoxColors.bgSurface,
+                clipBehavior: Clip.antiAlias,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(Radii.card),
+                  side: BorderSide(color: FoxColors.borderSoft),
+                ),
+                child: Column(
+                  children: [
+                    for (var i = 0; i < expenses.length; i++) ...[
+                      _ExpenseRow(
+                        expense: expenses[i],
+                        money: money(expenses[i].amount),
+                        onTap: () => showVehicleExpenseEditor(
+                          context,
+                          ref,
+                          existing: expenses[i],
+                        ),
+                      ),
+                      if (i != expenses.length - 1)
+                        Divider(height: 1, color: FoxColors.borderSoft),
+                    ],
+                  ],
+                ),
               ),
+            const SizedBox(height: Gap.sm),
+            OutlinedButton.icon(
+              onPressed: () => showVehicleExpenseEditor(context, ref),
+              icon: const Icon(Icons.add_rounded),
+              label: const Text('Add vehicle expense'),
             ),
           ],
         ),
-        const SizedBox(height: Gap.xs),
-        Text(
-          'These entries contribute to your expense summary.',
-          style: TextStyle(fontSize: 12, color: FoxColors.textSecondary),
-        ),
-        const SizedBox(height: Gap.sm),
-        if (expenses.isEmpty)
-          Container(
-            padding: const EdgeInsets.all(Gap.md),
-            decoration: BoxDecoration(
-              color: FoxColors.bgSurface,
-              borderRadius: BorderRadius.circular(Radii.card),
-              border: Border.all(color: FoxColors.borderSoft),
-            ),
-            child: Text(
-              'Add fuel, parking, supplies, or maintenance costs to start your ledger.',
-              style: TextStyle(color: FoxColors.textSecondary),
-            ),
-          )
-        else
-          Container(
-            decoration: BoxDecoration(
-              color: FoxColors.bgSurface,
-              borderRadius: BorderRadius.circular(Radii.card),
-              border: Border.all(color: FoxColors.borderSoft),
-              boxShadow: Shadows.card,
-            ),
-            child: Column(
-              children: [
-                for (var i = 0; i < expenses.length; i++) ...[
-                  _ExpenseRow(
-                    expense: expenses[i],
-                    money: money(expenses[i].amount),
-                    onTap: () => showVehicleExpenseEditor(
-                      context,
-                      ref,
-                      existing: expenses[i],
-                    ),
-                  ),
-                  if (i != expenses.length - 1)
-                    Divider(height: 1, color: FoxColors.borderSoft),
-                ],
-              ],
-            ),
-          ),
-        const SizedBox(height: Gap.sm),
-        OutlinedButton.icon(
-          onPressed: () => showVehicleExpenseEditor(context, ref),
-          icon: const Icon(Icons.add_rounded),
-          label: const Text('Add vehicle expense'),
-        ),
-      ],
+      ),
     );
   }
 }
@@ -234,11 +312,12 @@ class _IncomeExpenseSection extends StatelessWidget {
     ),
     child: ExpansionTile(
       key: const Key('income-expenses-section'),
+      shape: const Border(),
+      collapsedShape: const Border(),
       tilePadding: const EdgeInsets.symmetric(horizontal: Gap.md),
       childrenPadding: const EdgeInsets.fromLTRB(Gap.md, 0, Gap.md, Gap.md),
       leading: const Icon(Icons.compare_arrows_rounded),
       title: const Text('Income vs expenses'),
-      subtitle: const Text('Monthly · Quarterly · Yearly'),
       children: [
         IncomeExpenseReport(
           offers: offers,
@@ -308,25 +387,44 @@ class _ExpenseRow extends StatelessWidget {
   final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context) => ListTile(
-    onTap: onTap,
-    leading: CircleAvatar(
-      backgroundColor: FoxColors.brandFox.withValues(alpha: .1),
-      foregroundColor: FoxColors.brandFox,
-      child: Icon(_categoryIcon(expense.category), size: 19),
-    ),
-    title: Text(
-      expense.description,
-      maxLines: 1,
-      overflow: TextOverflow.ellipsis,
-    ),
-    subtitle: Text(
+  Widget build(BuildContext context) {
+    final stacked =
+        MediaQuery.sizeOf(context).width < 340 ||
+        MediaQuery.textScalerOf(context).scale(1) > 1.3;
+    final amount = Text(
+      money,
+      style: const TextStyle(fontWeight: FontWeight.w800),
+    );
+    final date = Text(
       '${expense.category} · ${MaterialLocalizations.of(context).formatShortDate(expense.date)}',
-    ),
-    trailing: Text(money, style: const TextStyle(fontWeight: FontWeight.w800)),
-    minLeadingWidth: 0,
-    contentPadding: const EdgeInsets.symmetric(horizontal: Gap.sm),
-  );
+    );
+    return ListTile(
+      onTap: onTap,
+      leading: CircleAvatar(
+        backgroundColor: FoxColors.brandFox.withValues(alpha: .1),
+        foregroundColor: FoxColors.brandFox,
+        child: Icon(_categoryIcon(expense.category), size: 19),
+      ),
+      title: Text(
+        expense.description,
+        maxLines: stacked ? 2 : 1,
+        overflow: TextOverflow.ellipsis,
+      ),
+      subtitle: stacked
+          ? Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                date,
+                const SizedBox(height: Gap.xs),
+                amount,
+              ],
+            )
+          : date,
+      trailing: stacked ? null : amount,
+      minLeadingWidth: 0,
+      contentPadding: const EdgeInsets.symmetric(horizontal: Gap.sm),
+    );
+  }
 }
 
 IconData _categoryIcon(String category) => switch (category) {
@@ -466,9 +564,13 @@ class _VehicleExpenseEditorState extends ConsumerState<_VehicleExpenseEditor> {
                           keyboardType: const TextInputType.numberWithOptions(
                             decimal: true,
                           ),
-                          decoration: const InputDecoration(
+                          decoration: InputDecoration(
                             labelText: 'Amount',
-                            prefixText: '\$',
+                            prefixText: ref
+                                .watch(
+                                  settingsProvider.select((s) => s.currency),
+                                )
+                                .prefix,
                           ),
                         ),
                         const SizedBox(height: Gap.sm),

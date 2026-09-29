@@ -138,7 +138,8 @@ class HomeScreen extends ConsumerWidget {
           _Padded(
             child: _ReminderBanner(
               reminder: ref.watch(dueRemindersProvider).first,
-              onTap: () => ref.read(tabIndexProvider.notifier).go(2),
+              onTap: () =>
+                  ref.read(tabIndexProvider.notifier).go(2, section: 1),
             ),
           ),
           const SizedBox(height: Gap.lg),
@@ -172,7 +173,7 @@ class HomeScreen extends ConsumerWidget {
           _Padded(child: _RecentAccepted(offers: recentAccepted)),
           const SizedBox(height: Gap.lg),
         ],
-        const _Padded(child: SectionLabel('Fox tips')),
+        const _Padded(child: SectionLabel('Quick tip')),
         const SizedBox(height: Gap.sm + Gap.xs),
         const _Padded(child: FoxTipsCard()),
         const SizedBox(height: Gap.md),
@@ -1425,9 +1426,16 @@ class _SessionCardState extends ConsumerState<_SessionCard> {
       1 => 'Yesterday',
       _ => l10n.formatShortDate(day.date),
     };
+    final amountLabelStyle = TextStyle(
+      color: FoxColors.textSecondary,
+      fontSize: 10,
+      fontWeight: FontWeight.w800,
+      letterSpacing: 1,
+    );
 
     return Container(
-      padding: const EdgeInsets.fromLTRB(18, 16, 18, 12),
+      key: const Key('session-recap-card'),
+      padding: const EdgeInsets.all(Gap.md),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
@@ -1456,20 +1464,27 @@ class _SessionCardState extends ConsumerState<_SessionCard> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(dayLabel, style: text.titleSmall),
+                        Text(dayLabel, style: text.titleMedium),
+                        const SizedBox(height: Gap.xs),
                         Text(
                           '${clock(day.startedAt)} – ${clock(day.endedAt)}',
-                          style: TextStyle(color: FoxColors.textSecondary),
+                          style: TextStyle(
+                            color: FoxColors.textSecondary,
+                            fontSize: 12,
+                          ),
                         ),
                       ],
                     ),
                   ),
+                  const SizedBox(width: Gap.sm),
                   Text(
                     durationLabel(day.duration),
+                    textAlign: TextAlign.end,
                     style: TextStyle(
-                      color: FoxColors.cream,
+                      color: FoxColors.creamDim,
                       fontFamily: FoxFonts.display,
                       fontWeight: FontWeight.w700,
+                      fontSize: 12,
                     ),
                   ),
                 ],
@@ -1477,46 +1492,106 @@ class _SessionCardState extends ConsumerState<_SessionCard> {
             ),
           ),
           const SizedBox(height: Gap.md),
-          Text(
-            'ACCEPTED AMOUNT',
-            style: TextStyle(
-              color: FoxColors.textSecondary,
-              fontSize: 9.5,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 1,
+          SizedBox(
+            width: double.infinity,
+            child: Wrap(
+              alignment: WrapAlignment.spaceBetween,
+              spacing: Gap.lg,
+              runSpacing: Gap.sm,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('ACCEPTED AMOUNT', style: amountLabelStyle),
+                    const SizedBox(height: Gap.xs),
+                    Text(
+                      '${settings.currency.symbol}${day.earnings.toStringAsFixed(2)}',
+                      style: TextStyle(
+                        color: FoxColors.brandText,
+                        fontFamily: FoxFonts.display,
+                        fontSize: 32,
+                        fontWeight: FontWeight.w800,
+                        height: 1,
+                        fontFeatures: const [FontFeature.tabularFigures()],
+                      ),
+                    ),
+                  ],
+                ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('ACCEPTED OFFERS', style: amountLabelStyle),
+                    const SizedBox(height: Gap.xs),
+                    Text(
+                      '${day.accepted}',
+                      key: const Key('session-recap-accepted-count'),
+                      style: TextStyle(
+                        color: FoxColors.cream,
+                        fontFamily: FoxFonts.display,
+                        fontSize: 32,
+                        fontWeight: FontWeight.w700,
+                        height: 1,
+                        fontFeatures: const [FontFeature.tabularFigures()],
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: Gap.xs),
-          Text(
-            '${settings.currency.symbol}${day.earnings.toStringAsFixed(2)}',
-            style: TextStyle(
-              color: FoxColors.brandFox,
-              fontFamily: FoxFonts.display,
-              fontSize: 36,
-              fontWeight: FontWeight.w900,
-              height: 1,
-              fontFeatures: const [FontFeature.tabularFigures()],
-            ),
+          const SizedBox(height: Gap.md),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final stacked =
+                  constraints.maxWidth < 280 ||
+                  MediaQuery.textScalerOf(context).scale(1) > 1.3;
+              final stats = [
+                _SessionDayStat(
+                  value:
+                      '${settings.currency.symbol}${day.hourlyEarnings.toStringAsFixed(2)}',
+                  label: 'per active hour',
+                ),
+                _SessionDayStat(
+                  value: day.acceptanceRate == null
+                      ? '—'
+                      : '${(day.acceptanceRate! * 100).round()}%',
+                  label: 'accept rate',
+                ),
+                _SessionDayStat(value: '${day.total}', label: 'offers seen'),
+              ];
+              if (stacked) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    for (var i = 0; i < stats.length; i++) ...[
+                      if (i > 0)
+                        Divider(height: Gap.lg, color: FoxColors.borderSoft),
+                      stats[i],
+                    ],
+                  ],
+                );
+              }
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  for (var i = 0; i < stats.length; i++) ...[
+                    if (i > 0)
+                      SizedBox(
+                        height: 40,
+                        child: VerticalDivider(
+                          width: Gap.md,
+                          color: FoxColors.border,
+                        ),
+                      ),
+                    Expanded(child: stats[i]),
+                  ],
+                ],
+              );
+            },
           ),
-          const SizedBox(height: Gap.sm),
-          Row(
-            children: [
-              _SessionDayStat(
-                value:
-                    '${settings.currency.symbol}${day.hourlyEarnings.toStringAsFixed(2)}',
-                label: 'per active hour',
-              ),
-              _SessionDayStat(
-                value: day.acceptanceRate == null
-                    ? '—'
-                    : '${(day.acceptanceRate! * 100).round()}%',
-                label: 'known accept',
-              ),
-              _SessionDayStat(value: '${day.total}', label: 'offers seen'),
-            ],
-          ),
-          const SizedBox(height: Gap.sm),
-          _SessionQuality(session: day),
+          const SizedBox(height: Gap.md),
+          Divider(height: 1, color: FoxColors.borderSoft),
+          _SessionQuality(session: day, onTap: widget.onTap),
           if (days.length > 1) ...[
             const SizedBox(height: Gap.xs),
             TextButton(
@@ -1528,8 +1603,9 @@ class _SessionCardState extends ConsumerState<_SessionCard> {
               ),
               child: Row(
                 children: [
-                  const Text('Recent sessions'),
-                  const Spacer(),
+                  Expanded(
+                    child: Text('Recent sessions', style: text.titleSmall),
+                  ),
                   Icon(
                     _showRecent
                         ? Icons.expand_less_rounded
@@ -1566,28 +1642,26 @@ class _SessionDayStat extends StatelessWidget {
   final String label;
 
   @override
-  Widget build(BuildContext context) => Expanded(
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          value,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            color: FoxColors.cream,
-            fontWeight: FontWeight.w800,
-            fontFeatures: const [FontFeature.tabularFigures()],
-          ),
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.center,
+    children: [
+      Text(
+        value,
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          color: FoxColors.cream,
+          fontWeight: FontWeight.w800,
+          fontSize: 16,
+          fontFeatures: const [FontFeature.tabularFigures()],
         ),
-        Text(
-          label,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(fontSize: 9.5, color: FoxColors.textSecondary),
-        ),
-      ],
-    ),
+      ),
+      const SizedBox(height: Gap.xs),
+      Text(
+        label,
+        textAlign: TextAlign.center,
+        style: TextStyle(fontSize: 11, color: FoxColors.textSecondary),
+      ),
+    ],
   );
 }
 
@@ -1604,43 +1678,45 @@ class _RecentSessionDay extends StatelessWidget {
   final String Function(DateTime) clock;
 
   @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(top: Gap.xs),
-    child: Row(
+  Widget build(BuildContext context) => Container(
+    width: double.infinity,
+    padding: const EdgeInsets.symmetric(vertical: Gap.sm),
+    decoration: BoxDecoration(
+      border: Border(top: BorderSide(color: FoxColors.borderSoft)),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Container(
-          width: 38,
-          height: 38,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            border: Border.all(color: FoxColors.borderSoft),
-            borderRadius: BorderRadius.circular(Radii.field),
-          ),
-          child: Text(
-            '${day.date.day}',
-            style: TextStyle(color: FoxColors.cream),
-          ),
-        ),
-        const SizedBox(width: Gap.sm),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(label, style: TextStyle(color: FoxColors.cream)),
-              Text(
-                '${clock(day.startedAt)} – ${clock(day.endedAt)} · ${durationLabel(day.duration)}',
-                style: TextStyle(fontSize: 10, color: FoxColors.textSecondary),
+        Wrap(
+          alignment: WrapAlignment.spaceBetween,
+          spacing: Gap.sm,
+          runSpacing: Gap.xs,
+          children: [
+            Text(
+              label,
+              style: TextStyle(
+                color: FoxColors.cream,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
               ),
-            ],
-          ),
+            ),
+            Text(
+              '$currency${day.earnings.toStringAsFixed(2)}',
+              style: TextStyle(
+                color: day.earnings == 0
+                    ? FoxColors.creamDim
+                    : FoxColors.brandText,
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                fontFeatures: const [FontFeature.tabularFigures()],
+              ),
+            ),
+          ],
         ),
+        const SizedBox(height: Gap.xs),
         Text(
-          '$currency${day.earnings.toStringAsFixed(2)}',
-          style: TextStyle(
-            color: FoxColors.brandFox,
-            fontWeight: FontWeight.w800,
-            fontFeatures: const [FontFeature.tabularFigures()],
-          ),
+          '${clock(day.startedAt)} – ${clock(day.endedAt)} · ${durationLabel(day.duration)}',
+          style: TextStyle(fontSize: 11, color: FoxColors.textSecondary),
         ),
       ],
     ),
@@ -1648,81 +1724,83 @@ class _RecentSessionDay extends StatelessWidget {
 }
 
 class _SessionQuality extends StatelessWidget {
-  const _SessionQuality({required this.session});
+  const _SessionQuality({required this.session, required this.onTap});
 
   final SessionDaySummary session;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final total = session.total;
-    return Container(
-      padding: const EdgeInsets.fromLTRB(Gap.sm, Gap.sm, Gap.sm, Gap.sm),
-      decoration: BoxDecoration(
-        color: FoxColors.bgSurface2.withValues(alpha: 0.32),
-        borderRadius: BorderRadius.circular(Radii.cardSm),
-        border: Border.all(color: FoxColors.borderSoft),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Text(
-                'Offer quality',
-                style: TextStyle(
-                  fontSize: 11.5,
-                  fontWeight: FontWeight.w700,
-                  color: FoxColors.textPrimary,
-                ),
-              ),
-              const Spacer(),
-              Text(
-                'View details  ›',
-                style: TextStyle(
-                  fontSize: 10.5,
-                  fontWeight: FontWeight.w700,
-                  color: FoxColors.brandFox,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: Gap.sm),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(Radii.pill),
-            child: SizedBox(
-              height: 9,
-              child: Row(
-                children: [
-                  if (session.good > 0)
-                    Expanded(
-                      flex: session.good,
-                      child: Container(color: VerdictColors.goodFill),
-                    ),
-                  if (session.ok > 0)
-                    Expanded(
-                      flex: session.ok,
-                      child: Container(color: VerdictColors.okFill),
-                    ),
-                  if (session.bad > 0)
-                    Expanded(
-                      flex: session.bad,
-                      child: Container(color: VerdictColors.badFill),
-                    ),
-                  if (total == 0)
-                    Expanded(child: Container(color: FoxColors.border)),
-                ],
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Wrap(
+          alignment: WrapAlignment.spaceBetween,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: Gap.sm,
+          children: [
+            Text(
+              'Offer quality',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: FoxColors.textPrimary,
               ),
             ),
+            TextButton.icon(
+              key: const Key('session-recap-details'),
+              onPressed: onTap,
+              style: TextButton.styleFrom(
+                foregroundColor: FoxColors.brandText,
+                padding: EdgeInsets.zero,
+                minimumSize: const Size(48, 48),
+                textStyle: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              label: const Text('View details'),
+              icon: const Icon(Icons.chevron_right_rounded, size: 16),
+              iconAlignment: IconAlignment.end,
+            ),
+          ],
+        ),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(Radii.pill),
+          child: SizedBox(
+            height: Gap.sm,
+            child: Row(
+              children: [
+                if (session.good > 0)
+                  Expanded(
+                    flex: session.good,
+                    child: Container(color: VerdictColors.goodFill),
+                  ),
+                if (session.ok > 0)
+                  Expanded(
+                    flex: session.ok,
+                    child: Container(color: VerdictColors.okFill),
+                  ),
+                if (session.bad > 0)
+                  Expanded(
+                    flex: session.bad,
+                    child: Container(color: VerdictColors.badFill),
+                  ),
+                if (total == 0)
+                  Expanded(child: Container(color: FoxColors.border)),
+              ],
+            ),
           ),
-          const SizedBox(height: Gap.sm),
-          VerdictSplitPills(
-            good: session.good,
-            ok: session.ok,
-            bad: session.bad,
-            fontSize: 11,
-          ),
-        ],
-      ),
+        ),
+        const SizedBox(height: Gap.sm),
+        VerdictSplitPills(
+          good: session.good,
+          ok: session.ok,
+          bad: session.bad,
+          fontSize: 11,
+        ),
+      ],
     );
   }
 }

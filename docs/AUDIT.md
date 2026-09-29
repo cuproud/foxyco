@@ -2,10 +2,57 @@
 
 Audit date: 2026-09-28
 
-Candidate: `1.0.16+114`
+Candidate: `1.0.18+116`
 
 Automated checks pass. Play upload remains conditional on the device and
 Console checks in `MANUAL_TESTS.md` and `PLAY_RELEASE.md`.
+
+## Build 116 — Home and Garage UI polish
+
+- Includes build 115's theme-aware chart and recap improvements.
+- Home recap shows the accepted-offer count for the whole day, uses equal metric
+  columns and dividers, and labels the acceptance metric as accept rate.
+- Quick tip replaces the carousel with a compact card, relevant navigation
+  action, and a Next tip control. Tip copy fits 320–412 dp at up to 2× text.
+- Home's reminder icon and due banner open Garage's expanded Maintenance
+  reminders section. The nearest-reminder preview is hidden for a lone item.
+- Garage explains final payouts, accepted-job estimates, and the balance formula;
+  expense amounts adapt to narrow screens, tap feedback remains visible, and
+  the expense editor uses the selected currency prefix.
+- Splash moves the wordmark upward and pairs it with a styled Fraunces tagline.
+- Version metadata and About are synchronized to `1.0.18+116`.
+- Physical-device checks R116.1–R116.5 remain pending in `MANUAL_TESTS.md`.
+- Guarded release preflight passed analysis, the full Flutter suite, and
+  Firestore rules tests. Formatting and diff whitespace checks also passed.
+- JAR signature verification and bundletool validation passed. The packaged
+  manifest reports `com.foxyco.app`, version name `1.0.18`, version code `116`.
+  Jarsigner reports the existing self-signed upload-certificate, no-timestamp,
+  POSIX-attribute, and streaming ZIP manifest-order warnings.
+
+Verified artifact: `FoxyCo-v1.0.18+116-release-20260928-2243.aab`
+
+SHA-256: `1524d38133b6e13857e8f3a97f93ac09f41a0a7968b71c53c041253f2f900c70`
+
+## Build 115 — graph and session recap polish
+
+- Garage's report follows the light/dark palette, separates axis labels from
+  the plot, uses rounded scale values and matching drawn legend swatches, and
+  removes the redundant period subtitle below Income vs expenses.
+- Home recap spaces and wraps metrics, flattens Offer quality, simplifies
+  recent-session rows, and uses muted text for zero payouts. View details opens
+  Session history.
+- Version metadata and About are synchronized to `1.0.17+115`.
+- Guarded release preflight passed analysis, the full Flutter suite, and
+  Firestore rules tests. Narrow-layout tests cover both themes and 2× text.
+- JAR signature verification and bundletool validation passed; the packaged
+  manifest reports `com.foxyco.app`, version name `1.0.17`, version code `115`.
+  Jarsigner reports the existing self-signed upload-certificate, no-timestamp,
+  and streaming ZIP manifest-order warnings.
+- Device UI checks R115.1–R115.2 remain pending in `MANUAL_TESTS.md`.
+
+Verified artifact: `FoxyCo-v1.0.17+115-release-20260928-2146.aab`
+
+SHA-256: `5310d366cc21d6adaf1ec5f22ff61cf2b0a534d7073649e6c14cbe4364164015`
 
 ## Build 114 — new Play upload version
 

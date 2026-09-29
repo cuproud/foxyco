@@ -2,6 +2,11 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
+import 'package:foxyco/domain/car_reminder.dart';
+import 'package:foxyco/domain/vehicle_expense.dart';
+import 'package:foxyco/ui/settings/reminder_controller.dart';
+import 'package:foxyco/ui/settings/vehicle_expense_controller.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:foxyco/domain/app_currency.dart';
@@ -511,6 +516,68 @@ void main() {
     await tester.pumpAndSettle();
     expect(tester.getRect(save).bottom, lessThanOrEqualTo(500));
     expectNoLayoutError(tester, 'vehicle expense editor');
+  });
+
+  testWidgets('Garage fits enlarged text and avoids a lone reminder preview', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(320, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final loader = FontLoader('Inter')
+      ..addFont(rootBundle.load('fonts/Inter.ttf'));
+    await loader.load();
+    addTearDown(() => FoxColors.apply(FoxPalette.dark));
+    for (final palette in [FoxPalette.light, FoxPalette.dark]) {
+      SharedPreferences.setMockInitialValues({});
+      final container = ProviderContainer();
+      container
+          .read(reminderProvider.notifier)
+          .add(
+            CarReminder(
+              id: 'one',
+              title: 'Tire change',
+              leadDays: 30,
+              date: DateTime.now().add(const Duration(days: 34)),
+            ),
+          );
+      container
+          .read(vehicleExpenseProvider.notifier)
+          .save(
+            VehicleExpense(
+              id: 'fuel',
+              category: 'Gas',
+              description: 'Fuel for the whole week',
+              amount: 1234.56,
+              date: DateTime.now(),
+            ),
+          );
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            theme: AppTheme.of(palette),
+            builder: (context, child) => MediaQuery(
+              data: MediaQuery.of(
+                context,
+              ).copyWith(textScaler: const TextScaler.linear(2)),
+              child: child!,
+            ),
+            home: const Scaffold(body: GarageScreen()),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expectNoLayoutError(tester, 'Garage ledger');
+      await tester.ensureVisible(find.text('Maintenance reminders'));
+      await tester.tap(find.text('Maintenance reminders'));
+      await tester.pumpAndSettle();
+      expect(find.text('NEXT REMINDER'), findsNothing);
+      expect(find.text('Tire change'), findsOneWidget);
+      expectNoLayoutError(tester, 'Garage reminders');
+      await tester.pumpWidget(const SizedBox.shrink());
+      container.dispose();
+    }
   });
 
   testWidgets('font picker shows samples saves choice', (tester) async {

@@ -5,6 +5,7 @@ import 'package:foxyco/domain/session_summary.dart';
 import 'package:foxyco/domain/offer_summary.dart';
 import 'package:foxyco/domain/platform.dart';
 import 'package:foxyco/domain/verdict.dart';
+import 'package:foxyco/domain/car_reminder.dart';
 import 'package:foxyco/parser/parser_registry.dart';
 import 'package:foxyco/router.dart';
 import 'package:foxyco/services/offer_log.dart';
@@ -15,6 +16,7 @@ import 'package:foxyco/ui/theme/platform_badge.dart';
 import 'package:foxyco/ui/settings/logs_screen.dart';
 import 'package:foxyco/ui/history/session_history_screen.dart';
 import 'package:foxyco/ui/shell/root_shell.dart';
+import 'package:foxyco/ui/settings/reminder_controller.dart';
 
 class _NavigationOfferLog extends OfferLog {
   _NavigationOfferLog(this.offers);
@@ -289,6 +291,73 @@ void main() {
     expect(find.byType(LogsScreen), findsOneWidget);
   });
 
+  testWidgets('Home alert opens Garage reminders and uses the shared editor', (
+    tester,
+  ) async {
+    phone(tester);
+    final container = scope();
+    container
+        .read(reminderProvider.notifier)
+        .add(
+          CarReminder(
+            id: 'existing',
+            title: 'Oil change',
+            date: DateTime.now(),
+            leadDays: 30,
+          ),
+        );
+    await pumpShell(tester, container);
+    await tester.tap(find.byKey(const ValueKey('home-reminders')));
+    await beat(tester);
+    await beat(tester);
+    expect(container.read(tabIndexProvider), 2);
+    expect(container.read(tabIndexProvider.notifier).pendingSection, isNull);
+    expect(
+      tester
+          .widget<ExpansionTile>(
+            find.byKey(const Key('maintenance-reminders-section')),
+          )
+          .controller!
+          .isExpanded,
+      isTrue,
+    );
+    expect(find.text('Add reminder').hitTestable(), findsOneWidget);
+    await tester.tap(find.text('Add reminder'));
+    await beat(tester);
+    expect(find.text('New reminder'), findsOneWidget);
+    await tester.tap(find.text('Safety inspection'));
+    await beat(tester);
+    await tester.tap(find.text('Pick a date'));
+    await beat(tester);
+    await tester.tap(find.text('OK'));
+    await beat(tester);
+    await tester.ensureVisible(find.text('Save reminder'));
+    await tester.tap(find.text('Save reminder'));
+    await beat(tester);
+    expect(
+      container.read(reminderProvider).map((r) => r.title),
+      containsAll(['Oil change', 'Safety inspection']),
+    );
+    expect(find.text('New reminder'), findsNothing);
+    expect(
+      find.byKey(const Key('maintenance-reminders-section')),
+      findsOneWidget,
+    );
+    await tester.ensureVisible(find.text('Income vs expenses'));
+    await tester.tap(find.text('Income vs expenses'));
+    await beat(tester);
+    await tester.ensureVisible(find.text('Maintenance reminders'));
+    await tester.tap(find.text('Maintenance reminders'));
+    await beat(tester);
+    container.read(tabIndexProvider.notifier).go(0);
+    await beat(tester);
+    await tester.tap(find.byKey(const ValueKey('home-reminders')));
+    await beat(tester);
+    await beat(tester);
+    expect(find.text('Add reminder').hitTestable(), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('the session recap opens session history', (tester) async {
     tall(tester);
     final container = scope([
@@ -309,7 +378,7 @@ void main() {
     ]);
     await pumpShell(tester, container);
 
-    await tester.tap(find.textContaining('–').first);
+    await tester.tap(find.byKey(const Key('session-recap-details')));
     await beat(tester);
     expect(find.byType(SessionHistoryScreen), findsOneWidget);
     expect(find.text('Session history'), findsOneWidget);

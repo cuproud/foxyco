@@ -55,6 +55,19 @@ void main() {
   ) async {
     await tester.pumpWidget(_app(reduced: true));
 
+    final wordmark = tester.getRect(find.byKey(const Key('splash-wordmark')));
+    final tagline = tester.getRect(find.byKey(const Key('splash-tagline')));
+    final scene = tester.getSize(find.byType(Scaffold));
+    expect(wordmark.top, closeTo(scene.height * .59, .1));
+    expect(tagline.top - wordmark.bottom, closeTo(16, .1));
+    expect(
+      tester
+          .widget<Text>(find.byKey(const Key('splash-tagline')))
+          .style!
+          .fontFamily,
+      'Fraunces',
+    );
+
     // No animation loop — a short timer carries it to the shell.
     await tester.pump(const Duration(milliseconds: 600));
     await tester.pumpAndSettle();

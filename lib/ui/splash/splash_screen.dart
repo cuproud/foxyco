@@ -4,6 +4,8 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../theme/tokens.dart';
+
 /// Scenic cold-start splash based on the seasonal FoxyCo welcome artwork.
 /// A hard ceiling still guarantees that startup can never strand the user.
 class SplashScreen extends StatefulWidget {
@@ -145,53 +147,61 @@ class _SplashScene extends StatelessWidget {
                 ),
               ),
               Positioned(
-                top: size.height * 0.64,
+                top: size.height * 0.59,
                 left: 0,
                 right: 0,
                 child: Transform.translate(
                   offset: Offset(0, (1 - brand) * 8),
                   child: Opacity(
                     opacity: brand,
-                    child: Center(
-                      child: SizedBox(
-                        width: math.min(250.0, size.width * 0.69),
-                        child: Stack(
-                          children: [
-                            Image.asset(
-                              'assets/branding/foxyco_logo.png',
-                              key: const Key('splash-wordmark'),
-                              semanticLabel: 'FoxyCo',
-                            ),
-                            Positioned(
-                              right: 9,
-                              top: 43,
-                              child: Transform.rotate(
-                                angle: progress * math.pi * 4,
-                                child: const _WheelLoader(),
+                    child: Column(
+                      children: [
+                        SizedBox(
+                          width: math.min(250.0, size.width * 0.69),
+                          child: Stack(
+                            children: [
+                              Image.asset(
+                                'assets/branding/foxyco_logo.png',
+                                key: const Key('splash-wordmark'),
+                                semanticLabel: 'FoxyCo',
                               ),
-                            ),
-                          ],
+                              Positioned(
+                                right: 9,
+                                top: 43,
+                                child: Transform.rotate(
+                                  angle: progress * math.pi * 4,
+                                  child: const _WheelLoader(),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              Positioned(
-                top: size.height * 0.84,
-                left: 0,
-                right: 0,
-                child: Opacity(
-                  opacity: brand,
-                  child: const Text(
-                    'Your drive. Your rules.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Color(0xFF5E5044),
-                      fontFamily: 'Inter',
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 1.6,
+                        const SizedBox(height: Gap.md),
+                        const Padding(
+                          padding: EdgeInsets.symmetric(horizontal: Gap.lg),
+                          child: Text.rich(
+                            TextSpan(
+                              children: [
+                                TextSpan(text: 'Your drive. '),
+                                TextSpan(
+                                  text: 'Your rules.',
+                                  style: TextStyle(fontStyle: FontStyle.italic),
+                                ),
+                              ],
+                            ),
+                            key: Key('splash-tagline'),
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: Color(0xFF5E5044),
+                              fontFamily: 'Fraunces',
+                              fontSize: 19,
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: -.3,
+                              height: 1.25,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),

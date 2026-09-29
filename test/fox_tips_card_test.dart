@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:foxyco/services/tips_provider.dart';
 import 'package:foxyco/ui/home/fox_tips_card.dart';
+import 'package:foxyco/ui/shell/root_shell.dart';
 import 'package:foxyco/ui/theme/app_theme.dart';
 
 void main() {
@@ -18,7 +19,7 @@ void main() {
     expect(tips.every((tip) => tip.asset.startsWith('assets/tips/')), isTrue);
   });
 
-  testWidgets('tip card advances manually and exposes its position', (
+  testWidgets('quick tip advances and links to its relevant page', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -34,13 +35,18 @@ void main() {
     await tester.pump();
 
     expect(find.text('Find your best hours in History'), findsOneWidget);
-    expect(find.text('1 / 12'), findsOneWidget);
+    expect(find.byType(PageView), findsNothing);
+    await tester.tap(find.text('Review History'));
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(FoxTipsCard)),
+    );
+    expect(container.read(tabIndexProvider), 3);
 
     await tester.tap(find.byTooltip('Next tip'));
     await tester.pumpAndSettle();
 
     expect(find.text('Include the unpaid pickup distance'), findsOneWidget);
-    expect(find.text('2 / 12'), findsOneWidget);
+    expect(find.text('Next tip'), findsOneWidget);
   });
 
   testWidgets('all tip copy fits without a layout exception at 320 dp', (

@@ -3,11 +3,11 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/car_reminder.dart';
+import '../shell/root_shell.dart';
 import '../theme/tokens.dart';
 import 'reminder_controller.dart';
 
-/// Home's reminder inbox. The badge counts every saved reminder; the list
-/// reuses the same editor as Settings so there is only one reminder workflow.
+/// Home shortcut to Garage's maintenance reminders; badge counts saved entries.
 class ReminderInboxButton extends ConsumerWidget {
   const ReminderInboxButton({super.key});
 
@@ -23,32 +23,7 @@ class ReminderInboxButton extends ConsumerWidget {
       child: IconButton(
         key: const ValueKey('home-reminders'),
         tooltip: 'Car reminders',
-        onPressed: () => showModalBottomSheet<void>(
-          context: context,
-          isScrollControlled: true,
-          showDragHandle: true,
-          builder: (_) => SafeArea(
-            child: SingleChildScrollView(
-              padding: EdgeInsets.fromLTRB(
-                Gap.md,
-                0,
-                Gap.md,
-                Gap.lg + MediaQuery.viewInsetsOf(context).bottom,
-              ),
-              child: const Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text(
-                    'Car reminders',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
-                  ),
-                  SizedBox(height: Gap.md),
-                  ReminderSection(),
-                ],
-              ),
-            ),
-          ),
-        ),
+        onPressed: () => ref.read(tabIndexProvider.notifier).go(2, section: 1),
         icon: Badge(
           isLabelVisible: reminders.isNotEmpty,
           label: Text('${reminders.length}'),
@@ -60,7 +35,7 @@ class ReminderInboxButton extends ConsumerWidget {
   }
 }
 
-/// "Car reminders" Settings section: soonest-first list of dated car chores
+/// Garage's reminders section: soonest-first list of dated car chores
 /// (inspection, insurance, oil change…) with a days-left countdown, plus an
 /// add button. Tap a row to edit, trash to delete. All in-app — no
 /// notification permission; due items surface as a Home banner.

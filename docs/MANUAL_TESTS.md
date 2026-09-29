@@ -1,18 +1,25 @@
 # Manual Test Log
 
-## Current candidate — `1.0.16+114` (2026-09-28)
+## Current candidate — `1.0.18+116` (2026-09-28)
 
 | # | Step | Expect | Pass |
 |---|---|---|---|
 | R113.1 | Open Home | No Review Inbox/backlog card appears. Session recap shows the whole latest workday, combining split shifts and showing the combined accepted amount in orange. |
 | R113.2 | Expand Recent sessions in Session recap | Today and up to the two most recent prior workdays appear; separate shifts on one date remain combined. |
 | R113.3 | History → Session history; scroll down | Orange up-arrow appears; tapping it returns smoothly to the top. Recorded payout amounts use orange. |
-| R113.4 | Settings → Garage → expand Income vs expenses | Premium line graph and final/estimated payout, recorded expense, and balance summary appear below Vehicles. |
+| R113.4 | Garage → expand Income vs expenses | Premium line graph and final/estimated payout, recorded expense, and balance summary appear below Vehicles. |
 | R113.5 | Select Monthly, Quarterly, Yearly and use previous/next arrows | Period label, graph, payout totals, expense totals, and category totals update for each selected period. |
 | R113.6 | Swipe left/right on the graph | Moves to next/previous period; both year boundaries and February dates remain correct. |
 | R113.7 | Add/edit/delete a vehicle expense with the report open | Save is visible above the keyboard. Report and matching expense category totals update after save/edit/delete. |
 | R113.8 | Review offers with final payouts, estimates, cancellation fees, and toll reimbursements | Only recorded accepted/completed payouts and final cancellation fees count as income; toll reimbursement is not added twice. |
 | R113.9 | Expand Maintenance reminders and return to the report | Maintenance reminders remain independently collapsible; chart period and totals remain intact. |
+| R116.1 | Open Home recap with multiple shifts on the same day; repeat with enlarged text | Accepted-offer count matches the full day; three metrics have equal spacing and separators, and accept rate stays concise. |
+| R116.2 | Tap Home's reminder icon or due banner with the Garage chart expanded | Garage opens, Maintenance reminders expands and scrolls into view; adding/editing persists the same reminder list. A lone reminder has no duplicate preview. |
+| R116.3 | Cycle Quick tip at normal and enlarged text; use its action | Copy stays readable; Next tip cycles; relevant action opens History, Rules, or Garage. |
+| R116.4 | Open Garage in both themes with expenses, final payouts, and accepted jobs without final payouts | Graph matches the theme; explanations identify final versus estimated amounts; balance equals final + estimated − expenses. Ledger and currency prefix stay readable. |
+| R116.5 | Cold-launch the app | App name sits closer to the car; the tagline follows the logo with the styled Your rules phrase. |
+| R115.1 | Open the Garage report in both themes | Chart follows the selected theme; axis labels stay outside the plot and legend swatches match the lines. No period subtitle appears below Income vs expenses. |
+| R115.2 | Open Home recap, expand Recent sessions, then tap View details; repeat with enlarged text | Metrics and recent rows remain readable; zero payouts use muted text; View details opens Session history. |
 
 Device checks are pending until performed on a phone. Automated widget/model
 coverage does not replace these release checks.

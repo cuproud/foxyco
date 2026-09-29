@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:foxyco/domain/car_reminder.dart';
 import 'package:foxyco/ui/settings/reminder_controller.dart';
 import 'package:foxyco/ui/settings/reminder_section.dart';
+import 'package:foxyco/ui/shell/root_shell.dart';
 import 'package:foxyco/ui/theme/app_theme.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -228,7 +229,9 @@ void main() {
     expect(find.text('R4'), findsNothing);
   });
 
-  testWidgets('home reminder inbox shows saved reminders', (tester) async {
+  testWidgets('home reminder shortcut links to Garage maintenance', (
+    tester,
+  ) async {
     final container = ProviderContainer();
     addTearDown(container.dispose);
     container.read(reminderProvider.notifier).add(r(title: 'Oil change'));
@@ -242,7 +245,8 @@ void main() {
     expect(find.text('1'), findsOneWidget);
     await tester.tap(find.byKey(const ValueKey('home-reminders')));
     await tester.pumpAndSettle();
-    expect(find.text('Car reminders'), findsOneWidget);
-    expect(find.text('Oil change'), findsOneWidget);
+    expect(container.read(tabIndexProvider), 2);
+    expect(container.read(tabIndexProvider.notifier).pendingSection, 1);
+    expect(find.byType(BottomSheet), findsNothing);
   });
 }

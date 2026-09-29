@@ -27,9 +27,6 @@ class IncomeExpenseReport extends StatefulWidget {
 class _IncomeExpenseReportState extends State<IncomeExpenseReport> {
   ReportPeriod _period = ReportPeriod.month;
   late DateTime _date = widget.initialDate ?? DateTime.now();
-  static const _cream = Color(0xfffff8e8);
-  static const _muted = Color(0xffb9c2bc);
-  static const _gold = Color(0xffd8aa57);
   String _money(double value) =>
       '${widget.currency}${value.toStringAsFixed(2)}';
   void _move(int direction) => setState(() {
@@ -63,7 +60,11 @@ class _IncomeExpenseReportState extends State<IncomeExpenseReport> {
       ReportPeriod.year => '${report.start.year}',
     };
     final labels = _period == ReportPeriod.month
-        ? ['1', '15', '${report.incomePoints.length}']
+        ? [
+            '1',
+            '${(report.incomePoints.length - 1) ~/ 2 + 1}',
+            '${report.incomePoints.length}',
+          ]
         : [
             for (final month in [
               report.start.month,
@@ -85,30 +86,53 @@ class _IncomeExpenseReportState extends State<IncomeExpenseReport> {
                 'Dec',
               ][month - 1],
           ];
-    Widget summary(String label, double value, {bool net = false}) => Padding(
+    Widget summary(
+      String label,
+      double value, {
+      bool net = false,
+      String? detail,
+    }) => Padding(
       padding: const EdgeInsets.symmetric(vertical: Gap.sm),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Expanded(
-            child: Text(
-              label,
-              style: TextStyle(
-                color: net ? FoxColors.textPrimary : FoxColors.textSecondary,
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    color: net
+                        ? FoxColors.textPrimary
+                        : FoxColors.textSecondary,
+                  ),
+                ),
               ),
-            ),
-          ),
-          const SizedBox(width: Gap.sm),
-          Flexible(
-            child: Text(
-              _money(value),
-              textAlign: TextAlign.end,
-              style: TextStyle(
-                fontWeight: FontWeight.w800,
-                fontSize: net ? 21 : 15,
-                color: net ? FoxColors.brandFox : FoxColors.textPrimary,
+              const SizedBox(width: Gap.sm),
+              Flexible(
+                child: Text(
+                  _money(value),
+                  textAlign: TextAlign.end,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w800,
+                    fontSize: net ? 21 : 15,
+                    color: net
+                        ? value < 0
+                              ? VerdictColors.bad
+                              : FoxColors.brandText
+                        : FoxColors.textPrimary,
+                  ),
+                ),
               ),
-            ),
+            ],
           ),
+          if (detail != null) ...[
+            const SizedBox(height: Gap.xs),
+            Text(
+              detail,
+              style: TextStyle(color: FoxColors.textSecondary, fontSize: 11),
+            ),
+          ],
         ],
       ),
     );
@@ -116,7 +140,7 @@ class _IncomeExpenseReportState extends State<IncomeExpenseReport> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Container(
-          padding: const EdgeInsets.all(4),
+          padding: const EdgeInsets.all(Gap.xs),
           decoration: BoxDecoration(
             color: FoxColors.bgSurface2,
             borderRadius: BorderRadius.circular(Radii.cardSm),
@@ -136,12 +160,17 @@ class _IncomeExpenseReportState extends State<IncomeExpenseReport> {
                             ? FoxColors.bgSurface
                             : null,
                         foregroundColor: _period == period
-                            ? FoxColors.brandFox
+                            ? FoxColors.brandText
                             : FoxColors.textSecondary,
                       ),
                       child: Text(
                         period.label,
-                        style: const TextStyle(fontSize: 12),
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: _period == period
+                              ? FontWeight.w700
+                              : FontWeight.w500,
+                        ),
                       ),
                     ),
                   ),
@@ -180,33 +209,44 @@ class _IncomeExpenseReportState extends State<IncomeExpenseReport> {
             padding: const EdgeInsets.all(Gap.md),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(Radii.card),
-              gradient: const RadialGradient(
-                center: Alignment.topRight,
-                radius: 1.4,
-                colors: [Color(0xff433126), Color(0xff172a24)],
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [FoxColors.inkSoft, FoxColors.ink],
               ),
-              boxShadow: Shadows.card,
+              border: Border.all(color: FoxColors.borderSoft),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Text('Recorded income', style: TextStyle(color: _muted)),
+                Text(
+                  'Recorded income',
+                  style: TextStyle(color: FoxColors.creamDim, fontSize: 12),
+                ),
+                const SizedBox(height: Gap.xs),
                 Text(
                   _money(report.stats.recordedEarnings),
                   style: TextStyle(
-                    color: FoxColors.brandFox,
-                    fontSize: 32,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: -1,
+                    color: FoxColors.brandText,
+                    fontFamily: FoxFonts.display,
+                    fontSize: 28,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -.5,
+                    fontFeatures: const [FontFeature.tabularFigures()],
                   ),
                 ),
                 Text(
                   change == null
                       ? 'No prior-period income to compare'
                       : '${change >= 0 ? '+' : ''}${change.toStringAsFixed(1)}% vs previous period',
-                  style: const TextStyle(color: _muted, fontSize: 11),
+                  style: TextStyle(color: FoxColors.creamDim, fontSize: 11),
                 ),
                 const SizedBox(height: Gap.md),
+                Text(
+                  '${_period == ReportPeriod.month ? 'Daily' : 'Monthly'} totals (${widget.currency})',
+                  style: TextStyle(color: FoxColors.creamDim, fontSize: 11),
+                ),
+                const SizedBox(height: Gap.xs),
                 Semantics(
                   label:
                       'Income and expense trend for $title. Income ${_money(report.stats.recordedEarnings)}. Expenses ${_money(report.costs)}. Swipe to change period.',
@@ -221,44 +261,80 @@ class _IncomeExpenseReportState extends State<IncomeExpenseReport> {
                       tween: Tween(begin: 0, end: 1),
                       duration: MediaQuery.disableAnimationsOf(context)
                           ? Duration.zero
-                          : const Duration(milliseconds: 1100),
+                          : Motion.count,
                       curve: Curves.easeOutCubic,
                       builder: (context, value, child) => CustomPaint(
-                        size: const Size(double.infinity, 170),
+                        size: Size(
+                          double.infinity,
+                          170 + MediaQuery.textScalerOf(context).scale(10) * 3,
+                        ),
                         painter: _TrendPainter(
                           report.incomePoints,
                           report.expensePoints,
                           value,
-                          FoxColors.brandFox,
-                          _gold,
+                          FoxColors.brandText,
+                          VerdictColors.ok,
+                          labels,
+                          MediaQuery.textScalerOf(context),
+                          Directionality.of(context),
+                          FoxColors.creamDim,
+                          FoxColors.cream.withValues(alpha: .1),
                         ),
                       ),
                     ),
                   ),
                 ),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                const SizedBox(height: Gap.sm),
+                Wrap(
+                  spacing: Gap.md,
+                  runSpacing: Gap.xs,
                   children: [
-                    for (final label in labels)
-                      Text(
-                        label,
-                        style: const TextStyle(color: _muted, fontSize: 11),
+                    for (final series in [
+                      (
+                        label: 'Income',
+                        color: FoxColors.brandText,
+                        dashed: false,
                       ),
-                  ],
-                ),
-                const SizedBox(height: Gap.md),
-                const Wrap(
-                  spacing: 18,
-                  runSpacing: 6,
-                  children: [
-                    Text(
-                      '━ Income',
-                      style: TextStyle(color: _cream, fontSize: 12),
-                    ),
-                    Text(
-                      '┄ Expenses',
-                      style: TextStyle(color: _gold, fontSize: 12),
-                    ),
+                      (
+                        label: 'Expenses',
+                        color: VerdictColors.ok,
+                        dashed: true,
+                      ),
+                    ])
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          SizedBox(
+                            width: Gap.md,
+                            child: Row(
+                              children: [
+                                for (
+                                  var i = 0;
+                                  i < (series.dashed ? 3 : 1);
+                                  i++
+                                )
+                                  Expanded(
+                                    child: Container(
+                                      height: 2,
+                                      margin: EdgeInsets.only(
+                                        right: series.dashed ? 2 : 0,
+                                      ),
+                                      color: series.color,
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: Gap.sm),
+                          Text(
+                            series.label,
+                            style: TextStyle(
+                              color: FoxColors.creamDim,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
                   ],
                 ),
                 const SizedBox(height: Gap.xs),
@@ -266,7 +342,7 @@ class _IncomeExpenseReportState extends State<IncomeExpenseReport> {
                   report.stats.recordedEarnings == 0 && report.costs == 0
                       ? 'No recorded activity in this period'
                       : 'Swipe graph to explore periods',
-                  style: const TextStyle(color: _muted, fontSize: 11),
+                  style: TextStyle(color: FoxColors.creamDim, fontSize: 11),
                 ),
               ],
             ),
@@ -283,11 +359,26 @@ class _IncomeExpenseReportState extends State<IncomeExpenseReport> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              summary('Final payouts', report.stats.confirmedEarnings),
-              summary('Estimated payouts', report.stats.estimatedEarnings),
+              summary(
+                'Final payouts',
+                report.stats.confirmedEarnings,
+                detail: 'Saved actual payouts, including cancellation fees.',
+              ),
+              summary(
+                'Estimated payouts',
+                report.stats.estimatedEarnings,
+                detail: report.stats.missingFinalPayouts == 0
+                    ? 'No accepted jobs awaiting a final payout.'
+                    : '${report.stats.missingFinalPayouts} accepted ${report.stats.missingFinalPayouts == 1 ? 'job still uses its' : 'jobs still use their'} offered payout.',
+              ),
               summary('Recorded expenses', report.costs),
               Divider(color: FoxColors.borderSoft),
-              summary('Report balance', report.balance, net: true),
+              summary(
+                'Report balance',
+                report.balance,
+                net: true,
+                detail: 'Final + estimated payouts − recorded expenses.',
+              ),
               const SizedBox(height: Gap.sm),
               FilledButton.icon(
                 onPressed: widget.onAdd,
@@ -337,7 +428,7 @@ class _IncomeExpenseReportState extends State<IncomeExpenseReport> {
         ],
         const SizedBox(height: Gap.sm),
         Text(
-          'History payouts include recorded cancellation fees and toll reimbursements. Estimated payouts are not final. Edit costs in Vehicle expenses below; the report updates automatically. Balance is not taxable profit.',
+          'Update final payouts in History; edit costs under Vehicle expenses. Toll reimbursements are already included in payouts. Balance includes estimates and is not taxable profit.',
           style: TextStyle(color: FoxColors.textSecondary, fontSize: 11),
         ),
       ],
@@ -352,37 +443,100 @@ class _TrendPainter extends CustomPainter {
     this.progress,
     this.orange,
     this.gold,
+    this.labels,
+    this.textScaler,
+    this.textDirection,
+    this.labelColor,
+    this.gridColor,
   );
   final List<double> income, expenses;
   final double progress;
   final Color orange, gold;
+  final List<String> labels;
+  final TextScaler textScaler;
+  final TextDirection textDirection;
+  final Color labelColor, gridColor;
 
   @override
   void paint(Canvas canvas, Size size) {
     final peak = math.max(1.0, [...income, ...expenses].reduce(math.max));
-    final bottom = size.height - 6;
-    final top = 22.0;
-    final plotHeight = bottom - top;
-    final grid = Paint()
-      ..color = Colors.white.withValues(alpha: .09)
-      ..strokeWidth = 1;
-    for (var i = 0; i <= 3; i++) {
-      final y = bottom - i / 3 * plotHeight;
-      canvas.drawLine(Offset(0, y), Offset(size.width, y), grid);
-      final text = TextPainter(
-        text: TextSpan(
-          text: (peak * i / 3).toStringAsFixed(0),
-          style: const TextStyle(color: Color(0xffb9c2bc), fontSize: 9),
+    final magnitude = math.pow(10, (math.log(peak / 4) / math.ln10).floor());
+    final step =
+        [
+          1,
+          2,
+          2.5,
+          5,
+          10,
+        ].firstWhere((value) => value * magnitude >= peak / 4) *
+        magnitude;
+    final intervals = (peak / step).ceil();
+    final ceiling = step * intervals;
+    TextPainter label(String value) => TextPainter(
+      text: TextSpan(
+        text: value,
+        style: TextStyle(
+          color: labelColor,
+          fontSize: 10,
+          fontFamily: FoxFonts.sans,
+          fontFeatures: const [FontFeature.tabularFigures()],
         ),
-        textDirection: TextDirection.ltr,
-      )..layout();
-      text.paint(canvas, Offset(0, y - 12));
+      ),
+      textDirection: textDirection,
+      textScaler: textScaler,
+    )..layout();
+    final ticks = [
+      for (var i = 0; i <= intervals; i++)
+        label(
+          (step * i).toStringAsFixed(
+            step < 1
+                ? 2
+                : step < 10
+                ? 1
+                : 0,
+          ),
+        ),
+    ];
+    final left = ticks.map((text) => text.width).reduce(math.max) + Gap.sm;
+    final labelHeight = ticks.first.height;
+    final plot = Rect.fromLTRB(
+      left,
+      labelHeight / 2 + Gap.xs,
+      size.width - Gap.xs,
+      size.height - labelHeight - Gap.sm,
+    );
+    final grid = Paint()
+      ..color = gridColor
+      ..strokeWidth = 1;
+    for (var i = 0; i <= intervals; i++) {
+      final y = plot.bottom - i / intervals * plot.height;
+      canvas.drawLine(Offset(plot.left, y), Offset(plot.right, y), grid);
+      ticks[i].paint(
+        canvas,
+        Offset(left - Gap.sm - ticks[i].width, y - labelHeight / 2),
+      );
+    }
+    for (var i = 0; i < labels.length; i++) {
+      final text = label(labels[i]);
+      final index = i == 1
+          ? (income.length - 1) ~/ 2
+          : i == 0
+          ? 0
+          : income.length - 1;
+      final x = plot.left + index / (income.length - 1) * plot.width;
+      text.paint(
+        canvas,
+        Offset(
+          (x - text.width / 2).clamp(plot.left, size.width - text.width),
+          plot.bottom + Gap.sm,
+        ),
+      );
     }
     Path line(List<double> values) {
       final path = Path();
       for (var i = 0; i < values.length; i++) {
-        final x = i / (values.length - 1) * size.width;
-        final y = bottom - values[i] / peak * plotHeight;
+        final x = plot.left + i / (values.length - 1) * plot.width;
+        final y = plot.bottom - values[i] / ceiling * plot.height;
         if (i == 0) {
           path.moveTo(x, y);
         } else {
@@ -393,11 +547,18 @@ class _TrendPainter extends CustomPainter {
     }
 
     canvas.save();
-    canvas.clipRect(Rect.fromLTWH(0, 0, size.width * progress, size.height));
+    canvas.clipRect(
+      Rect.fromLTRB(
+        plot.left - 2,
+        plot.top - 2,
+        plot.left + plot.width * progress + 2,
+        plot.bottom + 2,
+      ),
+    );
     final incomeLine = line(income);
     final area = Path.from(incomeLine)
-      ..lineTo(size.width, bottom)
-      ..lineTo(0, bottom)
+      ..lineTo(plot.right, plot.bottom)
+      ..lineTo(plot.left, plot.bottom)
       ..close();
     canvas.drawPath(
       area,
@@ -405,29 +566,21 @@ class _TrendPainter extends CustomPainter {
         ..shader = LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [orange.withValues(alpha: .28), orange.withValues(alpha: 0)],
-        ).createShader(Offset.zero & size),
-    );
-    canvas.drawPath(
-      incomeLine,
-      Paint()
-        ..color = orange.withValues(alpha: .22)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 7
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4),
+          colors: [orange.withValues(alpha: .12), orange.withValues(alpha: 0)],
+        ).createShader(plot),
     );
     canvas.drawPath(
       incomeLine,
       Paint()
         ..color = orange
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 2.5
+        ..strokeWidth = 2
         ..strokeJoin = StrokeJoin.round,
     );
     final expensePaint = Paint()
       ..color = gold
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 2;
+      ..strokeWidth = 1.5;
     for (final metric in line(expenses).computeMetrics()) {
       for (var distance = 0.0; distance < metric.length; distance += 10) {
         canvas.drawPath(
@@ -445,5 +598,10 @@ class _TrendPainter extends CustomPainter {
       old.income != income ||
       old.expenses != expenses ||
       old.orange != orange ||
-      old.gold != gold;
+      old.gold != gold ||
+      old.labels != labels ||
+      old.textScaler != textScaler ||
+      old.textDirection != textDirection ||
+      old.labelColor != labelColor ||
+      old.gridColor != gridColor;
 }

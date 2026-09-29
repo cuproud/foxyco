@@ -2,19 +2,13 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:foxyco/services/tips_provider.dart';
 import 'package:foxyco/ui/home/fox_tips_card.dart';
 
-/// The tips deck used to be a hard `SizedBox(height: 252)`, so the body always
-/// got the same 78dp regardless of the text in it — tip #2's last line ("every
-/// verdict") was ellipsed on device, and at 1.1x font scale most tips clipped
-/// (2026-08-06). The deck now measures the longest tip and sizes to it.
-///
-/// Uses the REAL typeface: the default test font is Ahem (every glyph a
-/// square), which over-measures so badly the assertions would pass for the
-/// wrong reason.
+/// Verify real Inter text remains fully visible as each quick tip changes.
 void main() {
   setUpAll(() async {
     TestWidgetsFlutterBinding.ensureInitialized();
@@ -28,7 +22,7 @@ void main() {
   });
 
   for (final screen in const [320.0, 360.0, 375.0, 412.0]) {
-    for (final scale in const [1.0, 1.1, 1.3]) {
+    for (final scale in const [1.0, 1.1, 1.3, 2.0]) {
       testWidgets('every tip fits at ${screen.toInt()}dp x$scale', (
         tester,
       ) async {
@@ -36,7 +30,9 @@ void main() {
         tester.view.devicePixelRatio = 1.0;
         addTearDown(tester.view.reset);
 
-        final tips = ProviderContainer().read(tipsProvider);
+        final container = ProviderContainer();
+        addTearDown(container.dispose);
+        final tips = container.read(tipsProvider);
         await tester.pumpWidget(
           ProviderScope(
             child: MaterialApp(
@@ -55,32 +51,14 @@ void main() {
         );
         await tester.pumpAndSettle();
 
-        // No RenderFlex overflow anywhere in the card (the category chip +
-        // counter row overran by 23dp at 320dp before it was made Flexible).
-        expect(tester.takeException(), isNull);
-
-        final slot = tester.getSize(find.text(tips.first.body));
         for (final tip in tips) {
-          final painter = TextPainter(
-            text: TextSpan(
-              text: tip.body,
-              style: const TextStyle(
-                fontFamily: 'Inter',
-                fontSize: 13,
-                height: 1.42,
-              ),
-            ),
-            textScaler: TextScaler.linear(scale),
-            textDirection: TextDirection.ltr,
-          )..layout(maxWidth: slot.width);
-          expect(
-            painter.height,
-            lessThanOrEqualTo(slot.height + 0.5),
-            reason:
-                '"${tip.headline}" needs ${painter.height.toStringAsFixed(0)}dp '
-                'but the deck reserves ${slot.height.toStringAsFixed(0)}dp',
+          final body = tester.renderObject<RenderParagraph>(
+            find.text(tip.body),
           );
-          painter.dispose();
+          expect(body.didExceedMaxLines, isFalse);
+          expect(tester.takeException(), isNull, reason: tip.headline);
+          await tester.tap(find.byTooltip('Next tip'));
+          await tester.pumpAndSettle();
         }
       });
     }

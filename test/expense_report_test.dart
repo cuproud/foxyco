@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:foxyco/domain/expense_report.dart';
 import 'package:foxyco/domain/offer_summary.dart';
@@ -6,6 +7,8 @@ import 'package:foxyco/domain/platform.dart';
 import 'package:foxyco/domain/verdict.dart';
 import 'package:foxyco/domain/vehicle_expense.dart';
 import 'package:foxyco/ui/settings/income_expense_report.dart';
+import 'package:foxyco/ui/theme/app_theme.dart';
+import 'package:foxyco/ui/theme/tokens.dart';
 
 void main() {
   final date = DateTime(2026, 9, 28);
@@ -137,4 +140,66 @@ void main() {
     expect(added, isTrue);
     expect(tester.takeException(), isNull);
   });
+  testWidgets(
+    'report supports both themes and enlarged text on narrow screens',
+    (tester) async {
+      tester.view.physicalSize = const Size(320, 800);
+      final font = FontLoader('Inter')
+        ..addFont(rootBundle.load('fonts/Inter.ttf'));
+      await font.load();
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      addTearDown(() => FoxColors.apply(FoxPalette.dark));
+      for (final palette in [FoxPalette.light, FoxPalette.dark]) {
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: AppTheme.of(palette),
+            builder: (context, child) => MediaQuery(
+              data: MediaQuery.of(
+                context,
+              ).copyWith(textScaler: const TextScaler.linear(2)),
+              child: child!,
+            ),
+            home: Scaffold(
+              body: SingleChildScrollView(
+                child: Padding(
+                  padding: const EdgeInsets.all(32),
+                  child: IncomeExpenseReport(
+                    offers: offers,
+                    expenses: expenses,
+                    currency: 'CA\$',
+                    initialDate: date,
+                    onAdd: () {},
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull);
+        final card = tester.widget<Container>(
+          find
+              .descendant(
+                of: find.byKey(const Key('income-expenses-graph')),
+                matching: find.byType(Container),
+              )
+              .first,
+        );
+        expect((card.decoration! as BoxDecoration).gradient!.colors, [
+          palette.cardTop,
+          palette.cardBottom,
+        ]);
+        await tester.tap(find.byTooltip('Previous period'));
+        await tester.pumpAndSettle();
+        expect(
+          find.text('No recorded activity in this period'),
+          findsOneWidget,
+        );
+        expect(tester.takeException(), isNull);
+        await tester.pumpWidget(const SizedBox.shrink());
+      }
+    },
+  );
 }
