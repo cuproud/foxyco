@@ -2,11 +2,12 @@
 <!--
   FoxyCo accessibility service config (docs/AUDIT #1, #4).
 
-  Scoped to ONLY the gig apps we read (`android:packageNames`) so the service is
-  never woken by system-wide events — this is the primary battery guard
+  Scoped to gig apps plus Google Maps (`android:packageNames`). Maps events
+  only signal an overlay surface refresh; its content is never read or sent to
+  Dart. The package filter keeps out system-wide events — the primary battery guard
   (AUDIT #4) and the "don't over-request" mitigation for Play review (AUDIT #1).
 
-  Keep `packageNames` in sync with ParserRegistry.watchedPackages. Hopp's
+  Keep the gig packages in sync with ParserRegistry.watchedPackages. Hopp's
   package (`ee.hopp.driver`) was confirmed on device 2026-07-12.
 
   `android:description` states the real, non-accessibility purpose shown on the
@@ -18,7 +19,7 @@
 -->
 <accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
     android:description="@string/accessibility_service_description"
-    android:packageNames="com.ubercab.driver,ee.hopp.driver,com.lyft.android.driver,com.doordash.driverapp,com.instacart.shopper,com.delco.courier"
+    android:packageNames="com.ubercab.driver,ee.hopp.driver,com.lyft.android.driver,com.doordash.driverapp,com.instacart.shopper,com.delco.courier,com.google.android.apps.maps"
     android:accessibilityEventTypes="typeWindowStateChanged|typeWindowContentChanged|typeWindowsChanged"
     android:accessibilityFeedbackType="feedbackGeneric"
     android:notificationTimeout="300"

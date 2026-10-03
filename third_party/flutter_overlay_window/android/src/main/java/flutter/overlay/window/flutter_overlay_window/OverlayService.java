@@ -82,8 +82,16 @@ public class OverlayService extends Service implements View.OnTouchListener {
     private long generation;
     private SurfaceView diagnosticSurface;
     private int surfaceRevision;
+    private int surfaceCreatedCount;
+    private int surfaceDestroyedCount;
     private String capturePackage = "";
+    private long lastMapsSignalLogAt = -30000;
     private long lastCornerCheckAt = -10000;
+    private static final long PERIODIC_SURFACE_REFRESH_MS = 5 * 60 * 1000;
+    private static final long PILL_REFRESH_RETRY_MS = 30 * 1000;
+    private long lastSurfaceRefreshAt = -PERIODIC_SURFACE_REFRESH_MS;
+    /// Bubble X remembered while the pill holds a centered window.
+    private int savedRestX = Integer.MIN_VALUE;
     private boolean cornerCheckBusy;
     private final Runnable cornerCheck = this::checkSurfaceCorner;
     public static boolean isRunning = false;
@@ -99,13 +107,25 @@ public class OverlayService extends Service implements View.OnTouchListener {
             current.traceWindow("capture-context", current.flutterView == null ? null
                     : (WindowManager.LayoutParams) current.flutterView.getLayoutParams());
             if ("com.google.android.apps.maps".equals(packageName)) {
-                current.refreshSurface();
+                current.refreshSurface("ocr");
             }
             current.scheduleCornerCheck();
         } else {
             current.traceDiagnostic("g=" + current.generation + " event=ocr-" + event
                     + " active=" + (packageName.isEmpty() ? "unknown" : packageName));
         }
+    }
+
+    /** Maps window-state events reach here even when no driver event starts OCR. */
+    public static void onMapsWindowOpened() {
+        OverlayService current = instance;
+        if (current == null) return;
+        long now = SystemClock.elapsedRealtime();
+        if (now - current.lastMapsSignalLogAt >= 30000) {
+            current.lastMapsSignalLogAt = now;
+            current.traceDiagnostic("g=" + current.generation + " event=maps-window-state");
+        }
+        current.refreshSurface("window-state");
     }
 
     /** Clear FoxyCo's visible window from an in-memory OCR screenshot. */
@@ -144,6 +164,15 @@ public class OverlayService extends Service implements View.OnTouchListener {
         }
     }
     private FlutterView flutterView;
+    private final Runnable periodicSurfaceRefresh = () -> {
+        if (instance != this || flutterView == null) return;
+        // Do not interrupt a live verdict. Try again after it has cleared.
+        if (savedRestX != Integer.MIN_VALUE) {
+            schedulePeriodicSurfaceRefresh(PILL_REFRESH_RETRY_MS);
+            return;
+        }
+        refreshSurface("periodic");
+    };
     private MethodChannel flutterChannel;
     private BasicMessageChannel<Object> overlayMessageChannel;
     private int clickableFlag = WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE | WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE |
@@ -207,6 +236,7 @@ public class OverlayService extends Service implements View.OnTouchListener {
         diagnosticSurface = null;
         surfaceRevision++;
         mAnimationHandler.removeCallbacks(cornerCheck);
+        mAnimationHandler.removeCallbacks(periodicSurfaceRefresh);
         if (manager != null && view != null) {
             try {
                 manager.removeView(view);
@@ -389,6 +419,7 @@ public class OverlayService extends Service implements View.OnTouchListener {
         // FoxyCo patch: the overlay must not appear on the lock screen.
         registerScreenStateReceiver();
         moveOverlay(dx, dy, null);
+        schedulePeriodicSurfaceRefresh(PERIODIC_SURFACE_REFRESH_MS);
         return START_STICKY;
     }
 
@@ -548,6 +579,7 @@ public class OverlayService extends Service implements View.OnTouchListener {
                     @Override
                     public void surfaceCreated(SurfaceHolder holder) {
                         surfaceRevision++;
+                        surfaceCreatedCount++;
                         traceWindow("surface-created-before-restore", flutterView == null
                                 ? null : (WindowManager.LayoutParams) flutterView.getLayoutParams());
                         // App/window transitions can recreate this Surface
@@ -573,6 +605,7 @@ public class OverlayService extends Service implements View.OnTouchListener {
                     @Override
                     public void surfaceDestroyed(SurfaceHolder holder) {
                         surfaceRevision++;
+                        surfaceDestroyedCount++;
                         traceWindow("surface-destroyed", flutterView == null
                                 ? null
                                 : (WindowManager.LayoutParams) flutterView.getLayoutParams());
@@ -588,22 +621,55 @@ public class OverlayService extends Service implements View.OnTouchListener {
         }
     }
 
-    /** Recreate only Flutter's child surface after a Maps handoff. Re-applying
+    private void schedulePeriodicSurfaceRefresh(long delayMs) {
+        mAnimationHandler.removeCallbacks(periodicSurfaceRefresh);
+        mAnimationHandler.postDelayed(periodicSurfaceRefresh, delayMs);
+    }
+
+    /** Recreate only Flutter's child surface. Re-applying
      * alpha/format to the same Samsung surface does not clear the grey mask;
      * stop/start Watching does because it creates a new surface. */
-    private void refreshSurface() {
+    private void refreshSurface(String source) {
         SurfaceView surface = diagnosticSurface;
-        if (surface == null || !surface.isShown()) return;
+        long now = SystemClock.elapsedRealtime();
+        if (surface == null || !surface.isShown()) {
+            if ("periodic".equals(source)) schedulePeriodicSurfaceRefresh(PILL_REFRESH_RETRY_MS);
+            return;
+        }
+        long elapsed = now - lastSurfaceRefreshAt;
+        if ("periodic".equals(source)) {
+            if (elapsed < PERIODIC_SURFACE_REFRESH_MS) {
+                schedulePeriodicSurfaceRefresh(PERIODIC_SURFACE_REFRESH_MS - elapsed);
+                return;
+            }
+        } else if (elapsed < 3000) {
+            return;
+        }
+        lastSurfaceRefreshAt = now;
+        schedulePeriodicSurfaceRefresh(PERIODIC_SURFACE_REFRESH_MS);
+        final int createdBefore = surfaceCreatedCount;
+        final int destroyedBefore = surfaceDestroyedCount;
         traceDiagnostic("g=" + generation + " event=surface-refresh-start"
-                + " revision=" + surfaceRevision);
+                + " source=" + source + " revision=" + surfaceRevision);
         surface.setVisibility(View.INVISIBLE);
-        surface.post(() -> {
+        // Give SurfaceView one frame to destroy its old compositor layer before
+        // showing it again. A same-queue post can restore visibility before the
+        // hidden state is applied, leaving the Samsung layer unchanged.
+        surface.postDelayed(() -> {
             if (instance != this || diagnosticSurface != surface) return;
             surface.setVisibility(View.VISIBLE);
             restoreSurfaceTransparency();
-            traceWindow("surface-refresh-finish", flutterView == null
-                    ? null : (WindowManager.LayoutParams) flutterView.getLayoutParams());
-        });
+            // Let the next frames deliver SurfaceHolder callbacks before
+            // reporting whether the hide/show actually rebuilt the surface.
+            surface.postDelayed(() -> {
+                if (instance != this || diagnosticSurface != surface) return;
+                traceWindow("surface-refresh-finish source=" + source
+                        + " created=" + (surfaceCreatedCount - createdBefore)
+                        + " destroyed=" + (surfaceDestroyedCount - destroyedBefore),
+                        flutterView == null
+                                ? null : (WindowManager.LayoutParams) flutterView.getLayoutParams());
+            }, 150);
+        }, 50);
     }
 
     /// FoxyCo patch (device 2026-08-06): the ONLY way this service may call
@@ -659,10 +725,6 @@ public class OverlayService extends Service implements View.OnTouchListener {
             result.success(false);
         }
     }
-
-    /// FoxyCo: bubble X remembered while the pill holds a centered window.
-    /// MIN_VALUE == nothing saved.
-    private int savedRestX = Integer.MIN_VALUE;
 
     private void moveOverlay(int x, int y, MethodChannel.Result result) {
         if (windowManager != null) {

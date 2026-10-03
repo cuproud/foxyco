@@ -358,6 +358,8 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
       ),
     );
     if (input == null || !mounted) return;
+    await ref.read(offerLogProvider.notifier).ready;
+    if (!mounted) return;
     final added = ref
         .read(offerLogProvider.notifier)
         .addManualRide(
@@ -2339,9 +2341,9 @@ class _HistoryPerformanceState extends State<_HistoryPerformance> {
     final hourly = stats.acceptedMinutes > 0
         ? '${settings.currency.symbol}${(stats.acceptedPerformanceEarnings / stats.acceptedMinutes * 60).toStringAsFixed(2)}'
         : '—';
-    final acceptance = stats.acceptanceRate == null
+    final acceptance = stats.capturedAcceptanceRate == null
         ? '—'
-        : '${(stats.acceptanceRate! * 100).round()}%';
+        : '${(stats.capturedAcceptanceRate! * 100).round()}%';
     final textScale = MediaQuery.textScalerOf(context).scale(1);
     final expandedHeight = 260.0 + (textScale > 1 ? (textScale - 1) * 80 : 0);
     final light = Theme.of(context).brightness == Brightness.light;
@@ -2515,7 +2517,9 @@ class _HistoryPerformanceState extends State<_HistoryPerformance> {
                                 children: [
                                   _HeroStat(
                                     value: '${stats.total}',
-                                    label: 'Offers',
+                                    label: stats.manualCount > 0
+                                        ? 'Records'
+                                        : 'Offers',
                                     valueKey: const ValueKey(
                                       'history-summary-total',
                                     ),
@@ -2528,7 +2532,7 @@ class _HistoryPerformanceState extends State<_HistoryPerformance> {
                                   const _GlassDivider(),
                                   _HeroStat(
                                     value: acceptance,
-                                    label: 'Known accept',
+                                    label: 'Of seen',
                                   ),
                                 ],
                               ),

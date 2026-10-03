@@ -30,4 +30,15 @@ void main() {
     expect(messages.join(' '), isNot(contains('Bayview')));
     expect(messages.join(' '), isNot(contains('Dundas')));
   });
+
+  test('different route frames with the same summary log once', () {
+    final messages = <String>[];
+    final shadow = RouteShadowDiagnostics(log: messages.add, salt: 1);
+
+    shadow.observeAcceptedScreen(GigPlatform.uber, const ['123 Bayview Ave']);
+    shadow.observeAcceptedScreen(GigPlatform.uber, const ['456 Queen St']);
+
+    expect(messages, hasLength(1));
+    expect(messages.single, contains('candidates=1 pending=0'));
+  });
 }

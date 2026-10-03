@@ -12,6 +12,7 @@ class RouteShadowDiagnostics {
   final int _salt;
   final Map<GigPlatform, List<_ShadowOffer>> _offers = {};
   final Map<GigPlatform, String> _lastObservation = {};
+  final Map<GigPlatform, String> _lastLoggedSummary = {};
 
   void recordOffer(GigPlatform platform, String offerKey, List<String> texts) {
     final routes = _routes(texts);
@@ -19,6 +20,7 @@ class RouteShadowDiagnostics {
     final offer = _ShadowOffer(_id(offerKey), routes);
     pending.insert(0, offer);
     if (pending.length > 8) pending.removeRange(8, pending.length);
+    _lastLoggedSummary.remove(platform);
     log(
       '${platform.label} offer=${offer.id} candidates=${routes.length} '
       'ids=${routes.map((route) => _id(route.join(' '))).join(',')}',
@@ -43,11 +45,16 @@ class RouteShadowDiagnostics {
         best != null &&
         best.score >= 0.7 &&
         (next == null || best.score - next.score >= 0.2);
-    log(
-      '${platform.label} accepted-screen candidates=${routes.length} '
-      'pending=${pending.length} best=${best?.offer.id ?? '-'} '
-      'score=${((best?.score ?? 0) * 100).round()} unique=$unique',
-    );
+    final summary =
+        '${platform.label} accepted-screen candidates=${routes.length} '
+        'pending=${pending.length} best=${best?.offer.id ?? '-'} '
+        'score=${((best?.score ?? 0) * 100).round()} unique=$unique';
+    // Animated accepted screens change route fragments frequently while the
+    // useful summary stays the same. Keep those duplicate lines out of the
+    // short email diagnostic tail.
+    if (_lastLoggedSummary[platform] == summary) return;
+    _lastLoggedSummary[platform] = summary;
+    log(summary);
   }
 
   String _id(String value) => ((_salt.toString() + value).hashCode & 0x7fffffff)

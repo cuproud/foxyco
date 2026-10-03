@@ -1,9 +1,17 @@
 # Manual Test Log
 
-## Current candidate — `1.0.18+116` (2026-09-28)
+## Current candidate — `1.0.19+118` (2026-10-03)
 
 | # | Step | Expect | Pass |
 |---|---|---|---|
+| R117.1 | Install build 117 from the Play test track; open Settings → About | Shows `1.0.19 (build 117)`; Watching and the bubble start normally. |
+| R117.2 | With Watching active, launch external Google Maps from Uber and Lyft | Bubble stays circular and draggable; no grey mask. Diagnostics show `maps-window-state`, `surface-refresh-start source=window-state`, and a matching `surface-refresh-finish` with created/destroyed counts. |
+| R117.3 | Leave the resting bubble visible for over five minutes; show a real offer before and after | Diagnostics show `surface-refresh-start source=periodic`; the session and verdict delivery continue. A visible verdict pill is not interrupted by the timer. |
+| R117.4 | If a grey mask appears, capture its exact time and email Diagnostics before restarting Watching | Logs include the last Maps signal, refresh attempts, and surface lifecycle. Record whether the mask survives a timed refresh and a pill resize. |
+| R118.1 | Install build 118 from the Play test track; open Settings → About | Shows `1.0.19 (build 118)`. The version name remains 1.0.19. |
+| R118.2 | Open Home with two accepted offers and 24 offers seen, including unknown outcomes | Recap shows 8% acceptance of seen. Recent sessions starts collapsed in its own panel and expands on tap. |
+| R118.3 | Add a completed manual job for today while Watching is stopped, then add one for one of the two most recent older workdays | Earnings and jobs taken rise on each entered date; offers seen and offer quality do not. The expanded recent-day list reflects the older date. Hourly rate uses the manual trip duration where no watch session exists. |
+| R118.4 | Add a manual job dated during an existing watch session; edit its final payout | The job and payout are counted once in recap, History, and Goal. Home and History captured-offer acceptance percentages stay unchanged; History labels mixed rows as Records. |
 | R113.1 | Open Home | No Review Inbox/backlog card appears. Session recap shows the whole latest workday, combining split shifts and showing the combined accepted amount in orange. |
 | R113.2 | Expand Recent sessions in Session recap | Today and up to the two most recent prior workdays appear; separate shifts on one date remain combined. |
 | R113.3 | History → Session history; scroll down | Orange up-arrow appears; tapping it returns smoothly to the top. Recorded payout amounts use orange. |
@@ -51,11 +59,9 @@ Legend: 🟢 GOOD  🟡 OK  🔴 BAD (pill shows icon + WORD + `km · $payout`).
 Run these before promoting the AAB. They cover the highest-risk build changes
 without requiring DoorDash, Instacart or Skip accounts.
 
-**Current candidate:** Play bundle build 111. Real-device validation is pending
-for corrected final payouts and cancellation fees across History, summaries and
-goals; onboarding/account wording; startup/Home flows; manual ride recovery;
-long-hour route parsing; cross-app OCR; overlay transparency; active-trip
-outcome isolation; and diagnostic-only route matching.
+**Current candidate:** Play bundle build 118. Real-device validation is pending
+for Maps handoff and periodic bubble refresh, offer delivery, and prior
+unverified UI, billing, and outcome cases.
 
 | # | How | PASS bar | Status |
 |---|-----|----------|--------|
@@ -82,7 +88,7 @@ outcome isolation; and diagnostic-only route matching.
 | Q.21 | Upgrade with the saved Lyft `CA$50.44`, `CA$2.00` tip, `CA$23.56` toll row; then edit, save, restart, export and re-import it | Card/detail stay `CA$52.44` total and `CA$28.88` net throughout; tip is never omitted or added twice; bonus/tip share one row; no amount clips | [ ] build 106 |
 | Q.22 | Watch stacked Uber-over-Lyft/Hopp offers for 30–60 minutes while dragging the bubble and profiling power | Offers and restoration remain timely, gestures stay smooth, routine no-card diagnostics appear no more than once per 30 seconds, and power use has no unexpected regression | [ ] build 105 |
 | Q.23 | Open a completed ride detail and compare total distance/time with pickup/ride | All four orange icons are vertically centered with their values; labels begin under the values; the distance pencil remains easy to tap and shifts nothing | [ ] build 107 |
-| Q.24 | On S24 Ultra, select Google Maps inside Lyft for pickup/drop-off and observe the bubble immediately as external Maps opens; repeat with Android Auto connected, then copy Diagnostics | No grey mask and Watching stays active. Each Maps `capture-context` is followed by `surface-refresh-start`, surface recreation, and `surface-refresh-finish`; non-Maps app switches do not refresh it. The bubble may disappear for one frame. Record Android version and exact timestamp. No raw screen text/images in logs | [ ] retest |
+| Q.24 | On S24 Ultra, launch external Google Maps from both Uber and Lyft while the bubble is visible; repeat with Android Auto connected; then leave the resting bubble up for over five minutes and email Diagnostics before any manual restart | No grey mask and Watching stays active. Maps handoff produces `maps-window-state`, `surface-refresh-start source=window-state`, and `surface-refresh-finish` with created/destroyed counts. The idle bubble also gets `source=periodic` after five minutes; a visible verdict pill defers that refresh. Non-Maps app switches do not trigger it. The bubble may disappear briefly. Record Android version and exact timestamp. No raw screen text/images in logs | [ ] retest |
 | Q.25 | Cold-start build 109 with animations enabled; repeat with Android Remove animations enabled | Normal startup rotates Mountains → Snow → Autumn with the supplied fox car, smoke, logo, tagline and wheel loader, then opens Home within the hard ceiling. Reduced motion shows one static scene and exits promptly | [ ] build 109 |
 | Q.26 | Home → scroll below Last session; switch each goal period, edit each target, restart, then enable the largest app text | Each saved target survives restart; progress updates immediately; six-digit earnings and targets fit without clipping; final ride payouts and entered cancellation fees count, while missed offers do not | [ ] build 110 |
 | Q.27 | History → Add ride → enter Uber `$19.35`, `11.96 km`, `30.42 min`, Sep 19 at 1:49 PM | One completed Manual entry appears, uses the current rules/verdict, updates Home goal progress, and survives restart | [ ] build 109 |

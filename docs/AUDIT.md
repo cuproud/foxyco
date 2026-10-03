@@ -1,11 +1,60 @@
 # Release audit
 
-Audit date: 2026-09-28
+Audit date: 2026-10-03
 
-Candidate: `1.0.18+116`
+Candidate: `1.0.19+118`
 
 Automated checks pass. Play upload remains conditional on the device and
 Console checks in `MANUAL_TESTS.md` and `PLAY_RELEASE.md`.
+
+## Build 118 — session recap and manual-job math
+
+- Version name remains `1.0.19`; only Play build code advances from 117 to 118.
+- Home shows a shorter daily recap and keeps Recent sessions in a separate
+  panel, collapsed by default.
+- The recap's acceptance percentage now divides captured accepted offers by
+  captured offers seen (`2 / 24` displays as `8%`). Manual jobs count toward
+  recorded earnings and jobs taken on their entered date, but do not inflate
+  offers seen or offer quality. Work outside a saved watch session adds its
+  entered trip minutes to the recorded-hour denominator.
+- History labels mixed captured and manual rows as Records. Its "Of seen"
+  percentage uses captured offers only; Goal and report income continue to
+  include manual payouts. Adding a manual job waits for saved History to load
+  before refreshing a saved session.
+- Guarded release preflight passed analysis, the full Flutter suite, and
+  Firestore rules tests. Formatting and diff whitespace checks passed.
+- JAR signature verification and bundletool validation passed. The packaged
+  manifest reports `com.foxyco.app`, version name `1.0.19`, version code `118`.
+  Jarsigner reports the existing self-signed upload-certificate, no-timestamp,
+  POSIX-attribute, and streaming ZIP manifest-order warnings.
+- Device checks R117.2–R117.4 and R118.1–R118.4 remain pending.
+
+Verified artifact: `FoxyCo-v1.0.19+118-release-20261003-0114.aab`
+
+SHA-256: `9cfeac9f19441ddb7739bc3bd430b263842c6d56b3250cd1b410469108b547e8`
+
+## Build 117 — overlay surface recovery diagnostics
+
+- Maps window-state events can refresh the bubble's child surface after an
+  Uber/Lyft to Maps handoff. An idle five-minute check provides a fallback;
+  neither path restarts Watching or the current session.
+- Surface refresh logging now includes lifecycle callback counts. Maps event
+  diagnostics are sampled at most once per 30 seconds, and repeated identical
+  route-shadow summaries are collapsed to preserve the bounded email log tail.
+- Accessibility disclosure, service description, privacy wording, and the
+  Play release notes now describe the Maps window-state signal.
+- Version metadata and About are synchronized to `1.0.19+117`.
+- Guarded release preflight passed analysis, the full Flutter suite, and
+  Firestore rules tests. Formatting and diff whitespace checks passed.
+- JAR signature verification and bundletool validation passed. The packaged
+  manifest reports `com.foxyco.app`, version name `1.0.19`, version code `117`.
+  Jarsigner reports the existing self-signed upload-certificate, no-timestamp,
+  POSIX-attribute, and streaming ZIP manifest-order warnings.
+- Physical-device checks R117.1–R117.4 remain pending in `MANUAL_TESTS.md`.
+
+Verified artifact: `FoxyCo-v1.0.19+117-release-20261003-0042.aab`
+
+SHA-256: `55a3a4e0ce0997d68c645afebe1279a87d5a31f36363b4021bf85f21fee7f9fc`
 
 ## Build 116 — Home and Garage UI polish
 

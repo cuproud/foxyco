@@ -362,6 +362,23 @@ void main() {
     expect(l.state.single, same(added));
   });
 
+  test('manual job does not count as an offer seen in the Home tally', () {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+    final log = container.read(offerLogProvider.notifier);
+    log.record(offer(seenAt: DateTime.now(), payout: 12));
+    log.addManualRide(
+      platform: GigPlatform.uber,
+      payout: 25,
+      totalKm: 10,
+      totalMinutes: 30,
+      seenAt: DateTime.now(),
+    );
+
+    final tally = container.read(todayTallyProvider);
+    expect(tally.good + tally.ok + tally.bad, 1);
+  });
+
   test('manual entry accepts a supported delivery platform', () {
     final l = log();
     final added = l.addManualRide(

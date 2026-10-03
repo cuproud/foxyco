@@ -21,7 +21,10 @@ void main() {
     final packages = RegExp(
       r'android:packageNames="([^"]+)"',
     ).firstMatch(config)!.group(1)!.split(',').toSet();
-    expect(packages, ParserRegistry.watchedPackages.toSet());
+    expect(packages, {
+      ...ParserRegistry.watchedPackages,
+      'com.google.android.apps.maps',
+    });
     expect(config, isNot(contains('android:canPerformGestures')));
     expect(config, contains('android:canTakeScreenshot="true"'));
     // FoxyCo is a gig-driver utility, not a disability accessibility tool.

@@ -1,6 +1,9 @@
+import 'dart:math' as math;
+
 import 'offer_stats.dart';
 import 'offer_summary.dart';
 import 'platform.dart';
+import 'verdict.dart';
 
 /// One completed watch session — from slide-to-live to stop. What the Home
 /// "Last session" card shows: when, how long the watcher was on, how the offers
@@ -199,39 +202,111 @@ class SessionSummary {
 class SessionDaySummary {
   final DateTime date;
   final List<SessionSummary> sessions;
+  final List<OfferSummary> manualOffers;
 
-  const SessionDaySummary({required this.date, required this.sessions});
+  const SessionDaySummary({
+    required this.date,
+    required this.sessions,
+    this.manualOffers = const [],
+  });
 
-  DateTime get startedAt => sessions
-      .map((session) => session.startedAt)
-      .reduce((a, b) => a.isBefore(b) ? a : b);
-  DateTime get endedAt => sessions
-      .map((session) => session.endedAt)
-      .reduce((a, b) => a.isAfter(b) ? a : b);
+  bool get hasWatchSessions => sessions.isNotEmpty;
+  bool _inSession(OfferSummary offer) => sessions.any(
+    (session) =>
+        !offer.seenAt.isBefore(session.startedAt) &&
+        !offer.seenAt.isAfter(session.endedAt),
+  );
+  Iterable<OfferSummary> get _manualInSessions =>
+      manualOffers.where(_inSession);
+  Iterable<OfferSummary> get _manualOutsideSessions =>
+      manualOffers.where((offer) => !_inSession(offer));
+  int get manualJobs => manualOffers
+      .where(
+        (offer) =>
+            offer.outcome == OfferOutcome.taken ||
+            offer.outcome == OfferOutcome.completed,
+      )
+      .length;
+
+  DateTime get startedAt => [
+    ...sessions.map((session) => session.startedAt),
+    ...manualOffers.map((offer) => offer.seenAt),
+  ].reduce((a, b) => a.isBefore(b) ? a : b);
+  DateTime get endedAt => [
+    ...sessions.map((session) => session.endedAt),
+    ...manualOffers.map((offer) => offer.seenAt),
+  ].reduce((a, b) => a.isAfter(b) ? a : b);
   Duration get duration => sessions.fold(
     Duration.zero,
     (total, session) => total + session.duration,
   );
-  int get total => sessions.fold(0, (total, session) => total + session.total);
-  int get good => sessions.fold(0, (total, session) => total + session.good);
-  int get ok => sessions.fold(0, (total, session) => total + session.ok);
-  int get bad => sessions.fold(0, (total, session) => total + session.bad);
+  int get total => math.max(
+    0,
+    sessions.fold(0, (total, session) => total + session.total) -
+        _manualInSessions
+            .where((offer) => offer.verdict != Verdict.unknown)
+            .length,
+  );
+  int get good => math.max(
+    0,
+    sessions.fold(0, (total, session) => total + session.good) -
+        _manualInSessions
+            .where((offer) => offer.verdict == Verdict.good)
+            .length,
+  );
+  int get ok => math.max(
+    0,
+    sessions.fold(0, (total, session) => total + session.ok) -
+        _manualInSessions.where((offer) => offer.verdict == Verdict.ok).length,
+  );
+  int get bad => math.max(
+    0,
+    sessions.fold(0, (total, session) => total + session.bad) -
+        _manualInSessions.where((offer) => offer.verdict == Verdict.bad).length,
+  );
   int get accepted =>
-      sessions.fold(0, (total, session) => total + session.accepted);
+      sessions.fold(0, (total, session) => total + session.accepted) +
+      _manualOutsideSessions
+          .where(
+            (offer) =>
+                offer.outcome == OfferOutcome.taken ||
+                offer.outcome == OfferOutcome.completed,
+          )
+          .length;
+  int get capturedAccepted => math.max(0, accepted - manualJobs);
   int get declined =>
       sessions.fold(0, (total, session) => total + session.declined);
   double get earnings =>
-      sessions.fold(0, (total, session) => total + session.earnings);
-  double? get acceptanceRate =>
-      accepted + declined == 0 ? null : accepted / (accepted + declined);
+      sessions.fold(0.0, (total, session) => total + session.earnings) +
+      OfferStats.from(_manualOutsideSessions.toList()).recordedEarnings;
+  double get performanceEarnings =>
+      sessions.fold(
+        0.0,
+        (total, session) => total + session.performanceEarnings,
+      ) +
+      OfferStats.from(
+        _manualOutsideSessions.toList(),
+      ).recordedPerformanceEarnings;
+  double? get acceptanceRate => total == 0 ? null : capturedAccepted / total;
+  double get recordedMinutes =>
+      duration.inSeconds / 60 +
+      _manualOutsideSessions
+          .where(
+            (offer) =>
+                offer.outcome == OfferOutcome.taken ||
+                offer.outcome == OfferOutcome.completed,
+          )
+          .fold(0.0, (total, offer) => total + offer.totalMinutes);
   double get hourlyEarnings =>
-      duration.inMinutes == 0 ? 0 : earnings / (duration.inMinutes / 60);
+      recordedMinutes == 0 ? 0 : performanceEarnings / (recordedMinutes / 60);
 
   static List<SessionDaySummary> recent(
     List<SessionSummary> sessions, {
+    List<OfferSummary> offers = const [],
     int limit = 3,
   }) {
     final byDay = <DateTime, List<SessionSummary>>{};
+    final manualByDay = <DateTime, List<OfferSummary>>{};
     for (final session in sessions) {
       final date = DateTime(
         session.startedAt.year,
@@ -240,11 +315,22 @@ class SessionDaySummary {
       );
       byDay.putIfAbsent(date, () => []).add(session);
     }
+    for (final offer in offers.where((offer) => offer.isManualEntry)) {
+      final date = DateTime(
+        offer.seenAt.year,
+        offer.seenAt.month,
+        offer.seenAt.day,
+      );
+      manualByDay.putIfAbsent(date, () => []).add(offer);
+    }
     final days =
-        byDay.entries
+        {...byDay.keys, ...manualByDay.keys}
             .map(
-              (entry) =>
-                  SessionDaySummary(date: entry.key, sessions: entry.value),
+              (date) => SessionDaySummary(
+                date: date,
+                sessions: byDay[date] ?? const [],
+                manualOffers: manualByDay[date] ?? const [],
+              ),
             )
             .toList()
           ..sort((a, b) => b.date.compareTo(a.date));

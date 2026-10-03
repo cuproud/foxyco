@@ -1,11 +1,12 @@
 # Architecture
 
-Updated 2026-09-28 for `1.0.18+116`.
+Updated 2026-10-03 for `1.0.19+117`.
 
 ## Boundaries
 
 ```text
 Android Accessibility event
+  ├─ Maps window state → overlay surface refresh only
   ├─ complete selected-app nodes → matching parser
   └─ incomplete Uber nodes or active selected lower app + OCR approved
        → one rate-limited in-memory screenshot → Uber parser
@@ -106,10 +107,14 @@ Play's declaration, prominent disclosure, consent flow, and review video.
   only its entered cancellation fee. Missed offers and cancelled route
   distance/time never count. Each target is editable and links to the exact
   calendar-period History rows contributing to it.
-- Home's Session recap groups finished sessions by local calendar day. It sums
-  active durations (breaks excluded) and earnings, and keeps two previous
-  workdays in a collapsed detail list. Garage's income/expense report rolls up
-  History payouts and manually recorded vehicle expenses by selected month,
+- Home's Session recap groups finished sessions and manual jobs by local
+  calendar day. It sums watch durations (breaks excluded), adds manual work
+  outside saved sessions once, and keeps two previous workdays in a separate
+  collapsed panel. The acceptance rate and offer-quality split use captured
+  offers; jobs taken and earnings include manual work. History's captured-offer
+  acceptance percentage uses the same denominator and labels mixed offers and
+  manual jobs as records. Garage's income/expense report rolls up History
+  payouts and manually recorded vehicle expenses by selected month,
   quarter, or year; the displayed balance is not taxable profit.
 - System text scale plus the in-app text multiplier is capped at 2×; focused
   widget tests cover narrow screens, large text, scrollability, and overlay

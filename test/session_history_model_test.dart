@@ -102,10 +102,116 @@ void main() {
     expect(recap.earnings, 110);
     expect(recap.total, 5);
     expect(recap.accepted, 3);
-    expect(recap.acceptanceRate, closeTo(0.75, 1e-9));
+    expect(recap.acceptanceRate, closeTo(0.6, 1e-9));
     expect(recap.hourlyEarnings, closeTo(110 / 9, 1e-9));
     expect(recap.startedAt, first.startedAt);
     expect(recap.endedAt, second.endedAt);
+  });
+
+  test('recap acceptance matches accepted out of offers seen', () {
+    final start = DateTime(2026, 10, 2, 16);
+    final session = SessionSummary(
+      startedAt: start,
+      endedAt: start.add(const Duration(hours: 1)),
+      ok: 2,
+      bad: 22,
+      accepted: 2,
+      declined: 18,
+      unknown: 4,
+    );
+    final recap = SessionDaySummary.recent([session]).single;
+    expect(recap.total, 24);
+    expect(recap.accepted, 2);
+    expect((recap.acceptanceRate! * 100).round(), 8);
+  });
+
+  test('manual jobs join their entered date without inflating offers seen', () {
+    final oldDate = DateTime(2026, 8, 18, 14);
+    final manual = OfferSummary(
+      platform: GigPlatform.uber,
+      verdict: Verdict.ok,
+      payout: 30,
+      finalPayout: 30,
+      totalKm: 12,
+      totalMinutes: 60,
+      seenAt: oldDate,
+      outcome: OfferOutcome.completed,
+      category: 'Manual entry',
+    );
+    final days = SessionDaySummary.recent(const [], offers: [manual]);
+    expect(days, hasLength(1));
+    final recap = days.single;
+    expect(recap.date, DateTime(2026, 8, 18));
+    expect(recap.manualJobs, 1);
+    expect(recap.accepted, 1);
+    expect(recap.total, 0);
+    expect(recap.ok, 0);
+    expect(recap.earnings, 30);
+    expect(recap.hourlyEarnings, 30);
+    expect(recap.acceptanceRate, isNull);
+  });
+
+  test('manual job inside a watch session is counted once', () {
+    final start = DateTime(2026, 8, 18, 10);
+    final captured = _offer(OfferOutcome.missed, seenAt: start);
+    final manual = OfferSummary(
+      platform: GigPlatform.lyft,
+      verdict: Verdict.good,
+      payout: 24,
+      finalPayout: 24,
+      totalKm: 10,
+      totalMinutes: 30,
+      seenAt: start.add(const Duration(minutes: 30)),
+      outcome: OfferOutcome.completed,
+      category: 'Manual entry',
+    );
+    final session = SessionSummary.from(
+      startedAt: start,
+      endedAt: start.add(const Duration(hours: 2)),
+      offers: [captured, manual],
+    );
+    final recap = SessionDaySummary.recent([session], offers: [manual]).single;
+    expect(recap.total, 1);
+    expect(recap.good, 1);
+    expect(recap.accepted, 1);
+    expect(recap.capturedAccepted, 0);
+    expect(recap.manualJobs, 1);
+    expect(recap.earnings, 24);
+    expect(recap.hourlyEarnings, 12);
+    expect(recap.acceptanceRate, 0);
+  });
+
+  test('manual job outside watching adds money and work time on its date', () {
+    final start = DateTime(2026, 8, 18, 10);
+    final session = SessionSummary(
+      startedAt: start,
+      endedAt: start.add(const Duration(hours: 1)),
+      good: 1,
+      bad: 3,
+      accepted: 1,
+      declined: 2,
+      estimatedEarnings: 20,
+    );
+    final manual = OfferSummary(
+      platform: GigPlatform.uber,
+      verdict: Verdict.good,
+      payout: 30,
+      finalPayout: 30,
+      totalKm: 15,
+      totalMinutes: 30,
+      seenAt: start.add(const Duration(hours: 4)),
+      outcome: OfferOutcome.completed,
+      category: 'Manual entry',
+    );
+    final recap = SessionDaySummary.recent([session], offers: [manual]).single;
+    expect(recap.earnings, 50);
+    expect(recap.accepted, 2);
+    expect(recap.manualJobs, 1);
+    expect(recap.total, 4);
+    expect(recap.good, 1);
+    expect(recap.acceptanceRate, .25);
+    expect(recap.recordedMinutes, 90);
+    expect(recap.hourlyEarnings, closeTo(50 / 1.5, 1e-9));
   });
 
   test('completed earnings prefer an entered final payout', () {

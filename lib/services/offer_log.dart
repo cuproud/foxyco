@@ -563,6 +563,7 @@ final yesterdayTallyProvider = Provider<Tally>((ref) {
 Tally _tallyFor(List<OfferSummary> log, DateTime day) {
   var good = 0, ok = 0, bad = 0;
   for (final o in log) {
+    if (o.isManualEntry) continue;
     final t = o.seenAt;
     if (t.year != day.year || t.month != day.month || t.day != day.day) {
       continue;

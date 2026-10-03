@@ -147,9 +147,18 @@ class HomeScreen extends ConsumerWidget {
         const _Padded(child: SectionLabel('Session recap')),
         const SizedBox(height: Gap.sm + Gap.xs),
         _Padded(
-          child: _SessionCard(
-            sessions: ref.watch(sessionLogProvider),
-            onTap: () => context.push('/sessions'),
+          child: Column(
+            children: [
+              _SessionCard(
+                sessions: ref.watch(sessionLogProvider),
+                offers: offers,
+                onTap: () => context.push('/sessions'),
+              ),
+              _RecentSessionsCard(
+                sessions: ref.watch(sessionLogProvider),
+                offers: offers,
+              ),
+            ],
           ),
         ),
         const SizedBox(height: Gap.lg),
@@ -1395,8 +1404,13 @@ class _AccessAlert extends StatelessWidget {
 /// dropped on a same-day session, which read as "this is current" the morning
 /// after a night shift.
 class _SessionCard extends ConsumerStatefulWidget {
-  const _SessionCard({required this.sessions, required this.onTap});
+  const _SessionCard({
+    required this.sessions,
+    required this.offers,
+    required this.onTap,
+  });
   final List<SessionSummary> sessions;
+  final List<OfferSummary> offers;
   final VoidCallback onTap;
 
   @override
@@ -1404,12 +1418,13 @@ class _SessionCard extends ConsumerStatefulWidget {
 }
 
 class _SessionCardState extends ConsumerState<_SessionCard> {
-  bool _showRecent = false;
-
   @override
   Widget build(BuildContext context) {
     final settings = ref.watch(settingsProvider);
-    final days = SessionDaySummary.recent(widget.sessions);
+    final days = SessionDaySummary.recent(
+      widget.sessions,
+      offers: widget.offers,
+    );
     if (days.isEmpty) return const _EmptySession();
     final day = days.first;
 
@@ -1428,9 +1443,9 @@ class _SessionCardState extends ConsumerState<_SessionCard> {
     };
     final amountLabelStyle = TextStyle(
       color: FoxColors.textSecondary,
-      fontSize: 10,
+      fontSize: 11,
       fontWeight: FontWeight.w800,
-      letterSpacing: 1,
+      letterSpacing: 0.4,
     );
 
     return Container(
@@ -1467,24 +1482,15 @@ class _SessionCardState extends ConsumerState<_SessionCard> {
                         Text(dayLabel, style: text.titleMedium),
                         const SizedBox(height: Gap.xs),
                         Text(
-                          '${clock(day.startedAt)} – ${clock(day.endedAt)}',
+                          day.hasWatchSessions
+                              ? '${clock(day.startedAt)} – ${clock(day.endedAt)} · ${durationLabel(day.duration)} active'
+                              : '${day.manualJobs} manual ${day.manualJobs == 1 ? 'job' : 'jobs'}',
                           style: TextStyle(
                             color: FoxColors.textSecondary,
                             fontSize: 12,
                           ),
                         ),
                       ],
-                    ),
-                  ),
-                  const SizedBox(width: Gap.sm),
-                  Text(
-                    durationLabel(day.duration),
-                    textAlign: TextAlign.end,
-                    style: TextStyle(
-                      color: FoxColors.creamDim,
-                      fontFamily: FoxFonts.display,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 12,
                     ),
                   ),
                 ],
@@ -1502,14 +1508,14 @@ class _SessionCardState extends ConsumerState<_SessionCard> {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('ACCEPTED AMOUNT', style: amountLabelStyle),
+                    Text('Earnings', style: amountLabelStyle),
                     const SizedBox(height: Gap.xs),
                     Text(
                       '${settings.currency.symbol}${day.earnings.toStringAsFixed(2)}',
                       style: TextStyle(
                         color: FoxColors.brandText,
                         fontFamily: FoxFonts.display,
-                        fontSize: 32,
+                        fontSize: 30,
                         fontWeight: FontWeight.w800,
                         height: 1,
                         fontFeatures: const [FontFeature.tabularFigures()],
@@ -1520,7 +1526,7 @@ class _SessionCardState extends ConsumerState<_SessionCard> {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('ACCEPTED OFFERS', style: amountLabelStyle),
+                    Text('Jobs taken', style: amountLabelStyle),
                     const SizedBox(height: Gap.xs),
                     Text(
                       '${day.accepted}',
@@ -1528,7 +1534,7 @@ class _SessionCardState extends ConsumerState<_SessionCard> {
                       style: TextStyle(
                         color: FoxColors.cream,
                         fontFamily: FoxFonts.display,
-                        fontSize: 32,
+                        fontSize: 30,
                         fontWeight: FontWeight.w700,
                         height: 1,
                         fontFeatures: const [FontFeature.tabularFigures()],
@@ -1539,6 +1545,13 @@ class _SessionCardState extends ConsumerState<_SessionCard> {
               ],
             ),
           ),
+          if (day.manualJobs > 0) ...[
+            const SizedBox(height: Gap.sm),
+            Text(
+              'Includes ${day.manualJobs} manual ${day.manualJobs == 1 ? 'job' : 'jobs'}',
+              style: TextStyle(color: FoxColors.textSecondary, fontSize: 11),
+            ),
+          ],
           const SizedBox(height: Gap.md),
           LayoutBuilder(
             builder: (context, constraints) {
@@ -1549,13 +1562,13 @@ class _SessionCardState extends ConsumerState<_SessionCard> {
                 _SessionDayStat(
                   value:
                       '${settings.currency.symbol}${day.hourlyEarnings.toStringAsFixed(2)}',
-                  label: 'per active hour',
+                  label: 'per recorded hour',
                 ),
                 _SessionDayStat(
                   value: day.acceptanceRate == null
                       ? '—'
                       : '${(day.acceptanceRate! * 100).round()}%',
-                  label: 'accept rate',
+                  label: 'acceptance of seen',
                 ),
                 _SessionDayStat(value: '${day.total}', label: 'offers seen'),
               ];
@@ -1592,29 +1605,76 @@ class _SessionCardState extends ConsumerState<_SessionCard> {
           const SizedBox(height: Gap.md),
           Divider(height: 1, color: FoxColors.borderSoft),
           _SessionQuality(session: day, onTap: widget.onTap),
-          if (days.length > 1) ...[
-            const SizedBox(height: Gap.xs),
+        ],
+      ),
+    );
+  }
+}
+
+class _RecentSessionsCard extends ConsumerStatefulWidget {
+  const _RecentSessionsCard({required this.sessions, required this.offers});
+  final List<SessionSummary> sessions;
+  final List<OfferSummary> offers;
+
+  @override
+  ConsumerState<_RecentSessionsCard> createState() =>
+      _RecentSessionsCardState();
+}
+
+class _RecentSessionsCardState extends ConsumerState<_RecentSessionsCard> {
+  bool _expanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final days = SessionDaySummary.recent(
+      widget.sessions,
+      offers: widget.offers,
+    );
+    if (days.length < 2) return const SizedBox.shrink();
+    final l10n = MaterialLocalizations.of(context);
+    final now = DateTime.now();
+    final settings = ref.watch(settingsProvider);
+    String clock(DateTime t) => l10n.formatTimeOfDay(
+      TimeOfDay.fromDateTime(t),
+      alwaysUse24HourFormat: MediaQuery.of(context).alwaysUse24HourFormat,
+    );
+    return Padding(
+      padding: const EdgeInsets.only(top: Gap.sm),
+      child: Container(
+        key: const Key('recent-sessions-card'),
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(
+          horizontal: Gap.md,
+          vertical: Gap.xs,
+        ),
+        decoration: BoxDecoration(
+          color: FoxColors.ink,
+          borderRadius: BorderRadius.circular(Radii.card),
+          border: Border.all(color: FoxColors.borderSoft),
+        ),
+        child: Column(
+          children: [
             TextButton(
               key: const Key('session-recap-toggle'),
-              onPressed: () => setState(() => _showRecent = !_showRecent),
-              style: TextButton.styleFrom(
-                foregroundColor: FoxColors.cream,
-                padding: const EdgeInsets.symmetric(vertical: Gap.sm),
-              ),
+              onPressed: () => setState(() => _expanded = !_expanded),
+              style: TextButton.styleFrom(foregroundColor: FoxColors.cream),
               child: Row(
                 children: [
                   Expanded(
-                    child: Text('Recent sessions', style: text.titleSmall),
+                    child: Text(
+                      'Recent sessions',
+                      style: Theme.of(context).textTheme.titleSmall,
+                    ),
                   ),
                   Icon(
-                    _showRecent
+                    _expanded
                         ? Icons.expand_less_rounded
                         : Icons.expand_more_rounded,
                   ),
                 ],
               ),
             ),
-            if (_showRecent)
+            if (_expanded)
               for (final recent in days.skip(1))
                 _RecentSessionDay(
                   day: recent,
@@ -1623,7 +1683,7 @@ class _SessionCardState extends ConsumerState<_SessionCard> {
                   clock: clock,
                 ),
           ],
-        ],
+        ),
       ),
     );
   }
@@ -1715,7 +1775,9 @@ class _RecentSessionDay extends StatelessWidget {
         ),
         const SizedBox(height: Gap.xs),
         Text(
-          '${clock(day.startedAt)} – ${clock(day.endedAt)} · ${durationLabel(day.duration)}',
+          day.hasWatchSessions
+              ? '${clock(day.startedAt)} – ${clock(day.endedAt)} · ${durationLabel(day.duration)}'
+              : '${day.manualJobs} manual ${day.manualJobs == 1 ? 'job' : 'jobs'}',
           style: TextStyle(fontSize: 11, color: FoxColors.textSecondary),
         ),
       ],
@@ -1794,12 +1856,18 @@ class _SessionQuality extends StatelessWidget {
           ),
         ),
         const SizedBox(height: Gap.sm),
-        VerdictSplitPills(
-          good: session.good,
-          ok: session.ok,
-          bad: session.bad,
-          fontSize: 11,
-        ),
+        if (total == 0)
+          Text(
+            'No offers captured on this day',
+            style: TextStyle(color: FoxColors.textSecondary, fontSize: 11),
+          )
+        else
+          VerdictSplitPills(
+            good: session.good,
+            ok: session.ok,
+            bad: session.bad,
+            fontSize: 11,
+          ),
       ],
     );
   }

@@ -601,7 +601,7 @@ void main() {
       findsOneWidget,
     );
     expect(
-      find.descendant(of: summary, matching: find.text('Known accept')),
+      find.descendant(of: summary, matching: find.text('Of seen')),
       findsOneWidget,
     );
 

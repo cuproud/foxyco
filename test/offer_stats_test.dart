@@ -56,7 +56,34 @@ void main() {
     ]);
     expect(stats.knownOutcomes, 2);
     expect(stats.acceptanceRate, .5);
+    expect(stats.capturedAcceptanceRate, .25);
   });
+
+  test(
+    'manual work adds earnings and jobs without raising seen acceptance',
+    () {
+      final captured = _o(Verdict.good, 20, 10, outcome: OfferOutcome.taken);
+      final manual = OfferSummary(
+        platform: GigPlatform.uber,
+        verdict: Verdict.good,
+        payout: 30,
+        finalPayout: 30,
+        totalKm: 15,
+        totalMinutes: 30,
+        seenAt: DateTime(2026, 7, 16, 12),
+        outcome: OfferOutcome.completed,
+        category: 'Manual entry',
+      );
+      final stats = OfferStats.from([captured, manual]);
+      expect(stats.total, 2);
+      expect(stats.manualCount, 1);
+      expect(stats.capturedTotal, 1);
+      expect(stats.accepted, 2);
+      expect(stats.capturedAccepted, 1);
+      expect(stats.capturedAcceptanceRate, 1);
+      expect(stats.recordedEarnings, 50);
+    },
+  );
 
   test('accepted is counted separately from the verdict split', () {
     final stats = OfferStats.from([

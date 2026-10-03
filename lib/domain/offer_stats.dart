@@ -14,6 +14,8 @@ class OfferStats {
   final int bad;
   final int unscored;
   final int accepted;
+  final int manualCount;
+  final int capturedAccepted;
   final int declined;
   final double acceptedEarnings;
   final double acceptedPerformanceEarnings;
@@ -42,6 +44,8 @@ class OfferStats {
     this.bad = 0,
     this.unscored = 0,
     this.accepted = 0,
+    this.manualCount = 0,
+    this.capturedAccepted = 0,
     this.declined = 0,
     this.acceptedEarnings = 0,
     this.acceptedPerformanceEarnings = 0,
@@ -60,6 +64,9 @@ class OfferStats {
   int get knownOutcomes => accepted + declined;
   double? get acceptanceRate =>
       knownOutcomes == 0 ? null : accepted / knownOutcomes;
+  int get capturedTotal => total - manualCount;
+  double? get capturedAcceptanceRate =>
+      capturedTotal == 0 ? null : capturedAccepted / capturedTotal;
   double get recordedPerformanceEarnings =>
       acceptedPerformanceEarnings + cancellationFees;
 
@@ -67,6 +74,7 @@ class OfferStats {
     if (offers.isEmpty) return const OfferStats();
 
     var good = 0, ok = 0, bad = 0, unscored = 0, accepted = 0, declined = 0;
+    var manualCount = 0, capturedAccepted = 0;
     var acceptedEarnings = 0.0;
     var acceptedPerformanceEarnings = 0.0;
     var confirmedEarnings = 0.0;
@@ -81,6 +89,7 @@ class OfferStats {
     final byHour = <int, int>{};
 
     for (final o in offers) {
+      if (o.isManualEntry) manualCount++;
       switch (o.verdict) {
         case Verdict.good:
           good++;
@@ -98,6 +107,7 @@ class OfferStats {
       if (o.outcome == OfferOutcome.taken ||
           o.outcome == OfferOutcome.completed) {
         accepted++;
+        if (!o.isManualEntry) capturedAccepted++;
         acceptedEarnings += o.effectivePayout;
         acceptedPerformanceEarnings += o.performancePayout;
         if (o.finalPayout == null) {
@@ -137,6 +147,8 @@ class OfferStats {
       bad: bad,
       unscored: unscored,
       accepted: accepted,
+      manualCount: manualCount,
+      capturedAccepted: capturedAccepted,
       declined: declined,
       acceptedEarnings: acceptedEarnings,
       acceptedPerformanceEarnings: acceptedPerformanceEarnings,

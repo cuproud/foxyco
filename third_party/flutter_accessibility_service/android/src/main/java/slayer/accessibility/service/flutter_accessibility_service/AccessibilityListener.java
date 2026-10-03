@@ -58,6 +58,7 @@ public class AccessibilityListener extends AccessibilityService {
     // extra node scan + per-window getRoot() IPC on every a11y event — keep
     // OFF outside active parser debugging.
     private static final boolean DEBUG_WALK = false;
+    private static final String MAPS_PACKAGE = "com.google.android.apps.maps";
     private static WindowManager mWindowManager;
     private static FlutterView mOverlayView;
     static private boolean isOverlayShown = false;
@@ -134,6 +135,16 @@ public class AccessibilityListener extends AccessibilityService {
     @RequiresApi(api = Build.VERSION_CODES.N)
     @Override
     public void onAccessibilityEvent(AccessibilityEvent accessibilityEvent) {
+        // Maps has no offer data. Its window-state event is the reliable handoff
+        // signal when OCR is idle; do not copy, traverse, poll or broadcast its
+        // accessibility content. Only the overlay service sees this package.
+        CharSequence sourcePackage = accessibilityEvent.getPackageName();
+        if (sourcePackage != null && MAPS_PACKAGE.contentEquals(sourcePackage)) {
+            if (accessibilityEvent.getEventType() == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
+                sMain.post(() -> notifyMapsWindowOpened());
+            }
+            return;
+        }
         // Copy: the framework may recycle the event after this callback returns.
         final AccessibilityEvent event = AccessibilityEvent.obtain(accessibilityEvent);
         synchronized (eventLock) {
@@ -146,6 +157,16 @@ public class AccessibilityListener extends AccessibilityService {
                 eventDrainScheduled = true;
                 sWorker.post(eventDrain);
             }
+        }
+    }
+
+    private static void notifyMapsWindowOpened() {
+        try {
+            Class<?> overlay = Class.forName(
+                    "flutter.overlay.window.flutter_overlay_window.OverlayService");
+            overlay.getMethod("onMapsWindowOpened").invoke(null);
+        } catch (ReflectiveOperationException error) {
+            Log.w("FOXYCO_OVERLAY", "Maps surface refresh unavailable");
         }
     }
 

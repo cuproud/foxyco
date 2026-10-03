@@ -210,7 +210,13 @@ void main() {
     );
     await tester.pump();
 
-    expect(find.text('ACCEPTED AMOUNT'), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('session-recap-card')),
+        matching: find.text('Earnings'),
+      ),
+      findsOneWidget,
+    );
     expect(
       tester
           .widget<Text>(find.byKey(const Key('session-recap-accepted-count')))
@@ -292,12 +298,19 @@ void main() {
         ),
       );
       await tester.pump();
+      expect(find.byKey(const Key('recent-sessions-card')), findsOneWidget);
+      expect(find.text('Sep 24, 2026'), findsNothing);
       await tester.ensureVisible(find.byKey(const Key('session-recap-toggle')));
       await tester.tap(find.byKey(const Key('session-recap-toggle')));
       await tester.pump();
-      // Keep Home mounted while checking just the recap at a phone's width.
-      preview.value = tester.widget<Container>(
-        find.byKey(const Key('session-recap-card')),
+      // Keep Home mounted while checking both panels at a phone's width.
+      preview.value = Column(
+        children: [
+          tester.widget<Container>(find.byKey(const Key('session-recap-card'))),
+          tester.widget<Container>(
+            find.byKey(const Key('recent-sessions-card')),
+          ),
+        ],
       );
       await tester.pump();
       expect(find.text(r'$142.85'), findsOneWidget);
@@ -308,7 +321,7 @@ void main() {
         '20',
       );
       expect(find.text(r'$0.00'), findsNWidgets(2));
-      expect(find.text('accept rate'), findsOneWidget);
+      expect(find.text('acceptance of seen'), findsOneWidget);
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox.shrink());
     }

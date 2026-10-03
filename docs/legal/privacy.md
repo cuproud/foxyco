@@ -42,20 +42,23 @@ clear it at any time.
 
 ## What FoxyCo reads on screen, and what it does with it
 
-FoxyCo uses Android's AccessibilityService API to receive selected driver-app
-events, read non-Uber offer cards, and detect when an Uber offer ends. You can
+FoxyCo uses Android's AccessibilityService API to receive driver-app events,
+read selected non-Uber offer cards, and detect when an Uber offer ends. It also
+receives Google Maps window-state events solely to refresh the floating bubble;
+Maps content is not read, saved, or sent to offer parsing. You can
 select Uber to enable its **screen-reading fallback (OCR)** for cards Android
 may hide from Accessibility. Unselecting Uber turns that fallback off.
 
 - The Accessibility event stream is restricted to the supported driver-app
-  packages shown in FoxyCo's app picker. FoxyCo processes offer text only for
+  packages shown in FoxyCo's app picker and Google Maps window events. FoxyCo
+  processes offer text only for
   the one to three apps you select. Apps marked beta are disabled until you
   select them. Non-Uber platforms use Accessibility text only. An Uber OCR
   frame can contain whatever is visible at that instant; FoxyCo requests one
   only after a selected-app event when it is checking for an unreadable visible
   Uber offer, including an Uber request drawn over another selected app. Recognized
   screenshot text is accepted only by the Uber parser.
-  FoxyCo's Accessibility service receives no events from any other app,
+  FoxyCo's Accessibility service receives no events from other apps,
   including your browser, messages, banking apps or launcher. Supporting
   another driver app requires a FoxyCo update that explicitly adds and
   discloses that app.

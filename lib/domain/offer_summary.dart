@@ -85,6 +85,7 @@ class OfferSummary {
   double get pricePerHour => totalMinutes > 0 ? payout / totalMinutes * 60 : 0;
 
   double get effectivePayout => finalPayout ?? payout;
+  bool get isManualEntry => category == 'Manual entry';
   double get performancePayout => effectivePayout > tollReimbursement
       ? effectivePayout - tollReimbursement
       : 0;

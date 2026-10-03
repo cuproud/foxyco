@@ -1,7 +1,7 @@
 # Offer Detection and Verdict Logic
 
-Canonical implementation map for `1.0.14+111`, verified against the code on
-2026-09-20.
+Canonical implementation map for `1.0.19+118`, verified against the code on
+2026-10-03.
 
 ## Maintenance contract
 
@@ -51,8 +51,11 @@ FoxyCo never presses Accept, Match, Reserve, or any other driver-app control.
 
 ### Android scope
 
-The Accessibility service receives only window state/content/window-list events
-from these packages:
+The Accessibility service receives window state/content/window-list events
+from the driver packages below and Google Maps. Maps events are
+filtered in native code before event copying or node traversal; only a Maps
+window-state event may request an overlay surface refresh. No Maps text, nodes,
+or screenshots are sent to Dart or used for offer detection.
 
 | Platform | Android package | Parser status |
 | --- | --- | --- |
@@ -63,12 +66,14 @@ from these packages:
 | Instacart | `com.instacart.shopper` | Beta; public-card seeded |
 | Skip | `com.delco.courier` | Beta; public/official-card seeded |
 
-The package list is duplicated deliberately in `ParserRegistry`; tests must keep
-the registry and Android XML in sync. Settings allow at most three selected
+The driver package list is duplicated deliberately in `ParserRegistry`; tests
+must keep the registry and Android XML in sync, with Maps as the sole additional
+package. Settings allow at most three selected
 apps. An event from an unselected platform is dropped before parsing.
 
-FoxyCo does not subscribe to Accessibility events from navigation, video, or
-other unrelated apps. OCR is event-triggered rather than continuously polling
+FoxyCo subscribes to Maps only for this overlay recovery signal and ignores its
+content and window-list events. It does not subscribe to video or other
+unrelated apps. OCR is event-triggered rather than continuously polling
 the screen, so an Uber card that appears while Google Maps, Android Auto, or a
 video app is active may not be captured until a selected driver app emits an
 event. This narrow scope is intentional: broad screen monitoring would increase
@@ -397,7 +402,18 @@ currently supported platform that was
 never captured live. The driver supplies payout, total distance, total minutes,
 and the job date/time. FoxyCo scores those values against the current rules for
 that platform, stores the payout as final earnings, and marks the outcome as a manual
-completion. Manual entry does not attempt to reconstruct an unseen offer card.
+completion. Manual entry waits for saved History to load before refreshing a
+saved session, so an early startup edit cannot replace a full recap with a
+partial offer list. It does not attempt to reconstruct an unseen offer card.
+Home's daily recap includes manual completions on their entered calendar date.
+Manual work outside a saved watch session adds its payout and trip minutes to
+the day's recorded earnings and hours; manual work inside a saved session is
+already included in that session and is counted once. The recap's offers seen,
+quality bar, and acceptance percentage refer only to captured offers; its
+completed-job count and earnings include manual completions. The Home live
+offer tally also excludes manual entries. History still keeps manual jobs as
+records for totals, payouts, and performance; its "Of seen" percentage divides
+captured accepted offers by captured offers only.
 
 An accepted-trip marker that was already visible when a new offer appeared is
 not evidence that the new offer was taken. This occurs when Uber or Lyft draws
@@ -421,7 +437,10 @@ Route matching is diagnostic-only in build 104. Offer and accepted-trip frames
 are compared in memory; logs contain only per-process opaque fingerprints,
 candidate counts, similarity scores, and whether one pending offer matched
 uniquely. Raw and normalized locations are neither logged nor persisted, and
-shadow results do not change History or inferred outcomes.
+shadow results do not change History or inferred outcomes. Consecutive
+accepted-screen frames with the same logged summary produce one diagnostic line
+even if their underlying route fragments differ. This preserves changes to the
+best match or score while keeping repeated frames out of the email log tail.
 
 If app resume finds permissions intact but native overlay health inactive, the
 shift remains Watching, the window is recreated, and the recovery reason is
@@ -432,35 +451,52 @@ copyable in-app diagnostic log without screen content.
 Build 108 adds visibility, attachment, display/rotation, view and surface
 opacity, surface revision, and device/Android version to those diagnostics.
 An already-requested OCR capture records its active package when that sampled
-context changes; this is not continuous foreground monitoring and does not
-subscribe to Maps events. Native OCR reports timeout, screenshot failure code,
+context changes; this is not continuous foreground monitoring. Native OCR
+reports timeout, screenshot failure code,
 bitmap/recognition failure, and sanitized card-shape counts. Routine no-card
 shape logs are limited to once per 30 seconds. Dart logs distinguish the
 synthetic no-card marker from recognized offer text; stale results include
 generation, invalidation reason, line count, no-card flag, and elapsed time.
 Capture cadence, generation guards, parser routing, and outcomes are unchanged.
 
-On a sampled Google Maps capture-context change, FoxyCo briefly recreates only
-Flutter's child SurfaceView, preserving the overlay window, engine, position,
-pill, and Watching state. Other app switches remain diagnostic-only. This
-automates the part of stop/start Watching that cleared the Samsung grey mask
-without restarting the service. Surface/visibility and capture-context changes
+On a Google Maps window-state event, or a sampled Maps OCR capture-context
+change, FoxyCo briefly hides Flutter's child SurfaceView for 50 ms and shows it
+again to request a fresh compositor layer. After the view is restored, the
+refresh-finish diagnostic records how many surface-created and
+surface-destroyed callbacks have occurred since the attempt began. A Maps
+window-state signal is recorded at most once per 30 seconds even when its
+refresh is skipped. Repeated Maps signals within three
+seconds are coalesced. The overlay window, engine, position, pill, and Watching
+state remain active. Other app switches remain diagnostic-only. This automates
+the part of stop/start Watching that cleared the Samsung grey mask without
+restarting the service. As a safety net, the overlay service also refreshes the
+child surface after five minutes without a refresh while the bubble is resting.
+It retries after 30 seconds if a verdict pill is visible or the surface is
+temporarily hidden; Maps-triggered refreshes reset the five-minute timer. This
+is preventive because transparent pixels in FoxyCo's own surface cannot reveal
+a grey mask introduced later by the system compositor. The foreground service
+and Watching state remain active throughout. Surface/visibility and
+capture-context changes
 also schedule a coalesced check that copies only the
 top-left 2x2 pixels of FoxyCo's own SurfaceView, at most once per 10 seconds on
 API 26+. It records PixelCopy result, alpha range, and whether the surface
 revision changed before completion, then clears/recycles the bitmap. No image,
 RGB values, or other app pixels are retained. Alpha is evidence about the app
-buffer, not proof of compositor correctness.
+buffer, not proof of compositor correctness. The persistent diagnostic files
+remain capped at two 1 MB files; the in-app email sends the latest 64 KB.
 
 Reported reproduction (S24 Ultra, September 2026): select Google Maps inside
 Lyft; the mask appears immediately when external Maps opens. Stop/start
 Watching clears it. Existing logs show Maps capture handoffs and normal RGBA
 window parameters and fully transparent sampled pixels, but the surface
-revision remains unchanged through each Maps handoff. That rules out the logged
-window state and Flutter's corner pixels while pointing to the unchanged
-Samsung composition surface. The Maps recovery therefore recreates the child
-surface, matching the effective part of the known workaround. Retest this exact
-sequence using Q.24 before treating the defect as resolved on-device.
+revision remains unchanged through each Maps handoff. Those logs make a grey
+corner painted into the sampled Flutter pixels less likely, while leaving the
+parent window and final composition unresolved. Later Uber-to-Maps logs
+contained no sampled Maps
+capture context at all, so the OCR-only trigger could miss the handoff. The
+Maps window-state signal now requests the same surface recovery without waiting
+for OCR. Retest this exact sequence using Q.24 before treating the defect as
+resolved on-device.
 
 For every capture/parser/scoring change:
 

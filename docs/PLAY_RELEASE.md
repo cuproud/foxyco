@@ -1,6 +1,6 @@
 # Google Play release runbook
 
-Updated 2026-09-28 for `1.0.18+116`.
+Updated 2026-10-03 for `1.0.19+118`.
 
 ## Before building
 
@@ -49,13 +49,15 @@ not contain Accessibility-derived data.
 
 Use this implementation-accurate purpose statement:
 
-> FoxyCo receives screen-change events from selected supported driver apps and
+> FoxyCo receives screen-change events from supported driver apps and
 > temporarily reads offer text to identify pay, distance, duration, and
 > delivery workload so it can display a read-only earnings verdict. If the
 > driver selects Uber on Android 11 or newer, a selected-app event can trigger
 > one rate-limited Accessibility screenshot for on-device Uber OCR. Screenshots
 > and raw text are immediately discarded and are never saved or sent. FoxyCo
-> never taps, accepts, declines, or controls another app.
+> also receives Google Maps window-state events to refresh its floating bubble;
+> it does not read Maps content. FoxyCo never taps, accepts, declines, or
+> controls another app.
 
 The review video must show the app opening, the full in-app disclosure, **Not
 now**, the user trying again and seeing the disclosure again, **Agree & open
