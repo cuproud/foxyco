@@ -22,6 +22,9 @@ Console checks in `MANUAL_TESTS.md` and `PLAY_RELEASE.md`.
   parsed as an offer. The disclosure and release wording now name both apps.
 - Version code advances from 121 to 122; version name remains `1.0.19`.
   `pubspec.yaml` and About both report build 122.
+- Same-version-code rebuild also includes the History final-earnings editor
+  prefill: when no final payout exists, the upfront fare is shown as editable
+  “Fare before tip” and the entered tip is added once.
 - Guarded release preflight passed full Flutter analysis, the full Flutter
   suite, and Firestore rules tests. The signed AAB was built with the Play
   licensing key. `jarsigner` reports `jar verified` with the existing
@@ -29,9 +32,9 @@ Console checks in `MANUAL_TESTS.md` and `PLAY_RELEASE.md`.
 - The Samsung mask recovery remains a physical-device check. Play Console
   acceptance and other device checks remain pending.
 
-Verified artifact: `FoxyCo-v1.0.19+122-release-20261004-1302.aab`
+Verified artifact: `FoxyCo-v1.0.19+122-release-20261004-1715.aab`
 
-SHA-256: `fefbab2ed7aa868697b77c1222580cbe968432430fbb16a5dc1b322e42c9bc3f`
+SHA-256: `194ce71e43c8145e820767610c995cded01c993df0f3ec9039f3dc52edfde5ff`
 
 ## Build 121 — Garage report polish
 

@@ -121,7 +121,7 @@ void main() {
     await tester.tap(find.text('Add final'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Earnings before tip'), findsOneWidget);
+    expect(find.text('Fare before tip'), findsOneWidget);
     expect(find.text('Tip'), findsOneWidget);
     expect(find.text('Toll reimbursement'), findsOneWidget);
     expect(tester.takeException(), isNull);

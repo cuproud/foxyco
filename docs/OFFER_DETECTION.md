@@ -4,6 +4,10 @@ Canonical implementation map for `1.0.19+122`, verified against the code on
 2026-10-04. Build 122 extends Google Maps window-state recovery to Waze and
 adds a follow-up refresh; offer detection behavior is unchanged.
 
+The History payout editor pre-fills a missing final amount with the upfront
+fare, labels it “Fare before tip,” and adds the entered tip once. This is
+included in the same-version-code build 122 rebuild.
+
 ## Maintenance contract
 
 This document describes shipped behavior only. It is the required starting
@@ -376,10 +380,11 @@ history row most recently created for each platform remains the candidate.
 
 Automatic inference never overwrites a driver's manual outcome correction.
 Manual final payout also remains separate from the originally offered payout
-and verdict. The edit form takes earnings before tip, then adds the separately
-entered tip once to the stored and displayed final payout. A toll reimbursement
-is already part of the entered earnings; it is recorded separately and excluded
-from post-trip $/km and $/hr performance rates because it offsets an expense.
+and verdict. The edit form pre-fills a missing amount with the upfront fare and
+takes earnings before tip; it adds the separately entered tip once to the stored
+and displayed final payout. A toll reimbursement is already part of the entered
+earnings; it is recorded separately and excluded from post-trip $/km and $/hr
+performance rates because it offsets an expense.
 For taken/completed rides, the saved final payout replaces the upfront offer in
 History totals, saved-session totals, and Home goal progress.
 

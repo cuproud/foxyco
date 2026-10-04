@@ -170,7 +170,7 @@ void main() {
 
     await tester.tap(find.text('Add final'));
     await beat(tester);
-    expect(find.text(r'Upfront: CA$18.60 · tip is added'), findsOneWidget);
+    expect(find.text(r'Upfront: CA$18.60 · tip is added once'), findsOneWidget);
     await tester.enterText(
       find.byKey(const Key('final-payout-total')),
       '38,34',

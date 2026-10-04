@@ -53,9 +53,9 @@ summaries as version-tolerant JSON. An offer record preserves:
   toll reimbursement.
 
 Manual corrections win over later inference. A manually entered tip is added to
-the final payout once; reimbursed tolls remain visible but are excluded from
-performance earnings and rates. History is capped and retention can be
-configured. Android backup and data extraction are disabled.
+the final payout once; tip and toll remain tracked as components. Reimbursed
+tolls are excluded from performance earnings and rates. History is capped and
+retention can be configured. Android backup and data extraction are disabled.
 
 History can also create a completed manual Uber, Lyft, or Hopp ride when live
 capture missed it. The entry uses the supplied payout, total distance, total

@@ -501,11 +501,15 @@ class _OfferDetailSheet extends ConsumerWidget {
     String prefix,
   ) async {
     final cancelled = offer.outcome == OfferOutcome.cancelled;
-    var input = offer.finalPayout == null
-        ? ''
+    var input = cancelled
+        ? offer.finalPayout?.toStringAsFixed(2) ?? ''
+        : offer.finalPayout == null
+        ? offer.payout.toStringAsFixed(2)
         : (offer.finalPayout! - offer.tip).toStringAsFixed(2);
-    var tipInput = offer.tip > 0 ? offer.tip.toStringAsFixed(2) : '';
-    var tollInput = offer.tollReimbursement > 0
+    var tipInput = !cancelled && offer.tip > 0
+        ? offer.tip.toStringAsFixed(2)
+        : '';
+    var tollInput = !cancelled && offer.tollReimbursement > 0
         ? offer.tollReimbursement.toStringAsFixed(2)
         : '';
     String? error;
@@ -573,12 +577,10 @@ class _OfferDetailSheet extends ConsumerWidget {
                     onChanged: (value) => input = value,
                     decoration: InputDecoration(
                       prefixText: prefix,
-                      labelText: cancelled
-                          ? 'Fee received'
-                          : 'Earnings before tip',
+                      labelText: cancelled ? 'Fee received' : 'Fare before tip',
                       helperText: cancelled
                           ? 'Enter 0 if no cancellation fee was paid'
-                          : 'Upfront: $prefix${offer.payout.toStringAsFixed(2)} · tip is added',
+                          : 'Upfront: $prefix${offer.payout.toStringAsFixed(2)} · tip is added once',
                       helperMaxLines: 2,
                       errorText: error,
                       errorMaxLines: 2,
@@ -598,6 +600,7 @@ class _OfferDetailSheet extends ConsumerWidget {
                       decoration: InputDecoration(
                         prefixText: prefix,
                         labelText: 'Tip',
+                        helperText: 'Added once to fare above',
                       ),
                     ),
                     const SizedBox(height: Gap.sm),
@@ -614,7 +617,8 @@ class _OfferDetailSheet extends ConsumerWidget {
                       decoration: InputDecoration(
                         prefixText: prefix,
                         labelText: 'Toll reimbursement',
-                        helperText: 'Excluded from performance rates',
+                        helperText:
+                            'Included in fare; excluded from performance rates',
                         helperMaxLines: 2,
                       ),
                     ),
