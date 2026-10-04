@@ -1457,7 +1457,7 @@ class _SessionCardState extends ConsumerState<_SessionCard> {
                       '${day.accepted}',
                       key: const Key('session-recap-accepted-count'),
                       style: TextStyle(
-                        color: FoxColors.cream,
+                        color: VerdictColors.good,
                         fontFamily: FoxFonts.display,
                         fontSize: 30,
                         fontWeight: FontWeight.w700,
@@ -1487,13 +1487,13 @@ class _SessionCardState extends ConsumerState<_SessionCard> {
                 _SessionDayStat(
                   value:
                       '${settings.currency.symbol}${day.hourlyEarnings.toStringAsFixed(2)}',
-                  label: 'per recorded hour',
+                  label: 'Hourly avg',
                 ),
                 _SessionDayStat(
                   value: day.acceptanceRate == null
                       ? '—'
                       : '${(day.acceptanceRate! * 100).round()}%',
-                  label: 'acceptance of seen',
+                  label: 'Accept rate',
                 ),
                 _SessionDayStat(value: '${day.total}', label: 'offers seen'),
               ];
@@ -1671,6 +1671,8 @@ class _SessionDayStat extends StatelessWidget {
       const SizedBox(height: Gap.xs),
       Text(
         label,
+        maxLines: 1,
+        softWrap: false,
         textAlign: TextAlign.center,
         style: TextStyle(fontSize: 11, color: FoxColors.textSecondary),
       ),

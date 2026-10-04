@@ -65,6 +65,10 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Weekly goal'), findsOneWidget);
+    expect(
+      find.text('Recorded payouts · final amounts and cancellation fees'),
+      findsNothing,
+    );
     expect(find.textContaining(r'$400'), findsOneWidget);
     expect(find.text('80%'), findsOneWidget);
 

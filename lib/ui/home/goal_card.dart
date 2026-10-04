@@ -119,13 +119,6 @@ class _GoalCardState extends State<GoalCard> {
                       ),
                   ],
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  'Recorded payouts · final amounts and cancellation fees',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: FoxColors.textSecondary,
-                  ),
-                ),
                 const SizedBox(height: Gap.sm + Gap.xs),
                 _PeriodTabs(
                   selected: _period,

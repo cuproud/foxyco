@@ -223,6 +223,7 @@ class FoxColors {
     textSecondary = p.textSecondary;
     textDisabled = p.textDisabled;
     brandText = p.brightness == Brightness.light ? brandFoxDeep : brandFox;
+    feeText = p.brightness == Brightness.light ? feeOnLight : feeOnDark;
     inkSoft = p.cardTop;
     ink = p.cardBottom;
     cream = p.onCard;
@@ -242,6 +243,7 @@ class FoxColors {
   static Color textSecondary = FoxPalette.dark.textSecondary;
   static Color textDisabled = FoxPalette.dark.textDisabled;
   static Color brandText = brandFox;
+  static Color feeText = feeOnDark;
 
   // ── Gradient-card interior (varies; see the class doc on the names) ──────
   static Color ink = FoxPalette.dark.cardBottom;
@@ -258,6 +260,8 @@ class FoxColors {
   static const brandFox = Color(0xFFFF5A36);
   static const brandFoxDeep = Color(0xFFB93A1E);
   static const brandFoxSoft = Color(0x33FF5A36); // translucent tint
+  static const feeOnDark = Color(0xFF79C5F2);
+  static const feeOnLight = Color(0xFF126195);
 
   // Per-app dot colors. [uber] varies (see FoxPalette.uber); the saturated two
   // hold on either surface.

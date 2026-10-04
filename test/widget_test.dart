@@ -321,7 +321,20 @@ void main() {
         '20',
       );
       expect(find.text(r'$0.00'), findsNWidgets(2));
-      expect(find.text('acceptance of seen'), findsOneWidget);
+      expect(find.text('Hourly avg'), findsOneWidget);
+      expect(find.text('Accept rate'), findsOneWidget);
+      for (final label in ['Hourly avg', 'Accept rate']) {
+        final widget = tester.widget<Text>(find.text(label));
+        expect(widget.maxLines, 1);
+        expect(widget.softWrap, false);
+      }
+      expect(
+        tester
+            .widget<Text>(find.byKey(const Key('session-recap-accepted-count')))
+            .style!
+            .color,
+        VerdictColors.good,
+      );
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox.shrink());
     }

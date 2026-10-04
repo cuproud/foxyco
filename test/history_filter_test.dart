@@ -164,6 +164,37 @@ void main() {
     );
   });
 
+  testWidgets('recorded cancellation fee has a distinct theme-aware color', (
+    tester,
+  ) async {
+    addTearDown(() => FoxColors.apply(FoxPalette.dark));
+    final offer = _offer(
+      DateTime.now(),
+      platform: GigPlatform.lyft,
+      outcome: OfferOutcome.cancelled,
+      payout: 23.03,
+      finalPayout: 2.26,
+    );
+    for (final palette in [FoxPalette.light, FoxPalette.dark]) {
+      await tester.pumpWidget(_themedApp([offer], palette));
+      await tester.pumpAndSettle();
+      final card = find.byKey(
+        ValueKey('history-offer-${offer.seenAt.microsecondsSinceEpoch}'),
+      );
+      await tester.scrollUntilVisible(
+        card,
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      final amount = tester.widget<Text>(
+        find.descendant(of: card, matching: find.text('CA\$2.26')),
+      );
+      expect(amount.style!.color, FoxColors.feeText);
+      expect(amount.style!.color, isNot(FoxColors.brandText));
+      await tester.pumpWidget(const SizedBox.shrink());
+    }
+  });
+
   testWidgets(
     'goal intent shows only payouts contributing this calendar week',
     (tester) async {

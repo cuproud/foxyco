@@ -66,6 +66,15 @@ void main() {
     expect(report.categories['Gas'], 15);
     expect(report.incomePoints.reduce((a, b) => a + b), 80);
     expect(report.expensePoints.reduce((a, b) => a + b), 15);
+    final week = ExpenseReport(offers, expenses, ReportPeriod.week, date);
+    expect(week.start, DateTime(2026, 9, 28));
+    expect(week.end, DateTime(2026, 10, 5));
+    expect(week.incomePoints, [80, 0, 0, 100, 0, 0, 0]);
+    expect(ReportPeriod.week.move(date, -1), DateTime(2026, 9, 21));
+    expect(
+      ReportPeriod.week.move(DateTime(2026, 11, 1), 1),
+      DateTime(2026, 11, 2),
+    );
     expect(ReportPeriod.quarter.start(date), DateTime(2026, 7));
     expect(ReportPeriod.year.start(date), DateTime(2026));
     expect(
@@ -104,7 +113,7 @@ void main() {
               child: IncomeExpenseReport(
                 offers: offers,
                 expenses: expenses,
-                currency: 'CA\$',
+                currency: '\$',
                 initialDate: date,
                 onAdd: () => added = true,
               ),
@@ -114,8 +123,37 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
+    expect(find.text('Weekly'), findsOneWidget);
+    expect(find.text('No last week income'), findsOneWidget);
+    expect(find.byKey(const Key('expense-graph-toggle')), findsNothing);
+    expect(find.text('\$100.00'), findsWidgets);
+    final firstSparkleFrame = tester
+        .widget<CustomPaint>(find.byKey(const Key('selected-bar-sparkles')))
+        .painter!;
+    await tester.pump(const Duration(milliseconds: 2600));
+    await tester.pump(const Duration(milliseconds: 400));
+    final nextSparkleFrame = tester
+        .widget<CustomPaint>(find.byKey(const Key('selected-bar-sparkles')))
+        .painter!;
+    expect(nextSparkleFrame.shouldRepaint(firstSparkleFrame), isTrue);
+    await tester.tap(find.byKey(const ValueKey('income-bar-0')));
+    await tester.pumpAndSettle();
+    expect(find.text('\$80.00'), findsWidgets);
+    expect(find.byKey(const Key('selected-bar-sparkles')), findsOneWidget);
+    final selectedAmount = tester.getCenter(
+      find.byKey(const Key('selected-income-amount')),
+    );
+    final selectedBar = tester.getCenter(
+      find.byKey(const ValueKey('income-bar-0')),
+    );
+    expect((selectedAmount.dx - selectedBar.dx).abs(), lessThan(40));
+    await tester.tap(find.text('Monthly'));
+    await tester.pumpAndSettle();
+    expect(find.text('No last month income'), findsOneWidget);
     expect(find.text('September 2026'), findsOneWidget);
-    expect(find.text('CA\$80.00'), findsOneWidget);
+    expect(find.text('\$80.00'), findsWidgets);
+    expect(find.text('Expenses'), findsOneWidget);
+    expect(find.textContaining('CA\$'), findsNothing);
     await tester.tap(find.byTooltip('Previous period'));
     await tester.pumpAndSettle();
     expect(find.text('August 2026'), findsOneWidget);
@@ -128,9 +166,11 @@ void main() {
     expect(find.text('September 2026'), findsOneWidget);
     await tester.tap(find.text('Quarterly'));
     await tester.pumpAndSettle();
+    expect(find.text('No last quarter income'), findsOneWidget);
     expect(find.text('Q3 · 2026'), findsOneWidget);
     await tester.tap(find.text('Yearly'));
     await tester.pumpAndSettle();
+    expect(find.text('No last year income'), findsOneWidget);
     expect(find.text('2026'), findsOneWidget);
     await tester.tap(find.byTooltip('Next period'));
     await tester.pumpAndSettle();
@@ -139,6 +179,53 @@ void main() {
     await tester.tap(find.text('Add expense'));
     expect(added, isTrue);
     expect(tester.takeException(), isNull);
+  });
+  testWidgets('weekly income change compares with the previous week', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(360, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final prior = OfferSummary(
+      platform: GigPlatform.lyft,
+      verdict: Verdict.good,
+      payout: 40,
+      finalPayout: 40,
+      totalKm: 10,
+      seenAt: DateTime(2026, 9, 21),
+      outcome: OfferOutcome.completed,
+    );
+    final current = OfferSummary(
+      platform: GigPlatform.lyft,
+      verdict: Verdict.good,
+      payout: 80,
+      finalPayout: 80,
+      totalKm: 10,
+      seenAt: DateTime(2026, 9, 28),
+      outcome: OfferOutcome.completed,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: IncomeExpenseReport(
+              offers: [prior, current],
+              expenses: const [],
+              currency: '\$',
+              initialDate: DateTime(2026, 9, 28),
+              onAdd: () {},
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('↗ +100.0%'), findsOneWidget);
+    expect(find.text('vs last week'), findsOneWidget);
+    await tester.tap(find.byTooltip('Previous period'));
+    await tester.pumpAndSettle();
+    expect(find.text('No last week income'), findsOneWidget);
   });
   testWidgets(
     'report supports both themes and enlarged text on narrow screens',
@@ -168,7 +255,7 @@ void main() {
                   child: IncomeExpenseReport(
                     offers: offers,
                     expenses: expenses,
-                    currency: 'CA\$',
+                    currency: '\$',
                     initialDate: date,
                     onAdd: () {},
                   ),
@@ -193,10 +280,7 @@ void main() {
         ]);
         await tester.tap(find.byTooltip('Previous period'));
         await tester.pumpAndSettle();
-        expect(
-          find.text('No recorded activity in this period'),
-          findsOneWidget,
-        );
+        expect(find.text('No recorded income in this period'), findsOneWidget);
         expect(tester.takeException(), isNull);
         await tester.pumpWidget(const SizedBox.shrink());
       }

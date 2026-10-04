@@ -1,11 +1,59 @@
 # Release audit
 
-Audit date: 2026-10-03
+Audit date: 2026-10-04
 
-Candidate: `1.0.19+119`
+Candidate: `1.0.19+121`
 
 Play upload remains conditional on the device and
 Console checks in `MANUAL_TESTS.md` and `PLAY_RELEASE.md`.
+
+## Build 121 — Garage report polish
+
+- Vehicle cards return to the top of Garage, ahead of the income report.
+- The income chart shows an animated sparkle burst throughout the selected bar,
+  with its amount in a small label directly above that bar.
+- The percentage beside Total income compares the selected period with the
+  previous equivalent period (week, month, quarter, or year). When previous
+  income is zero, it shows a dash and explains the missing comparison. Tapping
+  a bar changes its amount label but leaves the period comparison unchanged.
+- Total income uses FoxyCo orange. Garage amounts use the currency symbol
+  without the country code, and the Payouts, Expenses, and report-balance card
+  follows the supplied reference layout.
+- Home removes the long subtitle beneath Weekly goal.
+- Build code advances from 120 to 121; version name remains `1.0.19`.
+  `pubspec.yaml` and About both report build 121.
+- Guarded release preflight passed full Flutter analysis, the full Flutter
+  suite, and Firestore rules tests. The signed AAB was built with the Play
+  licensing key. `jarsigner` reports `jar verified` with the existing
+  self-signed upload certificate and standard bundle warnings.
+- Play Console acceptance and physical-device checks remain pending.
+
+Verified artifact: `FoxyCo-v1.0.19+121-release-20261004-1207.aab`
+
+SHA-256: `50d79c1a77c209858ebe625ce27b946d03651bd6a843b25eefd79e5dedb8f0f1`
+
+## Build 120 — Garage income report
+
+- Garage opens with the reference-inspired income chart and a separate payout,
+  recorded-expense, and report-balance card. The chart contains income only.
+  Weekly, monthly, quarterly, and yearly periods use saved data; weekly
+  boundaries and navigation use calendar dates across daylight saving changes.
+- The report stays visible without opening an accordion. Vehicle cards,
+  reminders, the expense ledger, and Add expense remain in Garage.
+- Home colors the session earnings figure green and shortens the
+  hourly and acceptance labels. History colors a recorded
+  cancellation fee blue in rows and details.
+- Build code advances from 119 to 120; version name remains `1.0.19`.
+  `pubspec.yaml` and About both report build 120.
+- Guarded release preflight passed full Flutter analysis, the full Flutter
+  suite, and Firestore rules tests. The signed AAB was built with the Play
+  licensing key. `jarsigner` reports `jar verified` with the existing
+  self-signed upload certificate and standard bundle warnings.
+- Play Console acceptance and physical-device checks remain pending.
+
+Verified artifact: `FoxyCo-v1.0.19+120-release-20261004-0959.aab`
+
+SHA-256: `fbf2fb547a936836bc3cba3ba71e15a1f32c154516af33144b84fb15adc57032`
 
 ## Build 119 — reminder, recap, overlay, and cancellation fee
 

@@ -1,7 +1,7 @@
 # Offer Detection and Verdict Logic
 
-Canonical implementation map for `1.0.19+119`, verified against the code on
-2026-10-03.
+Canonical implementation map for `1.0.19+121`, verified against the code on
+2026-10-04. Offer detection behavior is unchanged in build 121.
 
 ## Maintenance contract
 

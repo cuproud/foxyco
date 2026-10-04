@@ -80,7 +80,7 @@ class _GarageScreenState extends ConsumerState<GarageScreen> {
     final total = expenses.fold<double>(0, (sum, item) => sum + item.amount);
     final currency = ref
         .watch(settingsProvider.select((s) => s.currency))
-        .prefix;
+        .symbol;
     String money(double value) => '$currency${value.toStringAsFixed(2)}';
 
     return SingleChildScrollView(
@@ -304,29 +304,24 @@ class _IncomeExpenseSection extends StatelessWidget {
   final VoidCallback onAdd;
 
   @override
-  Widget build(BuildContext context) => Material(
-    color: FoxColors.bgSurface,
-    shape: RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(Radii.card),
-      side: BorderSide(color: FoxColors.borderSoft),
-    ),
-    child: ExpansionTile(
-      key: const Key('income-expenses-section'),
-      shape: const Border(),
-      collapsedShape: const Border(),
-      tilePadding: const EdgeInsets.symmetric(horizontal: Gap.md),
-      childrenPadding: const EdgeInsets.fromLTRB(Gap.md, 0, Gap.md, Gap.md),
-      leading: const Icon(Icons.compare_arrows_rounded),
-      title: const Text('Income vs expenses'),
-      children: [
-        IncomeExpenseReport(
-          offers: offers,
-          expenses: expenses,
-          currency: currency,
-          onAdd: onAdd,
-        ),
-      ],
-    ),
+  Widget build(BuildContext context) => Column(
+    key: const Key('income-expenses-section'),
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      Text(
+        'Income vs expenses',
+        style: Theme.of(
+          context,
+        ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+      ),
+      const SizedBox(height: Gap.sm),
+      IncomeExpenseReport(
+        offers: offers,
+        expenses: expenses,
+        currency: currency,
+        onAdd: onAdd,
+      ),
+    ],
   );
 }
 
@@ -570,7 +565,7 @@ class _VehicleExpenseEditorState extends ConsumerState<_VehicleExpenseEditor> {
                                 .watch(
                                   settingsProvider.select((s) => s.currency),
                                 )
-                                .prefix,
+                                .symbol,
                           ),
                         ),
                         const SizedBox(height: Gap.sm),

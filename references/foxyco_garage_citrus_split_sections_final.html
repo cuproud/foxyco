@@ -1,0 +1,351 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>FoxyCo Garage Preview · Citrus Split Sections</title>
+<style>
+*{box-sizing:border-box}
+:root{
+  --bg:#F7F4ED;
+  --phone:#F6F1E8;
+  --surface:#FBF8F1;
+  --surface2:#F1ECE2;
+  --panel:#ECE6DB;
+  --line:#DED8CC;
+  --text:#181B19;
+  --muted:#6E716C;
+  --accent:#FF6138;
+  --accent-soft:rgba(255,97,56,.10);
+  --yellow:#FFD45F;
+  --peach:#FFA065;
+  --mint:#7CE4BB;
+  --violet:#977EF0;
+  --shadow:0 18px 50px rgba(68,58,44,.08);
+}
+body.dark{
+  --bg:#111315;
+  --phone:#171A1E;
+  --surface:#202327;
+  --surface2:#181B1F;
+  --panel:#20242A;
+  --line:#2E3339;
+  --text:#F5F6F4;
+  --muted:#A2A7A7;
+  --accent:#FF6138;
+  --accent-soft:rgba(255,97,56,.14);
+  --yellow:#F2C04F;
+  --peach:#FF9761;
+  --mint:#66D7AE;
+  --violet:#8B74EA;
+  --shadow:0 22px 65px rgba(0,0,0,.42);
+}
+html,body{margin:0;min-height:100%;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial}
+body{
+  background:var(--bg);
+  color:var(--text);
+  display:grid;
+  place-items:center;
+  padding:24px;
+  transition:.28s ease;
+}
+.phone{
+  width:min(440px,100%);
+  background:var(--phone);
+  border:1px solid var(--line);
+  border-radius:34px;
+  padding:18px 18px 26px;
+  box-shadow:var(--shadow);
+}
+.top{
+  display:flex;justify-content:space-between;align-items:flex-start;
+  margin-bottom:12px;
+}
+.kicker{
+  font-size:12px;
+  font-weight:950;
+  letter-spacing:.11em;
+  color:var(--muted);
+}
+.h1{
+  font-size:34px;
+  font-weight:950;
+  letter-spacing:-.055em;
+  line-height:.96;
+  margin-top:6px;
+}
+.themeBtn{
+  width:42px;height:42px;border-radius:50%;
+  border:1px solid var(--line);background:var(--surface);color:var(--text);
+  display:grid;place-items:center;cursor:pointer;font-size:18px;
+}
+.stack{display:grid;gap:14px}
+.card{
+  background:linear-gradient(180deg,var(--surface) 0%, color-mix(in srgb,var(--surface) 88%, var(--surface2)) 100%);
+  border:1px solid var(--line);
+  border-radius:28px;
+  box-shadow:0 10px 26px rgba(20,25,20,.04);
+}
+.incomeCard{
+  padding:18px;
+  position:relative;
+  overflow:hidden;
+}
+.incomeCard::before{
+  content:"";
+  position:absolute;
+  right:-38px; top:-48px;
+  width:160px; height:160px;
+  border-radius:50%;
+  background:radial-gradient(circle, rgba(255,212,95,.16) 0%, rgba(255,97,56,.08) 30%, rgba(124,228,187,.08) 58%, transparent 72%);
+  filter:blur(10px);
+  pointer-events:none;
+}
+.rowTop{
+  display:flex;justify-content:space-between;align-items:flex-start;gap:12px;
+  position:relative;z-index:1;
+}
+.cap{font-size:12px;font-weight:850;color:var(--muted)}
+.big{
+  font-size:38px;font-weight:950;letter-spacing:-.055em;line-height:1;margin-top:4px;
+}
+.delta{
+  background:var(--accent-soft);color:var(--accent);
+  font-size:12px;font-weight:950;padding:8px 10px;border-radius:999px
+}
+.tabs{
+  margin-top:16px;
+  background:var(--panel);
+  border:1px solid var(--line);
+  border-radius:16px;
+  padding:6px;
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:6px;
+  font-size:11px;
+  position:relative;z-index:1;
+}
+.tab{
+  padding:10px 6px;border-radius:12px;text-align:center;color:var(--muted);font-weight:850;
+}
+.tab.on{background:var(--accent);color:#fff}
+.chartArea{
+  margin-top:16px;
+  height:270px;
+  position:relative;
+}
+.chartGrid{
+  position:absolute;left:0;right:0;top:18px;bottom:34px;
+}
+.gridLine{
+  position:absolute;left:0;right:0;height:1px;background:color-mix(in srgb,var(--line) 80%, transparent);
+}
+.gridLine:nth-child(1){top:18%}
+.gridLine:nth-child(2){top:50%}
+.gridLine:nth-child(3){top:82%}
+.bars{
+  position:absolute;left:10px;right:10px;bottom:34px;top:8px;
+  display:flex;align-items:flex-end;gap:14px;
+}
+.barWrap{
+  flex:1;display:flex;align-items:flex-end;justify-content:center;position:relative;height:100%;
+}
+.bar{
+  width:100%;
+  max-width:42px;
+  border-radius:18px;
+  background:
+    linear-gradient(180deg, rgba(255,213,95,.92) 0%, rgba(255,156,95,.76) 28%, rgba(124,228,187,.62) 63%, rgba(151,126,240,.60) 100%);
+  border:1px solid rgba(255,173,74,.34);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.42),
+    0 0 0 1px rgba(255,225,178,.18);
+  opacity:.62;
+}
+.bar.selected{
+  opacity:1;
+  box-shadow:
+    0 10px 24px rgba(124,228,187,.22),
+    0 0 32px rgba(124,228,187,.12),
+    inset 0 1px 0 rgba(255,255,255,.42);
+}
+.bar.selected::before{
+  content:"";
+  position:absolute;inset:0;border-radius:inherit;
+  background:radial-gradient(circle at 50% 14%, rgba(255,239,180,.30), transparent 28%);
+}
+.spark{
+  position:absolute;width:8px;height:8px;transform:rotate(45deg);
+  background:
+    radial-gradient(circle,#fff 0 30%, rgba(255,255,255,0) 34%),
+    linear-gradient(#fff,#fff),
+    linear-gradient(#fff,#fff);
+  background-size:100% 100%, 2px 100%, 100% 2px;
+  background-position:center center, center center, center center;
+  background-repeat:no-repeat;
+  filter:drop-shadow(0 0 4px rgba(255,255,255,.9));
+  opacity:.9;
+}
+.tag{
+  position:absolute;
+  top:-40px;left:50%;transform:translateX(-50%);
+  background:#151819;color:#fff;font-size:12px;font-weight:950;
+  padding:8px 10px;border-radius:12px;
+  box-shadow:0 8px 18px rgba(0,0,0,.15);
+}
+.tag::after{
+  content:"";position:absolute;left:50%;bottom:-6px;transform:translateX(-50%);
+  border-left:6px solid transparent;border-right:6px solid transparent;border-top:6px solid #151819;
+}
+.labels{
+  position:absolute;left:10px;right:10px;bottom:0;
+  display:flex;gap:14px;
+}
+.labels span{
+  flex:1;text-align:center;font-size:11px;font-weight:850;color:var(--muted)
+}
+.labels span.active{color:var(--text)}
+.bottomCard{padding:18px}
+.hr{height:1px;background:var(--line);margin:14px 0}
+.row{
+  display:grid;grid-template-columns:1fr auto;gap:14px;align-items:start;padding:7px 0
+}
+.label{font-size:18px;letter-spacing:-.02em}
+.value{font-size:18px;font-weight:900;letter-spacing:-.03em}
+.sub{margin-top:4px;font-size:13px;line-height:1.45;color:var(--muted)}
+.pillRow{display:flex;gap:10px;flex-wrap:wrap;margin-top:6px;margin-bottom:6px}
+.pill{
+  font-size:11px;font-weight:900;padding:8px 10px;border-radius:999px;border:1px solid var(--line);background:var(--surface)
+}
+.highlight{background:linear-gradient(90deg, rgba(255,212,95,.18), rgba(255,97,56,.14));border-color:rgba(255,145,92,.28)}
+.balanceBlock{
+  border-radius:22px;padding:16px 16px 14px;border:1px solid var(--line);margin-top:6px;
+  background:linear-gradient(180deg, color-mix(in srgb,var(--surface) 82%, rgba(255,212,95,.08)) 0%, color-mix(in srgb,var(--surface) 84%, rgba(255,97,56,.06)) 100%);
+}
+.balanceLabel{font-size:16px;letter-spacing:-.02em}
+.balanceValue{font-size:40px;font-weight:950;letter-spacing:-.05em;color:#C94222}
+body.dark .balanceValue{color:#FF7A58}
+.button{
+  margin-top:14px;height:58px;border:none;border-radius:20px;cursor:pointer;width:100%;
+  font-size:19px;font-weight:900;letter-spacing:-.02em;color:#fff;
+  background:linear-gradient(90deg,var(--accent) 0%, #FF6E42 68%, #FF8256 100%);
+  box-shadow:0 10px 24px rgba(255,97,56,.24);
+}
+.foot{margin-top:12px;color:var(--muted);font-size:12px;line-height:1.55}
+@media (max-width:420px){
+  .h1{font-size:30px}
+  .big{font-size:34px}
+  .chartArea{height:250px}
+}
+</style>
+</head>
+<body>
+<div class="phone">
+  <div class="top">
+    <div>
+      <div class="kicker">GARAGE</div>
+      <div class="h1">Citrus Split Sections</div>
+    </div>
+    <button class="themeBtn" id="themeBtn">☾</button>
+  </div>
+
+  <div class="stack">
+    <div class="card incomeCard">
+      <div class="rowTop">
+        <div>
+          <div class="cap">Total income</div>
+          <div class="big">$1,506</div>
+        </div>
+        <div class="delta">↗ 13%</div>
+      </div>
+
+      <div class="tabs">
+        <div class="tab on">Weekly</div>
+        <div class="tab">Monthly</div>
+        <div class="tab">Quarterly</div>
+        <div class="tab">Yearly</div>
+      </div>
+
+      <div class="chartArea">
+        <div class="chartGrid">
+          <div class="gridLine"></div>
+          <div class="gridLine"></div>
+          <div class="gridLine"></div>
+        </div>
+
+        <div class="bars">
+          <div class="barWrap"><div class="bar" style="height:72px"></div></div>
+          <div class="barWrap"><div class="bar" style="height:112px"></div></div>
+          <div class="barWrap"><div class="bar" style="height:82px"></div></div>
+          <div class="barWrap"><div class="bar" style="height:148px"></div></div>
+          <div class="barWrap"><div class="bar" style="height:126px"></div></div>
+          <div class="barWrap">
+            <div class="tag">$318</div>
+            <div class="bar selected" style="height:206px; position:relative">
+              <div class="spark" style="left:50%;top:22%"></div>
+              <div class="spark" style="left:34%;top:38%;width:7px;height:7px"></div>
+              <div class="spark" style="left:62%;top:50%;width:6px;height:6px"></div>
+              <div class="spark" style="left:44%;top:66%;width:7px;height:7px"></div>
+            </div>
+          </div>
+          <div class="barWrap"><div class="bar" style="height:174px"></div></div>
+        </div>
+
+        <div class="labels">
+          <span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span class="active">Sat</span><span>Sun</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card bottomCard">
+      <div class="row">
+        <div>
+          <div class="label">Payouts</div>
+          <div class="sub">Actual and pending payout totals.</div>
+        </div>
+        <div class="value">CA$0.00</div>
+      </div>
+
+      <div class="pillRow">
+        <div class="pill highlight">Final · CA$0.00</div>
+        <div class="pill">Estimated · CA$0.00</div>
+      </div>
+
+      <div class="hr"></div>
+
+      <div class="row">
+        <div>
+          <div class="label">Expenses</div>
+          <div class="sub">Tracked costs recorded under Vehicle expenses.</div>
+        </div>
+        <div class="value">CA$0.00</div>
+      </div>
+
+      <div class="hr"></div>
+
+      <div class="balanceBlock">
+        <div class="balanceLabel">Report balance</div>
+        <div class="row" style="padding:8px 0 0">
+          <div class="sub">Payouts minus recorded expenses.</div>
+          <div class="balanceValue">CA$0.00</div>
+        </div>
+      </div>
+
+      <button class="button">＋ Add expense</button>
+
+      <div class="foot">
+        Use this section as a compact report snapshot below the income tracker. It stays readable even when values are zero.
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const btn = document.getElementById('themeBtn');
+btn?.addEventListener('click', () => {
+  document.body.classList.toggle('dark');
+  btn.textContent = document.body.classList.contains('dark') ? '☀' : '☾';
+});
+</script>
+</body>
+</html>

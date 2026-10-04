@@ -250,7 +250,9 @@ class _OfferDetailSheet extends ConsumerWidget {
                         height: 1.1,
                         fontWeight: FontWeight.w600,
                         letterSpacing: -1,
-                        color: FoxColors.cream,
+                        color: cancelled && current.finalPayout != null
+                            ? FoxColors.feeText
+                            : FoxColors.cream,
                         fontFeatures: [FontFeature.tabularFigures()],
                       ),
                     ),

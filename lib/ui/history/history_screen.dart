@@ -1884,7 +1884,11 @@ class _OfferRow extends ConsumerWidget {
               fontFamily: FoxFonts.display,
               fontSize: 19,
               fontWeight: FontWeight.w700,
-              color: FoxColors.brandText,
+              color:
+                  offer.outcome == OfferOutcome.cancelled &&
+                      offer.finalPayout != null
+                  ? FoxColors.feeText
+                  : FoxColors.brandText,
               fontFeatures: [FontFeature.tabularFigures()],
             ),
           ),

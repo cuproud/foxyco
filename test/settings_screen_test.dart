@@ -486,6 +486,10 @@ void main() {
 
     expect(find.byKey(const ValueKey('add-vehicle')), findsOneWidget);
     expect(find.text('Add vehicle'), findsOneWidget);
+    expect(
+      tester.getTopLeft(find.text('VEHICLES')).dy,
+      lessThan(tester.getTopLeft(find.text('Income vs expenses')).dy),
+    );
   });
 
   testWidgets('vehicle expense editor keeps Save visible in its footer', (
