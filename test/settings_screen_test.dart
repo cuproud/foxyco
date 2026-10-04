@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:foxyco/domain/car_reminder.dart';
+import 'package:foxyco/domain/driver_profile.dart';
+import 'package:foxyco/domain/garage.dart';
 import 'package:foxyco/domain/vehicle_expense.dart';
 import 'package:foxyco/ui/settings/reminder_controller.dart';
 import 'package:foxyco/ui/settings/vehicle_expense_controller.dart';
@@ -21,6 +23,7 @@ import 'package:foxyco/domain/thresholds.dart';
 import 'package:foxyco/domain/verdict.dart';
 import 'package:foxyco/ui/settings/garage_controller.dart';
 import 'package:foxyco/ui/settings/garage_screen.dart';
+import 'package:foxyco/ui/settings/garage_section.dart';
 import 'package:foxyco/ui/settings/settings_controller.dart';
 import 'package:foxyco/ui/overlay/verdict_pill.dart';
 import 'package:foxyco/ui/rules/rules_screen.dart';
@@ -532,8 +535,30 @@ void main() {
       ..addFont(rootBundle.load('fonts/Inter.ttf'));
     await loader.load();
     addTearDown(() => FoxColors.apply(FoxPalette.dark));
-    for (final palette in [FoxPalette.light, FoxPalette.dark]) {
-      SharedPreferences.setMockInitialValues({});
+    for (final (width, palette) in [
+      for (final width in [320.0, 360.0])
+        for (final palette in [FoxPalette.light, FoxPalette.dark])
+          (width, palette),
+    ]) {
+      tester.view.physicalSize = Size(width, 800);
+      SharedPreferences.setMockInitialValues({
+        GarageController.prefsKey: jsonEncode(
+          const Garage(
+            vehicles: [
+              Vehicle(
+                id: 'crv',
+                year: '2026',
+                make: 'Honda',
+                model: 'CR-V',
+                plate: 'CXZH 772',
+                bodyType: VehicleType.suvComfort,
+                fuelType: FuelType.hybrid,
+              ),
+            ],
+            activeId: 'crv',
+          ).toJson(),
+        ),
+      });
       final container = ProviderContainer();
       container
           .read(reminderProvider.notifier)
@@ -573,6 +598,19 @@ void main() {
       );
       await tester.pumpAndSettle();
       expectNoLayoutError(tester, 'Garage ledger');
+      final vehicle = find.byType(VehicleCard);
+      expect(vehicle, findsOneWidget);
+      final image = tester.getRect(
+        find.descendant(of: vehicle, matching: find.byType(Image)),
+      );
+      final title = tester.getRect(
+        find.descendant(of: vehicle, matching: find.text('2026 Honda CR-V')),
+      );
+      expect(image.right, lessThan(title.left));
+      expect(
+        tester.getRect(vehicle).bottom,
+        lessThan(tester.getRect(find.text('Income')).top),
+      );
       await tester.ensureVisible(find.text('Maintenance reminders'));
       await tester.tap(find.text('Maintenance reminders'));
       await tester.pumpAndSettle();

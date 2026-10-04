@@ -1,5 +1,14 @@
 # Manual Test Log
 
+## Unreleased — selected Aurora bar refinement
+
+These checks apply to the workspace update after build 123.
+
+| # | Step | Expect | Pass |
+|---|---|---|---|
+| Aurora.1 | Garage → Income on 320–360 dp Android screens; select different bars and all four periods in both themes | Selected bar has mixed stationary light reflections, two larger four-point highlights, a soft inner glow and a small lift. Old/new selection effects fade smoothly. The amount bubble stays above its bar; chart colors, data and spacing are unchanged. | [ ] |
+| Aurora.2 | Enable Remove animations, repeat selections, then scroll to Vehicles | Four still reflections; no continuing pulses, clipping, text overflow or vehicle image/text overlap. | [ ] |
+
 ## Current candidate — `1.0.19+123` (2026-10-04)
 
 | # | Step | Expect | Pass |

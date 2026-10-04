@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -282,6 +281,7 @@ class _IncomeExpenseReportState extends State<IncomeExpenseReport> {
                     income: points.$1,
                     labels: points.$2,
                     selected: selected,
+                    periodKey: (_period, report.start),
                     money: _money,
                     onSelect: (index) => setState(() => _selectedIndex = index),
                   ),
@@ -371,11 +371,12 @@ class _IncomeExpenseReportState extends State<IncomeExpenseReport> {
   }
 }
 
-class _IncomeBars extends StatelessWidget {
+class _IncomeBars extends StatefulWidget {
   const _IncomeBars({
     required this.income,
     required this.labels,
     required this.selected,
+    required this.periodKey,
     required this.money,
     required this.onSelect,
   });
@@ -383,11 +384,66 @@ class _IncomeBars extends StatelessWidget {
   final List<double> income;
   final List<String> labels;
   final int selected;
+  final Object periodKey;
   final String Function(double) money;
   final ValueChanged<int> onSelect;
 
   @override
+  State<_IncomeBars> createState() => _IncomeBarsState();
+}
+
+class _IncomeBarsState extends State<_IncomeBars>
+    with SingleTickerProviderStateMixin {
+  // One clock survives bar selection, period changes and parent rebuilds.
+  // Individual reflections use their own durations and phase offsets.
+  static const _clockDuration = Duration(days: 1);
+  late final AnimationController _lightClock = AnimationController(
+    vsync: this,
+    duration: _clockDuration,
+    value: .000071,
+  );
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _syncMotion();
+  }
+
+  @override
+  void didUpdateWidget(covariant _IncomeBars oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _syncMotion();
+  }
+
+  void _syncMotion() {
+    final peak = math.max(1.0, widget.income.reduce(math.max));
+    final plotHeight = MediaQuery.textScalerOf(context).scale(1) > 1.5
+        ? 145.0
+        : 172.0;
+    final enabled =
+        TickerMode.valuesOf(context).enabled &&
+        !MediaQuery.disableAnimationsOf(context) &&
+        widget.income[widget.selected] / peak * plotHeight >= 55;
+    if (enabled && !_lightClock.isAnimating) {
+      _lightClock.repeat();
+    } else if (!enabled) {
+      _lightClock.stop();
+    }
+  }
+
+  @override
+  void dispose() {
+    _lightClock.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final income = widget.income;
+    final labels = widget.labels;
+    final selected = widget.selected;
+    final money = widget.money;
+    final onSelect = widget.onSelect;
     final peak = math.max(1.0, income.reduce(math.max));
     final plotHeight = MediaQuery.textScalerOf(context).scale(1) > 1.5
         ? 145.0
@@ -421,6 +477,7 @@ class _IncomeBars extends StatelessWidget {
                     right: 0,
                     bottom: 0,
                     child: Stack(
+                      clipBehavior: Clip.none,
                       children: [
                         for (final fraction in [.2, .5, .8])
                           Positioned(
@@ -452,83 +509,13 @@ class _IncomeBars extends StatelessWidget {
                                       ),
                                       child: Align(
                                         alignment: Alignment.bottomCenter,
-                                        child: Container(
-                                          constraints: const BoxConstraints(
-                                            maxWidth: 42,
-                                          ),
+                                        child: _IncomeBar(
+                                          index: i,
                                           height: barHeight(i),
-                                          decoration: BoxDecoration(
-                                            borderRadius:
-                                                const BorderRadius.vertical(
-                                                  top: Radius.circular(13),
-                                                  bottom: Radius.circular(4),
-                                                ),
-                                            gradient: LinearGradient(
-                                              begin: Alignment.topCenter,
-                                              end: Alignment.bottomCenter,
-                                              colors: income[i] == 0
-                                                  ? [
-                                                      FoxColors.border,
-                                                      FoxColors.border,
-                                                    ]
-                                                  : const [
-                                                      Color(0xFFFFD45F),
-                                                      Color(0xFFFFA065),
-                                                      Color(0xFF7CE4BB),
-                                                      Color(0xFF977EF0),
-                                                    ],
-                                            ),
-                                            border: Border.all(
-                                              color: i == selected
-                                                  ? const Color(0xFFFFD599)
-                                                  : Colors.transparent,
-                                            ),
-                                            boxShadow:
-                                                i == selected && income[i] > 0
-                                                ? [
-                                                    BoxShadow(
-                                                      color: const Color(
-                                                        0xFF7CE4BB,
-                                                      ).withValues(alpha: .25),
-                                                      blurRadius: 20,
-                                                    ),
-                                                  ]
-                                                : null,
-                                          ),
-                                          child: ClipRRect(
-                                            borderRadius:
-                                                const BorderRadius.vertical(
-                                                  top: Radius.circular(13),
-                                                  bottom: Radius.circular(4),
-                                                ),
-                                            child: AnimatedSwitcher(
-                                              duration:
-                                                  MediaQuery.disableAnimationsOf(
-                                                    context,
-                                                  )
-                                                  ? Duration.zero
-                                                  : const Duration(
-                                                      milliseconds: 280,
-                                                    ),
-                                              reverseDuration:
-                                                  MediaQuery.disableAnimationsOf(
-                                                    context,
-                                                  )
-                                                  ? Duration.zero
-                                                  : const Duration(
-                                                      milliseconds: 220,
-                                                    ),
-                                              child:
-                                                  i == selected &&
-                                                      barHeight(i) >= 55
-                                                  ? _BarSparkles(
-                                                      key: ValueKey(
-                                                        'sparkles-for-bar-$i',
-                                                      ),
-                                                    )
-                                                  : const SizedBox.expand(),
-                                            ),
-                                          ),
+                                          hasIncome: income[i] > 0,
+                                          selected: i == selected,
+                                          periodKey: widget.periodKey,
+                                          clock: _lightClock,
                                         ),
                                       ),
                                     ),
@@ -608,76 +595,116 @@ class _IncomeBars extends StatelessWidget {
   }
 }
 
-class _BarSparkles extends StatefulWidget {
-  const _BarSparkles({super.key});
+class _IncomeBar extends StatelessWidget {
+  const _IncomeBar({
+    required this.index,
+    required this.height,
+    required this.hasIncome,
+    required this.selected,
+    required this.periodKey,
+    required this.clock,
+  });
 
-  @override
-  State<_BarSparkles> createState() => _BarSparklesState();
-}
+  final int index;
+  final double height;
+  final bool hasIncome, selected;
+  final Object periodKey;
+  final Animation<double> clock;
 
-class _BarSparklesState extends State<_BarSparkles>
-    with SingleTickerProviderStateMixin {
-  static const _pulseLength = Duration(milliseconds: 4600);
-  late final AnimationController _controller;
-  Timer? _restartTimer;
-  bool _motionEnabled = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(vsync: this, duration: _pulseLength)
-      ..addStatusListener((status) {
-        if (status != AnimationStatus.completed || !_motionEnabled) return;
-        _restartTimer = Timer(const Duration(milliseconds: 260), () {
-          _restartTimer = null;
-          if (mounted && _motionEnabled) _controller.forward(from: 0);
-        });
-      });
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    final enabled =
-        TickerMode.valuesOf(context).enabled &&
-        !MediaQuery.disableAnimationsOf(context);
-    if (enabled == _motionEnabled) return;
-    _motionEnabled = enabled;
-    if (enabled) {
-      _controller.forward(from: 0);
-    } else {
-      _restartTimer?.cancel();
-      _restartTimer = null;
-      _controller.stop();
-    }
-  }
-
-  @override
-  void dispose() {
-    _restartTimer?.cancel();
-    _controller.dispose();
-    super.dispose();
-  }
+  static const _radius = BorderRadius.vertical(
+    top: Radius.circular(13),
+    bottom: Radius.circular(4),
+  );
 
   @override
   Widget build(BuildContext context) {
     final reducedMotion = MediaQuery.disableAnimationsOf(context);
-    return RepaintBoundary(
-      child: AnimatedBuilder(
-        animation: _controller,
-        builder: (context, _) => LayoutBuilder(
-          builder: (context, size) => CustomPaint(
-            key: const Key('selected-bar-sparkles'),
-            size: Size(size.maxWidth, size.maxHeight),
-            painter: _SparklePainter(
-              _controller.value,
-              reducedMotion: reducedMotion,
+    final duration = reducedMotion
+        ? Duration.zero
+        : const Duration(milliseconds: 280);
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: selected ? 1 : 0),
+      duration: duration,
+      curve: Curves.easeOutCubic,
+      child: ClipRRect(
+        key: ValueKey('income-bar-clip-$index'),
+        borderRadius: _radius,
+        child: AnimatedSwitcher(
+          duration: duration,
+          reverseDuration: reducedMotion
+              ? Duration.zero
+              : const Duration(milliseconds: 220),
+          child: selected && height >= 55
+              ? _BarSparkles(
+                  key: ValueKey((periodKey, index)),
+                  clock: clock,
+                  reducedMotion: reducedMotion,
+                )
+              : const SizedBox.expand(),
+        ),
+      ),
+      builder: (context, selection, child) => Transform.scale(
+        key: ValueKey('income-bar-lift-$index'),
+        scale: 1 + .025 * selection,
+        alignment: Alignment.bottomCenter,
+        child: Container(
+          key: ValueKey('income-bar-fill-$index'),
+          constraints: const BoxConstraints(maxWidth: 42),
+          height: height,
+          decoration: BoxDecoration(
+            borderRadius: _radius,
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: hasIncome
+                  ? const [
+                      Color(0xFFFFD45F),
+                      Color(0xFFFFA065),
+                      Color(0xFF7CE4BB),
+                      Color(0xFF977EF0),
+                    ]
+                  : [FoxColors.border, FoxColors.border],
             ),
+            border: Border.all(
+              color: const Color(0xFFFFD599).withValues(alpha: selection),
+            ),
+            boxShadow: hasIncome && selection > 0
+                ? [
+                    BoxShadow(
+                      color: const Color(
+                        0xFF7CE4BB,
+                      ).withValues(alpha: .25 * selection),
+                      blurRadius: 20,
+                    ),
+                  ]
+                : null,
           ),
+          child: child,
         ),
       ),
     );
   }
+}
+
+class _BarSparkles extends StatelessWidget {
+  const _BarSparkles({
+    super.key,
+    required this.clock,
+    required this.reducedMotion,
+  });
+
+  final Animation<double> clock;
+  final bool reducedMotion;
+
+  @override
+  Widget build(BuildContext context) => RepaintBoundary(
+    child: SizedBox.expand(
+      child: CustomPaint(
+        key: const Key('selected-bar-sparkles'),
+        painter: _SparklePainter(clock, reducedMotion: reducedMotion),
+      ),
+    ),
+  );
 }
 
 class _SparkleSpec {
@@ -685,69 +712,104 @@ class _SparkleSpec {
     this.x,
     this.y,
     this.size,
-    this.delayMs,
+    this.phaseOffset,
+    this.scaleOffset,
     this.durationMs,
     this.star,
   );
 
   final double x, y, size;
-  final int delayMs, durationMs;
+  final double phaseOffset, scaleOffset;
+  final int durationMs;
   final bool star;
 }
 
 class _SparklePainter extends CustomPainter {
-  const _SparklePainter(this.progress, {required this.reducedMotion});
+  _SparklePainter(this.clock, {required this.reducedMotion})
+    : super(repaint: reducedMotion ? null : clock);
 
-  final double progress;
+  final Animation<double> clock;
   final bool reducedMotion;
 
   static const _sparkles = [
-    _SparkleSpec(.27, .19, 8.6, 0, 2100, true),
-    _SparkleSpec(.69, .32, 3.0, 420, 1800, false),
-    _SparkleSpec(.43, .47, 4.2, 1030, 2400, false),
-    _SparkleSpec(.72, .66, 7.0, 1580, 2700, true),
-    _SparkleSpec(.30, .82, 3.4, 2200, 2200, false),
+    _SparkleSpec(.28, .13, 9.0, .11, .08, 2100, true),
+    _SparkleSpec(.72, .26, 2.4, .57, .19, 1800, false),
+    _SparkleSpec(.38, .38, 3.2, .29, -.10, 2400, false),
+    _SparkleSpec(.68, .51, 4.1, .83, .14, 2600, false),
+    _SparkleSpec(.30, .65, 7.4, .46, -.07, 2800, true),
+    _SparkleSpec(.70, .77, 2.8, .07, .23, 2200, false),
+    _SparkleSpec(.39, .89, 3.6, .71, -.13, 2500, false),
   ];
 
   @override
   void paint(Canvas canvas, Size size) {
-    canvas.save();
-    canvas.clipRRect(
-      RRect.fromRectAndCorners(
-        Offset.zero & size,
-        topLeft: const Radius.circular(13),
-        topRight: const Radius.circular(13),
-        bottomLeft: const Radius.circular(4),
-        bottomRight: const Radius.circular(4),
-      ),
+    final rect = Offset.zero & size;
+    final rounded = RRect.fromRectAndCorners(
+      rect,
+      topLeft: const Radius.circular(13),
+      topRight: const Radius.circular(13),
+      bottomLeft: const Radius.circular(4),
+      bottomRight: const Radius.circular(4),
     );
-    final elapsedMs = progress * 4600;
-    for (var i = 0; i < (reducedMotion ? 4 : _sparkles.length); i++) {
-      final sparkle = _sparkles[i];
+    canvas.save();
+    canvas.clipRRect(rounded);
+    // A narrow inner rim makes the selected gradient read as illuminated glass.
+    canvas.drawRect(
+      rect,
+      Paint()
+        ..shader = LinearGradient(
+          colors: [
+            Colors.white.withValues(alpha: .26),
+            Colors.white.withValues(alpha: .06),
+            Colors.white.withValues(alpha: 0),
+            Colors.white.withValues(alpha: .12),
+            Colors.white.withValues(alpha: .22),
+          ],
+          stops: const [0, .15, .50, .80, 1],
+        ).createShader(rect),
+    );
+    canvas.drawRRect(
+      rounded.deflate(.7),
+      Paint()
+        ..color = Colors.white.withValues(alpha: .28)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = .7,
+    );
+    final elapsedMs =
+        clock.value * _IncomeBarsState._clockDuration.inMilliseconds;
+    final reflections = reducedMotion
+        ? [_sparkles[0], _sparkles[2], _sparkles[4], _sparkles[6]]
+        : _sparkles;
+    for (final sparkle in reflections) {
       double opacity;
       double scale;
       if (reducedMotion) {
-        opacity = const [.38, .30, .24, .34][i];
-        scale = const [.72, .80, .70, .76][i];
+        opacity = sparkle.star ? .65 : .48;
+        scale = sparkle.star ? .85 : .90;
       } else {
-        final phase = (elapsedMs - sparkle.delayMs) / sparkle.durationMs;
-        if (phase <= 0 || phase >= 1) continue;
-        if (phase < .32) {
-          final rise = Curves.easeOut.transform(phase / .32);
-          opacity = .9 * rise;
-          scale = .45 + .55 * rise;
-        } else if (phase < .72) {
-          final fall = (phase - .32) / .40;
-          opacity = .9 - .55 * fall;
-          scale = 1 - .20 * fall;
+        final phase =
+            (elapsedMs / sparkle.durationMs + sparkle.phaseOffset) % 1;
+        if (phase < .16) {
+          opacity = .9 * Curves.easeOut.transform(phase / .16);
+        } else if (phase < .83) {
+          opacity = .9 - .55 * (phase - .16) / .67;
         } else {
-          final tail = (phase - .72) / .28;
-          opacity = .35 * (1 - tail);
-          scale = .80 - .15 * tail;
+          opacity = .35 * (1 - (phase - .83) / .17);
+        }
+        // Scale has its own phase, so brightness and size don't peak together.
+        final scalePhase = (phase + sparkle.scaleOffset) % 1;
+        if (scalePhase < .38) {
+          scale = .45 + .55 * Curves.easeOut.transform(scalePhase / .38);
+        } else if (scalePhase < .88) {
+          scale =
+              1 - .35 * Curves.easeInOut.transform((scalePhase - .38) / .50);
+        } else {
+          scale =
+              .65 - .20 * Curves.easeInOut.transform((scalePhase - .88) / .12);
         }
       }
       final center = Offset(size.width * sparkle.x, size.height * sparkle.y);
-      final extent = sparkle.size * scale / 2;
+      final extent = sparkle.size * scale * math.min(1, size.width / 24) / 2;
       final glowRadius = extent * 2.3;
       canvas.drawCircle(
         center,
@@ -785,8 +847,7 @@ class _SparklePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _SparklePainter oldDelegate) =>
-      progress != oldDelegate.progress ||
-      reducedMotion != oldDelegate.reducedMotion;
+      clock != oldDelegate.clock || reducedMotion != oldDelegate.reducedMotion;
 }
 
 class _SnapshotCard extends StatelessWidget {

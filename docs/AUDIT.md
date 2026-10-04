@@ -7,6 +7,22 @@ Candidate: `1.0.19+123`
 Play upload remains conditional on the device and
 Console checks in `MANUAL_TESTS.md` and `PLAY_RELEASE.md`.
 
+## Unreleased — selected Aurora bar refinement
+
+- Reviewed `Screen_Recording_20261004_173310.mp4`: the prior shared reflection
+  cycle left most highlights absent between pulses.
+- Selected bars now have seven mixed fixed reflections, independent repeating
+  opacity/scale phases, a clipped inner glow, and a 2.5% lift. The shared clock
+  persists through selections and parent rebuilds; only the effect repaints.
+- Chart data, period grouping, value bubbles, gradient colors, unselected bars
+  and surrounding card spacing are preserved.
+- Widget checks cover 320/360 dp, both themes, normal/2× text and all four
+  periods, rounded-mask pixels, selection fades, stable widget identities and
+  reduced motion. The populated Garage card also has separate image/text bounds.
+- Flutter analysis and 55 focused chart, Garage and navigation tests passed.
+  Rendered compact-screen captures and a selection animation were reviewed.
+- This workspace update is not included in the build 123 artifact below.
+
 ## Build 123 — Play upload rebuild
 
 - Build code advances from 122 to 123 because build 122 has already been

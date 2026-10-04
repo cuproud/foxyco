@@ -113,9 +113,15 @@ Play's declaration, prominent disclosure, consent flow, and review video.
   collapsed panel. The acceptance rate and offer-quality split use captured
   offers; jobs taken and earnings include manual work. History's captured-offer
   acceptance percentage uses the same denominator and labels mixed offers and
-  manual jobs as records. Garage's income/expense report rolls up History
-  payouts and manually recorded vehicle expenses by selected month,
-  quarter, or year; the displayed balance is not taxable profit.
+  manual jobs as records. Garage's Income chart rolls up History payouts by
+  selected week, month, quarter, or year; expenses stay in the separate payout
+  snapshot, and the displayed balance is not taxable profit.
+- Garage's selected Aurora bar has seven fixed reflections with mixed sizes,
+  two four-point highlights, independent 1.8–2.8 second opacity/scale phases,
+  an inner glow, and a 2.5% lift. Selection effects cross-fade inside the rounded
+  mask. A shared clock survives bar/period changes and parent rebuilds;
+  CustomPainter repaints the effect without rebuilding the chart each frame.
+  Reduced motion shows four still reflections.
 - System text scale plus the in-app text multiplier is capped at 2×; focused
   widget tests cover narrow screens, large text, scrollability, and overlay
   geometry.
