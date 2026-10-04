@@ -1,6 +1,6 @@
 # Manual Test Log
 
-## Current candidate — `1.0.19+122` (2026-10-04)
+## Current candidate — `1.0.19+123` (2026-10-04)
 
 | # | Step | Expect | Pass |
 |---|---|---|---|
@@ -9,6 +9,7 @@
 | R122.3 | With Watching active, hand off from Uber and Lyft to Google Maps and Waze separately | Bubble stays circular and draggable; no grey square. Diagnostics include `navigation-window-state app=google-maps` or `app=waze`, a `window-refresh-finish source=window-state`, and a follow-up `window-refresh-finish source=navigation-retry` about 30 seconds later while the resting bubble is visible. Watching and verdicts continue. | [ ] |
 | R122.4 | If a grey mask appears during either navigation handoff | Record the exact time and copy Diagnostics before restarting Watching. Note whether it clears after the 30-second retry. | [ ] |
 | R122.5 | History → accepted offer with no final payout → Add final | Fare before tip is prefilled with the upfront fare and remains editable; entering a tip adds it once to the saved final payout. | [ ] |
+| R123.1 | Install build 123 from Play Internal testing; open Settings → About | Shows `1.0.19 (build 123)`; History fare prefill and Garage income chart behavior remain available. | [ ] |
 | R117.1 | Install build 117 from the Play test track; open Settings → About | Shows `1.0.19 (build 117)`; Watching and the bubble start normally. |
 | R117.2 | With Watching active, launch external Google Maps from Uber and Lyft | Bubble stays circular and draggable; no grey mask. Diagnostics show `maps-window-state`, `surface-refresh-start source=window-state`, and a matching `surface-refresh-finish` with created/destroyed counts. |
 | R117.3 | Leave the resting bubble visible for over five minutes; show a real offer before and after | Diagnostics show `surface-refresh-start source=periodic`; the session and verdict delivery continue. A visible verdict pill is not interrupted by the timer. |

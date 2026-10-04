@@ -2,10 +2,25 @@
 
 Audit date: 2026-10-04
 
-Candidate: `1.0.19+122`
+Candidate: `1.0.19+123`
 
 Play upload remains conditional on the device and
 Console checks in `MANUAL_TESTS.md` and `PLAY_RELEASE.md`.
+
+## Build 123 — Play upload rebuild
+
+- Build code advances from 122 to 123 because build 122 has already been
+  uploaded to Play Console. Version name remains `1.0.19`.
+- Includes the build 122 changes and the History final-earnings editor fare
+  prefill documented below.
+- `pubspec.yaml` and About both report build 123.
+- Release preflight passed Flutter analysis, Flutter tests, and Firestore rules
+  tests. `jarsigner` reports `jar verified`.
+- Play Console upload and device checks remain pending.
+
+Verified artifact: `FoxyCo-v1.0.19+123-release-20261004-1722.aab`
+
+SHA-256: `59ac57499e3cae9e15dbf9beafe6ef1ccf89a4668444c1f5a10b49d5581adc98`
 
 ## Build 122 — navigation recovery and visual polish
 
