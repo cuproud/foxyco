@@ -2,10 +2,36 @@
 
 Audit date: 2026-10-04
 
-Candidate: `1.0.19+121`
+Candidate: `1.0.19+122`
 
 Play upload remains conditional on the device and
 Console checks in `MANUAL_TESTS.md` and `PLAY_RELEASE.md`.
+
+## Build 122 — navigation recovery and visual polish
+
+- Garage labels its report Income. The selected bar keeps five fixed-position
+  reflections with staggered opacity and scale pulses, two larger four-point
+  stars, clipped glow, and a fade between selected bars. Reduced motion shows
+  four still reflections.
+- The splash no longer paints the exhaust oval that appeared as a dark patch
+  beside the car. The phone's own edge-panel handle is outside this scene.
+- Google Maps and Waze window-state events can recreate the parent overlay
+  window on handoff. A single follow-up refresh runs about 30 seconds later
+  while the resting bubble is visible; a verdict pill defers it. The existing
+  five-minute idle fallback remains. Navigation content is never copied or
+  parsed as an offer. The disclosure and release wording now name both apps.
+- Version code advances from 121 to 122; version name remains `1.0.19`.
+  `pubspec.yaml` and About both report build 122.
+- Guarded release preflight passed full Flutter analysis, the full Flutter
+  suite, and Firestore rules tests. The signed AAB was built with the Play
+  licensing key. `jarsigner` reports `jar verified` with the existing
+  self-signed upload certificate and standard bundle warnings.
+- The Samsung mask recovery remains a physical-device check. Play Console
+  acceptance and other device checks remain pending.
+
+Verified artifact: `FoxyCo-v1.0.19+122-release-20261004-1302.aab`
+
+SHA-256: `fefbab2ed7aa868697b77c1222580cbe968432430fbb16a5dc1b322e42c9bc3f`
 
 ## Build 121 — Garage report polish
 

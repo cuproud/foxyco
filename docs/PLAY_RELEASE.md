@@ -1,6 +1,6 @@
 # Google Play release runbook
 
-Updated 2026-10-04 for `1.0.19+121`.
+Updated 2026-10-04 for `1.0.19+122`.
 
 ## Before building
 
@@ -55,8 +55,8 @@ Use this implementation-accurate purpose statement:
 > driver selects Uber on Android 11 or newer, a selected-app event can trigger
 > one rate-limited Accessibility screenshot for on-device Uber OCR. Screenshots
 > and raw text are immediately discarded and are never saved or sent. FoxyCo
-> also receives Google Maps window-state events to refresh its floating bubble;
-> it does not read Maps content. FoxyCo never taps, accepts, declines, or
+> also receives Google Maps and Waze window-state events to refresh its floating bubble;
+> it does not read navigation content. FoxyCo never taps, accepts, declines, or
 > controls another app.
 
 The review video must show the app opening, the full in-app disclosure, **Not

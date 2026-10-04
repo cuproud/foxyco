@@ -343,8 +343,8 @@ void main() {
       find.byKey(const Key('maintenance-reminders-section')),
       findsOneWidget,
     );
-    await tester.ensureVisible(find.text('Income vs expenses'));
-    await tester.tap(find.text('Income vs expenses'));
+    await tester.ensureVisible(find.text('Income'));
+    await tester.tap(find.text('Income'));
     await beat(tester);
     await tester.ensureVisible(find.text('Maintenance reminders'));
     await tester.tap(find.text('Maintenance reminders'));

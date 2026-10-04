@@ -24,6 +24,7 @@ void main() {
     expect(packages, {
       ...ParserRegistry.watchedPackages,
       'com.google.android.apps.maps',
+      'com.waze',
     });
     expect(config, isNot(contains('android:canPerformGestures')));
     expect(config, contains('android:canTakeScreenshot="true"'));

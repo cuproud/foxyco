@@ -85,11 +85,15 @@ public class OverlayService extends Service implements View.OnTouchListener {
     private int surfaceCreatedCount;
     private int surfaceDestroyedCount;
     private String capturePackage = "";
-    private long lastMapsSignalLogAt = -30000;
+    private long lastNavigationSignalLogAt = -30000;
+    private String lastNavigationApp = "";
     private long lastCornerCheckAt = -10000;
     private static final long PERIODIC_SURFACE_REFRESH_MS = 5 * 60 * 1000;
+    private static final long NAVIGATION_RETRY_MS = 30 * 1000;
     private static final long PILL_REFRESH_RETRY_MS = 30 * 1000;
     private long lastSurfaceRefreshAt = -PERIODIC_SURFACE_REFRESH_MS;
+    private boolean navigationRetryPending;
+    private final Runnable navigationRetry = this::retryNavigationWindow;
     /// Bubble X remembered while the pill holds a centered window.
     private int savedRestX = Integer.MIN_VALUE;
     private boolean cornerCheckBusy;
@@ -106,7 +110,8 @@ public class OverlayService extends Service implements View.OnTouchListener {
             current.capturePackage = packageName;
             current.traceWindow("capture-context", current.flutterView == null ? null
                     : (WindowManager.LayoutParams) current.flutterView.getLayoutParams());
-            if ("com.google.android.apps.maps".equals(packageName)) {
+            if ("com.google.android.apps.maps".equals(packageName) ||
+                    "com.waze".equals(packageName)) {
                 current.refreshSurface("ocr");
             }
             current.scheduleCornerCheck();
@@ -116,16 +121,19 @@ public class OverlayService extends Service implements View.OnTouchListener {
         }
     }
 
-    /** Maps window-state events reach here even when no driver event starts OCR. */
-    public static void onMapsWindowOpened() {
+    /** Navigation window-state events arrive even when no driver event starts OCR. */
+    public static void onNavigationWindowOpened(String app) {
         OverlayService current = instance;
         if (current == null) return;
         long now = SystemClock.elapsedRealtime();
-        if (now - current.lastMapsSignalLogAt >= 30000) {
-            current.lastMapsSignalLogAt = now;
-            current.traceDiagnostic("g=" + current.generation + " event=maps-window-state");
+        if (!app.equals(current.lastNavigationApp) ||
+                now - current.lastNavigationSignalLogAt >= 30000) {
+            current.lastNavigationSignalLogAt = now;
+            current.lastNavigationApp = app;
+            current.traceDiagnostic("g=" + current.generation + " event=navigation-window-state app=" + app);
         }
         current.refreshSurface("window-state");
+        current.scheduleNavigationRetry();
     }
 
     /** Clear FoxyCo's visible window from an in-memory OCR screenshot. */
@@ -237,6 +245,8 @@ public class OverlayService extends Service implements View.OnTouchListener {
         surfaceRevision++;
         mAnimationHandler.removeCallbacks(cornerCheck);
         mAnimationHandler.removeCallbacks(periodicSurfaceRefresh);
+        mAnimationHandler.removeCallbacks(navigationRetry);
+        navigationRetryPending = false;
         if (manager != null && view != null) {
             try {
                 manager.removeView(view);
@@ -624,6 +634,30 @@ public class OverlayService extends Service implements View.OnTouchListener {
     private void schedulePeriodicSurfaceRefresh(long delayMs) {
         mAnimationHandler.removeCallbacks(periodicSurfaceRefresh);
         mAnimationHandler.postDelayed(periodicSurfaceRefresh, delayMs);
+    }
+
+    private void scheduleNavigationRetry() {
+        if (navigationRetryPending) return;
+        navigationRetryPending = true;
+        mAnimationHandler.postDelayed(navigationRetry, NAVIGATION_RETRY_MS);
+    }
+
+    private void retryNavigationWindow() {
+        if (instance != this) return;
+        if (savedRestX != Integer.MIN_VALUE) {
+            // Keep a visible verdict intact; retry once the resting bubble returns.
+            mAnimationHandler.postDelayed(navigationRetry, PILL_REFRESH_RETRY_MS);
+            return;
+        }
+        long sinceRefresh = SystemClock.elapsedRealtime() - lastSurfaceRefreshAt;
+        if (sinceRefresh < 3000) {
+            // A nearby navigation signal used the window-refresh cooldown.
+            // Let the follow-up run just after it instead of dropping it.
+            mAnimationHandler.postDelayed(navigationRetry, 3000 - sinceRefresh);
+            return;
+        }
+        navigationRetryPending = false;
+        refreshSurface("navigation-retry");
     }
 
     /** Recreate the parent window when available; child-only surface refreshes

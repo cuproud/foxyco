@@ -1,7 +1,8 @@
 # Offer Detection and Verdict Logic
 
-Canonical implementation map for `1.0.19+121`, verified against the code on
-2026-10-04. Offer detection behavior is unchanged in build 121.
+Canonical implementation map for `1.0.19+122`, verified against the code on
+2026-10-04. Build 122 extends Google Maps window-state recovery to Waze and
+adds a follow-up refresh; offer detection behavior is unchanged.
 
 ## Maintenance contract
 
@@ -52,10 +53,12 @@ FoxyCo never presses Accept, Match, Reserve, or any other driver-app control.
 ### Android scope
 
 The Accessibility service receives window state/content/window-list events
-from the driver packages below and Google Maps. Maps events are
-filtered in native code before event copying or node traversal; only a Maps
-window-state event may request an overlay window refresh. No Maps text, nodes,
-or screenshots are sent to Dart or used for offer detection.
+from the driver packages below plus Google Maps (`com.google.android.apps.maps`)
+and Waze (`com.waze`). Navigation events are filtered in native code before
+event copying or node traversal; their window-state events request an overlay
+window refresh. An already-requested OCR capture can also signal a navigation
+context change. No navigation text, nodes, or screenshots are sent to Dart or
+used for offer detection.
 
 | Platform | Android package | Parser status |
 | --- | --- | --- |
@@ -67,15 +70,15 @@ or screenshots are sent to Dart or used for offer detection.
 | Skip | `com.delco.courier` | Beta; public/official-card seeded |
 
 The driver package list is duplicated deliberately in `ParserRegistry`; tests
-must keep the registry and Android XML in sync, with Maps as the sole additional
-package. Settings allow at most three selected
+must keep the registry and Android XML in sync, with those two navigation apps
+as the only additional packages. Settings allow at most three selected
 apps. An event from an unselected platform is dropped before parsing.
 
-FoxyCo subscribes to Maps only for this overlay recovery signal and ignores its
-content and window-list events. It does not subscribe to video or other
-unrelated apps. OCR is event-triggered rather than continuously polling
-the screen, so an Uber card that appears while Google Maps, Android Auto, or a
-video app is active may not be captured until a selected driver app emits an
+FoxyCo subscribes to Google Maps and Waze only for this overlay recovery signal
+and ignores their content and window-list events. It does not subscribe to video
+or other unrelated apps. OCR is event-triggered rather than continuously polling
+the screen, so an Uber card that appears while Google Maps, Waze, Android Auto,
+or a video app is active may not be captured until a selected driver app emits an
 event. This narrow scope is intentional: broad screen monitoring would increase
 battery use and expose unrelated on-screen content.
 
@@ -469,21 +472,23 @@ synthetic no-card marker from recognized offer text; stale results include
 generation, invalidation reason, line count, no-card flag, and elapsed time.
 Capture cadence, generation guards, parser routing, and outcomes are unchanged.
 
-On a Google Maps window-state event, or a sampled Maps OCR capture-context
+On a Google Maps or Waze window-state event, or a sampled navigation OCR capture-context
 change, FoxyCo recreates the parent overlay window while keeping the same
 Flutter engine and Watching state. The recorded device video shows an opaque
 square even when FoxyCo's sampled SurfaceView pixels are transparent and child
 surface refreshes complete, so a child-only refresh is insufficient. Native
-diagnostics record window-refresh start, finish, and any error. A Maps
-window-state signal is recorded at most once per 30 seconds even when its
-refresh is skipped. Repeated Maps signals within three
-seconds are coalesced. The engine, position, pill, and Watching
-state remain active. Other app switches remain diagnostic-only. This automates
+diagnostics record window-refresh start, finish, and any error. A navigation
+window-state signal is recorded by app at most once per 30 seconds even when its
+refresh is skipped. Repeated navigation signals within three seconds are
+coalesced. One follow-up window refresh runs about 30 seconds after the first
+handoff signal; a visible verdict pill defers it in 30-second steps until the
+resting bubble returns. The engine, position, pill, and Watching state remain
+active. Other app switches remain diagnostic-only. This automates
 the window recreation that cleared the Samsung grey mask without
 restarting the service. As a safety net, the overlay service also recreates the
 window after five minutes without a refresh while the bubble is resting.
 It retries after 30 seconds if a verdict pill is visible or the surface is
-temporarily hidden; Maps-triggered refreshes reset the five-minute timer. This
+temporarily hidden; navigation-triggered refreshes reset the five-minute timer. This
 is preventive because transparent pixels in FoxyCo's own surface cannot reveal
 a grey mask introduced later by the system compositor. The foreground service
 and Watching state remain active throughout. Surface/visibility and

@@ -129,7 +129,6 @@ class _SplashScene extends StatelessWidget {
                   painter: _SeasonPainter(
                     season: season,
                     progress: progress,
-                    entrance: entrance,
                   ),
                 ),
               ),
@@ -239,12 +238,10 @@ class _SeasonPainter extends CustomPainter {
   const _SeasonPainter({
     required this.season,
     required this.progress,
-    required this.entrance,
   });
 
   final _SplashSeason season;
   final double progress;
-  final double entrance;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -252,7 +249,6 @@ class _SeasonPainter extends CustomPainter {
     canvas.scale(size.width / 360, size.height / 660);
     _paintLandscape(canvas);
     _paintWeather(canvas);
-    _paintSmoke(canvas);
     _paintBushes(canvas);
     canvas.restore();
   }
@@ -380,25 +376,6 @@ class _SeasonPainter extends CustomPainter {
           paint.color = const Color(0x44658A9C);
           canvas.drawLine(Offset(x, y), Offset(x - 3, y - 10), paint);
       }
-    }
-  }
-
-  void _paintSmoke(Canvas canvas) {
-    if (progress < 0.12 || progress > 0.92) return;
-    final local = ((progress - 0.12) / 0.8).clamp(0.0, 1.0);
-    final carX = (1 - entrance) * 414;
-    for (var i = 0; i < 9; i++) {
-      final phase = (local - i * 0.045).clamp(0.0, 1.0);
-      if (phase == 0) continue;
-      final alpha = math.sin(phase * math.pi) * 0.24;
-      canvas.drawOval(
-        Rect.fromCenter(
-          center: Offset(326 + carX + phase * 34, 368 - phase * (18 + i)),
-          width: 24 + phase * 58,
-          height: 14 + phase * 38,
-        ),
-        Paint()..color = const Color(0xFF746D64).withValues(alpha: alpha),
-      );
     }
   }
 

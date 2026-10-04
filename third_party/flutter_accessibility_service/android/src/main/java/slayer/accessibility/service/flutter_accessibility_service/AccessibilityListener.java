@@ -58,7 +58,8 @@ public class AccessibilityListener extends AccessibilityService {
     // extra node scan + per-window getRoot() IPC on every a11y event — keep
     // OFF outside active parser debugging.
     private static final boolean DEBUG_WALK = false;
-    private static final String MAPS_PACKAGE = "com.google.android.apps.maps";
+    private static final String GOOGLE_MAPS_PACKAGE = "com.google.android.apps.maps";
+    private static final String WAZE_PACKAGE = "com.waze";
     private static WindowManager mWindowManager;
     private static FlutterView mOverlayView;
     static private boolean isOverlayShown = false;
@@ -135,13 +136,16 @@ public class AccessibilityListener extends AccessibilityService {
     @RequiresApi(api = Build.VERSION_CODES.N)
     @Override
     public void onAccessibilityEvent(AccessibilityEvent accessibilityEvent) {
-        // Maps has no offer data. Its window-state event is the reliable handoff
-        // signal when OCR is idle; do not copy, traverse, poll or broadcast its
-        // accessibility content. Only the overlay service sees this package.
+        // Navigation apps have no offer data. A window-state event signals a
+        // handoff even when OCR is idle; never copy, traverse, poll or broadcast
+        // their accessibility content. Only the overlay service sees the app.
         CharSequence sourcePackage = accessibilityEvent.getPackageName();
-        if (sourcePackage != null && MAPS_PACKAGE.contentEquals(sourcePackage)) {
+        if (sourcePackage != null &&
+                (GOOGLE_MAPS_PACKAGE.contentEquals(sourcePackage) ||
+                        WAZE_PACKAGE.contentEquals(sourcePackage))) {
             if (accessibilityEvent.getEventType() == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
-                sMain.post(() -> notifyMapsWindowOpened());
+                final String app = WAZE_PACKAGE.contentEquals(sourcePackage) ? "waze" : "google-maps";
+                sMain.post(() -> notifyNavigationWindowOpened(app));
             }
             return;
         }
@@ -160,13 +164,13 @@ public class AccessibilityListener extends AccessibilityService {
         }
     }
 
-    private static void notifyMapsWindowOpened() {
+    private static void notifyNavigationWindowOpened(String app) {
         try {
             Class<?> overlay = Class.forName(
                     "flutter.overlay.window.flutter_overlay_window.OverlayService");
-            overlay.getMethod("onMapsWindowOpened").invoke(null);
+            overlay.getMethod("onNavigationWindowOpened", String.class).invoke(null, app);
         } catch (ReflectiveOperationException error) {
-            Log.w("FOXYCO_OVERLAY", "Maps surface refresh unavailable");
+            Log.w("FOXYCO_OVERLAY", "Navigation surface refresh unavailable");
         }
     }
 

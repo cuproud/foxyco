@@ -309,7 +309,7 @@ class _IncomeExpenseSection extends StatelessWidget {
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
       Text(
-        'Income vs expenses',
+        'Income',
         style: Theme.of(
           context,
         ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),

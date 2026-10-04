@@ -488,7 +488,7 @@ void main() {
     expect(find.text('Add vehicle'), findsOneWidget);
     expect(
       tester.getTopLeft(find.text('VEHICLES')).dy,
-      lessThan(tester.getTopLeft(find.text('Income vs expenses')).dy),
+      lessThan(tester.getTopLeft(find.text('Income')).dy),
     );
   });
 

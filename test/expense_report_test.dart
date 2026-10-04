@@ -137,6 +137,8 @@ void main() {
         .painter!;
     expect(nextSparkleFrame.shouldRepaint(firstSparkleFrame), isTrue);
     await tester.tap(find.byKey(const ValueKey('income-bar-0')));
+    await tester.pump();
+    expect(find.byKey(const Key('selected-bar-sparkles')), findsNWidgets(2));
     await tester.pumpAndSettle();
     expect(find.text('\$80.00'), findsWidgets);
     expect(find.byKey(const Key('selected-bar-sparkles')), findsOneWidget);
@@ -179,6 +181,38 @@ void main() {
     await tester.tap(find.text('Add expense'));
     expect(added, isTrue);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('reduced motion keeps selected-bar reflections still', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MediaQuery(
+          data: const MediaQueryData(disableAnimations: true),
+          child: Scaffold(
+            body: SingleChildScrollView(
+              child: IncomeExpenseReport(
+                offers: offers,
+                expenses: expenses,
+                currency: '\$',
+                initialDate: date,
+                onAdd: () {},
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    final first = tester
+        .widget<CustomPaint>(find.byKey(const Key('selected-bar-sparkles')))
+        .painter!;
+    await tester.pump(const Duration(seconds: 3));
+    final later = tester
+        .widget<CustomPaint>(find.byKey(const Key('selected-bar-sparkles')))
+        .painter!;
+    expect(later.shouldRepaint(first), isFalse);
+    expect(tester.binding.hasScheduledFrame, isFalse);
   });
   testWidgets('weekly income change compares with the previous week', (
     tester,
