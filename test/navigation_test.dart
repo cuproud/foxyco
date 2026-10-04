@@ -291,6 +291,21 @@ void main() {
     expect(find.byType(LogsScreen), findsOneWidget);
   });
 
+  testWidgets('Garage header plus opens the vehicle editor', (tester) async {
+    phone(tester);
+    final container = scope();
+    await pumpShell(tester, container);
+    container.read(tabIndexProvider.notifier).go(2);
+    await beat(tester);
+    await tester.tap(find.byKey(const ValueKey('add-vehicle')));
+    await beat(tester);
+    expect(find.text('Add vehicle'), findsOneWidget);
+    expect(find.text('Make'), findsOneWidget);
+    expect(find.text('Model'), findsOneWidget);
+    await systemBack(tester);
+    expect(find.byKey(const ValueKey('add-vehicle')), findsOneWidget);
+  });
+
   testWidgets('Home alert opens Garage reminders and uses the shared editor', (
     tester,
   ) async {

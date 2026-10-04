@@ -28,6 +28,10 @@ class Vehicle {
 
   String get colorName => DriverProfile.palette[colorValue] ?? '';
 
+  /// Brand and model for compact cards; the year is shown in their metadata.
+  String get makeModel =>
+      [make.trim(), model.trim()].where((s) => s.isNotEmpty).join(' ');
+
   /// "2022 Toyota Camry" — empty parts skipped cleanly.
   String get title =>
       [year, make, model].where((s) => s.trim().isNotEmpty).join(' ');

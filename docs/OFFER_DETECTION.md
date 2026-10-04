@@ -1,12 +1,13 @@
 # Offer Detection and Verdict Logic
 
-Canonical implementation map for `1.0.19+122`, verified against the code on
-2026-10-04. Build 122 extends Google Maps window-state recovery to Waze and
-adds a follow-up refresh; offer detection behavior is unchanged.
+Canonical implementation map for `1.0.19+124`, verified against the code on
+2026-10-04. Build 122 extended Google Maps window-state recovery to Waze and
+added a follow-up refresh. Build 124 updates Garage presentation; offer
+detection behavior is unchanged.
 
 The History payout editor pre-fills a missing final amount with the upfront
 fare, labels it “Fare before tip,” and adds the entered tip once. This is
-included in the same-version-code build 122 rebuild.
+included from the same-version-code build 122 rebuild onward.
 
 ## Maintenance contract
 

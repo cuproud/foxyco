@@ -167,55 +167,57 @@ class DriverNameCardState extends ConsumerState<DriverNameCard> {
   }
 }
 
-/// Vehicle list — premium mini car-cards + a "+ Add vehicle" affordance (spec
-/// M6 §4.2). Tap sets active (instant, persisted). The edit icon opens the
-/// editor.
+/// The active car stays visible; additional vehicles live in a collapsed group.
+/// Tap activates a car; long-press opens its editor.
 class GarageList extends ConsumerWidget {
   const GarageList({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final garage = ref.watch(garageProvider);
+    final active = garage.active;
+    final others = garage.vehicles.where((v) => v.id != active?.id).toList();
     return Column(
       children: [
-        for (final v in garage.vehicles) ...[
+        if (active != null) ...[
           VehicleCard(
-            vehicle: v,
-            active: garage.active?.id == v.id,
-            onTap: () => ref.read(garageProvider.notifier).setActive(v.id),
-            onEdit: () => context.push('/vehicle-editor', extra: v),
+            key: ValueKey('garage-vehicle-${active.id}'),
+            vehicle: active,
+            active: true,
+            onTap: () => ref.read(garageProvider.notifier).setActive(active.id),
+            onEdit: () => context.push('/vehicle-editor', extra: active),
           ),
           const SizedBox(height: Gap.sm),
         ],
-        // "+ Add vehicle" card.
-        InkWell(
-          key: const ValueKey('add-vehicle'),
-          borderRadius: BorderRadius.circular(Radii.cardSm),
-          onTap: () => context.push('/vehicle-editor'),
-          child: Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(vertical: Gap.md),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(Radii.cardSm),
-              border: Border.all(color: FoxColors.border),
+        if (others.isNotEmpty) ...[
+          ExpansionTile(
+            // A new active vehicle also starts with the other cars collapsed.
+            key: ValueKey('other-vehicles-${active?.id}'),
+            tilePadding: const EdgeInsets.symmetric(horizontal: Gap.sm),
+            childrenPadding: const EdgeInsets.only(bottom: Gap.sm),
+            shape: const Border(),
+            collapsedShape: const Border(),
+            title: Text(
+              'Other vehicles (${others.length})',
+              style: Theme.of(context).textTheme.titleSmall,
             ),
-            child: const Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.add_rounded, color: FoxColors.brandFox, size: 20),
-                SizedBox(width: Gap.sm),
-                Text(
-                  'Add vehicle',
-                  style: TextStyle(
-                    fontSize: 13.5,
-                    fontWeight: FontWeight.w700,
-                    color: FoxColors.brandFox,
+            children: [
+              for (final v in others)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: Gap.sm),
+                  child: VehicleCard(
+                    key: ValueKey('garage-vehicle-${v.id}'),
+                    vehicle: v,
+                    active: false,
+                    onTap: () =>
+                        ref.read(garageProvider.notifier).setActive(v.id),
+                    onEdit: () => context.push('/vehicle-editor', extra: v),
                   ),
                 ),
-              ],
-            ),
+            ],
           ),
-        ),
+          const SizedBox(height: Gap.sm),
+        ],
       ],
     );
   }
@@ -240,6 +242,11 @@ class VehicleCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final name = vehicle.makeModel;
+    final description = [
+      vehicle.bodyType.label,
+      vehicle.colorName,
+    ].where((value) => value.isNotEmpty).join(' · ');
     return Semantics(
       button: true,
       label:
@@ -284,7 +291,7 @@ class VehicleCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      vehicle.title.isEmpty ? 'Unnamed vehicle' : vehicle.title,
+                      name.isEmpty ? 'Unnamed vehicle' : name,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
@@ -295,34 +302,33 @@ class VehicleCard extends StatelessWidget {
                       ),
                     ),
                     Text(
-                      vehicle.bodyType.label,
+                      description,
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
                         color: FoxColors.textSecondary,
                       ),
                     ),
-                    if (vehicle.plate.trim().isNotEmpty) ...[
+                    if (vehicle.plate.trim().isNotEmpty ||
+                        vehicle.year.trim().isNotEmpty) ...[
                       const SizedBox(height: 6),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 7,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: FoxColors.bgSurface2,
-                          borderRadius: BorderRadius.circular(5),
-                          border: Border.all(color: FoxColors.border),
-                        ),
-                        child: Text(
-                          vehicle.plate,
-                          style: TextStyle(
-                            fontSize: 10.5,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 0.8,
-                            color: FoxColors.textSecondary,
-                          ),
-                        ),
+                      Wrap(
+                        spacing: Gap.sm,
+                        runSpacing: Gap.xs,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          if (vehicle.plate.trim().isNotEmpty)
+                            _VehicleMetadata(
+                              value: vehicle.plate.trim(),
+                              label: 'Number plate',
+                              plate: true,
+                            ),
+                          if (vehicle.year.trim().isNotEmpty)
+                            _VehicleMetadata(
+                              value: vehicle.year.trim(),
+                              label: 'Year',
+                            ),
+                        ],
                       ),
                     ],
                     if (active) ...[
@@ -356,6 +362,40 @@ class VehicleCard extends StatelessWidget {
       ),
     );
   }
+}
+
+class _VehicleMetadata extends StatelessWidget {
+  const _VehicleMetadata({
+    required this.value,
+    required this.label,
+    this.plate = false,
+  });
+
+  final String value, label;
+  final bool plate;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    label: '$label $value',
+    excludeSemantics: true,
+    child: Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+      decoration: BoxDecoration(
+        color: FoxColors.bgSurface2,
+        borderRadius: BorderRadius.circular(5),
+        border: Border.all(color: FoxColors.border),
+      ),
+      child: Text(
+        value,
+        style: TextStyle(
+          fontSize: 10.5,
+          fontWeight: plate ? FontWeight.w700 : FontWeight.w600,
+          letterSpacing: plate ? .8 : 0,
+          color: FoxColors.textSecondary,
+        ),
+      ),
+    ),
+  );
 }
 
 /// "How to read the pill" legend under the live preview — a quick walkthrough

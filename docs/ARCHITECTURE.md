@@ -116,12 +116,20 @@ Play's declaration, prominent disclosure, consent flow, and review video.
   manual jobs as records. Garage's Income chart rolls up History payouts by
   selected week, month, quarter, or year; expenses stay in the separate payout
   snapshot, and the displayed balance is not taxable profit.
-- Garage's selected Aurora bar has seven fixed reflections with mixed sizes,
-  two four-point highlights, independent 1.8–2.8 second opacity/scale phases,
-  an inner glow, and a 2.5% lift. Selection effects cross-fade inside the rounded
-  mask. A shared clock survives bar/period changes and parent rebuilds;
+- Garage's selected Aurora bar has seven scattered fixed reflections with mixed
+  sizes, two four-point highlights, independent 1.8–2.8 second opacity/scale
+  phases, a warm rim and glow, an inner glow, and a 2.5% lift. Selection effects
+  cross-fade inside the rounded mask. A shared clock survives bar/period changes
+  and parent rebuilds;
   CustomPainter repaints the effect without rebuilding the chart each frame.
   Reduced motion shows four still reflections.
+- Garage vehicle cards reserve the heading for brand and model, put body type
+  and the saved color below, and show plate/year as wrapping metadata chips.
+  The active-vehicle heading uses the same brand/model name; stored vehicle
+  fields and the full year-inclusive title used elsewhere are unchanged.
+  The active card is first; additional cars are collapsed under Other vehicles.
+  Selecting another car promotes it and closes that group. Add vehicle is a
+  48 dp plus icon at the right of the heading, including when Garage is empty.
 - System text scale plus the in-app text multiplier is capped at 2×; focused
   widget tests cover narrow screens, large text, scrollability, and overlay
   geometry.

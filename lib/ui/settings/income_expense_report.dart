@@ -666,10 +666,18 @@ class _IncomeBar extends StatelessWidget {
                   : [FoxColors.border, FoxColors.border],
             ),
             border: Border.all(
-              color: const Color(0xFFFFD599).withValues(alpha: selection),
+              color: const Color(0xFFFFA065).withValues(alpha: selection),
+              width: 1 + .5 * selection,
             ),
             boxShadow: hasIncome && selection > 0
                 ? [
+                    BoxShadow(
+                      color: FoxColors.brandFox.withValues(
+                        alpha: .16 * selection,
+                      ),
+                      blurRadius: 14,
+                      spreadRadius: 1,
+                    ),
                     BoxShadow(
                       color: const Color(
                         0xFF7CE4BB,
@@ -731,15 +739,32 @@ class _SparklePainter extends CustomPainter {
   final Animation<double> clock;
   final bool reducedMotion;
 
-  static const _sparkles = [
-    _SparkleSpec(.28, .13, 9.0, .11, .08, 2100, true),
-    _SparkleSpec(.72, .26, 2.4, .57, .19, 1800, false),
-    _SparkleSpec(.38, .38, 3.2, .29, -.10, 2400, false),
-    _SparkleSpec(.68, .51, 4.1, .83, .14, 2600, false),
-    _SparkleSpec(.30, .65, 7.4, .46, -.07, 2800, true),
-    _SparkleSpec(.70, .77, 2.8, .07, .23, 2200, false),
-    _SparkleSpec(.39, .89, 3.6, .71, -.13, 2500, false),
-  ];
+  // Scatter once, keeping positions and phases stable across widget rebuilds.
+  // Uneven anchor groups avoid a column of equally spaced, sequential stars.
+  static final _sparkles = (() {
+    final random = math.Random(4816);
+    const anchors = [
+      (.29, .21),
+      (.65, .71),
+      (.73, .16),
+      (.32, .88),
+      (.44, .44),
+      (.73, .53),
+      (.26, .60),
+    ];
+    return [
+      for (var i = 0; i < anchors.length; i++)
+        _SparkleSpec(
+          anchors[i].$1 + (random.nextDouble() - .5) * .12,
+          anchors[i].$2 + (random.nextDouble() - .5) * .08,
+          i < 2 ? (i == 0 ? 9 : 7.8) : 2.2 + random.nextDouble() * 2.0,
+          random.nextDouble(),
+          (random.nextDouble() - .5) * .60,
+          1800 + random.nextInt(1001),
+          i < 2,
+        ),
+    ];
+  })();
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -778,7 +803,7 @@ class _SparklePainter extends CustomPainter {
     final elapsedMs =
         clock.value * _IncomeBarsState._clockDuration.inMilliseconds;
     final reflections = reducedMotion
-        ? [_sparkles[0], _sparkles[2], _sparkles[4], _sparkles[6]]
+        ? [_sparkles[0], _sparkles[1], _sparkles[3], _sparkles[4]]
         : _sparkles;
     for (final sparkle in reflections) {
       double opacity;

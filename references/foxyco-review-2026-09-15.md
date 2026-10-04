@@ -2,7 +2,7 @@
 
 Scope: current working tree (`1.0.14+107`), canonical offer-detection docs, historical mask handoff, supplied Maps screenshot, and sampled frames across the 115-second August 6 recording, with one-second inspection of its stacked-offer sequence. Existing uncommitted work was preserved. No production code or canonical behavior documentation was changed.
 
-[Interactive visual concept](foxyco-review-2026-09-15.html) · [Rendered preview](foxyco-review-2026-09-15.png)
+[Rendered preview](foxyco-review-2026-09-15.png)
 
 ## Recommendation
 

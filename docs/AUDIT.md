@@ -2,26 +2,46 @@
 
 Audit date: 2026-10-04
 
-Candidate: `1.0.19+123`
+Candidate: `1.0.19+124`
 
 Play upload remains conditional on the device and
 Console checks in `MANUAL_TESTS.md` and `PLAY_RELEASE.md`.
 
-## Unreleased — selected Aurora bar refinement
+## Build 124 — Garage visual refinements
 
 - Reviewed `Screen_Recording_20261004_173310.mp4`: the prior shared reflection
   cycle left most highlights absent between pulses.
-- Selected bars now have seven mixed fixed reflections, independent repeating
-  opacity/scale phases, a clipped inner glow, and a 2.5% lift. The shared clock
-  persists through selections and parent rebuilds; only the effect repaints.
+- Selected bars now have seven mixed reflections scattered at stable positions,
+  randomized independent opacity/scale phases, a stronger warm rim and glow,
+  a clipped inner glow, and a 2.5% lift. The shared clock persists through
+  selections and parent rebuilds; only the effect repaints.
 - Chart data, period grouping, value bubbles, gradient colors, unselected bars
   and surrounding card spacing are preserved.
 - Widget checks cover 320/360 dp, both themes, normal/2× text and all four
   periods, rounded-mask pixels, selection fades, stable widget identities and
   reduced motion. The populated Garage card also has separate image/text bounds.
-- Flutter analysis and 55 focused chart, Garage and navigation tests passed.
+- Flutter analysis and 71 focused chart, Garage and navigation tests passed.
   Rendered compact-screen captures and a selection animation were reviewed.
-- This workspace update is not included in the build 123 artifact below.
+- Vehicle cards now show brand/model first, body type and saved color second,
+  and plate/year metadata below; the active-vehicle heading also omits the year.
+  Metadata wraps to keep the layout usable with enlarged text.
+- The active car is first; additional cars stay under a collapsed Other vehicles
+  group, which closes when another car is selected. A 48 dp plus icon in the
+  heading replaces the full-width Add vehicle button.
+- Version code advances from 123 to 124; version name remains `1.0.19`.
+- Guarded release preflight passed full Flutter analysis, the full Flutter suite
+  and Firestore rules tests. The signed AAB includes the Play licensing key;
+  `jarsigner` reports `jar verified`. The packaged manifest reports
+  `com.foxyco.app`, version name `1.0.19` and version code `124`.
+- Repo cleanup retains the installed design skill and graph exploration in
+  version control, removes retired HTML references and their broken link, and
+  removes the temporary preview harness. Generated previews and AABs stay in
+  ignored `dist/`.
+- Play Console upload and physical-device checks remain pending.
+
+Verified artifact: `FoxyCo-v1.0.19+124-release-20261004-1820.aab`
+
+SHA-256: `c95257092802eaf12a284c80c4dd6155f53678d9e725d0791e966debbeee17d9`
 
 ## Build 123 — Play upload rebuild
 

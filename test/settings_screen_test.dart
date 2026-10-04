@@ -488,12 +488,97 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byKey(const ValueKey('add-vehicle')), findsOneWidget);
-    expect(find.text('Add vehicle'), findsOneWidget);
+    expect(find.text('Add vehicle'), findsNothing);
+    final addVehicle = find.byKey(const ValueKey('add-vehicle'));
+    expect(tester.widget<IconButton>(addVehicle).tooltip, 'Add vehicle');
+    expect(tester.getSize(addVehicle), const Size(48, 48));
     expect(
       tester.getTopLeft(find.text('VEHICLES')).dy,
       lessThan(tester.getTopLeft(find.text('Income')).dy),
     );
   });
+
+  testWidgets(
+    'active car stays first and selecting another collapses the list',
+    (tester) async {
+      tester.view.physicalSize = const Size(360, 800);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await (FontLoader(
+        'Inter',
+      )..addFont(rootBundle.load('fonts/Inter.ttf'))).load();
+      SharedPreferences.setMockInitialValues({
+        GarageController.prefsKey: jsonEncode(
+          const Garage(
+            vehicles: [
+              Vehicle(
+                id: 'honda',
+                make: 'Honda',
+                model: 'CR-V',
+                year: '2026',
+                plate: 'CXZH 772',
+                bodyType: VehicleType.suvComfort,
+              ),
+              Vehicle(
+                id: 'toyota',
+                make: 'Toyota',
+                model: 'RAV4',
+                year: '2025',
+                plate: '123',
+                bodyType: VehicleType.suv,
+              ),
+            ],
+            activeId: 'toyota',
+          ).toJson(),
+        ),
+      });
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            theme: AppTheme.dark,
+            home: const Scaffold(body: GarageScreen()),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final toyota = find.byKey(const ValueKey('garage-vehicle-toyota'));
+      final honda = find.byKey(const ValueKey('garage-vehicle-honda'));
+      expect(toyota, findsOneWidget);
+      expect(honda, findsNothing);
+      expect(find.byType(VehicleCard), findsOneWidget);
+      final closedIncomeTop = tester.getTopLeft(find.text('Income')).dy;
+      await tester.tap(find.text('Other vehicles (1)'));
+      await tester.pumpAndSettle();
+      expect(honda, findsOneWidget);
+      expect(
+        tester.getTopLeft(toyota).dy,
+        lessThan(tester.getTopLeft(honda).dy),
+      );
+      expect(
+        tester.getTopLeft(find.text('Income')).dy,
+        greaterThan(closedIncomeTop),
+      );
+      await tester.tap(honda);
+      await tester.pumpAndSettle();
+      expect(container.read(garageProvider).activeId, 'honda');
+      expect(honda, findsOneWidget);
+      expect(toyota, findsNothing);
+      expect(find.byType(VehicleCard), findsOneWidget);
+      expect(
+        tester.getTopLeft(find.text('Income')).dy,
+        closeTo(closedIncomeTop, 1),
+      );
+      expectNoLayoutError(tester, 'Garage vehicle selection');
+      await container.read(garageProvider.notifier).deleteVehicle('toyota');
+      await tester.pumpAndSettle();
+      expect(find.text('Other vehicles (1)'), findsNothing);
+      expect(honda, findsOneWidget);
+      await tester.pumpWidget(const SizedBox.shrink());
+    },
+  );
 
   testWidgets('vehicle expense editor keeps Save visible in its footer', (
     tester,
@@ -554,6 +639,15 @@ void main() {
                 bodyType: VehicleType.suvComfort,
                 fuelType: FuelType.hybrid,
               ),
+              Vehicle(
+                id: 'rav4',
+                year: '2025',
+                make: 'Toyota',
+                model: 'RAV4',
+                plate: '123',
+                bodyType: VehicleType.suv,
+                fuelType: FuelType.hybrid,
+              ),
             ],
             activeId: 'crv',
           ).toJson(),
@@ -604,13 +698,31 @@ void main() {
         find.descendant(of: vehicle, matching: find.byType(Image)),
       );
       final title = tester.getRect(
-        find.descendant(of: vehicle, matching: find.text('2026 Honda CR-V')),
+        find.descendant(of: vehicle, matching: find.text('Honda CR-V')),
       );
+      expect(find.text('2026 Honda CR-V'), findsNothing);
+      expect(find.text('Comfort SUV · White'), findsOneWidget);
+      expect(find.text('2026'), findsOneWidget);
+      expect(find.text('CXZH 772'), findsOneWidget);
       expect(image.right, lessThan(title.left));
       expect(
         tester.getRect(vehicle).bottom,
         lessThan(tester.getRect(find.text('Income')).top),
       );
+      final addVehicle = find.byKey(const ValueKey('add-vehicle'));
+      expect(tester.getSize(addVehicle), const Size(48, 48));
+      await tester.ensureVisible(find.text('Other vehicles (1)'));
+      await tester.tap(find.text('Other vehicles (1)'));
+      await tester.pumpAndSettle();
+      final rav4 = find.byKey(const ValueKey('garage-vehicle-rav4'));
+      expect(rav4, findsOneWidget);
+      expectNoLayoutError(tester, 'Expanded Garage vehicles');
+      await tester.ensureVisible(rav4);
+      await tester.tap(rav4);
+      await tester.pumpAndSettle();
+      expect(find.byType(VehicleCard), findsOneWidget);
+      expect(container.read(garageProvider).activeId, 'rav4');
+      expectNoLayoutError(tester, 'Collapsed Garage vehicles after selection');
       await tester.ensureVisible(find.text('Maintenance reminders'));
       await tester.tap(find.text('Maintenance reminders'));
       await tester.pumpAndSettle();

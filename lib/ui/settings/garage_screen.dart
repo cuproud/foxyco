@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../domain/car_reminder.dart';
 import '../../domain/offer_summary.dart';
@@ -113,29 +114,37 @@ class _GarageScreenState extends ConsumerState<GarageScreen> {
               ),
               child: Column(
                 children: [
-                  if (vehicle != null)
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(
-                        Gap.sm,
-                        Gap.sm,
-                        Gap.sm,
-                        Gap.md,
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(Icons.garage_rounded, color: FoxColors.brandFox),
-                          const SizedBox(width: Gap.sm),
-                          Expanded(
-                            child: Text(
-                              vehicle.title.isEmpty
-                                  ? 'Your vehicle'
-                                  : vehicle.title,
-                              style: Theme.of(context).textTheme.titleMedium,
-                            ),
-                          ),
-                        ],
-                      ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: Gap.sm,
+                      vertical: Gap.xs,
                     ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.garage_rounded, color: FoxColors.brandFox),
+                        const SizedBox(width: Gap.sm),
+                        Expanded(
+                          child: Text(
+                            vehicle == null || vehicle.makeModel.isEmpty
+                                ? 'Your vehicle'
+                                : vehicle.makeModel,
+                            style: Theme.of(context).textTheme.titleMedium,
+                          ),
+                        ),
+                        IconButton(
+                          key: const ValueKey('add-vehicle'),
+                          tooltip: 'Add vehicle',
+                          constraints: const BoxConstraints.tightFor(
+                            width: 48,
+                            height: 48,
+                          ),
+                          onPressed: () => context.push('/vehicle-editor'),
+                          icon: const Icon(Icons.add_rounded),
+                          color: FoxColors.brandFox,
+                        ),
+                      ],
+                    ),
+                  ),
                   const GarageList(),
                 ],
               ),

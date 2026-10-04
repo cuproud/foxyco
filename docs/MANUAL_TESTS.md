@@ -1,18 +1,22 @@
 # Manual Test Log
 
-## Unreleased — selected Aurora bar refinement
+## Build 124 — Garage visual refinements
 
-These checks apply to the workspace update after build 123.
+These checks apply to the `1.0.19+124` release.
 
 | # | Step | Expect | Pass |
 |---|---|---|---|
-| Aurora.1 | Garage → Income on 320–360 dp Android screens; select different bars and all four periods in both themes | Selected bar has mixed stationary light reflections, two larger four-point highlights, a soft inner glow and a small lift. Old/new selection effects fade smoothly. The amount bubble stays above its bar; chart colors, data and spacing are unchanged. | [ ] |
+| Aurora.1 | Garage → Income on 320–360 dp Android screens; select different bars and all four periods in both themes | Selected bar has scattered stationary reflections with independent timing, two larger four-point highlights, a warm rim, inner glow and small lift. Its outline stays distinct between pulses; old/new effects fade smoothly. The amount bubble stays above its bar; chart colors, data and spacing are unchanged. | [ ] |
 | Aurora.2 | Enable Remove animations, repeat selections, then scroll to Vehicles | Four still reflections; no continuing pulses, clipping, text overflow or vehicle image/text overlap. | [ ] |
+| Vehicle.1 | Garage with two saved vehicles; check 320–360 dp widths in both themes and at 2× text | First card line is brand/model; the next is body type and saved color. Plate and year share the metadata row when space permits and wrap safely when enlarged. The active heading excludes the year. Car art, badges and text stay separate. | [ ] |
+| Vehicle.2 | Open Garage with multiple cars, expand Other vehicles, then select another car | Only the active card is shown initially. Other cars appear when expanded; choosing one puts it first and collapses the group, bringing Income back up. | [ ] |
+| Vehicle.3 | Tap the plus icon at the right of the active-car heading; repeat with an empty Garage | Opens Add vehicle. There is no full-width Add vehicle button; the icon has a 48 dp tap target and a tooltip. | [ ] |
 
-## Current candidate — `1.0.19+123` (2026-10-04)
+## Current candidate — `1.0.19+124` (2026-10-04)
 
 | # | Step | Expect | Pass |
 |---|---|---|---|
+| R124.1 | Install build 124 from Play Internal testing; open Settings → About, then Garage | Shows `1.0.19 (build 124)`; complete the Aurora and Vehicle checks above. | [ ] |
 | R122.1 | Cold-start build 122 and watch all three splash landscapes | No dark oval at the right of the car. A phone-system edge handle, if enabled, is outside FoxyCo's drawing. | [ ] |
 | R122.2 | Garage → Income; switch bars and periods in both themes, then enable reduced motion | The selected bar has subtle fixed-position reflections that fade between bars; the chart has income only. Reduced motion shows still reflections. Vehicles remain above Income. | [ ] |
 | R122.3 | With Watching active, hand off from Uber and Lyft to Google Maps and Waze separately | Bubble stays circular and draggable; no grey square. Diagnostics include `navigation-window-state app=google-maps` or `app=waze`, a `window-refresh-finish source=window-state`, and a follow-up `window-refresh-finish source=navigation-retry` about 30 seconds later while the resting bubble is visible. Watching and verdicts continue. | [ ] |
