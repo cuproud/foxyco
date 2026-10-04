@@ -5,7 +5,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../domain/car_reminder.dart';
 import '../../domain/fox_settings.dart';
 import '../../domain/offer_summary.dart';
 import '../../domain/platform.dart';
@@ -17,7 +16,6 @@ import '../overlay/overlay_controller.dart';
 import '../paywall/access_banner.dart';
 import '../legal/accessibility_disclosure.dart';
 import '../history/history_intent.dart';
-import '../settings/reminder_controller.dart';
 import '../settings/reminder_section.dart';
 import '../settings/settings_controller.dart';
 import '../shell/root_shell.dart';
@@ -130,18 +128,6 @@ class HomeScreen extends ConsumerWidget {
         const SizedBox(height: Gap.lg),
         if (blocked) ...[
           _Padded(child: _AccessAlert(onFix: requestMissingPermissions)),
-          const SizedBox(height: Gap.lg),
-        ],
-        // Car reminder inside its lead window — tap through to Garage, where
-        // vehicle details, reminders, and expenses live.
-        if (ref.watch(dueRemindersProvider).isNotEmpty) ...[
-          _Padded(
-            child: _ReminderBanner(
-              reminder: ref.watch(dueRemindersProvider).first,
-              onTap: () =>
-                  ref.read(tabIndexProvider.notifier).go(2, section: 1),
-            ),
-          ),
           const SizedBox(height: Gap.lg),
         ],
         const _Padded(child: SectionLabel('Session recap')),
@@ -493,73 +479,6 @@ class _AcceptedTripDetails extends StatelessWidget {
       fontFeatures: const [FontFeature.tabularFigures()],
     ),
   );
-}
-
-/// Amber banner for the soonest due car reminder ("Safety inspection in 12
-/// days"). Softer than the red access alert — informational, not blocking.
-class _ReminderBanner extends StatelessWidget {
-  const _ReminderBanner({required this.reminder, required this.onTap});
-
-  final CarReminder reminder;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final days = reminder.daysLeft();
-    final when = days < 0
-        ? '${-days} days overdue'
-        : days == 0
-        ? 'today'
-        : days == 1
-        ? 'tomorrow'
-        : 'in $days days';
-    return InkWell(
-      borderRadius: BorderRadius.circular(Radii.cardSm),
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(Gap.md),
-        decoration: BoxDecoration(
-          color: days < 0 ? VerdictColors.badBg : VerdictColors.okBg,
-          borderRadius: BorderRadius.circular(Radii.cardSm),
-          border: Border.all(
-            color: (days < 0 ? VerdictColors.bad : VerdictColors.ok).withValues(
-              alpha: 0.35,
-            ),
-          ),
-        ),
-        child: Row(
-          children: [
-            Icon(
-              Icons.event_outlined,
-              size: 18,
-              color: days < 0 ? VerdictColors.bad : VerdictColors.ok,
-            ),
-            const SizedBox(width: Gap.sm + Gap.xs),
-            Expanded(
-              child: Text(
-                '${reminder.title} $when'
-                '${reminder.note.isEmpty ? '' : ' — ${reminder.note}'}',
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 12.5,
-                  fontWeight: FontWeight.w600,
-                  height: 1.35,
-                  color: FoxColors.textPrimary,
-                ),
-              ),
-            ),
-            const SizedBox(width: Gap.sm),
-            Icon(
-              Icons.chevron_right_rounded,
-              size: 18,
-              color: FoxColors.textSecondary,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 }
 
 /// Standard page gutter for everything except the full-bleed car.
@@ -1474,22 +1393,28 @@ class _SessionCardState extends ConsumerState<_SessionCard> {
                 widget.onTap();
               },
               child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
+                  Text(dayLabel, style: text.titleMedium),
+                  const SizedBox(width: Gap.sm),
                   Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                    child: Wrap(
+                      alignment: WrapAlignment.end,
+                      spacing: Gap.xs,
+                      runSpacing: Gap.xs,
                       children: [
-                        Text(dayLabel, style: text.titleMedium),
-                        const SizedBox(height: Gap.xs),
-                        Text(
-                          day.hasWatchSessions
-                              ? '${clock(day.startedAt)} – ${clock(day.endedAt)} · ${durationLabel(day.duration)} active'
-                              : '${day.manualJobs} manual ${day.manualJobs == 1 ? 'job' : 'jobs'}',
-                          style: TextStyle(
-                            color: FoxColors.textSecondary,
-                            fontSize: 12,
+                        if (day.hasWatchSessions) ...[
+                          _RecapChip(
+                            '${clock(day.startedAt)} – ${clock(day.endedAt)}',
                           ),
-                        ),
+                          _RecapChip(
+                            '${durationLabel(day.duration)} active',
+                            active: true,
+                          ),
+                        ] else
+                          _RecapChip(
+                            '${day.manualJobs} manual ${day.manualJobs == 1 ? 'job' : 'jobs'}',
+                          ),
                       ],
                     ),
                   ),
@@ -1498,14 +1423,11 @@ class _SessionCardState extends ConsumerState<_SessionCard> {
             ),
           ),
           const SizedBox(height: Gap.md),
-          SizedBox(
-            width: double.infinity,
-            child: Wrap(
-              alignment: WrapAlignment.spaceBetween,
-              spacing: Gap.lg,
-              runSpacing: Gap.sm,
-              children: [
-                Column(
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text('Earnings', style: amountLabelStyle),
@@ -1523,7 +1445,10 @@ class _SessionCardState extends ConsumerState<_SessionCard> {
                     ),
                   ],
                 ),
-                Column(
+              ),
+              const SizedBox(width: Gap.sm),
+              Expanded(
+                child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text('Jobs taken', style: amountLabelStyle),
@@ -1542,8 +1467,8 @@ class _SessionCardState extends ConsumerState<_SessionCard> {
                     ),
                   ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
           if (day.manualJobs > 0) ...[
             const SizedBox(height: Gap.sm),
@@ -1611,6 +1536,34 @@ class _SessionCardState extends ConsumerState<_SessionCard> {
   }
 }
 
+class _RecapChip extends StatelessWidget {
+  const _RecapChip(this.label, {this.active = false});
+  final String label;
+  final bool active;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: Gap.sm, vertical: Gap.xs),
+    decoration: BoxDecoration(
+      color: active ? VerdictColors.goodBg : FoxColors.bgSurface2,
+      borderRadius: BorderRadius.circular(Radii.pill),
+      border: Border.all(
+        color: active
+            ? VerdictColors.good.withValues(alpha: 0.35)
+            : FoxColors.borderSoft,
+      ),
+    ),
+    child: Text(
+      label,
+      style: TextStyle(
+        color: active ? VerdictColors.good : FoxColors.textSecondary,
+        fontSize: 11,
+        fontWeight: FontWeight.w700,
+      ),
+    ),
+  );
+}
+
 class _RecentSessionsCard extends ConsumerStatefulWidget {
   const _RecentSessionsCard({required this.sessions, required this.offers});
   final List<SessionSummary> sessions;
@@ -1648,7 +1601,7 @@ class _RecentSessionsCardState extends ConsumerState<_RecentSessionsCard> {
           vertical: Gap.xs,
         ),
         decoration: BoxDecoration(
-          color: FoxColors.ink,
+          color: FoxColors.bgSurface,
           borderRadius: BorderRadius.circular(Radii.card),
           border: Border.all(color: FoxColors.borderSoft),
         ),

@@ -30,6 +30,64 @@ void showOfferDetail(BuildContext context, OfferSummary offer) {
   );
 }
 
+/// Record a cancellation fee as soon as the driver marks a trip cancelled.
+Future<void> promptCancellationFee(
+  BuildContext context,
+  WidgetRef ref,
+  OfferSummary offer,
+  String prefix,
+) async {
+  var input = '';
+  final fee = await showDialog<double>(
+    context: context,
+    builder: (dialogContext) => AlertDialog(
+      title: const Text('Cancellation fee'),
+      content: TextField(
+        key: const Key('cancellation-fee'),
+        onChanged: (value) => input = value,
+        autofocus: true,
+        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+        inputFormatters: [
+          TextInputFormatter.withFunction(
+            (oldValue, newValue) =>
+                RegExp(r'^\d*(?:[.,]\d{0,2})?$').hasMatch(newValue.text)
+                ? newValue
+                : oldValue,
+          ),
+        ],
+        decoration: InputDecoration(
+          prefixText: prefix,
+          labelText: 'Fee received',
+          helperText: 'Enter 0 if no fee was paid',
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(dialogContext),
+          child: const Text('Later'),
+        ),
+        FilledButton(
+          onPressed: () {
+            final amount = double.tryParse(input.trim().replaceAll(',', '.'));
+            if (amount == null || !amount.isFinite || amount < 0) return;
+            Navigator.pop(dialogContext, amount);
+          },
+          child: const Text('Save'),
+        ),
+      ],
+    ),
+  );
+  if (fee == null || !context.mounted) return;
+  final changed = ref
+      .read(offerLogProvider.notifier)
+      .setFinalPayout(offer, fee);
+  if (changed && context.mounted) {
+    await ref
+        .read(sessionLogProvider.notifier)
+        .refreshForOffer(offer, ref.read(offerLogProvider));
+  }
+}
+
 class _OfferDetailSheet extends ConsumerWidget {
   const _OfferDetailSheet({required this.offer});
   final OfferSummary offer;
@@ -197,41 +255,43 @@ class _OfferDetailSheet extends ConsumerWidget {
                       ),
                     ),
                   ),
-                  Row(
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Expanded(
-                        child: Text(
-                          current.category == 'Manual entry'
-                              ? 'Manually entered completed ride'
-                              : cancelled && current.finalPayout == null
-                              ? 'Original offer · cancellation fee not recorded'
-                              : cancelled
-                              ? 'Cancellation fee · original offer ${currency.prefix}${current.payout.toStringAsFixed(2)}'
-                              : current.finalPayout == null
-                              ? 'Upfront offer'
-                              : 'Final earnings · upfront ${currency.prefix}${current.payout.toStringAsFixed(2)}',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: FoxColors.textSecondary,
-                          ),
+                      Text(
+                        current.category == 'Manual entry'
+                            ? 'Manually entered completed ride'
+                            : cancelled && current.finalPayout == null
+                            ? 'Original offer · fee pending'
+                            : cancelled
+                            ? 'Cancellation fee · original ${currency.prefix}${current.payout.toStringAsFixed(2)}'
+                            : current.finalPayout == null
+                            ? 'Upfront offer'
+                            : 'Final earnings · upfront ${currency.prefix}${current.payout.toStringAsFixed(2)}',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: FoxColors.textSecondary,
                         ),
                       ),
                       if (canEditFinalPayout)
-                        OutlinedButton.icon(
-                          onPressed: () => _editFinalPayout(
-                            context,
-                            ref,
-                            current,
-                            currency.prefix,
-                          ),
-                          icon: const Icon(Icons.edit_rounded, size: 15),
-                          label: Text(
-                            current.finalPayout == null
-                                ? cancelled
-                                      ? 'Add fee'
-                                      : 'Add final'
-                                : 'Edit',
+                        Padding(
+                          padding: const EdgeInsets.only(top: Gap.xs),
+                          child: OutlinedButton.icon(
+                            onPressed: () => _editFinalPayout(
+                              context,
+                              ref,
+                              current,
+                              currency.prefix,
+                            ),
+                            icon: const Icon(Icons.edit_rounded, size: 15),
+                            label: Text(
+                              current.finalPayout == null
+                                  ? cancelled
+                                        ? 'Add fee'
+                                        : 'Add final'
+                                  : 'Edit',
+                            ),
                           ),
                         ),
                     ],
@@ -488,8 +548,8 @@ class _OfferDetailSheet extends ConsumerWidget {
             final total = parsed + (cancelled ? 0 : tip);
             Navigator.pop(context, (
               payout: (total * 100).round() / 100,
-              tip: cancelled ? 0 : (tip * 100).round() / 100,
-              toll: cancelled ? 0 : (toll * 100).round() / 100,
+              tip: cancelled ? 0.0 : (tip * 100).round() / 100,
+              toll: cancelled ? 0.0 : (toll * 100).round() / 100,
             ));
           }
 
@@ -584,6 +644,7 @@ class _OfferDetailSheet extends ConsumerWidget {
       ),
     );
     if (value == null) return;
+    if (!context.mounted) return;
     final changed = ref
         .read(offerLogProvider.notifier)
         .setFinalPayout(

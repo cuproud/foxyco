@@ -248,10 +248,12 @@ class DashboardController extends Notifier<DashboardState> {
       } else if (state.status == WatchStatus.paused) {
         status = state.status; // explicit pause survives a refresh
       } else if (liveSince != null) {
-        // Process restart: a surviving overlay means the same shift is still
-        // live. Otherwise close the recovered shift instead of losing it.
+        // The overlay belongs to the old process and cannot survive a process
+        // restart. A saved live session still means the driver chose Watching;
+        // recreate the window instead of silently ending the shift on reopen.
         final overlayUp = await ref.read(overlayServiceProvider).isActive();
-        status = overlayUp ? WatchStatus.watching : WatchStatus.stopped;
+        status = WatchStatus.watching;
+        recoverOverlay = !overlayUp;
       } else {
         status = WatchStatus.stopped; // granted but user hasn't started
       }

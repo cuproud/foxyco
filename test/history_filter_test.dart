@@ -311,6 +311,73 @@ void main() {
     expect(find.text('Accepted'), findsOneWidget);
   });
 
+  testWidgets('marking a ride cancelled offers fee entry immediately', (
+    tester,
+  ) async {
+    final offer = _offer(DateTime.now(), outcome: OfferOutcome.unknown);
+    await tester.pumpWidget(_app([offer]));
+    await tester.pumpAndSettle();
+    final status = find.byKey(
+      ValueKey('offer_outcome_${offer.seenAt.microsecondsSinceEpoch}'),
+    );
+    await tester.scrollUntilVisible(
+      status,
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(status);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Cancelled').last);
+    await tester.pumpAndSettle();
+    expect(find.text('Cancellation fee'), findsOneWidget);
+    expect(find.byKey(const Key('cancellation-fee')), findsOneWidget);
+    await tester.tap(find.text('Later'));
+    await tester.pumpAndSettle();
+    expect(find.text('Cancelled'), findsOneWidget);
+  });
+
+  testWidgets(
+    'saving a cancellation fee keeps History open and records the fee',
+    (tester) async {
+      final offer = _offer(DateTime.now(), outcome: OfferOutcome.unknown);
+      final container = ProviderContainer(
+        overrides: [
+          offerLogProvider.overrideWith(() => _FixedLog([offer])),
+        ],
+      );
+      addTearDown(container.dispose);
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: const MaterialApp(home: Scaffold(body: HistoryScreen())),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final status = find.byKey(
+        ValueKey('offer_outcome_${offer.seenAt.microsecondsSinceEpoch}'),
+      );
+      await tester.scrollUntilVisible(
+        status,
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(status);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Cancelled').last);
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byKey(const Key('cancellation-fee')), '5.25');
+      await tester.tap(find.text('Save').last);
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      final saved = container.read(offerLogProvider).single;
+      expect(saved.outcome, OfferOutcome.cancelled);
+      expect(saved.finalPayout, 5.25);
+      expect(find.byType(HistoryScreen), findsOneWidget);
+      await tester.pump(const Duration(seconds: 3));
+    },
+  );
+
   testWidgets('accepted status stays on one line in a narrow card', (
     tester,
   ) async {

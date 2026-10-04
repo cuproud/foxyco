@@ -4,7 +4,16 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:foxyco/domain/offer_summary.dart';
 import 'package:foxyco/domain/platform.dart';
 import 'package:foxyco/domain/verdict.dart';
+import 'package:foxyco/services/offer_log.dart';
 import 'package:foxyco/ui/history/offer_detail_sheet.dart';
+
+class _FixedLog extends OfferLog {
+  _FixedLog(this.offers);
+  final List<OfferSummary> offers;
+
+  @override
+  List<OfferSummary> build() => offers;
+}
 
 /// The sheet used to be capped at 9/16 of the screen with unbounded content
 /// inside it, so on a short viewport (or at a large text scale) the top of the
@@ -157,5 +166,44 @@ void main() {
     expect(find.text('Fee received'), findsOneWidget);
     expect(find.text('Tip'), findsNothing);
     expect(find.text('Toll reimbursement'), findsNothing);
+  });
+
+  testWidgets('Add fee Save updates a cancelled ride without closing the app', (
+    tester,
+  ) async {
+    final cancelled = offer.withOutcome(OfferOutcome.cancelled);
+    final container = ProviderContainer(
+      overrides: [
+        offerLogProvider.overrideWith(() => _FixedLog([cancelled])),
+      ],
+    );
+    addTearDown(container.dispose);
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => TextButton(
+                onPressed: () => showOfferDetail(context, cancelled),
+                child: const Text('open'),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Add fee'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const Key('final-payout-total')), '5.25');
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(container.read(offerLogProvider).single.finalPayout, 5.25);
+    expect(find.text('Cancellation fee · original CA\$17.01'), findsOneWidget);
+    await tester.pump(const Duration(seconds: 3));
   });
 }

@@ -1,6 +1,6 @@
 # Manual Test Log
 
-## Current candidate — `1.0.19+118` (2026-10-03)
+## Current candidate — `1.0.19+119` (2026-10-03)
 
 | # | Step | Expect | Pass |
 |---|---|---|---|
@@ -12,6 +12,11 @@
 | R118.2 | Open Home with two accepted offers and 24 offers seen, including unknown outcomes | Recap shows 8% acceptance of seen. Recent sessions starts collapsed in its own panel and expands on tap. |
 | R118.3 | Add a completed manual job for today while Watching is stopped, then add one for one of the two most recent older workdays | Earnings and jobs taken rise on each entered date; offers seen and offer quality do not. The expanded recent-day list reflects the older date. Hourly rate uses the manual trip duration where no watch session exists. |
 | R118.4 | Add a manual job dated during an existing watch session; edit its final payout | The job and payout are counted once in recap, History, and Goal. Home and History captured-offer acceptance percentages stay unchanged; History labels mixed rows as Records. |
+| R119.1 | Open Home with a reminder due within seven days; dismiss its small header bubble, then reopen Home | The reminder appears beside the alert icon once, with no duplicate banner below the hero; dismissal persists. |
+| R119.2 | Open Session recap with multiple shifts, then Recent sessions in both themes | Time range and green active-time chips fit in the top row; Earnings and Jobs taken share equal width; Recent sessions has a distinct surface. |
+| R119.3 | Mark a Lyft queue ride Cancelled, enter a nonzero cancellation fee, tap Save, then reopen the detail and restart the app | No crash or black screen; the fee persists, and original trip earnings are not counted as the fee. Repeat through Add fee in the detail sheet. |
+| R119.4 | Start Watching, switch Uber/Lyft to external Google Maps repeatedly, then leave the bubble idle over five minutes | Bubble has no grey square, stays draggable, and Watching remains active. Diagnostics show overlay-window refresh completion; verdicts continue after returning. |
+| R119.5 | Force-stop the app while Watching, reopen it with permissions still granted, then inspect the bubble and session | Watching and the overlay recover from the saved session; OCR permission is requested again if Android revoked capture. |
 | R113.1 | Open Home | No Review Inbox/backlog card appears. Session recap shows the whole latest workday, combining split shifts and showing the combined accepted amount in orange. |
 | R113.2 | Expand Recent sessions in Session recap | Today and up to the two most recent prior workdays appear; separate shifts on one date remain combined. |
 | R113.3 | History → Session history; scroll down | Orange up-arrow appears; tapping it returns smoothly to the top. Recorded payout amounts use orange. |
@@ -59,7 +64,7 @@ Legend: 🟢 GOOD  🟡 OK  🔴 BAD (pill shows icon + WORD + `km · $payout`).
 Run these before promoting the AAB. They cover the highest-risk build changes
 without requiring DoorDash, Instacart or Skip accounts.
 
-**Current candidate:** Play bundle build 118. Real-device validation is pending
+**Current candidate:** Play bundle build 119. Real-device validation is pending
 for Maps handoff and periodic bubble refresh, offer delivery, and prior
 unverified UI, billing, and outcome cases.
 

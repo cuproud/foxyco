@@ -985,12 +985,12 @@ class _FiltersCard extends StatelessWidget {
                     onToggle: onApp,
                   ),
                 ),
-                const SizedBox(height: Gap.sm),
+                const SizedBox(height: Gap.xs),
                 _FilterGroup(
                   label: '3. Verdict',
                   child: _VerdictChips(selected: verdicts, onToggle: onVerdict),
                 ),
-                const SizedBox(height: Gap.sm),
+                const SizedBox(height: Gap.xs),
                 _FilterGroup(
                   label: '4. Outcome',
                   child: _OutcomeChips(selected: outcome, onChanged: onOutcome),
@@ -2154,10 +2154,21 @@ class _OutcomeMenu extends ConsumerWidget {
             builder: (_) => _OutcomeSheet(selected: offer.outcome),
           );
           if (value != null) {
+            if (!context.mounted) return;
             final changed = ref
                 .read(offerLogProvider.notifier)
                 .setOutcome(offer, value);
             if (changed) {
+              if (value == OfferOutcome.cancelled) {
+                final settings = ref.read(settingsProvider);
+                await promptCancellationFee(
+                  context,
+                  ref,
+                  offer.withOutcome(value, manual: true),
+                  (offer.scoringSnapshot?.currency ?? settings.currency).prefix,
+                );
+              }
+              if (!context.mounted) return;
               await ref
                   .read(sessionLogProvider.notifier)
                   .refreshForOffer(offer, ref.read(offerLogProvider));

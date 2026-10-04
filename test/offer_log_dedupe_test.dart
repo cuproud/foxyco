@@ -343,6 +343,23 @@ void main() {
     expect(l.state.single.effectivePayout, 0);
   });
 
+  test(
+    'changing to cancelled clears trip earnings before a fee is entered',
+    () {
+      final l = log();
+      final trip = l.record(
+        offer(seenAt: t, payout: 20, outcome: OfferOutcome.taken),
+      );
+      expect(l.setFinalPayout(trip, 31, tip: 4), isTrue);
+      expect(l.setOutcome(l.state.single, OfferOutcome.cancelled), isTrue);
+      expect(l.state.single.finalPayout, isNull);
+      expect(l.state.single.tip, 0);
+      expect(l.setFinalPayout(l.state.single, 5.25), isTrue);
+      expect(l.setOutcome(l.state.single, OfferOutcome.completed), isTrue);
+      expect(l.state.single.finalPayout, isNull);
+    },
+  );
+
   test('manual missed ride is scored and stored as completed', () {
     final l = log();
     final added = l.addManualRide(

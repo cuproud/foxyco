@@ -439,8 +439,23 @@ class OfferLog extends Notifier<List<OfferSummary>> {
   }
 
   /// Driver corrections are ground truth and automation must not overwrite them.
-  bool setOutcome(OfferSummary offer, OfferOutcome outcome) =>
-      markOutcome(offer, outcome, includeQueued: true, manual: true);
+  bool setOutcome(OfferSummary offer, OfferOutcome outcome) {
+    final changed = markOutcome(
+      offer,
+      outcome,
+      includeQueued: true,
+      manual: true,
+    );
+    if (changed &&
+        (offer.outcome == OfferOutcome.cancelled) !=
+            (outcome == OfferOutcome.cancelled) &&
+        offer.finalPayout != null) {
+      // A trip's final earnings and a cancellation fee are different payments.
+      // Never carry one into the other outcome when the driver corrects History.
+      setFinalPayout(offer, null);
+    }
+    return changed;
+  }
 
   /// Set realized earnings without rewriting the original offer or verdict.
   bool setFinalPayout(

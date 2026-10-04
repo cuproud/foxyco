@@ -124,6 +124,34 @@ void main() {
     },
   );
 
+  test(
+    'a saved session recreates its lost overlay after process restart',
+    () async {
+      final started = DateTime.now().subtract(const Duration(minutes: 12));
+      SharedPreferences.setMockInitialValues({
+        'foxyco.active_session_started_at.v1': started.millisecondsSinceEpoch,
+      });
+      final watcher = _FakeWatcher();
+      final overlay = _FakeOverlayService();
+      final container = ProviderContainer(
+        overrides: [
+          accessibilityWatcherProvider.overrideWithValue(watcher),
+          overlayServiceProvider.overrideWithValue(overlay),
+          sessionLogProvider.overrideWith(_MemorySessionLog.new),
+        ],
+      );
+      addTearDown(container.dispose);
+      addTearDown(watcher.status.close);
+
+      container.read(dashboardProvider);
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+
+      expect(container.read(dashboardProvider).status, WatchStatus.watching);
+      expect(overlay.starts, 1);
+      expect(container.read(sessionLogProvider), isEmpty);
+    },
+  );
+
   test('mid-shift accessibility revoke flips the dashboard to blocked '
       '(and re-grant lands on stopped, not auto-watching)', () async {
     final watcher = _FakeWatcher();

@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../domain/car_reminder.dart';
 import '../shell/root_shell.dart';
@@ -8,29 +11,105 @@ import '../theme/tokens.dart';
 import 'reminder_controller.dart';
 
 /// Home shortcut to Garage's maintenance reminders; badge counts saved entries.
-class ReminderInboxButton extends ConsumerWidget {
+class ReminderInboxButton extends ConsumerStatefulWidget {
   const ReminderInboxButton({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ReminderInboxButton> createState() =>
+      _ReminderInboxButtonState();
+}
+
+class _ReminderInboxButtonState extends ConsumerState<ReminderInboxButton> {
+  static const _dismissedKey = 'foxyco.reminder_bubble_dismissed.v1';
+  String? _dismissed;
+
+  @override
+  void initState() {
+    super.initState();
+    SharedPreferences.getInstance().then((prefs) {
+      if (mounted) setState(() => _dismissed = prefs.getString(_dismissedKey));
+    });
+  }
+
+  void _dismiss(String id) {
+    setState(() => _dismissed = id);
+    unawaited(
+      SharedPreferences.getInstance().then(
+        (prefs) => prefs.setString(_dismissedKey, id),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final reminders = ref.watch(reminderProvider);
     final due = ref.watch(dueRemindersProvider).isNotEmpty;
-    return Semantics(
-      button: true,
-      label: reminders.isEmpty
-          ? 'Car reminders'
-          : '${reminders.length} car reminders',
-      child: IconButton(
-        key: const ValueKey('home-reminders'),
-        tooltip: 'Car reminders',
-        onPressed: () => ref.read(tabIndexProvider.notifier).go(2, section: 1),
-        icon: Badge(
-          isLabelVisible: reminders.isNotEmpty,
-          label: Text('${reminders.length}'),
-          backgroundColor: due ? VerdictColors.bad : FoxColors.brandFox,
-          child: const Icon(Icons.car_repair_rounded),
+    final imminent = reminders.where((r) => r.daysLeft() <= 7).firstOrNull;
+    final bubbleId = imminent == null
+        ? null
+        : '${imminent.id}:${imminent.date.millisecondsSinceEpoch}';
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (imminent != null && bubbleId != _dismissed)
+          Container(
+            constraints: const BoxConstraints(maxWidth: 155),
+            padding: const EdgeInsets.only(left: 9),
+            decoration: BoxDecoration(
+              color: VerdictColors.okBg,
+              borderRadius: BorderRadius.circular(Radii.pill),
+              border: Border.all(
+                color: VerdictColors.ok.withValues(alpha: 0.35),
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Flexible(
+                  child: Text(
+                    '${imminent.title} ${imminent.daysLeft() < 0
+                        ? 'overdue'
+                        : imminent.daysLeft() == 0
+                        ? 'today'
+                        : 'in ${imminent.daysLeft()}d'}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                InkWell(
+                  key: const ValueKey('dismiss-reminder-bubble'),
+                  onTap: () => _dismiss(bubbleId!),
+                  child: const Padding(
+                    padding: EdgeInsets.all(7),
+                    child: Icon(Icons.close_rounded, size: 15),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        Semantics(
+          button: true,
+          label: reminders.isEmpty
+              ? 'Car reminders'
+              : '${reminders.length} car reminders',
+          child: IconButton(
+            key: const ValueKey('home-reminders'),
+            tooltip: 'Car reminders',
+            onPressed: () =>
+                ref.read(tabIndexProvider.notifier).go(2, section: 1),
+            icon: Badge(
+              isLabelVisible: reminders.isNotEmpty,
+              label: Text('${reminders.length}'),
+              backgroundColor: due ? VerdictColors.bad : FoxColors.brandFox,
+              child: const Icon(Icons.car_repair_rounded),
+            ),
+          ),
         ),
-      ),
+      ],
     );
   }
 }

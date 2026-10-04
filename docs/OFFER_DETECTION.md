@@ -1,6 +1,6 @@
 # Offer Detection and Verdict Logic
 
-Canonical implementation map for `1.0.19+118`, verified against the code on
+Canonical implementation map for `1.0.19+119`, verified against the code on
 2026-10-03.
 
 ## Maintenance contract
@@ -54,7 +54,7 @@ FoxyCo never presses Accept, Match, Reserve, or any other driver-app control.
 The Accessibility service receives window state/content/window-list events
 from the driver packages below and Google Maps. Maps events are
 filtered in native code before event copying or node traversal; only a Maps
-window-state event may request an overlay surface refresh. No Maps text, nodes,
+window-state event may request an overlay window refresh. No Maps text, nodes,
 or screenshots are sent to Dart or used for offer detection.
 
 | Platform | Android package | Parser status |
@@ -387,6 +387,11 @@ excluded from accepted counts, accepted distance/minutes, and trip performance
 rates because the offered route was not completed. Changing the manual outcome,
 final payout, or cancellation fee refreshes the affected saved session summary;
 the live History rollup and Home goal derive directly from the updated rows.
+Choosing Cancelled in History now opens the fee entry immediately; Later leaves
+the fee pending, and the detail sheet still allows it to be added or edited.
+Changing a manual outcome across the cancelled boundary clears any prior final
+earnings or fee, so trip earnings cannot be reused as a cancellation fee (or
+vice versa).
 Serialized final payouts carry a marker confirming that the separate tip is
 already included. Unmarked legacy rows add the stored tip once during decoding;
 their next serialization writes the marker, preventing repeat addition across
@@ -447,6 +452,11 @@ shift remains Watching, the window is recreated, and the recovery reason is
 written to diagnostics. Overlay generation, window type/format/alpha/size, and
 surface create/change/destroy events are written both to native logcat and the
 copyable in-app diagnostic log without screen content.
+If the app process restarts while a valid saved live-session anchor exists,
+permission refresh also restores Watching and recreates the overlay window.
+The old overlay window cannot survive process death; a missing window alone no
+longer ends the saved session. OCR capture still requires its Android permission
+after a process restart, while Accessibility can continue to detect offers.
 
 Build 108 adds visibility, attachment, display/rotation, view and surface
 opacity, surface revision, and device/Android version to those diagnostics.
@@ -460,17 +470,18 @@ generation, invalidation reason, line count, no-card flag, and elapsed time.
 Capture cadence, generation guards, parser routing, and outcomes are unchanged.
 
 On a Google Maps window-state event, or a sampled Maps OCR capture-context
-change, FoxyCo briefly hides Flutter's child SurfaceView for 50 ms and shows it
-again to request a fresh compositor layer. After the view is restored, the
-refresh-finish diagnostic records how many surface-created and
-surface-destroyed callbacks have occurred since the attempt began. A Maps
+change, FoxyCo recreates the parent overlay window while keeping the same
+Flutter engine and Watching state. The recorded device video shows an opaque
+square even when FoxyCo's sampled SurfaceView pixels are transparent and child
+surface refreshes complete, so a child-only refresh is insufficient. Native
+diagnostics record window-refresh start, finish, and any error. A Maps
 window-state signal is recorded at most once per 30 seconds even when its
 refresh is skipped. Repeated Maps signals within three
-seconds are coalesced. The overlay window, engine, position, pill, and Watching
+seconds are coalesced. The engine, position, pill, and Watching
 state remain active. Other app switches remain diagnostic-only. This automates
-the part of stop/start Watching that cleared the Samsung grey mask without
-restarting the service. As a safety net, the overlay service also refreshes the
-child surface after five minutes without a refresh while the bubble is resting.
+the window recreation that cleared the Samsung grey mask without
+restarting the service. As a safety net, the overlay service also recreates the
+window after five minutes without a refresh while the bubble is resting.
 It retries after 30 seconds if a verdict pill is visible or the surface is
 temporarily hidden; Maps-triggered refreshes reset the five-minute timer. This
 is preventive because transparent pixels in FoxyCo's own surface cannot reveal
@@ -494,7 +505,7 @@ corner painted into the sampled Flutter pixels less likely, while leaving the
 parent window and final composition unresolved. Later Uber-to-Maps logs
 contained no sampled Maps
 capture context at all, so the OCR-only trigger could miss the handoff. The
-Maps window-state signal now requests the same surface recovery without waiting
+Maps window-state signal now requests the same window recovery without waiting
 for OCR. Retest this exact sequence using Q.24 before treating the defect as
 resolved on-device.
 

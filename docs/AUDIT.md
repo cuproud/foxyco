@@ -2,10 +2,39 @@
 
 Audit date: 2026-10-03
 
-Candidate: `1.0.19+118`
+Candidate: `1.0.19+119`
 
-Automated checks pass. Play upload remains conditional on the device and
+Play upload remains conditional on the device and
 Console checks in `MANUAL_TESTS.md` and `PLAY_RELEASE.md`.
+
+## Build 119 — reminder, recap, overlay, and cancellation fee
+
+- Play build code advances from 118 to 119; version name stays `1.0.19`.
+- Home presents a due car reminder as a small dismissible bubble beside the
+  header icon, and removes its duplicate lower banner. Session recap puts the
+  time range and active time in compact top-row chips, gives Earnings and Jobs
+  taken equal width, and separates the Recent sessions surface.
+- History tightens filter spacing and offers fee entry when a trip is marked
+  Cancelled. The detail sheet's Add fee Save path now returns double-valued
+  zero tip and toll fields; a widget regression reproduces and guards the
+  runtime type crash reported on device. Crossing the cancelled outcome
+  boundary clears any prior final payout.
+- The Android overlay recreates its parent window on Maps handoff and periodic
+  recovery. A saved live session restores Watching after process restart when
+  permissions still allow it. These changes respond to the 2026-10-03 video
+  and diagnostics; R119.4–R119.5 remain device checks.
+- Guarded release preflight passed Flutter analysis, the full Flutter suite,
+  and Firestore rules tests. The signed AAB was built with the Play licensing
+  key. `jarsigner` reports `jar verified` with the existing self-signed upload
+  certificate, no-timestamp, POSIX-attribute, and streaming ZIP warnings.
+- `pubspec.yaml` and About both report build 119. Play Console acceptance and
+  the physical-device checks remain pending.
+
+Device checks R119.1–R119.5 remain pending.
+
+Verified artifact: `FoxyCo-v1.0.19+119-release-20261003-2329.aab`
+
+SHA-256: `51019a51fbe9aa69e0e990190502915ff8c35d8eef4bd15eb1bba047f1d8d9db`
 
 ## Build 118 — session recap and manual-job math
 

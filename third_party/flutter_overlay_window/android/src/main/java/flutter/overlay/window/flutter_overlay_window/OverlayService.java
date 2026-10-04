@@ -626,9 +626,8 @@ public class OverlayService extends Service implements View.OnTouchListener {
         mAnimationHandler.postDelayed(periodicSurfaceRefresh, delayMs);
     }
 
-    /** Recreate only Flutter's child surface. Re-applying
-     * alpha/format to the same Samsung surface does not clear the grey mask;
-     * stop/start Watching does because it creates a new surface. */
+    /** Recreate the parent window when available; child-only surface refreshes
+     * left the grey compositor mask visible on the reported Samsung device. */
     private void refreshSurface(String source) {
         SurfaceView surface = diagnosticSurface;
         long now = SystemClock.elapsedRealtime();
@@ -647,6 +646,31 @@ public class OverlayService extends Service implements View.OnTouchListener {
         }
         lastSurfaceRefreshAt = now;
         schedulePeriodicSurfaceRefresh(PERIODIC_SURFACE_REFRESH_MS);
+        if (windowManager != null && flutterView != null) {
+            // The device log shows a transparent Flutter SurfaceView after Maps
+            // handoff while Samsung still composites an opaque square behind it.
+            // Recreate the parent WindowManager layer; rebuilding only the child
+            // surface has repeatedly left that square in place.
+            FlutterView view = flutterView;
+            WindowManager manager = windowManager;
+            WindowManager.LayoutParams params =
+                    (WindowManager.LayoutParams) view.getLayoutParams();
+            traceWindow("window-refresh-start source=" + source, params);
+            try {
+                manager.removeViewImmediate(view);
+                if (instance != this || flutterView != view) return;
+                manager.addView(view, params);
+                restoreSurfaceTransparency();
+                traceWindow("window-refresh-finish source=" + source, params);
+            } catch (RuntimeException error) {
+                traceDiagnostic("g=" + generation + " event=window-refresh-error source="
+                        + source + " type=" + error.getClass().getSimpleName());
+                if (view.getParent() == null && instance == this) {
+                    try { manager.addView(view, params); } catch (RuntimeException ignored) { }
+                }
+            }
+            return;
+        }
         final int createdBefore = surfaceCreatedCount;
         final int destroyedBefore = surfaceDestroyedCount;
         traceDiagnostic("g=" + generation + " event=surface-refresh-start"
