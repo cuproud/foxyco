@@ -44,29 +44,25 @@ const aboutSections = <AboutSection>[
     entries: [
       AboutEntry(
         'What does FoxyCo do?',
-        'While the watcher is live, FoxyCo uses screen text from your enabled '
-            'gig apps only to detect and score offers and, '
-            'if enabled, infer whether an offer was taken or passed. It works '
-            'out the pay per '
-            'kilometre, mile (or per hour, your choice), compares that to your '
-            'thresholds, and paints a floating pill green, amber or red. You '
-            'still accept or decline the offer yourself, exactly as before.',
+        'Go live on Home to read offers from the apps selected in Settings → Offer '
+            'detection. Choose up to three supported apps: Uber, Lyft, Hopp, DoorDash, '
+            'Instacart and Skip. Delivery detection is in beta. FoxyCo calculates '
+            'rates, applies your Rules and shows GOOD, OK or BAD in a floating pill. '
+            'You still accept or decline in the driver app yourself.',
       ),
       AboutEntry(
         'Can FoxyCo tap or accept offers for me?',
-        'No. FoxyCo cannot press anything in the gig apps — it never requests '
-            'the permission that would let it. It reads, scores and shows. '
-            'Every accept and decline is yours. This is deliberate: '
-            'auto-accepting would breach the gig apps\' terms and put your '
-            'account at risk.',
+        'No. FoxyCo reads offers, calculates rates and shows a verdict. It does not '
+            'request permission to perform gestures or press buttons in driver apps. '
+            'Every accept and decline is yours.',
       ),
       AboutEntry(
         'How are GOOD, OK and BAD decided?',
-        'From My Rules. You set the rate at or above which an offer counts as '
-            'good, and the rate below which it counts as bad; everything '
-            'between the two is ok. Switch between distance rate and \$/hr in My Rules '
-            '— each mode keeps its own pair of numbers, since the scales are '
-            'about twenty times apart.',
+        'In Rules, set separate rideshare and delivery thresholds for distance '
+            'rate, hourly rate and minimum payout. Below the minimum payout is BAD. '
+            'Otherwise the selected rate mode compares the offer with your GOOD and BAD '
+            'thresholds; values between them are OK. Hourly mode falls back to distance '
+            'rate when the offer has no time estimate.',
       ),
       AboutEntry(
         'Is FoxyCo affiliated with a gig platform?',
@@ -84,17 +80,125 @@ const aboutSections = <AboutSection>[
       ),
       AboutEntry(
         'How does FoxyCo detect accepted offers?',
-        'It infers it. When the offer card leaves the screen, FoxyCo looks at '
-            'what replaced it: a trip screen means taken, the browse or map '
-            'screen means passed. It works even if you accept in one app while '
-            'watching another. If neither is clear, the offer stays unmarked '
-            'rather than guessing. You can turn this off in Settings.',
+        'With Auto-detect outcome enabled in Settings, explicit trip or pickup '
+            'screens in Uber, Lyft and Hopp can mark an offer as accepted. A clearly '
+            'recognized return to browsing can mark it as missed. Ambiguous screens '
+            'stay unmarked. Delivery apps do not currently have automatic accepted-trip '
+            'detection. Correct outcomes in History; automatic tracking never '
+            'overwrites your manual choice.',
       ),
       AboutEntry(
         'How does pickup distance affect a verdict?',
-        'A long unpaid pickup can make a good-looking offer less useful. Set '
-            'the pickup distance you consider near, and the target changes '
-            'colour when the pickup is farther away.',
+        'Set the pickup distance you consider near in Rules. The pickup indicator '
+            'changes colour for longer pickups. This indicator does not change the '
+            'GOOD, OK or BAD verdict by itself.',
+      ),
+    ],
+  ),
+  AboutSection(
+    title: 'Home & sessions',
+    entries: [
+      AboutEntry(
+        'How do I start, pause or stop Watching?',
+        'Complete the permissions setup, then slide to go live on Home. '
+            'Long-press the bubble to pause or resume. Slide back on Home to '
+            'stop, end the session and remove the overlay. Session summaries '
+            'are available in History.',
+      ),
+      AboutEntry(
+        'How do earnings goals stay up to date?',
+        'Home goals use recorded earnings for the selected goal period. '
+            'Accepted offers use their offered payout until a final payout is '
+            'saved. Final payouts and completed manual entries update the total. '
+            'Cancelled jobs contribute only their saved cancellation fee.',
+      ),
+    ],
+  ),
+  AboutSection(
+    title: 'History & earnings',
+    entries: [
+      AboutEntry(
+        'Can I add a trip or delivery manually?',
+        'Use Add trip or delivery in History for a completed job that was not '
+            'captured. Enter the platform, payout, distance, minutes and date. '
+            'Manual jobs count toward earnings and completed jobs, but do not '
+            'inflate captured-offer or acceptance statistics.',
+      ),
+      AboutEntry(
+        'How do fare, tip and toll reimbursement work?',
+        'Final earnings prefills the offered fare when no final payout exists. '
+            'The first field is Fare before tip: keep it or edit it, then enter '
+            'the tip separately. The tip is added once. Toll reimbursement is '
+            'already part of the entered fare; it is excluded from performance '
+            'rates rather than added again.',
+      ),
+      AboutEntry(
+        'Can I correct an outcome or distance?',
+        'Open the offer in History to correct its outcome or distance and save '
+            'final earnings. Manual outcomes are preserved. A cancelled job '
+            'uses its cancellation fee, including zero, instead of its '
+            'original fare and is excluded from trip performance rates.',
+      ),
+    ],
+  ),
+  AboutSection(
+    title: 'Garage & income',
+    entries: [
+      AboutEntry(
+        'What does Total income include?',
+        'The Income chart uses recorded earnings from History for the displayed '
+            'week, month, quarter or year. Final payouts replace offered '
+            'estimates; completed manual jobs and cancellation fees are '
+            'included. Editing History updates the report. Expenses are '
+            'shown separately and are not drawn in the income chart.',
+      ),
+      AboutEntry(
+        'What does the percentage beside income compare?',
+        'It compares the entire displayed period with the previous period: '
+            'week versus previous week, month versus previous month, and '
+            'likewise for quarter and year. Selecting a bar changes its value '
+            'bubble, not that period comparison. If the previous period has '
+            'no income, no percentage is calculated.',
+      ),
+      AboutEntry(
+        'What are Final, Estimated and Report balance?',
+        'Final is saved actual earnings. Estimated is the offered payout for '
+            'accepted jobs still waiting for final earnings. Payouts combines '
+            'them. Report balance is payouts minus recorded vehicle expenses '
+            'for the displayed period.',
+      ),
+      AboutEntry(
+        'How do I manage vehicles and running costs?',
+        'Use the plus icon in the vehicle heading to add a car. The active '
+            'vehicle stays first; expand Other vehicles to switch cars. Cards '
+            'show brand/model, type and saved colour, then plate and year. '
+            'Record costs under Vehicle expenses and manage care reminders '
+            'in Garage.',
+      ),
+    ],
+  ),
+  AboutSection(
+    title: 'Preferences',
+    entries: [
+      AboutEntry(
+        'Can I change the bubble, text size and theme?',
+        'Settings → Look & feel contains Pill size, Text size and Appearance. '
+            'Choose the bubble style, theme and money typeface there. These '
+            'display choices do not change offer rates or verdict rules.',
+      ),
+      AboutEntry(
+        'Does changing currency convert my earnings?',
+        'No. Offer currency labels fares as reported; it does not convert '
+            'amounts or exchange rates. USD defaults to miles and the other '
+            'currency choices default to kilometres. Override Distance in '
+            'Appearance if needed and review your Rules thresholds.',
+      ),
+      AboutEntry(
+        'Does resetting preferences delete History?',
+        'Reset preferences and Clear all history are separate actions in '
+            'Settings. Reset preferences restores the app settings. Use '
+            'Clear all history to remove offers and session summaries. Export '
+            'an offer backup first; session summaries are not backed up.',
       ),
     ],
   ),
@@ -146,13 +250,12 @@ const aboutSections = <AboutSection>[
       ),
       AboutEntry(
         'Does FoxyCo need an internet connection?',
-        'Not while you are driving. Reading offers, scoring them and showing '
-            'the pill are all done on your phone with no network at all. '
-            'FoxyCo does need to check in with Google roughly once a week to '
-            'confirm your trial or purchase is still valid — it keeps working '
-            'for 7 days between successful checks, and warns you a couple of '
-            'days before that runs out. Open the app once with a signal and '
-            'the clock resets.',
+        'Offer reading, scoring and local history work on your phone without a '
+            'network. Starting or restoring a trial and buying or restoring lifetime '
+            'access need a connection. Cached trial or purchase verification has a '
+            '7-day offline grace window; this does not extend the 7-day trial itself. '
+            'If FoxyCo warns that verification is getting stale, reconnect and open the '
+            'app to refresh access.',
       ),
       AboutEntry(
         'Can I delete my FoxyCo account?',
@@ -176,20 +279,20 @@ const aboutSections = <AboutSection>[
     entries: [
       AboutEntry(
         'What gets stored?',
-        'On this device: your name, settings, garage, reminders and offer '
-            'history. Firebase creates a random app identity on first launch. '
-            'If you start or restore a trial, it also stores your Google '
-            'account identity and one server-stamped trial start time. Google '
-            'Play handles purchases; FoxyCo never receives card details. You '
-            'can set how long offers are kept or clear them in Settings.',
+        'On this device: your profile name, preferences, offer history, session '
+            'summaries, earnings goals, vehicles, expenses and reminders. Firebase '
+            'creates a random app identity on first launch. If you start or restore a '
+            'trial, it also stores your Google account identity and one server-stamped '
+            'trial start time. Google Play handles purchases; FoxyCo never receives '
+            'card details. Set offer retention or clear history in Settings → History.',
       ),
       AboutEntry(
         'Why does it need the accessibility permission?',
-        'It is the only way on Android to read what another app is drawing on '
-            'screen. FoxyCo only reads enabled gig apps, so it receives nothing '
-            'from your browser, '
-            'messages, banking apps or other apps. Supporting another driver '
-            'app requires a FoxyCo update that explicitly adds it.',
+        'Accessibility provides offer text from selected supported driver apps. '
+            'Google Maps and Waze window-state events also help refresh the floating '
+            'bubble after navigation handoff; their screen text, content nodes and '
+            'screenshots are not used for offer detection. FoxyCo does not read your '
+            'browser, messages or banking apps.',
       ),
       AboutEntry(
         'What is Uber screen-reading fallback?',
@@ -210,17 +313,20 @@ const aboutSections = <AboutSection>[
       ),
       AboutEntry(
         'Does offer data leave my phone?',
-        'No. Raw screen text is used briefly in memory and is never saved, '
-            'uploaded or shared. Extracted pay, distance, duration, platform '
-            'and verdict may be saved only in FoxyCo\'s private local history. '
-            'Firebase never receives offer text, offer history or earnings.',
+        'Raw screen text is used briefly in memory and is never saved or uploaded. '
+            'Extracted pay, distance, duration, platform and verdict are stored in '
+            'private local history. Firebase never receives offer text, offer history '
+            'or earnings. If you choose to export a backup or send feedback, the file '
+            'or screenshots you select can leave the phone through the sharing or email '
+            'app you confirm.',
       ),
       AboutEntry(
         'How do I back up or restore offer history?',
-        'In Settings → History, choose Export history backup to create a local '
-            'file. Import history backup validates it first, then lets you Merge '
-            'or Replace. Manual outcomes, final payouts, and scoring details '
-            'are preserved; settings and session summaries are not included.',
+        'In Settings → History, choose Export history backup. Import history backup '
+            'validates the file, then offers Merge or Replace. Manual entries, manual '
+            'outcomes, final payouts and scoring details are preserved. Preferences, '
+            'session summaries, goals, vehicles, expenses and reminders are not '
+            'included. Keep exported files somewhere private.',
       ),
     ],
   ),
@@ -229,11 +335,11 @@ const aboutSections = <AboutSection>[
     entries: [
       AboutEntry(
         'The pill never appears',
-        'Check both permissions first — Settings shows them at the top, and '
-            'the slide control says "Offer access required" when setup is incomplete. '
-            'FoxyCo needs Accessibility (to read the offer) and Display over '
-            'other apps (to draw the pill). Then make sure the watcher is '
-            'actually live: the control should read "Live" with a pulsing dot.',
+        'Check Accessibility and Display over other apps in Settings, select your '
+            'driver apps under Offer detection, and go live on Home. Check Profile → '
+            'Access if the verdict is locked. If the offer appears in History, capture '
+            'worked and the problem is likely overlay display or access. If it never '
+            'appears in History, check detection and report the missed offer.',
       ),
       AboutEntry(
         'It worked, then stopped mid-shift',
@@ -244,18 +350,20 @@ const aboutSections = <AboutSection>[
       ),
       AboutEntry(
         'One app scores but another never does',
-        'Open Offer detection in Settings. If an app shows misses with no '
-            'successes, that app changed its offer screen and FoxyCo\'s reader '
-            'needs updating — nothing you can fix from here, but the counter '
-            'confirms it is the reader and not your thresholds.',
+        'Check that the app is selected in Settings → Offer detection. Needs update '
+            'may indicate a changed offer layout. Delivery detection is in beta, and '
+            'some cards may not expose enough information. Use Report a missed offer '
+            'with the platform and a useful screenshot so the reader can be '
+            'investigated.',
       ),
       AboutEntry(
         'The pill stays up after I leave the gig app',
-        'It should clear within a few seconds. Because the reader is scoped to '
-            'the gig apps, FoxyCo stops receiving anything at all once you '
-            'switch away, so it treats that silence as "the card is gone" and '
-            'drops the pill. If one lingers longer than that, long-press the '
-            'bubble to go offline, or drag it to the ✕ at the bottom.',
+        'The temporary verdict normally expires after five seconds and may clear '
+            'sooner when the card is confirmed gone. The resting bubble remains while '
+            'Watching is active. Maps and Waze handoffs also trigger bubble recovery, '
+            'with a follow-up attempt around 30 seconds later when no verdict is '
+            'showing. If a visual patch persists, stop Watching and start again; '
+            'device-specific recovery still needs checking.',
       ),
       AboutEntry(
         'How do I get rid of the bubble?',

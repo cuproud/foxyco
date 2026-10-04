@@ -6,14 +6,46 @@ import 'about_content.dart';
 
 /// About FoxyCo — what the app does, what it stores, and how to unstick it.
 ///
-/// Deliberately dumb: it renders [aboutSections] and nothing else. All the copy
-/// lives in `about_content.dart`, so growing the FAQ never touches this file.
-class AboutScreen extends StatelessWidget {
+/// Copy lives in `about_content.dart`; search filters it locally.
+class AboutScreen extends StatefulWidget {
   const AboutScreen({super.key});
+
+  @override
+  State<AboutScreen> createState() => _AboutScreenState();
+}
+
+class _AboutScreenState extends State<AboutScreen> {
+  final _search = TextEditingController();
+
+  @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final text = Theme.of(context).textTheme;
+    final query = _search.text.trim().toLowerCase();
+    final sections = aboutSections
+        .map((section) {
+          final entries = section.entries
+              .where(
+                (entry) =>
+                    section.title.toLowerCase().contains(query) ||
+                    section.blurb.toLowerCase().contains(query) ||
+                    entry.question.toLowerCase().contains(query) ||
+                    entry.answer.toLowerCase().contains(query),
+              )
+              .toList();
+          return AboutSection(
+            title: section.title,
+            blurb: section.blurb,
+            entries: entries,
+          );
+        })
+        .where((section) => section.entries.isNotEmpty)
+        .toList();
     return Scaffold(
       appBar: AppBar(title: const Text('Help & About')),
       body: ListView(
@@ -46,9 +78,35 @@ class AboutScreen extends StatelessWidget {
               height: 1.45,
             ),
           ),
-          for (final section in aboutSections) ...[
+          const SizedBox(height: Gap.md),
+          TextField(
+            controller: _search,
+            onChanged: (_) => setState(() {}),
+            textInputAction: TextInputAction.search,
+            decoration: InputDecoration(
+              labelText: 'Search help',
+              prefixIcon: const Icon(Icons.search),
+              suffixIcon: _search.text.isEmpty
+                  ? null
+                  : IconButton(
+                      tooltip: 'Clear search',
+                      onPressed: () => setState(_search.clear),
+                      icon: const Icon(Icons.close),
+                    ),
+            ),
+          ),
+          if (sections.isEmpty) ...[
             const SizedBox(height: Gap.lg),
-            Text(section.title.toUpperCase(), style: text.labelSmall),
+            const Text(
+              'No matching help. Try another word or clear the search.',
+            ),
+          ],
+          for (final section in sections) ...[
+            const SizedBox(height: Gap.lg),
+            Semantics(
+              header: true,
+              child: Text(section.title.toUpperCase(), style: text.labelSmall),
+            ),
             if (section.blurb.isNotEmpty) ...[
               const SizedBox(height: Gap.sm),
               Text(
@@ -60,7 +118,10 @@ class AboutScreen extends StatelessWidget {
               ),
             ],
             const SizedBox(height: Gap.sm),
-            _SectionCard(entries: section.entries),
+            _SectionCard(
+              key: ValueKey(section.title),
+              entries: section.entries,
+            ),
           ],
           const SizedBox(height: Gap.lg),
           const LegalFooter(),
@@ -72,23 +133,23 @@ class AboutScreen extends StatelessWidget {
 
 /// One group of questions as a single card of expansion tiles, hairline-divided.
 class _SectionCard extends StatelessWidget {
-  const _SectionCard({required this.entries});
+  const _SectionCard({super.key, required this.entries});
   final List<AboutEntry> entries;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return Material(
       clipBehavior: Clip.antiAlias,
-      decoration: BoxDecoration(
-        color: FoxColors.bgSurface,
+      color: FoxColors.bgSurface,
+      shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(Radii.card),
-        border: Border.all(color: FoxColors.borderSoft),
+        side: BorderSide(color: FoxColors.borderSoft),
       ),
       child: Column(
         children: [
           for (var i = 0; i < entries.length; i++) ...[
             if (i > 0) Divider(height: 1, color: FoxColors.borderSoft),
-            _EntryTile(entry: entries[i]),
+            _EntryTile(key: ValueKey(entries[i].question), entry: entries[i]),
           ],
         ],
       ),
@@ -97,7 +158,7 @@ class _SectionCard extends StatelessWidget {
 }
 
 class _EntryTile extends StatelessWidget {
-  const _EntryTile({required this.entry});
+  const _EntryTile({super.key, required this.entry});
   final AboutEntry entry;
 
   @override
@@ -109,6 +170,7 @@ class _EntryTile extends StatelessWidget {
         splashColor: Colors.transparent,
       ),
       child: ExpansionTile(
+        key: PageStorageKey(entry.question),
         tilePadding: const EdgeInsets.symmetric(horizontal: Gap.md),
         childrenPadding: const EdgeInsets.fromLTRB(Gap.md, 0, Gap.md, Gap.md),
         expandedCrossAxisAlignment: CrossAxisAlignment.start,

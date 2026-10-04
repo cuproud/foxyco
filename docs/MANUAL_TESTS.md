@@ -1,5 +1,16 @@
 # Manual Test Log
 
+## Unreleased — Help & About
+
+- At 320/360 dp in both themes with enlarged text, open Help & About and expand
+  answers in every group; check wrapping and scroll to the bottom of long answers.
+- Search “Waze”, “tip”, “income”, “Privacy” and “Analytics”; verify relevant
+  answers/groups, then clear search to restore all help.
+- Search an unmatched phrase; check the empty message and Terms, Privacy Policy
+  and Delete my account links remain reachable. Check links on an Android device.
+- Confirm version remains `1.0.19 (build 124)`. These checks apply to unreleased
+  source changes, not the existing build 124 AAB.
+
 ## Build 124 — Garage visual refinements
 
 These checks apply to the `1.0.19+124` release.

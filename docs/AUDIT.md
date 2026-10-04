@@ -7,6 +7,24 @@ Candidate: `1.0.19+124`
 Play upload remains conditional on the device and
 Console checks in `MANUAL_TESTS.md` and `PLAY_RELEASE.md`.
 
+## Unreleased — Help & About audit
+
+- Verified all help groups against the current UI, local data models, billing
+  entitlement and offer-detection contract. Added Home/session, History/fare,
+  Garage/income and preference help; corrected outcome detection, navigation
+  recovery, privacy/sharing, offline access and troubleshooting descriptions.
+- Help search matches section titles, blurbs, questions and answers locally.
+  Stable question keys preserve the correct expansion state while filtering.
+  Legal links remain reachable for empty results.
+- FAQ cards now use a Material surface so question interaction effects are
+  visible. The version stays `1.0.19 (build 124)`; README candidate corrected.
+- Flutter analysis passed with no issues; all 19 focused About, content, legal
+  and feedback tests passed. Each FAQ answer was expanded at 320/360 dp,
+  2× text in both themes without layout exceptions. Search, empty results
+  and legal-link visibility are covered; Android link opening remains manual.
+- These changes are not included in the existing build 124 AAB. No version
+  bump or release rebuild was performed for this help update.
+
 ## Build 124 — Garage visual refinements
 
 - Reviewed `Screen_Recording_20261004_173310.mp4`: the prior shared reflection
