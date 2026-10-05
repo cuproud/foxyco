@@ -31,7 +31,7 @@ class AboutSection {
 const aboutIntro = 'Your drive. Your rules.';
 
 /// Guarded against pubspec drift by about_content_test.dart.
-const aboutVersion = '1.0.19 (build 125)';
+const aboutVersion = '1.0.19 (build 126)';
 
 const aboutSections = <AboutSection>[
   AboutSection(

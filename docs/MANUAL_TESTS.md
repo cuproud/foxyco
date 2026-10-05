@@ -1,6 +1,6 @@
 # Manual Test Log
 
-## Next build — App tour polish
+## Build 126 — App tour polish
 
 - At 320/360 dp, check History GOOD avg and Best rate show `/km` or `/mi` after
   changing Distance. Increase text size: the stats should stack without clipped
@@ -15,7 +15,8 @@
   and a matching floor shadow. Check live/offline states and reduced motion.
 - Help & About: check the shorter copy, search, answer expansion and legal links.
 - Weekly goal still resets on Monday and can be reached with a day remaining.
-- Requires a future bundle: the existing build 125 AAB predates these changes.
+- Install build 126 from Play Internal testing; confirm About shows
+  `1.0.19 (build 126)` and all tour-polish changes are present.
 
 ## Build 125 — Premium splash
 

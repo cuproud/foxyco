@@ -2,12 +2,27 @@
 
 Audit date: 2026-10-04
 
-Candidate: `1.0.19+125`
+Candidate: `1.0.19+126`
 
 Play upload remains conditional on the device and
 Console checks in `MANUAL_TESTS.md` and `PLAY_RELEASE.md`.
 
-## Unreleased — App tour polish
+## Build 126 — Signed Play bundle
+
+- Guarded build preflight passed Flutter analysis, the full Flutter test suite
+  and Firestore rules tests before advancing the version to `1.0.19+126`.
+- Signed AAB includes the app-tour polish and previous premium splash. Signature
+  verification reports `jar verified`; the packaged manifest confirms
+  `com.foxyco.app`, version name `1.0.19` and version code `126`. Bundletool
+  validation also passed.
+- About and current-candidate documentation are synchronized with build 126.
+- Play Console upload and physical-device review remain pending.
+
+Verified artifact: `FoxyCo-v1.0.19+126-release-20261004-2340.aab`
+
+SHA-256: `4f17eedbc8cb7cf0b121d8f06efdbff9f3e816c3b60becc08f975e1903d06c2b`
+
+## Build 126 — App tour polish
 
 - History GOOD average and best rate now include the selected distance unit
   (`/km` or `/mi`). The compact strip uses single-line values and labels and
@@ -30,8 +45,8 @@ Console checks in `MANUAL_TESTS.md` and `PLAY_RELEASE.md`.
   units, one-line snapshot helpers and filter spacing with Android insets.
   All 59 focused tests passed; Flutter analysis found no issues. Rendered Home,
   History, filter and About previews were also reviewed.
-- These source changes are not in the existing build 125 AAB. No new bundle or
-  version bump was requested for this polish pass.
+- Included in build 126. Version code advances from 125 to 126; version name
+  remains `1.0.19`. The build helper synchronizes the About version label.
 
 ## Build 125 — Signed Play bundle
 
