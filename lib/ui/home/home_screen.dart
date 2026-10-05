@@ -1360,9 +1360,10 @@ class _SessionCardState extends ConsumerState<_SessionCard> {
 
     final text = Theme.of(context).textTheme;
     final l10n = MaterialLocalizations.of(context);
+    final use24Hour = MediaQuery.of(context).alwaysUse24HourFormat;
     String clock(DateTime t) => l10n.formatTimeOfDay(
       TimeOfDay.fromDateTime(t),
-      alwaysUse24HourFormat: MediaQuery.of(context).alwaysUse24HourFormat,
+      alwaysUse24HourFormat: use24Hour,
     );
     final now = DateTime.now();
     final daysAgo = DateUtils.dateOnly(now).difference(day.date).inDays;
@@ -1403,30 +1404,59 @@ class _SessionCardState extends ConsumerState<_SessionCard> {
                 HapticFeedback.selectionClick();
                 widget.onTap();
               },
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(dayLabel, style: text.titleMedium),
-                  const SizedBox(height: Gap.sm),
-                  Wrap(
-                    spacing: Gap.sm,
-                    runSpacing: Gap.xs,
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final date = Text(dayLabel, style: text.titleMedium);
+                  final chips = [
+                    if (day.hasWatchSessions) ...[
+                      _RecapChip(
+                        '${clock(day.startedAt)} – ${clock(day.endedAt)}',
+                      ),
+                      _RecapChip(
+                        '${durationLabel(day.duration)} active',
+                        active: true,
+                      ),
+                    ] else
+                      _RecapChip(
+                        '${day.manualJobs} manual ${day.manualJobs == 1 ? 'job' : 'jobs'}',
+                      ),
+                  ];
+                  if (MediaQuery.textScalerOf(context).scale(1) > 1.3) {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        date,
+                        const SizedBox(height: Gap.sm),
+                        Wrap(
+                          spacing: Gap.xs,
+                          runSpacing: Gap.xs,
+                          children: chips,
+                        ),
+                      ],
+                    );
+                  }
+                  return Row(
                     children: [
-                      if (day.hasWatchSessions) ...[
-                        _RecapChip(
-                          '${clock(day.startedAt)} – ${clock(day.endedAt)}',
+                      date,
+                      const SizedBox(width: Gap.sm),
+                      Expanded(
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerRight,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              for (final (index, chip) in chips.indexed) ...[
+                                if (index > 0) const SizedBox(width: Gap.xs),
+                                chip,
+                              ],
+                            ],
+                          ),
                         ),
-                        _RecapChip(
-                          '${durationLabel(day.duration)} active',
-                          active: true,
-                        ),
-                      ] else
-                        _RecapChip(
-                          '${day.manualJobs} manual ${day.manualJobs == 1 ? 'job' : 'jobs'}',
-                        ),
+                      ),
                     ],
-                  ),
-                ],
+                  );
+                },
               ),
             ),
           ),

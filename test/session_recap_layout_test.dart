@@ -28,9 +28,7 @@ class _Sessions extends SessionLog {
 }
 
 void main() {
-  testWidgets('recap date sits above side-by-side time and duration chips', (
-    tester,
-  ) async {
+  testWidgets('recap date and both time chips share one row', (tester) async {
     SharedPreferences.setMockInitialValues({});
     await (FontLoader(
       'Inter',
@@ -88,11 +86,11 @@ void main() {
           final date = find.text('Yesterday');
           final time = find.text('12:50 PM – 4:49 PM');
           final active = find.text('3h 59m active');
-          expect(
-            tester.getBottomLeft(date).dy,
-            lessThan(tester.getTopLeft(time).dy),
-          );
           if (scale == 1) {
+            expect(
+              tester.getCenter(date).dy,
+              closeTo(tester.getCenter(time).dy, .1),
+            );
             expect(
               tester.getTopLeft(time).dy,
               closeTo(tester.getTopLeft(active).dy, .1),
@@ -100,6 +98,12 @@ void main() {
             expect(
               tester.getTopLeft(active).dx,
               greaterThan(tester.getTopRight(time).dx),
+            );
+          }
+          if (scale > 1.3) {
+            expect(
+              tester.getBottomLeft(date).dy,
+              lessThan(tester.getTopLeft(time).dy),
             );
           }
           expect(

@@ -161,15 +161,19 @@ class _IncomeExpenseReportState extends State<IncomeExpenseReport> {
                             child: Text(
                               _money(report.stats.recordedEarnings),
                               style: TextStyle(
-                                color: FoxColors.brandFox,
+                                color: Color.lerp(
+                                  FoxColors.brandFox,
+                                  FoxColors.textSecondary,
+                                  .3,
+                                ),
                                 fontFamily: FoxFonts.display,
                                 fontSize:
                                     MediaQuery.textScalerOf(context).scale(1) >
                                         1.5
                                     ? 28
-                                    : 36,
-                                fontWeight: FontWeight.w900,
-                                letterSpacing: -1.5,
+                                    : 32,
+                                fontWeight: FontWeight.w600,
+                                letterSpacing: -0.5,
                                 height: 1,
                                 fontFeatures: const [
                                   FontFeature.tabularFigures(),

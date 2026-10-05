@@ -1,15 +1,16 @@
 # Manual Test Log
 
-## Build 127 — Session recap header
+## Build 128 — Session recap and income polish
 
-- On Home with a previous watch session, check the date (e.g. Yesterday) appears
-  above the time range and active-duration chips. At normal text size the chips
-  should be side by side, rather than stacked to the right of the date.
+- On Home with a previous watch session, check the date (e.g. Yesterday), time
+  range and active duration appear on one row, matching the supplied reference.
 - Check 320/360/412 dp, light/dark themes and enlarged text. Large text may wrap
   the chips below the date; no text should overlap or overflow the card.
 - Check a manual-only recap and tap the header / View details to open session
   history. Earnings, job counts and offer quality should be unchanged.
-- Confirm About shows `1.0.19 (build 127)` in the new Play bundle.
+- Garage Total income should be slightly smaller (32 sp), semibold and a softer orange,
+  with long amounts fitting at small widths and enlarged text.
+- Confirm About shows `1.0.19 (build 128)` in the new Play bundle.
 
 ## Build 126 — App tour polish
 

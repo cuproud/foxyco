@@ -2,35 +2,56 @@
 
 Audit date: 2026-10-05
 
-Candidate: `1.0.19+127`
+Candidate: `1.0.19+128`
 
 Play upload remains conditional on the device and
 Console checks in `MANUAL_TESTS.md` and `PLAY_RELEASE.md`.
 
-## Build 127 — Signed Play bundle
+## Build 128 — Signed Play bundle
+
+- Guarded release preflight passed Flutter analysis, the full Flutter test suite
+  and Firestore rules tests before the version advanced to `1.0.19+128`.
+- Signature verification reports `jar verified`; bundletool validation passed.
+  The manifest confirms package `com.foxyco.app`, version name `1.0.19` and
+  version code `128`.
+- Includes the reference-matched session recap header and the smaller, lighter
+  FoxyCo orange Garage income amount.
+- Play Console upload and physical-device review remain pending.
+
+Verified artifact: `FoxyCo-v1.0.19+128-release-20261005-0104.aab`
+
+SHA-256: `cfe21294d242bb64e09045730dc87a836960f5f46ce896d21ee540ffb7227f2b`
+
+## Build 127 — Signed Play bundle (superseded by build 128)
 
 - Signed bundle built after the guarded release checks passed. `jarsigner`
   reports `jar verified`; bundletool validation passed and the manifest confirms
   package `com.foxyco.app`, version name `1.0.19` and version code `127`.
-- Includes the session recap header fix and all changes from build 126.
+- Includes the session recap header fix and all changes from build 126; the header now matches the supplied reference.
 - About and candidate documentation are synchronized. Play Console upload and
   physical-device checks remain pending.
 
-Verified artifact: `FoxyCo-v1.0.19+127-release-20261005-0032.aab`
+Previous artifact (superseded): `FoxyCo-v1.0.19+127-release-20261005-0059.aab`
 
-SHA-256: `a403fe4875a54706111599835a700757463d529c1e44db645e9e1e92671ba327`
+SHA-256: `89840466dfbdf0c8b21b4c0e48ccad95edc4e2e6d8b15b22152a81ee0007e60f`
 
-## Build 127 — Session recap header
+## Build 128 — Session recap and income polish
 
-- Fixed the Home recap header: date is on its own line, with the time range and
-  active-duration chips together below it instead of stacking at the right.
-- Chips retain their existing styling and wrap naturally at enlarged text sizes.
+- Corrected the Home recap header to match the supplied reference: date, time
+  range and active duration share one row at normal text size. The time chips
+  scale together to fit narrow widths, instead of wrapping individually.
+- Chips retain their existing styling. Enlarged text uses a stacked layout.
   Recap totals, outcome logic and navigation are unchanged.
 - The regression test checks 320/360/412 dp, both themes and 1×/2× text; at normal
-  text size, the two chips stay side by side below the date without overflow.
+  text size, the date and both chips share one row without overflow.
+- Reduced Garage Total income from 36 to 32 sp (about 11%) at normal text size.
+  Changed its weight from 900 to semibold (600) and softened its orange with
+  a 30% blend toward the theme’s secondary text color. Loosened letter spacing
+  from -1.5 to -0.5 for a less compressed amount.
+  Income data, chart colors and enlarged-text sizing are unchanged.
 - Release preflight passed Flutter analysis, the full Flutter test suite and
-  Firestore rules tests. Version code advances from 126 to 127; version name
-  remains `1.0.19`.
+  Firestore rules tests. Version code advances from 127 to 128; version name remains `1.0.19`; About
+  shows build 128.
 
 ## Build 126 — Signed Play bundle
 
