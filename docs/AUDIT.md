@@ -1,11 +1,36 @@
 # Release audit
 
-Audit date: 2026-10-04
+Audit date: 2026-10-05
 
-Candidate: `1.0.19+126`
+Candidate: `1.0.19+127`
 
 Play upload remains conditional on the device and
 Console checks in `MANUAL_TESTS.md` and `PLAY_RELEASE.md`.
+
+## Build 127 — Signed Play bundle
+
+- Signed bundle built after the guarded release checks passed. `jarsigner`
+  reports `jar verified`; bundletool validation passed and the manifest confirms
+  package `com.foxyco.app`, version name `1.0.19` and version code `127`.
+- Includes the session recap header fix and all changes from build 126.
+- About and candidate documentation are synchronized. Play Console upload and
+  physical-device checks remain pending.
+
+Verified artifact: `FoxyCo-v1.0.19+127-release-20261005-0032.aab`
+
+SHA-256: `a403fe4875a54706111599835a700757463d529c1e44db645e9e1e92671ba327`
+
+## Build 127 — Session recap header
+
+- Fixed the Home recap header: date is on its own line, with the time range and
+  active-duration chips together below it instead of stacking at the right.
+- Chips retain their existing styling and wrap naturally at enlarged text sizes.
+  Recap totals, outcome logic and navigation are unchanged.
+- The regression test checks 320/360/412 dp, both themes and 1×/2× text; at normal
+  text size, the two chips stay side by side below the date without overflow.
+- Release preflight passed Flutter analysis, the full Flutter test suite and
+  Firestore rules tests. Version code advances from 126 to 127; version name
+  remains `1.0.19`.
 
 ## Build 126 — Signed Play bundle
 

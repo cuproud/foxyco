@@ -1403,31 +1403,28 @@ class _SessionCardState extends ConsumerState<_SessionCard> {
                 HapticFeedback.selectionClick();
                 widget.onTap();
               },
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(dayLabel, style: text.titleMedium),
-                  const SizedBox(width: Gap.sm),
-                  Expanded(
-                    child: Wrap(
-                      alignment: WrapAlignment.end,
-                      spacing: Gap.xs,
-                      runSpacing: Gap.xs,
-                      children: [
-                        if (day.hasWatchSessions) ...[
-                          _RecapChip(
-                            '${clock(day.startedAt)} – ${clock(day.endedAt)}',
-                          ),
-                          _RecapChip(
-                            '${durationLabel(day.duration)} active',
-                            active: true,
-                          ),
-                        ] else
-                          _RecapChip(
-                            '${day.manualJobs} manual ${day.manualJobs == 1 ? 'job' : 'jobs'}',
-                          ),
-                      ],
-                    ),
+                  const SizedBox(height: Gap.sm),
+                  Wrap(
+                    spacing: Gap.sm,
+                    runSpacing: Gap.xs,
+                    children: [
+                      if (day.hasWatchSessions) ...[
+                        _RecapChip(
+                          '${clock(day.startedAt)} – ${clock(day.endedAt)}',
+                        ),
+                        _RecapChip(
+                          '${durationLabel(day.duration)} active',
+                          active: true,
+                        ),
+                      ] else
+                        _RecapChip(
+                          '${day.manualJobs} manual ${day.manualJobs == 1 ? 'job' : 'jobs'}',
+                        ),
+                    ],
                   ),
                 ],
               ),
