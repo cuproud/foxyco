@@ -7,6 +7,25 @@ Candidate: `1.0.19+124`
 Play upload remains conditional on the device and
 Console checks in `MANUAL_TESTS.md` and `PLAY_RELEASE.md`.
 
+## Unreleased — Premium splash
+
+- Integrated the user's ZIP artwork and splash code; removed the seasonal
+  painter and separate car/logo composition from this screen.
+- Preserved 1.8 s animation, 2.6 s safety ceiling and 450 ms reduced-motion exit.
+  Reduced motion is entirely static; artwork stays a stable animation child.
+- Logo glint follows the fitted artwork and camera transform. Portrait uses
+  cover; wide/landscape uses contain to preserve the logo/tagline. Transparent
+  system-bar styling is scoped to the splash route.
+- Flutter analysis passed without issues. All 20 focused splash/navigation tests
+  passed, including timing, a suspended
+  ticker, disposal safety, reduced motion, image identity and focal-area bounds
+  at 360/412 dp, short/tall portrait ratios and landscape with Android insets.
+- Reviewed rendered previews at 360×640, 412×915 and 800×360; portrait retains
+  the car, logo and tagline, and landscape preserves the full image. Actual
+  Android system-bar appearance remains a physical-device check.
+- Version remains `1.0.19+124`. No new AAB; these source changes and the help
+  update below are not in the existing build 124 artifact.
+
 ## Unreleased — Help & About audit
 
 - Verified all help groups against the current UI, local data models, billing

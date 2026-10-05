@@ -1,5 +1,17 @@
 # Manual Test Log
 
+## Unreleased — Premium splash
+
+- Cold-start at 360/412 dp, short and tall Android aspect ratios; confirm the
+  fox, car, logo and tagline stay visible, with one subtle glint and no layers
+  overlapping. Check status/navigation bars with gestures and three-button nav.
+- Rotate to landscape: complete artwork remains visible with side margins.
+- Enable Remove animations: artwork is static, no glint, Home follows in 450 ms.
+- Normal motion reaches Home around 1.8 s; background/resume the splash and
+  confirm the 2.6 s ceiling prevents being stranded. Back/disposal must not
+  trigger a second navigation or exception.
+- Changes are unreleased; the existing build 124 AAB retains its previous splash.
+
 ## Unreleased — Help & About
 
 - At 320/360 dp in both themes with enlarged text, open Help & About and expand

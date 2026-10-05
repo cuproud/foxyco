@@ -2,11 +2,20 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
-import '../theme/tokens.dart';
-
-/// Scenic cold-start splash based on the seasonal FoxyCo welcome artwork.
+/// Premium FoxyCo cold-start splash.
+///
+/// Uses one finished full-screen key-art image instead of rebuilding the
+/// mountains, car, logo, and weather as independent runtime layers.
+///
+/// Runtime motion is intentionally restrained:
+/// - subtle 2.5% camera push-in
+/// - tiny upward drift
+/// - one soft light sweep across the baked-in FoxyCo logo
+/// - ~1.8 second total duration
+///
 /// A hard ceiling still guarantees that startup can never strand the user.
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -14,6 +23,12 @@ class SplashScreen extends StatefulWidget {
   @override
   State<SplashScreen> createState() => _SplashScreenState();
 }
+
+const _heroAsset = 'assets/branding/foxyco_golden_mountain_drive.png';
+const _artSize = Size(863, 1822);
+
+BoxFit _artFit(Size size) =>
+    size.aspectRatio > .70 ? BoxFit.contain : BoxFit.cover;
 
 class _SplashScreenState extends State<SplashScreen>
     with SingleTickerProviderStateMixin {
@@ -26,15 +41,20 @@ class _SplashScreenState extends State<SplashScreen>
   @override
   void initState() {
     super.initState();
+
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 2500),
+      duration: const Duration(milliseconds: 1800),
     );
-    _ceiling = Timer(const Duration(milliseconds: 3500), _go);
+
+    // Safety fallback only. Normal navigation happens when the animation ends.
+    _ceiling = Timer(const Duration(milliseconds: 2600), _go);
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
+
       if (MediaQuery.of(context).disableAnimations) {
-        _reducedTimer = Timer(const Duration(milliseconds: 500), _go);
+        _reducedTimer = Timer(const Duration(milliseconds: 450), _go);
       } else {
         _controller.forward().whenComplete(_go);
       }
@@ -46,12 +66,7 @@ class _SplashScreenState extends State<SplashScreen>
     super.didChangeDependencies();
     if (_precached) return;
     _precached = true;
-    for (final asset in const [
-      'assets/branding/foxy_splash_car.webp',
-      'assets/branding/foxyco_logo.png',
-    ]) {
-      precacheImage(AssetImage(asset), context);
-    }
+    precacheImage(const AssetImage(_heroAsset), context);
   }
 
   void _go() {
@@ -72,140 +87,168 @@ class _SplashScreenState extends State<SplashScreen>
   @override
   Widget build(BuildContext context) {
     final reduced = MediaQuery.of(context).disableAnimations;
-    return Scaffold(
-      backgroundColor: const Color(0xFFF2EEE4),
-      body: reduced
-          ? const _SplashScene(progress: 1)
-          : AnimatedBuilder(
-              animation: _controller,
-              builder: (_, _) => _SplashScene(progress: _controller.value),
-            ),
+
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.light,
+        statusBarBrightness: Brightness.dark,
+        systemNavigationBarColor: Colors.transparent,
+        systemNavigationBarDividerColor: Colors.transparent,
+        systemNavigationBarIconBrightness: Brightness.light,
+        systemNavigationBarContrastEnforced: false,
+      ),
+      child: Scaffold(
+        backgroundColor: const Color(0xFF1D2227),
+        body: reduced
+            ? const _PremiumSplashScene(
+                progress: 1,
+                reduced: true,
+                artwork: _SplashArtwork(),
+              )
+            : AnimatedBuilder(
+                animation: _controller,
+                child: const _SplashArtwork(),
+                builder: (_, child) => _PremiumSplashScene(
+                  progress: _controller.value,
+                  artwork: child!,
+                ),
+              ),
+      ),
     );
   }
 }
 
-enum _SplashSeason {
-  mountains,
-  snow,
-  autumn;
-
-  String get label => switch (this) {
-    mountains => 'mountain',
-    snow => 'winter',
-    autumn => 'autumn',
-  };
-}
-
-class _SplashScene extends StatelessWidget {
-  const _SplashScene({required this.progress});
+class _PremiumSplashScene extends StatelessWidget {
+  const _PremiumSplashScene({
+    required this.progress,
+    required this.artwork,
+    this.reduced = false,
+  });
 
   final double progress;
+  final Widget artwork;
+  final bool reduced;
 
   @override
   Widget build(BuildContext context) {
-    final season = switch (progress) {
-      < 1 / 3 => _SplashSeason.mountains,
-      < 2 / 3 => _SplashSeason.snow,
-      _ => _SplashSeason.autumn,
-    };
+    final camera = reduced
+        ? 0.0
+        : Curves.easeOutCubic.transform(
+            const Interval(0.00, 0.90).transform(progress),
+          );
+
+    // Barely perceptible initial fade prevents a harsh first-frame pop.
+    final reveal = Curves.easeOut.transform(
+      const Interval(0.00, 0.22).transform(progress),
+    );
+
+    // Sweep is visible only for a short middle window.
+    final sweep = Curves.easeInOutCubic.transform(
+      const Interval(0.42, 0.74).transform(progress),
+    );
+
     return Semantics(
       container: true,
-      label: 'FoxyCo ${season.label} welcome scene',
+      label: 'FoxyCo welcome',
       child: LayoutBuilder(
         builder: (context, constraints) {
           final size = constraints.biggest;
-          final carWidth = math.min(430.0, size.width * 0.98);
-          final entrance = Curves.easeOutCubic.transform(
-            const Interval(0, 0.72).transform(progress),
+          final fit = _artFit(size);
+          final widthScale = size.width / _artSize.width;
+          final heightScale = size.height / _artSize.height;
+          final artScale = fit == BoxFit.cover
+              ? math.max(widthScale, heightScale)
+              : math.min(widthScale, heightScale);
+          final artWidth = _artSize.width * artScale * (1 + .025 * camera);
+          final artHeight = _artSize.height * artScale * (1 + .025 * camera);
+          final logoRect = Rect.fromLTWH(
+            (size.width - artWidth) / 2 + artWidth * .13,
+            (size.height - artHeight) / 2 - 5 * camera + artHeight * .60,
+            artWidth * .75,
+            artHeight * .19,
           );
-          final brand = Curves.easeOut.transform(
-            const Interval(0.52, 0.92).transform(progress),
-          );
-          return Stack(
-            fit: StackFit.expand,
-            children: [
-              RepaintBoundary(
-                child: CustomPaint(
-                  painter: _SeasonPainter(
-                    season: season,
-                    progress: progress,
-                  ),
-                ),
-              ),
-              Positioned(
-                top: size.height * 0.27,
-                left: (size.width - carWidth) / 2,
-                width: carWidth,
-                child: Transform.translate(
-                  offset: Offset((1 - entrance) * size.width * 1.15, 0),
-                  child: Image.asset(
-                    'assets/branding/foxy_splash_car.webp',
-                    key: const Key('splash-car'),
-                    semanticLabel: 'Fox driving a black sports car',
-                  ),
-                ),
-              ),
-              Positioned(
-                top: size.height * 0.59,
-                left: 0,
-                right: 0,
-                child: Transform.translate(
-                  offset: Offset(0, (1 - brand) * 8),
+
+          return ClipRect(
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                RepaintBoundary(
                   child: Opacity(
-                    opacity: brand,
-                    child: Column(
-                      children: [
-                        SizedBox(
-                          width: math.min(250.0, size.width * 0.69),
-                          child: Stack(
-                            children: [
-                              Image.asset(
-                                'assets/branding/foxyco_logo.png',
-                                key: const Key('splash-wordmark'),
-                                semanticLabel: 'FoxyCo',
-                              ),
-                              Positioned(
-                                right: 9,
-                                top: 43,
-                                child: Transform.rotate(
-                                  angle: progress * math.pi * 4,
-                                  child: const _WheelLoader(),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: Gap.md),
-                        const Padding(
-                          padding: EdgeInsets.symmetric(horizontal: Gap.lg),
-                          child: Text.rich(
-                            TextSpan(
-                              children: [
-                                TextSpan(text: 'Your drive. '),
-                                TextSpan(
-                                  text: 'Your rules.',
-                                  style: TextStyle(fontStyle: FontStyle.italic),
-                                ),
-                              ],
-                            ),
-                            key: Key('splash-tagline'),
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              color: Color(0xFF5E5044),
-                              fontFamily: 'Fraunces',
-                              fontSize: 19,
-                              fontWeight: FontWeight.w600,
-                              letterSpacing: -.3,
-                              height: 1.25,
-                            ),
-                          ),
-                        ),
-                      ],
+                    opacity: 0.94 + (0.06 * reveal),
+                    child: Transform.translate(
+                      offset: Offset(0, -5 * camera),
+                      child: Transform.scale(
+                        // Slow cinematic push-in; small enough to preserve
+                        // the safe area around the baked-in logo/tagline.
+                        scale: 1 + (0.025 * camera),
+                        alignment: Alignment.center,
+                        child: artwork,
+                      ),
                     ),
                   ),
                 ),
-              ),
-            ],
+
+                // Gentle edge treatment keeps the screen pleasant and prevents
+                // the bright sunset from feeling harsh on high-brightness phones.
+                const IgnorePointer(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: RadialGradient(
+                        center: Alignment(0, -0.08),
+                        radius: 1.15,
+                        colors: [
+                          Colors.transparent,
+                          Color(0x05000000),
+                          Color(0x16000000),
+                        ],
+                        stops: [0.52, 0.78, 1],
+                      ),
+                    ),
+                  ),
+                ),
+
+                // One restrained glint over the lower-middle logo zone.
+                if (!reduced && progress >= 0.42 && progress <= 0.78)
+                  Positioned(
+                    key: const Key('splash-glint'),
+                    left: logoRect.left,
+                    top: logoRect.top,
+                    width: logoRect.width,
+                    height: logoRect.height,
+                    child: ClipRect(
+                      child: Transform.translate(
+                        offset: Offset(
+                          (-logoRect.width * .2) +
+                              (logoRect.width * 1.4 * sweep),
+                          0,
+                        ),
+                        child: Transform.rotate(
+                          angle: -0.20,
+                          child: Align(
+                            alignment: Alignment.centerLeft,
+                            child: Container(
+                              width: logoRect.width * .14,
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: [
+                                    Colors.white.withValues(alpha: 0),
+                                    Colors.white.withValues(alpha: 0.13),
+                                    Colors.white.withValues(alpha: 0.30),
+                                    Colors.white.withValues(alpha: 0.10),
+                                    Colors.white.withValues(alpha: 0),
+                                  ],
+                                  stops: const [0, 0.28, 0.50, 0.72, 1],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
           );
         },
       ),
@@ -213,210 +256,22 @@ class _SplashScene extends StatelessWidget {
   }
 }
 
-class _WheelLoader extends StatelessWidget {
-  const _WheelLoader();
+/// Kept as AnimatedBuilder's child: decoding/layout does not repeat each tick.
+class _SplashArtwork extends StatelessWidget {
+  const _SplashArtwork();
 
   @override
-  Widget build(BuildContext context) {
-    return Container(
-      key: const Key('splash-loader'),
-      width: 27,
-      height: 27,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        border: Border.all(color: const Color(0xFFE99526), width: 2),
-        gradient: const SweepGradient(
-          colors: [Colors.transparent, Color(0xFFFFCF72), Color(0xFFE99526)],
-          stops: [0.45, 0.78, 1],
-        ),
+  Widget build(BuildContext context) => RepaintBoundary(
+    child: LayoutBuilder(
+      builder: (context, constraints) => Image.asset(
+        _heroAsset,
+        key: const Key('splash-key-art'),
+        semanticLabel:
+            'FoxyCo. Your drive. Your rules. Fox driving a black sports car through a golden mountain landscape.',
+        fit: _artFit(constraints.biggest),
+        alignment: Alignment.center,
+        filterQuality: FilterQuality.high,
       ),
-    );
-  }
-}
-
-class _SeasonPainter extends CustomPainter {
-  const _SeasonPainter({
-    required this.season,
-    required this.progress,
-  });
-
-  final _SplashSeason season;
-  final double progress;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    canvas.save();
-    canvas.scale(size.width / 360, size.height / 660);
-    _paintLandscape(canvas);
-    _paintWeather(canvas);
-    _paintBushes(canvas);
-    canvas.restore();
-  }
-
-  void _paintLandscape(Canvas canvas) {
-    final colors = switch (season) {
-      _SplashSeason.mountains => const [
-        Color(0xFFD9E7E5),
-        Color(0xFFEDF0DF),
-        Color(0xFFB8CAC6),
-        Color(0xFF90A8A2),
-        Color(0xFF647F78),
-        Color(0xFFF2EEE4),
-      ],
-      _SplashSeason.snow => const [
-        Color(0xFFCBDDE9),
-        Color(0xFFF0F6F8),
-        Color(0xFFC0D1DE),
-        Color(0xFFA3BACB),
-        Color(0xFF7E9EAF),
-        Color(0xFFF5F5EF),
-      ],
-      _SplashSeason.autumn => const [
-        Color(0xFFF2DDBE),
-        Color(0xFFFFF0D6),
-        Color(0xFFD4BEA3),
-        Color(0xFFB9A88E),
-        Color(0xFF8E8C71),
-        Color(0xFFF4EAD9),
-      ],
-    };
-    canvas.drawRect(
-      const Rect.fromLTWH(0, 0, 360, 660),
-      Paint()
-        ..shader = LinearGradient(
-          begin: Alignment.topCenter,
-          end: const Alignment(0, 0.35),
-          colors: colors.take(2).toList(),
-        ).createShader(const Rect.fromLTWH(0, 0, 360, 420)),
-    );
-    canvas.drawCircle(
-      const Offset(270, 98),
-      28,
-      Paint()..color = const Color(0xCCFFF4C5),
-    );
-    _mountain(canvas, colors[2], const [
-      Offset(0, 236),
-      Offset(0, 192),
-      Offset(48, 143),
-      Offset(84, 173),
-      Offset(155, 83),
-      Offset(202, 152),
-      Offset(234, 125),
-      Offset(302, 193),
-      Offset(338, 158),
-      Offset(360, 181),
-      Offset(360, 295),
-    ]);
-    _mountain(canvas, colors[3], const [
-      Offset(0, 300),
-      Offset(0, 245),
-      Offset(56, 206),
-      Offset(105, 227),
-      Offset(186, 146),
-      Offset(250, 210),
-      Offset(286, 181),
-      Offset(360, 243),
-      Offset(360, 322),
-    ]);
-    _mountain(canvas, colors[4], const [
-      Offset(0, 360),
-      Offset(0, 263),
-      Offset(38, 245),
-      Offset(83, 276),
-      Offset(136, 254),
-      Offset(195, 286),
-      Offset(259, 231),
-      Offset(309, 270),
-      Offset(360, 238),
-      Offset(360, 360),
-    ]);
-    canvas.drawRect(
-      const Rect.fromLTWH(0, 270, 360, 390),
-      Paint()
-        ..shader = LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [colors[5].withValues(alpha: 0), colors[5]],
-          stops: const [0, 0.38],
-        ).createShader(const Rect.fromLTWH(0, 270, 360, 390)),
-    );
-  }
-
-  void _mountain(Canvas canvas, Color color, List<Offset> points) {
-    final path = Path()..moveTo(points.first.dx, points.first.dy);
-    for (final point in points.skip(1)) {
-      path.lineTo(point.dx, point.dy);
-    }
-    path.close();
-    canvas.drawPath(path, Paint()..color = color);
-  }
-
-  void _paintWeather(Canvas canvas) {
-    final paint = Paint()..strokeWidth = 1;
-    final count = season == _SplashSeason.autumn ? 14 : 42;
-    for (var i = 0; i < count; i++) {
-      final x = ((i * 71 + 31 + progress * 28) % 400) - 20;
-      final y = ((i * 43 + 19 + progress * 160) % 500) - 20;
-      switch (season) {
-        case _SplashSeason.snow:
-          paint.color = Colors.white.withValues(alpha: 0.45 + (i % 4) * 0.1);
-          canvas.drawCircle(Offset(x, y), 1 + (i % 3) * 0.45, paint);
-        case _SplashSeason.autumn:
-          paint.color = [
-            const Color(0xFFB97836),
-            const Color(0xFFC98639),
-            const Color(0xFFAF6541),
-          ][i % 3].withValues(alpha: 0.65);
-          canvas.save();
-          canvas.translate(x, y);
-          canvas.rotate(i * 0.7 + progress * 2);
-          canvas.drawOval(const Rect.fromLTWH(-3, -1.5, 6, 3), paint);
-          canvas.restore();
-        case _SplashSeason.mountains:
-          paint.color = const Color(0x44658A9C);
-          canvas.drawLine(Offset(x, y), Offset(x - 3, y - 10), paint);
-      }
-    }
-  }
-
-  void _paintBushes(Canvas canvas) {
-    final colors = switch (season) {
-      _SplashSeason.mountains => const [
-        Color(0xFF758571),
-        Color(0xFF90A17F),
-        Color(0xFFB3BA96),
-      ],
-      _SplashSeason.snow => const [
-        Color(0xFF849C99),
-        Color(0xFFA5B7B0),
-        Color(0xFFF7FAF4),
-      ],
-      _SplashSeason.autumn => const [
-        Color(0xFF846647),
-        Color(0xFFBC783A),
-        Color(0xFFE2B157),
-      ],
-    };
-    for (final side in [-1.0, 1.0]) {
-      final edge = side < 0 ? 0.0 : 360.0;
-      for (var i = 0; i < 18; i++) {
-        final spread = (i % 6) * 13.0;
-        final x = edge - side * spread + math.sin(i * 2.7) * 8;
-        final y = 570 + (i % 5) * 20.0;
-        final radius = 15.0 + (i % 4) * 5;
-        canvas.drawOval(
-          Rect.fromCenter(
-            center: Offset(x, y),
-            width: radius * 1.8,
-            height: radius * 1.35,
-          ),
-          Paint()..color = colors[i % colors.length],
-        );
-      }
-    }
-  }
-
-  @override
-  bool shouldRepaint(_SeasonPainter oldDelegate) =>
-      oldDelegate.season != season || oldDelegate.progress != progress;
+    ),
+  );
 }

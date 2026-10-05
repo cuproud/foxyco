@@ -1,6 +1,6 @@
 # Architecture
 
-Updated 2026-10-03 for `1.0.19+117`.
+Updated 2026-10-04; current release `1.0.19+124`, with unreleased help and splash changes.
 
 ## Boundaries
 
@@ -144,3 +144,20 @@ Every release candidate must pass Flutter analysis/tests, Firestore rules
 tests, Android release lint, a signed release build, and the real-device matrix
 in `MANUAL_TESTS.md`. Parser correctness and overlay behavior cannot be proven
 by host tests alone.
+
+## Startup splash (unreleased)
+
+`lib/ui/splash/splash_screen.dart` uses the supplied
+`assets/branding/foxyco_golden_mountain_drive.png` composite artwork. Portrait
+screens use centered cover cropping; wider/landscape screens contain the image
+to preserve the baked-in logo and tagline. The old separate splash car is no
+longer registered as a runtime asset; the existing wordmark remains used elsewhere.
+
+A single controller drives a 2.5% push-in, 5 dp upward drift, gentle reveal and
+one glint projected onto the artwork's logo bounds. The artwork is a stable
+AnimatedBuilder child with a repaint boundary. Reduced motion shows an unmoving
+image without the glint. Normal navigation uses `context.go('/')` after 1.8 s;
+reduced motion uses a 450 ms timer, and a separate 2.6 s ceiling also works when
+animation ticks are suspended. Timers are cancelled on disposal and navigation
+checks mounted state. A route-local system-bar annotation uses transparent bars;
+Home resumes the app's existing theme annotation after navigation.
