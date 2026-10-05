@@ -1059,6 +1059,8 @@ class _ThreeColumnGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) => GridView.count(
     crossAxisCount: 3,
+    padding: EdgeInsets.zero,
+    primary: false,
     mainAxisSpacing: Gap.sm,
     crossAxisSpacing: Gap.sm,
     mainAxisExtent: 48,
@@ -2349,10 +2351,6 @@ class _HistoryPerformanceState extends State<_HistoryPerformance> {
     final earnings = stats.recordedEarnings > 0
         ? '${settings.currency.symbol}${stats.recordedEarnings.toStringAsFixed(2)}'
         : '—';
-    final confirmed =
-        '${settings.currency.symbol}${stats.confirmedEarnings.toStringAsFixed(2)}';
-    final estimated =
-        '${settings.currency.symbol}${stats.estimatedEarnings.toStringAsFixed(2)}';
     final hourly = stats.acceptedMinutes > 0
         ? '${settings.currency.symbol}${(stats.acceptedPerformanceEarnings / stats.acceptedMinutes * 60).toStringAsFixed(2)}'
         : '—';
@@ -2375,7 +2373,9 @@ class _HistoryPerformanceState extends State<_HistoryPerformance> {
           onTap: () => setState(() => _expanded = !_expanded),
           child: Container(
             key: const ValueKey('history-performance-card'),
-            height: _expanded ? expandedHeight : 72,
+            height: _expanded
+                ? expandedHeight
+                : 72 + (textScale > 1 ? (textScale - 1) * 24 : 0),
             decoration: BoxDecoration(
               color: light ? const Color(0xFFFFF8EE) : const Color(0xFF090D1C),
               image: DecorationImage(
@@ -2393,8 +2393,9 @@ class _HistoryPerformanceState extends State<_HistoryPerformance> {
               borderRadius: BorderRadius.circular(Radii.card),
               border: Border.all(
                 color: FoxColors.textPrimary.withValues(
-                  alpha: light ? 0.10 : 0.18,
+                  alpha: light ? 0.22 : 0.32,
                 ),
+                width: 1.25,
               ),
             ),
             child: Stack(
@@ -2481,8 +2482,6 @@ class _HistoryPerformanceState extends State<_HistoryPerformance> {
                                   child: _HeroValue(
                                     label: 'Tracked payouts',
                                     value: earnings,
-                                    sub:
-                                        '$confirmed final · $estimated estimated · ${stats.missingFinalPayouts} need update',
                                     fontSize: compact ? 25 : 29,
                                     valueKey: const ValueKey(
                                       'history-performance-earnings',
@@ -2831,45 +2830,74 @@ class _StatsCard extends ConsumerWidget {
         _HistoryPerformance(stats: s, settings: settings),
         const SizedBox(height: Gap.sm),
         Container(
-          height: 78,
-          padding: const EdgeInsets.symmetric(horizontal: Gap.sm),
+          key: const ValueKey('history-rate-stats'),
+          padding: const EdgeInsets.all(Gap.sm),
           decoration: BoxDecoration(
             color: FoxColors.bgSurface,
             borderRadius: BorderRadius.circular(Radii.cardSm),
             border: Border.all(color: FoxColors.borderSoft),
             boxShadow: Shadows.soft,
           ),
-          child: Row(
-            children: [
-              _CompactStat(
-                icon: Icons.trending_up_rounded,
-                label: 'Good avg',
-                value: s.goodAvgPerKm > 0
-                    ? '${settings.currency.symbol}${settings.distanceUnit.rateFromPerKm(s.goodAvgPerKm).toStringAsFixed(2)}'
-                    : '—',
-                color: s.goodAvgPerKm > 0
-                    ? VerdictColors.good
-                    : FoxColors.textSecondary,
-              ),
-              const _StatDivider(),
-              _CompactStat(
-                icon: Icons.star_outline_rounded,
-                label: 'Best rate',
-                value: best != null && best.effectivePricePerKm > 0
-                    ? '${settings.currency.symbol}${settings.distanceUnit.rateFromPerKm(best.effectivePricePerKm).toStringAsFixed(2)}'
-                    : '—',
-                color: bestColor,
-              ),
-              const _StatDivider(),
-              _CompactStat(
-                icon: Icons.schedule_rounded,
-                label: 'Busiest hour',
-                value: s.busiestHour != null
-                    ? _hourLabel(context, s.busiestHour!)
-                    : '—',
-                color: FoxColors.brandFox,
-              ),
-            ],
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final scale = MediaQuery.textScalerOf(context).scale(1);
+              final stacked =
+                  scale > 1.6 || (constraints.maxWidth < 300 && scale > 1.15);
+              final rateUnit = '/${settings.distanceUnit.shortLabel}';
+              final items = [
+                _CompactStat(
+                  icon: Icons.trending_up_rounded,
+                  label: 'GOOD avg',
+                  value: s.goodAvgPerKm > 0
+                      ? '${settings.currency.symbol}${settings.distanceUnit.rateFromPerKm(s.goodAvgPerKm).toStringAsFixed(2)}$rateUnit'
+                      : '— $rateUnit',
+                  color: s.goodAvgPerKm > 0
+                      ? VerdictColors.good
+                      : FoxColors.textSecondary,
+                  inline: stacked,
+                ),
+                _CompactStat(
+                  icon: Icons.star_outline_rounded,
+                  label: 'Best rate',
+                  value: best != null && best.effectivePricePerKm > 0
+                      ? '${settings.currency.symbol}${settings.distanceUnit.rateFromPerKm(best.effectivePricePerKm).toStringAsFixed(2)}$rateUnit'
+                      : '— $rateUnit',
+                  color: bestColor,
+                  inline: stacked,
+                ),
+                _CompactStat(
+                  icon: Icons.schedule_rounded,
+                  label: 'Busiest hour',
+                  value: s.busiestHour != null
+                      ? _hourLabel(context, s.busiestHour!)
+                      : '—',
+                  color: FoxColors.brandFox,
+                  inline: stacked,
+                ),
+              ];
+              return stacked
+                  ? Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        for (final (index, item) in items.indexed) ...[
+                          if (index > 0)
+                            Divider(
+                              height: Gap.sm,
+                              color: FoxColors.borderSoft,
+                            ),
+                          item,
+                        ],
+                      ],
+                    )
+                  : Row(
+                      children: [
+                        for (final (index, item) in items.indexed) ...[
+                          if (index > 0) const _StatDivider(),
+                          Expanded(child: item),
+                        ],
+                      ],
+                    );
+            },
           ),
         ),
       ],
@@ -2883,55 +2911,69 @@ class _CompactStat extends StatelessWidget {
     required this.label,
     required this.value,
     required this.color,
+    this.inline = false,
   });
 
   final IconData icon;
   final String label;
   final String value;
   final Color color;
+  final bool inline;
 
   @override
   Widget build(BuildContext context) {
-    return Expanded(
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(icon, size: 20, color: color),
-          const SizedBox(width: Gap.xs),
-          Flexible(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.start,
+    final amount = FittedBox(
+      fit: BoxFit.scaleDown,
+      alignment: inline ? Alignment.centerRight : Alignment.center,
+      child: Text(
+        value,
+        maxLines: 1,
+        softWrap: false,
+        style: TextStyle(
+          fontFamily: FoxFonts.display,
+          fontSize: 15,
+          fontWeight: FontWeight.w700,
+          fontFeatures: const [FontFeature.tabularFigures()],
+        ),
+      ),
+    );
+    final caption = Text(
+      label,
+      maxLines: 1,
+      softWrap: false,
+      style: TextStyle(
+        fontSize: inline ? 12 : 9.5,
+        fontWeight: FontWeight.w600,
+        color: color,
+      ),
+    );
+    return ConstrainedBox(
+      constraints: BoxConstraints(minHeight: inline ? 44 : 60),
+      child: inline
+          ? Row(
               children: [
-                FittedBox(
-                  fit: BoxFit.scaleDown,
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    value,
-                    maxLines: 1,
-                    style: TextStyle(
-                      fontFamily: FoxFonts.display,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                      fontFeatures: [FontFeature.tabularFigures()],
-                    ),
-                  ),
-                ),
-                Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 9.5,
-                    fontWeight: FontWeight.w600,
-                    color: color,
-                  ),
+                Icon(icon, size: 18, color: color),
+                const SizedBox(width: Gap.sm),
+                Expanded(child: caption),
+                const SizedBox(width: Gap.sm),
+                Flexible(child: amount),
+              ],
+            )
+          : Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                amount,
+                const SizedBox(height: Gap.xs),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(icon, size: 12, color: color),
+                    const SizedBox(width: Gap.xs),
+                    Flexible(child: caption),
+                  ],
                 ),
               ],
             ),
-          ),
-        ],
-      ),
     );
   }
 }

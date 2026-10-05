@@ -906,7 +906,7 @@ class _SnapshotCard extends StatelessWidget {
       children: [
         _SnapshotRow(
           label: 'Payouts',
-          detail: 'Actual and pending payout totals.',
+          detail: 'Final + estimated',
           value: payouts,
         ),
         const SizedBox(height: Gap.sm),
@@ -921,14 +921,14 @@ class _SnapshotCard extends StatelessWidget {
         if (pendingCount > 0) ...[
           const SizedBox(height: Gap.xs),
           Text(
-            '$pendingCount accepted ${pendingCount == 1 ? 'job uses' : 'jobs use'} the offered payout until a final payout is saved.',
+            '$pendingCount ${pendingCount == 1 ? 'job needs' : 'jobs need'} final pay',
             style: TextStyle(color: FoxColors.textSecondary, fontSize: 11),
           ),
         ],
         Divider(height: Gap.lg + Gap.sm, color: FoxColors.borderSoft),
         _SnapshotRow(
           label: 'Expenses',
-          detail: 'Tracked costs recorded under Vehicle expenses.',
+          detail: 'Vehicle costs',
           value: expenses,
         ),
         Divider(height: Gap.lg + Gap.sm, color: FoxColors.borderSoft),

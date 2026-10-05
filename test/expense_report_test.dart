@@ -1,6 +1,7 @@
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:foxyco/domain/expense_report.dart';
@@ -287,6 +288,22 @@ void main() {
               await tester.ensureVisible(find.text(period));
               await tester.tap(find.text(period));
               await finishSelection(tester);
+              for (final helper in ['Final + estimated', 'Vehicle costs']) {
+                final paragraph = tester.renderObject<RenderParagraph>(
+                  find.text(helper),
+                );
+                final painter = TextPainter(
+                  text: paragraph.text,
+                  textScaler: paragraph.textScaler,
+                  textDirection: paragraph.textDirection,
+                )..layout(maxWidth: paragraph.size.width);
+                expect(
+                  painter.computeLineMetrics(),
+                  hasLength(1),
+                  reason: '$helper at $width dp / $textScale scale',
+                );
+                painter.dispose();
+              }
               final selectedBar = find.byWidgetPredicate(
                 (widget) =>
                     widget is Semantics &&

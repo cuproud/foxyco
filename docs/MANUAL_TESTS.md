@@ -1,5 +1,22 @@
 # Manual Test Log
 
+## Next build — App tour polish
+
+- At 320/360 dp, check History GOOD avg and Best rate show `/km` or `/mi` after
+  changing Distance. Increase text size: the stats should stack without clipped
+  labels, missing units or irregular wraps.
+- Expand History performance: no tiny payout breakdown; the card outline should
+  stay visible against the page in light and dark themes.
+- Check Profile's “Sign in with Google” button, Garage's “Final + estimated” /
+  “Vehicle costs” helpers and the shorter pending-pay note.
+- Open History Filters on a phone with status/navigation insets. Groups should
+  have compact gaps, with all chips and the bottom actions reachable.
+- Home's car should be smaller with aligned highlights, no clipped ears/wheels
+  and a matching floor shadow. Check live/offline states and reduced motion.
+- Help & About: check the shorter copy, search, answer expansion and legal links.
+- Weekly goal still resets on Monday and can be reached with a day remaining.
+- Requires a future bundle: the existing build 125 AAB predates these changes.
+
 ## Build 125 — Premium splash
 
 - Cold-start at 360/412 dp, short and tall Android aspect ratios; confirm the

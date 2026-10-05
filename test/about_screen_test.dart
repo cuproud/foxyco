@@ -34,14 +34,9 @@ void main() {
       await tester.pumpWidget(host());
       await tester.enterText(find.byType(TextField), 'Waze');
       await tester.pumpAndSettle();
-      expect(
-        find.text('Why does it need the accessibility permission?'),
-        findsOneWidget,
-      );
-      expect(find.text('How are GOOD, OK and BAD decided?'), findsNothing);
-      await tester.tap(
-        find.text('Why does it need the accessibility permission?'),
-      );
+      expect(find.text('Why Accessibility?'), findsOneWidget);
+      expect(find.text('How are verdicts decided?'), findsNothing);
+      await tester.tap(find.text('Why Accessibility?'));
       await tester.pumpAndSettle();
       expect(find.textContaining('content nodes'), findsOneWidget);
 
@@ -49,7 +44,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('PRIVACY'), findsOneWidget);
       expect(find.text('What gets stored?'), findsOneWidget);
-      expect(find.text('How are GOOD, OK and BAD decided?'), findsNothing);
+      expect(find.text('How are verdicts decided?'), findsNothing);
 
       await tester.enterText(find.byType(TextField), 'no-such-help-entry');
       await tester.pumpAndSettle();

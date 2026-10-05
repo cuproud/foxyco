@@ -57,7 +57,7 @@ class _AboutScreenState extends State<AboutScreen> {
             children: [
               Image.asset(
                 'assets/branding/foxyco_logo.png',
-                width: 156,
+                width: 128,
                 semanticLabel: 'FoxyCo',
               ),
               Text(
@@ -102,7 +102,7 @@ class _AboutScreenState extends State<AboutScreen> {
             ),
           ],
           for (final section in sections) ...[
-            const SizedBox(height: Gap.lg),
+            const SizedBox(height: Gap.md),
             Semantics(
               header: true,
               child: Text(section.title.toUpperCase(), style: text.labelSmall),

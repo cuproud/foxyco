@@ -1,4 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter/rendering.dart';
+import 'package:foxyco/domain/distance_unit.dart';
+import 'package:foxyco/domain/fox_settings.dart';
+import 'package:foxyco/ui/settings/settings_controller.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:foxyco/domain/offer_summary.dart';
@@ -53,11 +58,36 @@ Widget _app(List<OfferSummary> offers) => ProviderScope(
   child: const MaterialApp(home: Scaffold(body: HistoryScreen())),
 );
 
-Widget _themedApp(List<OfferSummary> offers, FoxPalette palette) {
+class _FixedSettings extends SettingsController {
+  _FixedSettings(this.settings);
+  final FoxSettings settings;
+  @override
+  FoxSettings build() => settings;
+}
+
+Widget _themedApp(
+  List<OfferSummary> offers,
+  FoxPalette palette, {
+  DistanceUnit unit = DistanceUnit.kilometres,
+  double scale = 1,
+}) {
   final theme = AppTheme.of(palette);
   return ProviderScope(
-    overrides: [offerLogProvider.overrideWith(() => _FixedLog(offers))],
+    overrides: [
+      offerLogProvider.overrideWith(() => _FixedLog(offers)),
+      settingsProvider.overrideWith(
+        () => _FixedSettings(FoxSettings.defaults.copyWith(distanceUnit: unit)),
+      ),
+    ],
     child: MaterialApp(
+      builder: scale == 1
+          ? null
+          : (context, child) => MediaQuery(
+              data: MediaQuery.of(
+                context,
+              ).copyWith(textScaler: TextScaler.linear(scale)),
+              child: child!,
+            ),
       theme: theme,
       home: const Scaffold(body: HistoryScreen()),
     ),
@@ -65,6 +95,96 @@ Widget _themedApp(List<OfferSummary> offers, FoxPalette palette) {
 }
 
 void main() {
+  testWidgets('rate units fit small screens and enlarged text in both themes', (
+    tester,
+  ) async {
+    final font = FontLoader('Inter')
+      ..addFont(rootBundle.load('fonts/Inter.ttf'));
+    await font.load();
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    addTearDown(() => FoxColors.apply(FoxPalette.dark));
+    for (final width in [320.0, 360.0]) {
+      tester.view.physicalSize = Size(width, 900);
+      for (final palette in [FoxPalette.light, FoxPalette.dark]) {
+        for (final scale in [1.0, 1.3, 2.0]) {
+          for (final unit in DistanceUnit.values) {
+            await tester.pumpWidget(
+              _themedApp(
+                [
+                  _offer(
+                    DateTime.now(),
+                    payout: 123,
+                    outcome: OfferOutcome.taken,
+                  ),
+                ],
+                palette,
+                unit: unit,
+                scale: scale,
+              ),
+            );
+            await tester.pumpAndSettle();
+            final strip = find.byKey(const ValueKey('history-rate-stats'));
+            await tester.ensureVisible(strip);
+            await tester.pumpAndSettle();
+            final texts = find.descendant(
+              of: strip,
+              matching: find.byType(Text),
+            );
+            expect(
+              tester
+                  .widgetList<Text>(texts)
+                  .where(
+                    (t) => t.data?.endsWith('/${unit.shortLabel}') == true,
+                  ),
+              hasLength(2),
+            );
+            for (final element in texts.evaluate()) {
+              final paragraph = element.renderObject! as RenderParagraph;
+              expect(
+                paragraph.didExceedMaxLines,
+                isFalse,
+                reason: '${(element.widget as Text).data} at $width/$scale',
+              );
+            }
+            expect(tester.takeException(), isNull);
+            await tester.pumpWidget(const SizedBox.shrink());
+          }
+        }
+      }
+    }
+  });
+
+  testWidgets('filter groups do not inherit repeated phone inset padding', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(360, 800);
+    tester.view.devicePixelRatio = 1;
+    tester.view.padding = const FakeViewPadding(top: 24, bottom: 48);
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      _themedApp([_offer(DateTime.now())], FoxPalette.light),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Filters'));
+    await tester.pumpAndSettle();
+    for (final grid in tester.widgetList<GridView>(find.byType(GridView))) {
+      expect(grid.padding, EdgeInsets.zero);
+      expect(grid.primary, isFalse);
+    }
+    final platformGrid = find.byType(GridView).first;
+    final verdict = find.text('3. Verdict');
+    expect(
+      tester.getTopLeft(verdict).dy - tester.getBottomLeft(platformGrid).dy,
+      closeTo(4, .1),
+    );
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('history-outcome-needsReview')),
+    );
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+  });
+
   test('headerLabel names the filtered range (spec M6 §5.1)', () {
     expect(HistoryScreen.headerLabel(0, HistoryRange.today), '0 today');
     expect(HistoryScreen.headerLabel(5, HistoryRange.today), '5 today');
@@ -131,7 +251,7 @@ void main() {
     expect(find.text('No recorded payouts'), findsOneWidget);
   });
 
-  testWidgets('performance separates confirmed and estimated payouts', (
+  testWidgets('performance keeps payouts and drops the tiny breakdown', (
     tester,
   ) async {
     final now = DateTime.now();
@@ -160,7 +280,7 @@ void main() {
     expect(find.text(r'$50.00'), findsOneWidget);
     expect(
       find.text(r'$30.00 final · $20.00 estimated · 1 need update'),
-      findsOneWidget,
+      findsNothing,
     );
   });
 
@@ -829,7 +949,7 @@ void main() {
       expect(
         performanceBorder.top.color,
         FoxColors.textPrimary.withValues(
-          alpha: palette == FoxPalette.light ? 0.10 : 0.18,
+          alpha: palette == FoxPalette.light ? 0.22 : 0.32,
         ),
       );
       expect(tester.takeException(), isNull);

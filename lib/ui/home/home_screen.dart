@@ -1055,13 +1055,21 @@ class _CarStage extends StatelessWidget {
   /// visually touch the stage edge even though the source canvas has padding.
   /// Adding height here (instead of translating the raster) also moves the
   /// stage's proportional floor line with the wheels and avoids bottom clipping.
-  static Widget _framed(Widget layer) => Padding(
-    padding: const EdgeInsets.only(top: Gap.sm),
-    child: ClipRect(
-      child: Align(
-        alignment: const Alignment(0, 0.111),
-        heightFactor: 0.82,
-        child: layer,
+  static const _carScale = .82;
+
+  static Widget _framed(Widget layer) => Align(
+    heightFactor: 1,
+    child: FractionallySizedBox(
+      widthFactor: _carScale,
+      child: Padding(
+        padding: const EdgeInsets.only(top: Gap.sm),
+        child: ClipRect(
+          child: Align(
+            alignment: const Alignment(0, 0.111),
+            heightFactor: 0.82,
+            child: layer,
+          ),
+        ),
       ),
     ),
   );
@@ -1072,7 +1080,8 @@ class _CarStage extends StatelessWidget {
     final light = FoxColors.palette.brightness == Brightness.light;
     // Decode the sweep mask at display width, not the asset's 1536 px.
     final maskW =
-        (MediaQuery.sizeOf(context).width *
+        ((MediaQuery.sizeOf(context).width - Gap.md * 2) *
+                _carScale *
                 MediaQuery.devicePixelRatioOf(context))
             .round();
     return Padding(
@@ -1090,6 +1099,8 @@ class _CarStage extends StatelessWidget {
           // car-level cue, that's a second art layer, not more code here.
           final glow = light ? 1.0 : _glowOff + (1 - _glowOff) * lit;
           return HeroStage(
+            key: const ValueKey('home-car-stage'),
+            metrics: const HeroStageMetrics(ringWidth: .67, shadowWidth: .56),
             // Live: the verdict pill's orbiting plasma language, recolored to
             // Foxy orange so this reads as service status rather than a score.
             plasmaColor: online ? FoxColors.brandFox : null,

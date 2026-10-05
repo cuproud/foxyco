@@ -121,10 +121,7 @@ void main() {
     await tester.pump();
 
     expect(find.byKey(const ValueKey('signin-account')), findsOneWidget);
-    expect(
-      find.text('Sign in with Google to manage your account'),
-      findsOneWidget,
-    );
+    expect(find.text('Sign in with Google'), findsOneWidget);
     await tester.tap(find.byKey(const ValueKey('signin-account')));
     await tester.pumpAndSettle();
 

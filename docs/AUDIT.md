@@ -7,6 +7,32 @@ Candidate: `1.0.19+125`
 Play upload remains conditional on the device and
 Console checks in `MANUAL_TESTS.md` and `PLAY_RELEASE.md`.
 
+## Unreleased — App tour polish
+
+- History GOOD average and best rate now include the selected distance unit
+  (`/km` or `/mi`). The compact strip uses single-line values and labels and
+  switches to stacked rows for enlarged text. The collapsed performance card
+  also grows with text size.
+- Removed the small final/estimated/pending breakdown below Tracked payouts.
+  Strengthened the performance card outline in both themes; payout math is unchanged.
+- Shortened the Google button to “Sign in with Google”. Garage snapshot helpers
+  now read “Final + estimated” and “Vehicle costs”, with a concise pending-pay note.
+- Help & About uses a short tagline, smaller wordmark, fewer questions and about
+  48% less answer text. Search, legal links, version information and essential
+  access/privacy instructions remain available.
+- Home's car is 18% smaller. Artwork and reflection mask share the same sizing;
+  the stage halo and shadow follow the smaller car.
+- Filter gaps came from nested GridViews inheriting Android system insets when
+  their padding was null. Each chip grid now has explicit zero padding; the
+  sheet owns safe-area spacing once.
+- Weekly goal timing and Monday reset are unchanged.
+- Focused tests cover 320/360 dp, both themes, enlarged text, both distance
+  units, one-line snapshot helpers and filter spacing with Android insets.
+  All 59 focused tests passed; Flutter analysis found no issues. Rendered Home,
+  History, filter and About previews were also reviewed.
+- These source changes are not in the existing build 125 AAB. No new bundle or
+  version bump was requested for this polish pass.
+
 ## Build 125 — Signed Play bundle
 
 - Guarded build preflight passed full Flutter analysis, the full Flutter test
