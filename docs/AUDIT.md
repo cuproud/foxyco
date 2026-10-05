@@ -2,12 +2,29 @@
 
 Audit date: 2026-10-04
 
-Candidate: `1.0.19+124`
+Candidate: `1.0.19+125`
 
 Play upload remains conditional on the device and
 Console checks in `MANUAL_TESTS.md` and `PLAY_RELEASE.md`.
 
-## Unreleased — Premium splash
+## Build 125 — Signed Play bundle
+
+- Guarded build preflight passed full Flutter analysis, the full Flutter test
+  suite and Firestore rules tests before the version advanced to `1.0.19+125`.
+- Signed bundle built with the Play licensing key; `jarsigner` reports
+  `jar verified`. Bundletool verifies package `com.foxyco.app`, version name
+  `1.0.19` and version code `125`.
+- The composite splash PNG is packaged; the old separate splash-car asset is
+  excluded from the Flutter asset bundle. Both the splash and About changes
+  below are included.
+- Play Console upload, physical-device system bars and Play-signed purchase
+  checks remain pending.
+
+Verified artifact: `FoxyCo-v1.0.19+125-release-20261004-2051.aab`
+
+SHA-256: `a1458c96037aa5d93e96f08216817a9c1fa8adf5bd88c58e9e3f849a4711e5ff`
+
+## Build 125 — Premium splash
 
 - Integrated the user's ZIP artwork and splash code; removed the seasonal
   painter and separate car/logo composition from this screen.
@@ -23,10 +40,10 @@ Console checks in `MANUAL_TESTS.md` and `PLAY_RELEASE.md`.
 - Reviewed rendered previews at 360×640, 412×915 and 800×360; portrait retains
   the car, logo and tagline, and landscape preserves the full image. Actual
   Android system-bar appearance remains a physical-device check.
-- Version remains `1.0.19+124`. No new AAB; these source changes and the help
-  update below are not in the existing build 124 artifact.
+- Version code advances from 124 to 125; version name remains `1.0.19`.
+  The premium splash and help updates are included together in build 125.
 
-## Unreleased — Help & About audit
+## Build 125 — Help & About audit
 
 - Verified all help groups against the current UI, local data models, billing
   entitlement and offer-detection contract. Added Home/session, History/fare,
@@ -36,13 +53,12 @@ Console checks in `MANUAL_TESTS.md` and `PLAY_RELEASE.md`.
   Stable question keys preserve the correct expansion state while filtering.
   Legal links remain reachable for empty results.
 - FAQ cards now use a Material surface so question interaction effects are
-  visible. The version stays `1.0.19 (build 124)`; README candidate corrected.
+  visible. About reports `1.0.19 (build 125)`; README candidate is synchronized.
 - Flutter analysis passed with no issues; all 19 focused About, content, legal
   and feedback tests passed. Each FAQ answer was expanded at 320/360 dp,
   2× text in both themes without layout exceptions. Search, empty results
   and legal-link visibility are covered; Android link opening remains manual.
-- These changes are not included in the existing build 124 AAB. No version
-  bump or release rebuild was performed for this help update.
+- Includes the complete Home, History, Garage/income and preferences help.
 
 ## Build 124 — Garage visual refinements
 

@@ -1,6 +1,6 @@
 # Architecture
 
-Updated 2026-10-04; current release `1.0.19+124`, with unreleased help and splash changes.
+Updated 2026-10-04 for `1.0.19+125`.
 
 ## Boundaries
 
@@ -145,7 +145,7 @@ tests, Android release lint, a signed release build, and the real-device matrix
 in `MANUAL_TESTS.md`. Parser correctness and overlay behavior cannot be proven
 by host tests alone.
 
-## Startup splash (unreleased)
+## Startup splash (build 125)
 
 `lib/ui/splash/splash_screen.dart` uses the supplied
 `assets/branding/foxyco_golden_mountain_drive.png` composite artwork. Portrait

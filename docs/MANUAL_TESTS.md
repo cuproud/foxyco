@@ -1,6 +1,6 @@
 # Manual Test Log
 
-## Unreleased — Premium splash
+## Build 125 — Premium splash
 
 - Cold-start at 360/412 dp, short and tall Android aspect ratios; confirm the
   fox, car, logo and tagline stay visible, with one subtle glint and no layers
@@ -10,9 +10,9 @@
 - Normal motion reaches Home around 1.8 s; background/resume the splash and
   confirm the 2.6 s ceiling prevents being stranded. Back/disposal must not
   trigger a second navigation or exception.
-- Changes are unreleased; the existing build 124 AAB retains its previous splash.
+- Install build 125 from Play Internal testing; the new splash is included.
 
-## Unreleased — Help & About
+## Build 125 — Help & About
 
 - At 320/360 dp in both themes with enlarged text, open Help & About and expand
   answers in every group; check wrapping and scroll to the bottom of long answers.
@@ -20,8 +20,8 @@
   answers/groups, then clear search to restore all help.
 - Search an unmatched phrase; check the empty message and Terms, Privacy Policy
   and Delete my account links remain reachable. Check links on an Android device.
-- Confirm version remains `1.0.19 (build 124)`. These checks apply to unreleased
-  source changes, not the existing build 124 AAB.
+- Confirm About shows `1.0.19 (build 125)`. Check sign-in, purchase restore
+  and existing Garage/History behavior on the Play-signed install.
 
 ## Build 124 — Garage visual refinements
 
